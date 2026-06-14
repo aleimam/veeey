@@ -1,0 +1,74 @@
+import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import { Poppins, Cairo } from 'next/font/google';
+import { NextIntlClientProvider, hasLocale } from 'next-intl';
+import { getMessages, setRequestLocale } from 'next-intl/server';
+import { routing, localeDirection, type Locale } from '@/i18n/routing';
+import { ConsentBanner } from '@/components/consent-banner';
+import { ServiceWorkerRegister } from '@/components/service-worker-register';
+import { AnalyticsProvider } from '@/components/analytics/analytics-provider';
+import { PostHogLoader } from '@/components/analytics/posthog-loader';
+import { ClarityLoader } from '@/components/analytics/clarity-loader';
+import '../globals.css';
+
+const poppins = Poppins({
+  variable: '--font-poppins',
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  display: 'swap',
+});
+
+const cairo = Cairo({
+  variable: '--font-cairo',
+  subsets: ['arabic'],
+  weight: ['400', '500', '600', '700'],
+  display: 'swap',
+});
+
+export const metadata: Metadata = {
+  title: 'Veeey — Health Inside | Premium supplements & health devices',
+  description:
+    'Veeey imports premium dietary supplements and health devices directly from the USA, UK and EU. Every product shows its expiry date before you buy.',
+};
+
+export function generateStaticParams() {
+  return routing.locales.map((locale) => ({ locale }));
+}
+
+export default async function LocaleLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  if (!hasLocale(routing.locales, locale)) {
+    notFound();
+  }
+
+  // Enables static rendering for this locale.
+  setRequestLocale(locale);
+  const messages = await getMessages();
+  const dir = localeDirection[locale as Locale];
+
+  return (
+    <html
+      lang={locale}
+      dir={dir}
+      className={`${poppins.variable} ${cairo.variable} h-full antialiased`}
+    >
+      <body className="min-h-dvh flex flex-col font-sans">
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <AnalyticsProvider>
+            {children}
+            <ConsentBanner />
+          </AnalyticsProvider>
+        </NextIntlClientProvider>
+        <ServiceWorkerRegister />
+        <PostHogLoader />
+        <ClarityLoader />
+      </body>
+    </html>
+  );
+}

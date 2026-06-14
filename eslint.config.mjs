@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Generated Prisma client (Prisma 7 `prisma-client` generator output).
+    "src/generated/**",
+    // Locked design reference — adapted into src/ during P4, not built directly.
+    "v0-export/**",
   ]),
 ]);
 

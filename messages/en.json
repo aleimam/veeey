@@ -1,0 +1,52 @@
+{
+  "common": {
+    "brand": "Veeey",
+    "tagline": "Health Inside",
+    "languageName": "English",
+    "switchTo": "العربية"
+  },
+  "home": {
+    "eyebrow": "Premium supplements & health devices",
+    "title": "Imported wellness, with the expiry shown before you buy",
+    "subtitle": "Veeey imports premium dietary supplements and health devices directly from the USA, UK & EU. Free nationwide shipping, UltraFast 3–6h delivery in Greater Cairo.",
+    "comingSoon": "The new Veeey storefront is being built — phase by phase."
+  },
+  "admin": {
+    "title": "Veeey Admin",
+    "placeholder": "Admin dashboard — scaffolded, not yet wired."
+  },
+  "account": {
+    "title": "Your account",
+    "placeholder": "Customer portal — scaffolded, not yet wired."
+  },
+  "consent": {
+    "message": "We use cookies and analytics to improve your experience. You can accept all or only what's necessary.",
+    "acceptAll": "Accept all",
+    "necessaryOnly": "Necessary only"
+  },
+  "auth": {
+    "login": {
+      "title": "Sign in to Veeey",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Sign in",
+      "noAccount": "New to Veeey?",
+      "registerLink": "Create an account"
+    },
+    "register": {
+      "title": "Create your Veeey account",
+      "name": "Full name",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Create account",
+      "haveAccount": "Already have an account?",
+      "loginLink": "Sign in"
+    },
+    "errors": {
+      "invalid": "Please check your details and try again.",
+      "exists": "An account with this email already exists.",
+      "recaptcha": "Verification failed. Please try again.",
+      "credentials": "Incorrect email or password."
+    }
+  }
+}

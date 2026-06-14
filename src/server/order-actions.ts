@@ -1,0 +1,134 @@
+'use server';
+
+import { redirect } from 'next/navigation';
+import { revalidatePath } from 'next/cache';
+import {
+  transitionOrder,
+  assignPharmacist,
+  setPayCheck,
+  setOrderMeta,
+  setTracking,
+  addOrderItem,
+  removeOrderItem,
+  addGiftToOrder,
+} from '@/lib/order-service';
+import { saveGift } from '@/lib/gift-service';
+import { processReturn } from '@/lib/return-service';
+import type { OrderStatus } from '@/lib/order-status';
+
+export type AdminFormState = { error?: string };
+
+const localeOf = (fd: FormData) => (fd.get('locale') === 'ar' ? 'ar' : 'en');
+const str = (fd: FormData, k: string) => {
+  const v = fd.get(k);
+  return typeof v === 'string' && v.trim() !== '' ? v.trim() : undefined;
+};
+const num = (fd: FormData, k: string) => {
+  const v = str(fd, k);
+  return v == null ? undefined : Number(v);
+};
+
+function backToOrder(locale: string, id: string): never {
+  revalidatePath(`/${locale}/admin/orders/${id}`);
+  redirect(`/${locale}/admin/orders/${id}`);
+}
+
+export async function transitionOrderAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const id = str(fd, 'id');
+  const to = str(fd, 'status') as OrderStatus | undefined;
+  if (id && to) {
+    try { await transitionOrder(id, to, str(fd, 'reason')); } catch (e) { console.error(e); }
+    backToOrder(locale, id);
+  }
+  redirect(`/${locale}/admin/orders`);
+}
+
+export async function assignPharmacistAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const id = str(fd, 'id');
+  if (id) { try { await assignPharmacist(id, str(fd, 'pharmacistId') ?? null); } catch (e) { console.error(e); } backToOrder(locale, id); }
+  redirect(`/${locale}/admin/orders`);
+}
+
+export async function setPayCheckAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const id = str(fd, 'id');
+  const pc = str(fd, 'payCheck') as 'NO' | 'YES' | 'PROBLEM' | undefined;
+  if (id && pc) { try { await setPayCheck(id, pc); } catch (e) { console.error(e); } backToOrder(locale, id); }
+  redirect(`/${locale}/admin/orders`);
+}
+
+export async function setOrderMetaAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const id = str(fd, 'id');
+  if (id) {
+    try { await setOrderMeta(id, { customerOrderType: str(fd, 'customerOrderType') ?? null, orderProductType: str(fd, 'orderProductType') ?? null, source: str(fd, 'source') ?? null }); } catch (e) { console.error(e); }
+    backToOrder(locale, id);
+  }
+  redirect(`/${locale}/admin/orders`);
+}
+
+export async function setTrackingAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const id = str(fd, 'id');
+  const tracking = str(fd, 'trackingNumber');
+  if (id && tracking) { try { await setTracking(id, tracking, str(fd, 'courier')); } catch (e) { console.error(e); } backToOrder(locale, id); }
+  redirect(`/${locale}/admin/orders`);
+}
+
+export async function addOrderItemAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const id = str(fd, 'id');
+  const productId = str(fd, 'productId');
+  const qty = num(fd, 'qty') ?? 1;
+  if (id && productId) { try { await addOrderItem(id, productId, qty); } catch (e) { console.error(e); } backToOrder(locale, id); }
+  redirect(`/${locale}/admin/orders`);
+}
+
+export async function removeOrderItemAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const id = str(fd, 'id');
+  const orderItemId = str(fd, 'orderItemId');
+  if (orderItemId) { try { await removeOrderItem(orderItemId); } catch (e) { console.error(e); } }
+  if (id) backToOrder(locale, id);
+  redirect(`/${locale}/admin/orders`);
+}
+
+export async function addGiftToOrderAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const id = str(fd, 'id');
+  const giftId = str(fd, 'giftId');
+  if (id && giftId) { try { await addGiftToOrder(id, giftId, num(fd, 'qty') ?? 1); } catch (e) { console.error(e); } backToOrder(locale, id); }
+  redirect(`/${locale}/admin/orders`);
+}
+
+export async function saveGiftAction(_p: AdminFormState, fd: FormData): Promise<AdminFormState> {
+  const locale = localeOf(fd);
+  try {
+    await saveGift(str(fd, 'id') ?? null, {
+      code: str(fd, 'code') ?? '',
+      internalName: str(fd, 'internalName') ?? '',
+      stock: str(fd, 'stock') ?? '0',
+      expiry: str(fd, 'expiry') ?? null,
+      costEgp: str(fd, 'costEgp') ?? null,
+    });
+  } catch (e) {
+    if (e instanceof Error && e.message === 'FORBIDDEN') return { error: 'forbidden' };
+    return { error: 'invalid' };
+  }
+  revalidatePath(`/${locale}/admin/gifts`);
+  redirect(`/${locale}/admin/gifts`);
+}
+
+export async function processReturnAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const id = str(fd, 'id');
+  const status = str(fd, 'status') as 'QUARANTINE' | 'RESTOCKED' | 'WRITTEN_OFF' | 'REFUNDED' | 'REJECTED' | undefined;
+  if (id && status) {
+    const dispositions = fd.getAll('disposition').map((d, i) => ({ returnItemId: String(fd.getAll('returnItemId')[i]), disposition: String(d) as 'RESTOCK' | 'WRITE_OFF' | 'PENDING' }));
+    try { await processReturn(id, { status, refundMethod: str(fd, 'refundMethod'), refundEgp: num(fd, 'refundEgp') ?? null, dispositions }); } catch (e) { console.error(e); }
+  }
+  revalidatePath(`/${locale}/admin/returns`);
+  redirect(`/${locale}/admin/returns`);
+}
