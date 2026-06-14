@@ -1,0 +1,26 @@
+{
+  "_note": "SYNTHETIC sample export for migration dry-run validation only. No real customer/PII data (AGENTS.md §3). At cutover, replace with the fresh sandboxed export and remap field names.",
+  "products": [
+    { "sku": "VEY-SOL-00001", "wpId": 1201, "name": "Vitamin C 1000mg" },
+    { "sku": "VEY-NOW-00001", "wpId": 1202, "name": "CoQ10 100mg" },
+    { "wpId": 1203, "name": "Legacy Zinc (no SKU yet)" },
+    { "name": "Broken row (no sku, no wpId)" }
+  ],
+  "customers": [
+    { "email": "sara@example.com", "name": "Sara A." },
+    { "email": "Sara@Example.com", "name": "Sara (dup)" },
+    { "email": "omar@example.com", "name": "Omar K." },
+    { "name": "No Email Customer" }
+  ],
+  "orders": [
+    { "number": "EV-1001", "status": "Card Delivered", "paymentMethod": "kashier_card", "totalEgp": 1850 },
+    { "number": "EV-1002", "status": "Cash Delivered", "paymentMethod": "cod", "totalEgp": 740 },
+    { "number": "EV-1003", "status": "Pending Confirmation", "paymentMethod": "bacs", "totalEgp": 2200 },
+    { "number": "EV-1004", "status": "weird-status", "paymentMethod": "cheque", "totalEgp": 990 }
+  ],
+  "reviews": [
+    { "sku": "VEY-SOL-00001", "rating": 5, "date": "2025-03-10" },
+    { "sku": "VEY-SOL-00001", "rating": 4.5, "date": "2031-08-01" },
+    { "sku": "VEY-NOW-00001", "rating": null, "date": "2024-11-20" }
+  ]
+}

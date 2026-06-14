@@ -16,6 +16,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "worker": "tsx src/worker.ts",
     "mock:yeldnin": "node scripts/mock-yeldnin-receiver.mjs",
+    "migrate:dry": "tsx scripts/migration/migrate.mts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
