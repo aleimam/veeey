@@ -6,6 +6,7 @@ import { availableQty } from '@/lib/inventory';
 import { creditOrderPoints } from '@/lib/loyalty-service';
 import { enqueue, QUEUES } from '@/lib/jobs';
 import { notify, type NotifyInput } from '@/lib/notification-service';
+import { recordOutbox } from '@/lib/integration/integration-service';
 
 /** Best-effort order email (FR-NOT-01). Resolves recipient, enqueues, never throws. */
 async function notifyOrder(orderId: string, templateKey: string) {
@@ -62,7 +63,11 @@ export async function transitionOrder(id: string, to: OrderStatus, reason?: stri
   if (!canTransition(order.status as OrderStatus, to)) throw new Error('INVALID_TRANSITION');
   const updated = await prisma.order.update({ where: { id }, data: { status: to } });
   // Loyalty points are earned once the order is delivered (revenue realized).
-  if (isDelivered(to)) await creditOrderPoints(id);
+  if (isDelivered(to)) {
+    await creditOrderPoints(id);
+    // Push revenue to YeldnIN for reconciliation (no-op while the flag is off).
+    await recordOutbox('revenue.event', updated.number, { veeeyOrderId: updated.number, amountEgp: Number(updated.totalPiastres) / 100, occurredAt: new Date().toISOString() });
+  }
   await audit({ actorType: 'USER', actorId: user.id, action: `order.${to.toLowerCase()}`, entityType: 'Order', entityId: id, data: { reason } });
   if (to === 'SHIPPED') await notifyOrder(id, 'order.shipped');
   else if (isDelivered(to)) await notifyOrder(id, 'order.delivered');

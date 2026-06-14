@@ -29,6 +29,7 @@ const NAV: { href: string; label: string; permission?: PermissionKey }[] = [
   { href: '/admin/reviews', label: 'Reviews', permission: 'reviews.moderate' },
   { href: '/admin/quizzes', label: 'Quizzes', permission: 'content.manage' },
   { href: '/admin/notifications', label: 'Notifications', permission: 'content.manage' },
+  { href: '/admin/integration', label: 'Integration', permission: 'settings.manage' },
 ];
 
 export default async function AdminLayout({

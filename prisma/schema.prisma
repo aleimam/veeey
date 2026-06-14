@@ -1313,3 +1313,45 @@ model IntegrationClient {
   active     Boolean         @default(false)
   createdAt  DateTime        @default(now())
 }
+
+// YeldnIN integration plumbing (P14, INTEGRATION_CONTRACT). Outbound events use
+// the outbox pattern; inbound webhooks are deduped by idempotency key + nonce.
+enum OutboxStatus {
+  PENDING
+  SENT
+  FAILED
+  DEAD
+}
+
+model OutboxEvent {
+  id            String       @id @default(cuid())
+  type          String // products.upsert, requests.create, revenue.event, deliveries.create
+  aggregateId   String? // request uid / order id — same aggregate delivered in order
+  payloadJson   Json
+  status        OutboxStatus @default(PENDING)
+  attempts      Int          @default(0)
+  lastError     String?
+  createdAt     DateTime     @default(now())
+  nextAttemptAt DateTime?
+  sentAt        DateTime?
+
+  @@index([status])
+  @@index([aggregateId])
+}
+
+model IdempotencyRecord {
+  id           String   @id @default(cuid())
+  key          String   @unique
+  endpoint     String
+  statusCode   Int
+  responseJson Json?
+  createdAt    DateTime @default(now())
+}
+
+model IntegrationNonce {
+  nonce     String   @id
+  clientId  String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
