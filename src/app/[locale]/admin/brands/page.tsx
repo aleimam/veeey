@@ -1,4 +1,4 @@
-import { setRequestLocale } from 'next-intl/server';
+import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { listBrands } from '@/lib/taxonomy-service';
 import { AdminList } from '@/components/admin/resource-list';
 import { RowActions, ArchivedToggle, InUseNotice } from '@/components/admin/row-actions';
@@ -13,12 +13,14 @@ export default async function BrandsPage({ params, searchParams }: { params: Pro
   const showingArchived = one(sp.archived) === '1';
   const all = await listBrands();
   const brands = all.filter((b) => (showingArchived ? b.archivedAt : !b.archivedAt));
+  const tf = await getTranslations('admin.fields');
+  const tl = await getTranslations('admin.lists');
+  const tc = await getTranslations('admin.common');
   return (
     <AdminList
-      title={showingArchived ? 'Brands (archived)' : 'Brands'}
+      title={showingArchived ? `${tl('brands')} ${tc('archivedSuffix')}` : tl('brands')}
       newHref="/admin/brands/edit"
-      newLabel="New brand"
-      head={['Name', 'Arabic', 'Slug']}
+      head={[tf('name'), tf('nameAr'), tf('slug')]}
       toolbar={<ArchivedToggle path="brands" showingArchived={showingArchived} />}
       notice={<InUseNotice show={one(sp.error) === 'in_use'} />}
       rows={brands.map((b) => ({

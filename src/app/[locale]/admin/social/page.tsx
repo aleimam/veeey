@@ -1,4 +1,4 @@
-import { setRequestLocale } from 'next-intl/server';
+import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { listSocialLinks, SOCIAL_PLATFORMS } from '@/lib/social-service';
 import { AdminList } from '@/components/admin/resource-list';
 import { deleteSocialLinkAction } from '@/server/social-actions';
@@ -9,13 +9,14 @@ export default async function SocialPage({ params }: { params: Promise<{ locale:
   const { locale } = await params;
   setRequestLocale(locale);
   const links = await listSocialLinks();
+  const tf = await getTranslations('admin.fields');
+  const tl = await getTranslations('admin.lists');
 
   return (
     <AdminList
-      title="Social links"
+      title={tl('social')}
       newHref="/admin/social/edit"
-      newLabel="New link"
-      head={['Platform', 'URL', 'Order', 'Active']}
+      head={[tf('platform'), tf('url'), tf('order'), tf('active')]}
       rows={links.map((s) => ({
         key: s.id,
         cells: [s.label || platformLabel(s.platform), s.url, String(s.sortOrder), s.active ? 'Yes' : '—'],

@@ -1,4 +1,4 @@
-import { setRequestLocale } from 'next-intl/server';
+import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { listTags } from '@/lib/taxonomy-service';
 import { AdminList } from '@/components/admin/resource-list';
 import { RowActions, ArchivedToggle, InUseNotice } from '@/components/admin/row-actions';
@@ -13,12 +13,14 @@ export default async function TagsPage({ params, searchParams }: { params: Promi
   const showingArchived = one(sp.archived) === '1';
   const all = await listTags();
   const tags = all.filter((t) => (showingArchived ? t.archivedAt : !t.archivedAt));
+  const tf = await getTranslations('admin.fields');
+  const tl = await getTranslations('admin.lists');
+  const tc = await getTranslations('admin.common');
   return (
     <AdminList
-      title={showingArchived ? 'Tags (archived)' : 'Tags'}
+      title={showingArchived ? `${tl('tags')} ${tc('archivedSuffix')}` : tl('tags')}
       newHref="/admin/tags/edit"
-      newLabel="New tag"
-      head={['Name', 'Arabic', 'Slug']}
+      head={[tf('name'), tf('nameAr'), tf('slug')]}
       toolbar={<ArchivedToggle path="tags" showingArchived={showingArchived} />}
       notice={<InUseNotice show={one(sp.error) === 'in_use'} />}
       rows={tags.map((t) => ({

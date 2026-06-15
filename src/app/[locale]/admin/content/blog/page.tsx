@@ -1,4 +1,4 @@
-import { setRequestLocale } from 'next-intl/server';
+import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { listPosts } from '@/lib/content-service';
 import { AdminList } from '@/components/admin/resource-list';
 import { StatusBadge } from '@/components/admin/ui';
@@ -14,12 +14,14 @@ export default async function BlogPage({ params, searchParams }: { params: Promi
   const showingArchived = one(sp.archived) === '1';
   const all = await listPosts();
   const posts = all.filter((p) => (showingArchived ? p.status === 'ARCHIVED' : p.status !== 'ARCHIVED'));
+  const tf = await getTranslations('admin.fields');
+  const tl = await getTranslations('admin.lists');
+  const tc = await getTranslations('admin.common');
   return (
     <AdminList
-      title={showingArchived ? 'Blog Posts (archived)' : 'Blog Posts'}
+      title={showingArchived ? `${tl('blog')} ${tc('archivedSuffix')}` : tl('blog')}
       newHref="/admin/content/blog/edit"
-      newLabel="New post"
-      head={['Title', 'Slug', 'Status']}
+      head={[tf('title'), tf('slug'), tf('status')]}
       toolbar={<ArchivedToggle path="content/blog" showingArchived={showingArchived} />}
       notice={<InUseNotice show={one(sp.error) === 'in_use'} />}
       rows={posts.map((p) => ({

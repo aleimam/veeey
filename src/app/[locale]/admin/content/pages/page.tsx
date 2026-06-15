@@ -1,4 +1,4 @@
-import { setRequestLocale } from 'next-intl/server';
+import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { listPages } from '@/lib/content-service';
 import { AdminList } from '@/components/admin/resource-list';
 import { StatusBadge } from '@/components/admin/ui';
@@ -14,12 +14,14 @@ export default async function CmsPagesPage({ params, searchParams }: { params: P
   const showingArchived = one(sp.archived) === '1';
   const all = await listPages();
   const pages = all.filter((p) => (showingArchived ? p.status === 'ARCHIVED' : p.status !== 'ARCHIVED'));
+  const tf = await getTranslations('admin.fields');
+  const tl = await getTranslations('admin.lists');
+  const tc = await getTranslations('admin.common');
   return (
     <AdminList
-      title={showingArchived ? 'CMS Pages (archived)' : 'CMS Pages'}
+      title={showingArchived ? `${tl('cmsPages')} ${tc('archivedSuffix')}` : tl('cmsPages')}
       newHref="/admin/content/pages/edit"
-      newLabel="New page"
-      head={['Title', 'Slug', 'Status']}
+      head={[tf('title'), tf('slug'), tf('status')]}
       toolbar={<ArchivedToggle path="content/pages" showingArchived={showingArchived} />}
       notice={<InUseNotice show={one(sp.error) === 'in_use'} />}
       rows={pages.map((p) => ({

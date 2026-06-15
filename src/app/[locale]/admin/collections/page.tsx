@@ -1,4 +1,4 @@
-import { setRequestLocale } from 'next-intl/server';
+import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { listCollections } from '@/lib/content-service';
 import { AdminList } from '@/components/admin/resource-list';
 import { StatusBadge } from '@/components/admin/ui';
@@ -14,12 +14,14 @@ export default async function CollectionsPage({ params, searchParams }: { params
   const showingArchived = one(sp.archived) === '1';
   const all = await listCollections();
   const collections = all.filter((c) => (showingArchived ? c.status === 'ARCHIVED' : c.status !== 'ARCHIVED'));
+  const tf = await getTranslations('admin.fields');
+  const tl = await getTranslations('admin.lists');
+  const tc = await getTranslations('admin.common');
   return (
     <AdminList
-      title={showingArchived ? 'Collections (archived)' : 'Collections'}
+      title={showingArchived ? `${tl('collections')} ${tc('archivedSuffix')}` : tl('collections')}
       newHref="/admin/collections/edit"
-      newLabel="New collection"
-      head={['Title', 'Type', 'Status', 'Slug']}
+      head={[tf('title'), tf('type'), tf('status'), tf('slug')]}
       toolbar={<ArchivedToggle path="collections" showingArchived={showingArchived} />}
       notice={<InUseNotice show={one(sp.error) === 'in_use'} />}
       rows={collections.map((c) => ({

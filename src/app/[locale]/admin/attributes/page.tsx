@@ -1,4 +1,4 @@
-import { setRequestLocale } from 'next-intl/server';
+import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { listAttributes } from '@/lib/taxonomy-service';
 import { AdminList } from '@/components/admin/resource-list';
 import { RowActions, ArchivedToggle, InUseNotice } from '@/components/admin/row-actions';
@@ -13,12 +13,14 @@ export default async function AttributesPage({ params, searchParams }: { params:
   const showingArchived = one(sp.archived) === '1';
   const all = await listAttributes();
   const attributes = all.filter((a) => (showingArchived ? a.archivedAt : !a.archivedAt));
+  const tf = await getTranslations('admin.fields');
+  const tl = await getTranslations('admin.lists');
+  const tc = await getTranslations('admin.common');
   return (
     <AdminList
-      title={showingArchived ? 'Attributes (archived)' : 'Attributes'}
+      title={showingArchived ? `${tl('attributes')} ${tc('archivedSuffix')}` : tl('attributes')}
       newHref="/admin/attributes/edit"
-      newLabel="New attribute"
-      head={['Name', 'Key', 'Values']}
+      head={[tf('name'), tf('key'), tf('values')]}
       toolbar={<ArchivedToggle path="attributes" showingArchived={showingArchived} />}
       notice={<InUseNotice show={one(sp.error) === 'in_use'} />}
       rows={attributes.map((a) => ({

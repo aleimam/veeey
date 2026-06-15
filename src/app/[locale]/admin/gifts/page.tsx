@@ -1,4 +1,4 @@
-import { setRequestLocale } from 'next-intl/server';
+import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { listGifts } from '@/lib/gift-service';
 import { AdminList } from '@/components/admin/resource-list';
 import { RowActions, ArchivedToggle, InUseNotice } from '@/components/admin/row-actions';
@@ -13,12 +13,14 @@ export default async function GiftsPage({ params, searchParams }: { params: Prom
   const showingArchived = one(sp.archived) === '1';
   const all = await listGifts();
   const gifts = all.filter((g) => (showingArchived ? g.archivedAt : !g.archivedAt));
+  const tf = await getTranslations('admin.fields');
+  const tl = await getTranslations('admin.lists');
+  const tc = await getTranslations('admin.common');
   return (
     <AdminList
-      title={showingArchived ? 'Gifts — archived' : 'Gifts (hidden inventory)'}
+      title={showingArchived ? `${tl('gifts')} ${tc('archivedSuffix')}` : tl('gifts')}
       newHref="/admin/gifts/edit"
-      newLabel="New gift"
-      head={['Code', 'Internal name', 'Stock', 'Expiry']}
+      head={[tf('code'), tf('internalName'), tf('stock'), tf('expiry')]}
       toolbar={<ArchivedToggle path="gifts" showingArchived={showingArchived} />}
       notice={<InUseNotice show={one(sp.error) === 'in_use'} />}
       rows={gifts.map((g) => ({

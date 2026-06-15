@@ -1,4 +1,4 @@
-import { setRequestLocale } from 'next-intl/server';
+import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { listCategories } from '@/lib/taxonomy-service';
 import { AdminList } from '@/components/admin/resource-list';
 import { RowActions, ArchivedToggle, InUseNotice } from '@/components/admin/row-actions';
@@ -13,12 +13,14 @@ export default async function CategoriesPage({ params, searchParams }: { params:
   const showingArchived = one(sp.archived) === '1';
   const all = await listCategories();
   const categories = all.filter((c) => (showingArchived ? c.archivedAt : !c.archivedAt));
+  const tf = await getTranslations('admin.fields');
+  const tl = await getTranslations('admin.lists');
+  const tc = await getTranslations('admin.common');
   return (
     <AdminList
-      title={showingArchived ? 'Categories (archived)' : 'Categories'}
+      title={showingArchived ? `${tl('categories')} ${tc('archivedSuffix')}` : tl('categories')}
       newHref="/admin/categories/edit"
-      newLabel="New category"
-      head={['Name', 'Parent', 'Slug']}
+      head={[tf('name'), tf('parent'), tf('slug')]}
       toolbar={<ArchivedToggle path="categories" showingArchived={showingArchived} />}
       notice={<InUseNotice show={one(sp.error) === 'in_use'} />}
       rows={categories.map((c) => ({
