@@ -9,14 +9,30 @@ export type PaymentMethodKey = 'COD' | 'POS_ON_DELIVERY' | 'BANK_TRANSFER' | 'WA
 
 export type PaymentMethodMeta = { key: PaymentMethodKey; label: string; online: boolean; order: number };
 
+// Online card payments (Visa / MasterCard) run through the KASHIER enum slot —
+// a single card method. OPAY is retired but kept in the enum/labels for any
+// legacy orders.
 export const PAYMENT_METHODS: PaymentMethodMeta[] = [
-  { key: 'COD', label: 'Cash on delivery', online: false, order: 1 },
+  { key: 'COD', label: 'Cash on Delivery', online: false, order: 1 },
   { key: 'POS_ON_DELIVERY', label: 'Card machine on delivery', online: false, order: 2 },
-  { key: 'KASHIER', label: 'Pay online (Kashier)', online: true, order: 3 },
-  { key: 'OPAY', label: 'Pay online (OPay)', online: true, order: 4 },
+  { key: 'KASHIER', label: 'Visa / MasterCard', online: true, order: 3 },
   { key: 'BANK_TRANSFER', label: 'Bank transfer', online: false, order: 5 },
   { key: 'WALLET', label: 'Mobile wallet', online: false, order: 6 },
 ];
+
+/** Human label for any (incl. legacy) payment method key. Used by admin/invoice
+ *  (non-i18n surfaces); the storefront localizes via the storefront.payments keys. */
+const PAYMENT_LABELS: Record<string, string> = {
+  COD: 'Cash on Delivery',
+  POS_ON_DELIVERY: 'Card machine on delivery',
+  KASHIER: 'Visa / MasterCard',
+  OPAY: 'Visa / MasterCard',
+  BANK_TRANSFER: 'Bank transfer',
+  WALLET: 'Mobile wallet',
+};
+export function paymentMethodLabel(key: string | null | undefined): string {
+  return (key && PAYMENT_LABELS[key]) || key || '—';
+}
 
 export type PaymentInit = { state: 'PENDING'; redirectUrl?: string };
 
@@ -24,8 +40,9 @@ export type PaymentInit = { state: 'PENDING'; redirectUrl?: string };
 export function enabledPaymentMethods(): PaymentMethodMeta[] {
   return PAYMENT_METHODS.filter((m) => {
     if (!m.online) return true;
-    if (m.key === 'KASHIER') return !!process.env.KASHIER_API_KEY;
-    if (m.key === 'OPAY') return !!process.env.OPAY_SECRET_KEY;
+    // Card (Visa / MasterCard) is offered now; selecting it marks the order
+    // pending payment until the real gateway is wired in createPaymentIntent.
+    if (m.key === 'KASHIER') return true;
     return false;
   }).sort((a, b) => a.order - b.order);
 }

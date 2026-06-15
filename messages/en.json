@@ -80,9 +80,8 @@
       "rights": "© {year} Veeey. Health Inside. All rights reserved.",
       "paymentMethods": "Accepted payment methods",
       "pay": {
-        "opay": "OPay",
-        "kashier": "Kashier",
-        "cod": "Cash on delivery",
+        "card": "Visa / MasterCard",
+        "cod": "Cash on Delivery",
         "pos": "POS on delivery",
         "bank": "Bank transfer"
       },
@@ -239,12 +238,12 @@
       "etaStandard": "1–3 working days"
     },
     "payments": {
-      "COD": "Cash on delivery",
+      "COD": "Cash on Delivery",
       "POS_ON_DELIVERY": "Card machine on delivery",
       "BANK_TRANSFER": "Bank transfer",
       "WALLET": "Mobile wallet",
-      "OPAY": "Pay online (OPay)",
-      "KASHIER": "Pay online (Kashier)"
+      "OPAY": "Visa / MasterCard",
+      "KASHIER": "Visa / MasterCard"
     },
     "disclaimer": {
       "title": "A quick note",

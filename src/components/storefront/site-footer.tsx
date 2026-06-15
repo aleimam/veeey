@@ -36,7 +36,7 @@ const columns = [
   { key: "about", links: ["story", "pharmacists", "careers", "blog"] },
 ]
 
-const payments = ["opay", "kashier", "cod", "pos", "bank"]
+const payments = ["card", "cod", "pos", "bank"]
 
 export function SiteFooter() {
   const t = useTranslations("storefront.footer")
