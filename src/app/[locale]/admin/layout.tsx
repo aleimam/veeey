@@ -22,6 +22,7 @@ const NAV: { href: string; label: string; permission?: PermissionKey }[] = [
   { href: '/admin/tags', label: 'Tags', permission: 'catalog.write' },
   { href: '/admin/attributes', label: 'Attributes', permission: 'catalog.write' },
   { href: '/admin/customers', label: 'Customers', permission: 'customers.read' },
+  { href: '/admin/tiers', label: 'Tiers', permission: 'pricing.manage' },
   { href: '/admin/coupons', label: 'Coupons', permission: 'coupons.manage' },
   { href: '/admin/collections', label: 'Collections', permission: 'content.manage' },
   { href: '/admin/content/pages', label: 'CMS Pages', permission: 'content.manage' },
