@@ -1,6 +1,6 @@
 import { setRequestLocale } from 'next-intl/server';
-import { getSmtpFormValues, emailConfigured } from '@/lib/provider-config-service';
-import { saveSmtpConfigAction, clearSmtpConfigAction, sendTestEmailAction } from '@/server/provider-actions';
+import { getSmtpFormValues, emailConfigured, getAiFormValues, aiConfigured } from '@/lib/provider-config';
+import { saveSmtpConfigAction, clearSmtpConfigAction, sendTestEmailAction, saveAiConfigAction, clearAiConfigAction } from '@/server/provider-actions';
 import { inputCls } from '@/components/admin/ui';
 
 type SP = Record<string, string | string[] | undefined>;
@@ -10,7 +10,7 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
   const { locale } = await params;
   const sp = await searchParams;
   setRequestLocale(locale);
-  const [smtp, configured] = await Promise.all([getSmtpFormValues(), emailConfigured()]);
+  const [smtp, configured, ai, aiOn] = await Promise.all([getSmtpFormValues(), emailConfigured(), getAiFormValues(), aiConfigured()]);
   const test = one(sp.test);
 
   return (
@@ -70,6 +70,31 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
             <button className="rounded-md border border-border px-3 py-2 text-sm text-destructive hover:bg-surface">Clear SMTP settings</button>
           </form>
         </div>
+      </section>
+
+      <section className="mt-10 max-w-2xl">
+        <h2 className="mb-1 font-heading text-lg font-semibold">AI (Claude)</h2>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Powers quiz drafts and review summaries. Status: {aiOn ? '✓ enabled' : '— off (features run without AI)'}.
+        </p>
+        <form action={saveAiConfigAction} className="space-y-4 rounded-lg border border-border p-4">
+          <input type="hidden" name="locale" value={locale} />
+          <label className="block text-sm font-medium">API key
+            <input name="apiKey" type="password" autoComplete="new-password" placeholder={ai.hasKey ? '•••••••• (stored — blank keeps it)' : 'sk-ant-…'} className={inputCls} />
+          </label>
+          <label className="block text-sm font-medium">Model
+            <input name="model" defaultValue={ai.model} placeholder={ai.defaultModel} className={inputCls} />
+            <span className="mt-1 block text-xs font-normal text-muted-foreground">Default: {ai.defaultModel}</span>
+          </label>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="enabled" defaultChecked={ai.enabled} /> Enable AI features</label>
+          <div className="flex items-center gap-3">
+            <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Save AI settings</button>
+          </div>
+        </form>
+        <form action={clearAiConfigAction} className="mt-3">
+          <input type="hidden" name="locale" value={locale} />
+          <button className="rounded-md border border-border px-3 py-2 text-sm text-destructive hover:bg-surface">Clear AI settings</button>
+        </form>
       </section>
     </div>
   );

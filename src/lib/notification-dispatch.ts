@@ -1,5 +1,5 @@
 import webpush from 'web-push';
-import { getSmtpConfig } from '@/lib/provider-config-service';
+import { getSmtpConfig } from '@/lib/provider-config';
 
 /**
  * Channel dispatch (FR-NOT-02). Without credentials a send is reported `skipped`

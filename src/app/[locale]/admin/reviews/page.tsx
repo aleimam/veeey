@@ -1,14 +1,14 @@
 import { setRequestLocale } from 'next-intl/server';
 import { listReviews } from '@/lib/review-service';
 import { moderateReviewAction, regenSummaryAction } from '@/server/admin-play-actions';
-import { aiEnabled } from '@/lib/ai';
+import { aiConfigured } from '@/lib/provider-config';
 import { StatusBadge } from '@/components/admin/ui';
 
 export default async function AdminReviewsPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
   const reviews = await listReviews();
-  const ai = aiEnabled();
+  const ai = await aiConfigured();
 
   return (
     <div className="p-6">

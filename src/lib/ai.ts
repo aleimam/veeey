@@ -1,19 +1,19 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { getAiConfig } from '@/lib/provider-config';
 
 /**
- * Claude AI helpers (FR-QUIZ-03, FR-REV-04). Env-gated by ANTHROPIC_API_KEY —
- * every function degrades to `null` when the key is absent, so the app runs
- * fully without AI and gets richer with it. Uses the official Anthropic SDK.
- * Per AGENTS.md §8, high-impact AI writes stay human-gated; these are
- * assistive (quiz drafts, review summaries) and reviewed before publishing.
+ * Claude AI helpers (FR-QUIZ-03, FR-REV-04). The provider key + model are
+ * admin-configurable (Admin → Providers, DB) with ANTHROPIC_API_KEY env as the
+ * fallback; every function degrades to `null` when AI is off, so the app runs
+ * fully without it. Official Anthropic SDK, default model claude-opus-4-8. Per
+ * AGENTS.md §8, high-impact AI writes stay human-gated; these are assistive.
  */
-const MODEL = 'claude-opus-4-8';
-
-function client(): Anthropic | null {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  return apiKey ? new Anthropic({ apiKey }) : null;
+async function resolveClient(): Promise<{ c: Anthropic; model: string } | null> {
+  const cfg = await getAiConfig();
+  return cfg ? { c: new Anthropic({ apiKey: cfg.apiKey }), model: cfg.model } : null;
 }
 
+/** Sync env check (tests + quick UI). Use aiConfigured() for the accurate DB-aware status. */
 export function aiEnabled(): boolean {
   return !!process.env.ANTHROPIC_API_KEY;
 }
@@ -45,11 +45,11 @@ const QUIZ_SCHEMA = {
 
 /** Draft a fun multiple-choice quiz from a topic. Returns null if AI is off. */
 export async function generateQuiz(topic: string, count = 5): Promise<GeneratedQuiz | null> {
-  const c = client();
-  if (!c) return null;
+  const r = await resolveClient();
+  if (!r) return null;
   try {
-    const res = await c.messages.create({
-      model: MODEL,
+    const res = await r.c.messages.create({
+      model: r.model,
       max_tokens: 2000,
       output_config: { format: { type: 'json_schema', schema: QUIZ_SCHEMA } },
       messages: [{
@@ -66,12 +66,13 @@ export async function generateQuiz(topic: string, count = 5): Promise<GeneratedQ
 
 /** Summarize customer reviews into a short neutral blurb. Null if AI off / no reviews. */
 export async function summarizeReviews(productName: string, reviews: { rating: number; body: string }[]): Promise<string | null> {
-  const c = client();
-  if (!c || reviews.length === 0) return null;
-  const sample = reviews.slice(0, 40).map((r) => `(${r.rating}/5) ${r.body}`).join('\n');
+  if (reviews.length === 0) return null;
+  const r = await resolveClient();
+  if (!r) return null;
+  const sample = reviews.slice(0, 40).map((rv) => `(${rv.rating}/5) ${rv.body}`).join('\n');
   try {
-    const res = await c.messages.create({
-      model: MODEL,
+    const res = await r.c.messages.create({
+      model: r.model,
       max_tokens: 400,
       messages: [{
         role: 'user',

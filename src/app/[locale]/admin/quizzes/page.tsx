@@ -1,14 +1,14 @@
 import { setRequestLocale } from 'next-intl/server';
 import { prisma } from '@/lib/prisma';
 import { generateQuizAction, toggleQuizPublishedAction } from '@/server/admin-play-actions';
-import { aiEnabled } from '@/lib/ai';
+import { aiConfigured } from '@/lib/provider-config';
 import { inputCls, StatusBadge } from '@/components/admin/ui';
 
 export default async function AdminQuizzesPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
   const quizzes = await prisma.quiz.findMany({ orderBy: { createdAt: 'desc' } });
-  const ai = aiEnabled();
+  const ai = await aiConfigured();
 
   return (
     <div className="p-6">

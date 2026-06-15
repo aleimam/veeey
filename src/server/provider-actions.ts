@@ -2,7 +2,7 @@
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { saveSmtpConfig, clearSmtpConfig } from '@/lib/provider-config-service';
+import { saveSmtpConfig, clearSmtpConfig, saveAiConfig, clearAiConfig } from '@/lib/provider-config-service';
 import { requirePermission } from '@/lib/auth-guards';
 import { dispatchEmail } from '@/lib/notification-dispatch';
 
@@ -36,6 +36,30 @@ export async function saveSmtpConfigAction(fd: FormData): Promise<void> {
 export async function clearSmtpConfigAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
   try { await clearSmtpConfig(); } catch (e) { console.error('smtp clear failed', e); }
+  revalidatePath(`/${locale}/admin/providers`);
+  redirect(`/${locale}/admin/providers?cleared=1`);
+}
+
+export async function saveAiConfigAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  try {
+    await saveAiConfig({
+      'ai.apiKey': str(fd, 'apiKey'),
+      'ai.model': str(fd, 'model'),
+      'ai.enabled': fd.get('enabled') != null ? 'true' : 'false',
+    });
+  } catch (e) {
+    console.error('ai save failed', e);
+    revalidatePath(`/${locale}/admin/providers`);
+    redirect(`/${locale}/admin/providers?error=1`);
+  }
+  revalidatePath(`/${locale}/admin/providers`);
+  redirect(`/${locale}/admin/providers?saved=1`);
+}
+
+export async function clearAiConfigAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  try { await clearAiConfig(); } catch (e) { console.error('ai clear failed', e); }
   revalidatePath(`/${locale}/admin/providers`);
   redirect(`/${locale}/admin/providers?cleared=1`);
 }
