@@ -257,6 +257,7 @@
       "earnPoints": "اكسب {points} نقطة",
       "chooseExpiry": "اختر الصلاحية",
       "exp": "صلاحية {date}",
+      "noExpiry": "بدون تاريخ انتهاء",
       "sale": "تخفيض",
       "inStock": "متوفر",
       "addToCart": "أضف إلى السلة"
@@ -300,6 +301,7 @@
       "browse": "تصفّح المنتجات",
       "title": "سلتك",
       "exp": "صلاحية {date}",
+      "noExpiry": "بدون تاريخ انتهاء",
       "update": "تحديث",
       "remove": "إزالة",
       "subtotal": "المجموع الفرعي",

@@ -41,8 +41,11 @@ export function LotForm({
         </select>
       </Field>
       <div className="grid grid-cols-2 gap-4">
-        <Field label="Expiry date">
-          <input type="date" name="expiryDate" defaultValue={(d.expiryDate as string) ?? ''} required className={inputCls} />
+        <Field label="Expiry date" hint="Leave blank and tick NA for non-perishable items.">
+          <input type="date" name="expiryDate" defaultValue={(d.expiryDate as string) ?? ''} className={inputCls} />
+          <label className="mt-1 flex items-center gap-2 text-xs font-normal">
+            <input type="checkbox" name="noExpiry" defaultChecked={!!d.noExpiry} className="size-3.5" /> NA — no expiry (non-perishable)
+          </label>
         </Field>
         <Field label="Quantity on hand">
           <input type="number" name="qtyOnHand" min="0" defaultValue={(d.qtyOnHand as number) ?? 0} className={inputCls} />

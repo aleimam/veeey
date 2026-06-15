@@ -17,7 +17,7 @@ export type DbCardProduct = {
   ratingCount: number;
   brand: { nameEn: string } | null;
   images: { url: string }[];
-  lots: { expiryDate: Date; saleFlag: boolean; priceOverridePiastres: bigint | null }[];
+  lots: { expiryDate: Date | null; saleFlag: boolean; priceOverridePiastres: bigint | null }[];
 };
 
 export const cardProductInclude = {
@@ -44,7 +44,7 @@ export function toCardProduct(p: DbCardProduct, locale: string): CardProduct {
     image: p.images[0]?.url ?? '/placeholder.svg',
     rating: p.ratingAvg ?? 0,
     reviews: p.ratingCount,
-    expiry: nearest ? `Exp ${monthYear(nearest.expiryDate)}` : 'Pre-order',
+    expiry: nearest ? (nearest.expiryDate ? `Exp ${monthYear(nearest.expiryDate)}` : 'No expiry') : 'Pre-order',
     pricePiastres,
     oldPricePiastres,
     points: Math.round(pricePiastres / 100), // default 1 pt / EGP

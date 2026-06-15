@@ -47,7 +47,7 @@ export function listPendingIntake(locationId?: string) {
 /** Confirm a received lot and publish it to the live catalog. */
 export async function publishIntakeLot(
   lotId: string,
-  input: { expiryDate: string; priceOverrideEgp?: number | null; saleFlag?: boolean },
+  input: { expiryDate: string; noExpiry?: boolean; priceOverrideEgp?: number | null; saleFlag?: boolean },
 ) {
   const user = await requirePermission('inventory.manage');
   const lot = await prisma.lot.findUnique({ where: { id: lotId } });
@@ -59,7 +59,7 @@ export async function publishIntakeLot(
   const updated = await prisma.lot.update({
     where: { id: lotId },
     data: {
-      expiryDate: new Date(input.expiryDate),
+      expiryDate: input.noExpiry || !input.expiryDate ? null : new Date(input.expiryDate),
       priceOverridePiastres: input.priceOverrideEgp != null ? egpToPiastres(input.priceOverrideEgp) : null,
       saleFlag: !!input.saleFlag,
       status: 'LIVE',

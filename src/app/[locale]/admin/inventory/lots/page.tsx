@@ -23,7 +23,7 @@ export default async function LotsPage({ params }: { params: Promise<{ locale: s
         cells: [
           `${l.product.nameEn}`,
           l.location.name,
-          monthYear(l.expiryDate),
+          l.expiryDate ? monthYear(l.expiryDate) : 'No expiry',
           String(l.qtyOnHand),
           String(availableQty(l)),
           formatEGP(Number(l.priceOverridePiastres ?? l.product.basePricePiastres)) + (l.saleFlag ? ' · sale' : ''),

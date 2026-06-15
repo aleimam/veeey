@@ -40,7 +40,7 @@ export type CartLine = {
   qty: number;
   unitPricePiastres: number;
   subtotalPiastres: number;
-  nearestExpiry: Date;
+  nearestExpiry: Date | null;
 };
 
 export async function getCart(cartId: string, locale = 'en'): Promise<CartLine[]> {
@@ -65,7 +65,9 @@ export async function getCart(cartId: string, locale = 'en'): Promise<CartLine[]
     };
     line.qty += r.qty;
     line.subtotalPiastres += unit * r.qty;
-    if (r.lot.expiryDate < line.nearestExpiry) line.nearestExpiry = r.lot.expiryDate;
+    // Keep the earliest dated expiry; NA (null) never overrides a date, and
+    // only remains if every bound lot is non-perishable.
+    if (r.lot.expiryDate && (!line.nearestExpiry || r.lot.expiryDate < line.nearestExpiry)) line.nearestExpiry = r.lot.expiryDate;
     map.set(p.id, line);
   }
   return [...map.values()];

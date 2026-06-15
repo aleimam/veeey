@@ -718,7 +718,7 @@ model Lot {
   product               Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
   locationId            String
   location              Location  @relation(fields: [locationId], references: [id])
-  expiryDate            DateTime
+  expiryDate            DateTime? // null = non-perishable / no expiry (NA); sorts last in FEFO
   qtyOnHand             Int       @default(0)
   qtyReserved           Int       @default(0)
   costPiastres          BigInt?

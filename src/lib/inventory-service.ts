@@ -14,7 +14,8 @@ const HOLD_MINUTES_DEFAULT = 30; // configurable later
 export const lotInputSchema = z.object({
   productId: z.string().min(1),
   locationId: z.string().min(1),
-  expiryDate: z.string().min(1),
+  expiryDate: z.string().optional().nullable(),
+  noExpiry: z.boolean().default(false),
   qtyOnHand: z.coerce.number().int().nonnegative(),
   costEgp: z.coerce.number().nonnegative().optional().nullable(),
   priceOverrideEgp: z.coerce.number().nonnegative().optional().nullable(),
@@ -45,7 +46,7 @@ export async function saveLot(id: string | null, raw: LotInput) {
   const data = {
     productId: d.productId,
     locationId: d.locationId,
-    expiryDate: new Date(d.expiryDate),
+    expiryDate: d.noExpiry || !d.expiryDate ? null : new Date(d.expiryDate),
     qtyOnHand: d.qtyOnHand,
     costPiastres: d.costEgp != null ? egpToPiastres(d.costEgp) : null,
     priceOverridePiastres: d.priceOverrideEgp != null ? egpToPiastres(d.priceOverrideEgp) : null,
@@ -95,7 +96,7 @@ export type ReservationBinding = {
   lotId: string;
   reservationId: string;
   qty: number;
-  expiryDate: Date;
+  expiryDate: Date | null;
   priceOverridePiastres: bigint | null;
 };
 
@@ -154,6 +155,7 @@ export async function releaseExpiredReservations(now = new Date()): Promise<numb
 export async function lotSuggestion(lotId: string) {
   const lot = await prisma.lot.findUnique({ where: { id: lotId }, include: { product: true } });
   if (!lot) return null;
+  if (!lot.expiryDate) return null; // NA / non-perishable — no short-expiry discount
   const since = new Date(Date.now() - 90 * 86_400_000);
   const sold = await prisma.orderItem.aggregate({ _sum: { qty: true }, where: { productId: lot.productId, order: { placedAt: { gte: since } } } });
   const monthlyVelocity = (sold._sum.qty ?? 0) / 3;

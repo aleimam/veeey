@@ -58,7 +58,7 @@ export default async function ProductPage({
 
   const buyLots: BuyLot[] = p.lots.map((l) => ({
     id: l.id,
-    expiry: monthYear(l.expiryDate),
+    expiry: l.expiryDate ? monthYear(l.expiryDate) : null,
     pricePiastres: Number(l.priceOverridePiastres ?? p.basePricePiastres),
     sale: l.saleFlag && l.priceOverridePiastres != null,
     qty: l.qtyOnHand,

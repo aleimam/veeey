@@ -47,7 +47,7 @@ export default async function StocktakeDetailPage({ params }: { params: Promise<
             {rows.map(({ lot, expected, counted }) => (
               <tr key={lot.id} className="border-t border-border">
                 <td className="p-3 font-medium">{lot.product.nameEn} <span className="text-muted-foreground">({lot.product.sku})</span></td>
-                <td className="p-3">{monthYear(lot.expiryDate)}</td>
+                <td className="p-3">{lot.expiryDate ? monthYear(lot.expiryDate) : 'No expiry'}</td>
                 <td className="p-3">{expected}</td>
                 <td className="p-3">{counted ?? '—'}</td>
                 <td className="p-3">{counted != null ? <span className={counted - expected !== 0 ? 'text-destructive' : 'text-primary'}>{counted - expected > 0 ? '+' : ''}{counted - expected}</span> : '—'}</td>

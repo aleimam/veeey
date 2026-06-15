@@ -7,7 +7,7 @@ import { addToCartAction } from '@/server/cart-actions';
 
 export type BuyLot = {
   id: string;
-  expiry: string; // e.g. "05/2028"
+  expiry: string | null; // "05/2028", or null for non-perishable (NA)
   pricePiastres: number;
   sale: boolean;
   qty: number;
@@ -78,7 +78,7 @@ export function BuyBox({
               >
                 <span className="block font-medium">{formatEGP(l.pricePiastres)}</span>
                 <span className="block text-xs text-muted-foreground">
-                  {t('exp', { date: l.expiry })}{l.sale ? ` · ${t('sale')}` : ''}
+                  {l.expiry ? t('exp', { date: l.expiry }) : t('noExpiry')}{l.sale ? ` · ${t('sale')}` : ''}
                 </span>
               </button>
             ))}

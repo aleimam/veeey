@@ -39,6 +39,7 @@ export async function saveLotAction(_p: AdminFormState, fd: FormData): Promise<A
       productId: str(fd, 'productId') ?? '',
       locationId: str(fd, 'locationId') ?? '',
       expiryDate: str(fd, 'expiryDate') ?? '',
+      noExpiry: bool(fd, 'noExpiry'),
       qtyOnHand: str(fd, 'qtyOnHand') ?? '0',
       costEgp: str(fd, 'costEgp'),
       priceOverrideEgp: str(fd, 'priceOverrideEgp'),

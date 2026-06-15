@@ -49,7 +49,7 @@ export default async function CartPage({
               </div>
               <div className="flex flex-1 flex-col">
                 <Link href={`/products/${l.slug}`} className="font-medium text-foreground hover:text-primary">{l.name}</Link>
-                <span className="mt-1 inline-flex w-fit rounded-full bg-accent px-2 py-0.5 text-xs text-accent-foreground">{t('exp', { date: monthYear(l.nearestExpiry) })}</span>
+                <span className="mt-1 inline-flex w-fit rounded-full bg-accent px-2 py-0.5 text-xs text-accent-foreground">{l.nearestExpiry ? t('exp', { date: monthYear(l.nearestExpiry) }) : t('noExpiry')}</span>
                 <div className="mt-auto flex items-center justify-between">
                   <form action={updateCartQtyAction} className="flex items-center gap-2">
                     <input type="hidden" name="locale" value={locale} />

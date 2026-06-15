@@ -257,6 +257,7 @@
       "earnPoints": "Earn {points} points",
       "chooseExpiry": "Choose expiry",
       "exp": "Exp {date}",
+      "noExpiry": "No expiry",
       "sale": "sale",
       "inStock": "In stock",
       "addToCart": "Add to cart"
@@ -300,6 +301,7 @@
       "browse": "Browse products",
       "title": "Your cart",
       "exp": "Exp {date}",
+      "noExpiry": "No expiry",
       "update": "Update",
       "remove": "Remove",
       "subtotal": "Subtotal",
