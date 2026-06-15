@@ -2,6 +2,7 @@ import { setRequestLocale } from 'next-intl/server';
 import { SETTINGS, getAllSettings } from '@/lib/settings-service';
 import { saveSettingsAction } from '@/server/settings-actions';
 import { Field, inputCls } from '@/components/admin/ui';
+import { pick } from '@/lib/admin-i18n';
 
 type SP = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
@@ -10,6 +11,7 @@ export default async function SettingsPage({ params, searchParams }: { params: P
   const { locale } = await params;
   const sp = await searchParams;
   setRequestLocale(locale);
+  const tb = pick(locale);
   const values = await getAllSettings();
 
   // Group settings for display, preserving registry order.
@@ -22,16 +24,16 @@ export default async function SettingsPage({ params, searchParams }: { params: P
 
   return (
     <div className="p-6">
-      <h1 className="mb-2 font-heading text-xl font-semibold">الإعدادات</h1>
+      <h1 className="mb-2 font-heading text-xl font-semibold">{tb('Settings', 'الإعدادات')}</h1>
       <p className="mb-6 max-w-2xl text-sm text-muted-foreground">
-        ثوابت العمل المستخدمة في كل أنحاء المتجر. التغييرات تُطبَّق فورًا؛ وتُستخدم القيم الافتراضية حتى يتم تجاوزها.
+        {tb('Business constants used across the store. Changes take effect immediately; defaults are used until overridden.', 'ثوابت العمل المستخدمة في كل أنحاء المتجر. التغييرات تُطبَّق فورًا؛ وتُستخدم القيم الافتراضية حتى يتم تجاوزها.')}
       </p>
 
       {one(sp.saved) === '1' && (
-        <p className="mb-4 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">تم حفظ الإعدادات.</p>
+        <p className="mb-4 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">{tb('Settings saved.', 'تم حفظ الإعدادات.')}</p>
       )}
       {one(sp.error) === '1' && (
-        <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">تعذّر الحفظ. برجاء المحاولة مرة أخرى.</p>
+        <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{tb('Save failed. Please try again.', 'تعذّر الحفظ. برجاء المحاولة مرة أخرى.')}</p>
       )}
 
       <form action={saveSettingsAction} className="max-w-2xl space-y-8">
@@ -55,7 +57,7 @@ export default async function SettingsPage({ params, searchParams }: { params: P
           </section>
         ))}
         <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90">
-          حفظ الإعدادات
+          {tb('Save settings', 'حفظ الإعدادات')}
         </button>
       </form>
     </div>

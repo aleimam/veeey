@@ -2,6 +2,7 @@ import { setRequestLocale } from 'next-intl/server';
 import { funnelCounts, topSearches, topViewedProducts, kpis } from '@/lib/analytics-service';
 import { buildFunnel } from '@/lib/analytics';
 import { formatEGP } from '@/lib/format';
+import { pick } from '@/lib/admin-i18n';
 
 const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
 
@@ -11,17 +12,18 @@ export default async function AnalyticsPage({ params }: { params: Promise<{ loca
   const [counts, searches, products, k] = await Promise.all([funnelCounts(), topSearches(), topViewedProducts(), kpis()]);
   const funnel = buildFunnel(counts);
   const top = funnel[0].count || 1;
+  const tb = pick(locale);
 
   const cards = [
-    { label: 'الإيرادات (آخر 30 يومًا، تم التسليم)', value: formatEGP(k.revenue) },
-    { label: 'الطلبات (آخر 30 يومًا)', value: String(k.orders) },
-    { label: 'متوسط قيمة الطلب', value: formatEGP(k.aov) },
-    { label: 'العملاء', value: String(k.customers) },
+    { label: tb('Revenue (last 30 days, delivered)', 'الإيرادات (آخر 30 يومًا، تم التسليم)'), value: formatEGP(k.revenue) },
+    { label: tb('Orders (last 30 days)', 'الطلبات (آخر 30 يومًا)'), value: String(k.orders) },
+    { label: tb('Average order value', 'متوسط قيمة الطلب'), value: formatEGP(k.aov) },
+    { label: tb('Customers', 'العملاء'), value: String(k.customers) },
   ];
 
   return (
     <div className="p-6">
-      <h1 className="mb-6 font-heading text-xl font-semibold">التحليلات (آخر 30 يومًا)</h1>
+      <h1 className="mb-6 font-heading text-xl font-semibold">{tb('Analytics (last 30 days)', 'التحليلات (آخر 30 يومًا)')}</h1>
 
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((c) => (
@@ -33,7 +35,7 @@ export default async function AnalyticsPage({ params }: { params: Promise<{ loca
       </div>
 
       <section className="mb-8">
-        <h2 className="mb-3 text-sm font-semibold">مسار التحويل</h2>
+        <h2 className="mb-3 text-sm font-semibold">{tb('Conversion funnel', 'مسار التحويل')}</h2>
         <div className="space-y-2 rounded-lg border border-border p-4">
           {funnel.map((s, i) => (
             <div key={s.label} className="flex items-center gap-3 text-sm">
@@ -50,30 +52,30 @@ export default async function AnalyticsPage({ params }: { params: Promise<{ loca
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section>
-          <h2 className="mb-3 text-sm font-semibold">أكثر عمليات البحث</h2>
+          <h2 className="mb-3 text-sm font-semibold">{tb('Top searches', 'أكثر عمليات البحث')}</h2>
           <div className="overflow-hidden rounded-lg border border-border">
             <table className="w-full text-sm">
-              <thead className="bg-surface text-xs uppercase text-muted-foreground"><tr><th className="p-2 text-start">عبارة البحث</th><th className="p-2">عدد عمليات البحث</th><th className="p-2">بدون نتائج</th></tr></thead>
+              <thead className="bg-surface text-xs uppercase text-muted-foreground"><tr><th className="p-2 text-start">{tb('Search term', 'عبارة البحث')}</th><th className="p-2">{tb('Searches', 'عدد عمليات البحث')}</th><th className="p-2">{tb('No results', 'بدون نتائج')}</th></tr></thead>
               <tbody>
                 {searches.map((s) => (
                   <tr key={s.q} className="border-t border-border"><td className="p-2">{s.q}</td><td className="p-2 text-center">{s.count}</td><td className="p-2 text-center">{s.zero > 0 ? <span className="text-destructive">{s.zero}</span> : '0'}</td></tr>
                 ))}
-                {searches.length === 0 && <tr><td colSpan={3} className="p-4 text-center text-muted-foreground">لا توجد عمليات بحث بعد.</td></tr>}
+                {searches.length === 0 && <tr><td colSpan={3} className="p-4 text-center text-muted-foreground">{tb('No searches yet.', 'لا توجد عمليات بحث بعد.')}</td></tr>}
               </tbody>
             </table>
           </div>
         </section>
 
         <section>
-          <h2 className="mb-3 text-sm font-semibold">المنتجات الأكثر مشاهدة</h2>
+          <h2 className="mb-3 text-sm font-semibold">{tb('Most viewed products', 'المنتجات الأكثر مشاهدة')}</h2>
           <div className="overflow-hidden rounded-lg border border-border">
             <table className="w-full text-sm">
-              <thead className="bg-surface text-xs uppercase text-muted-foreground"><tr><th className="p-2 text-start">المنتج</th><th className="p-2">المشاهدات</th></tr></thead>
+              <thead className="bg-surface text-xs uppercase text-muted-foreground"><tr><th className="p-2 text-start">{tb('Product', 'المنتج')}</th><th className="p-2">{tb('Views', 'المشاهدات')}</th></tr></thead>
               <tbody>
                 {products.map((p) => (
                   <tr key={p.sku} className="border-t border-border"><td className="p-2">{p.name}</td><td className="p-2 text-center">{p.views}</td></tr>
                 ))}
-                {products.length === 0 && <tr><td colSpan={2} className="p-4 text-center text-muted-foreground">لا توجد مشاهدات للمنتجات بعد.</td></tr>}
+                {products.length === 0 && <tr><td colSpan={2} className="p-4 text-center text-muted-foreground">{tb('No product views yet.', 'لا توجد مشاهدات للمنتجات بعد.')}</td></tr>}
               </tbody>
             </table>
           </div>

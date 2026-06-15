@@ -4,6 +4,7 @@ import { getCurrentUser } from '@/lib/auth-guards';
 import { canAccessAdmin } from '@/lib/rbac';
 import type { PermissionKey } from '@/lib/permissions';
 import { signOutAction } from '@/server/auth-actions';
+import { LanguageSwitcher } from '@/components/storefront/language-switcher';
 
 // Admin is always dynamic (reads the session).
 export const dynamic = 'force-dynamic';
@@ -83,11 +84,14 @@ export default async function AdminLayout({
           <span className="text-sm text-muted-foreground">
             {user.email} · {user.roleKey ?? t('shell.noRole')}
           </span>
-          <form action={signOutAction}>
-            <button className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface">
-              {t('shell.signOut')}
-            </button>
-          </form>
+          <div className="flex items-center gap-4">
+            <LanguageSwitcher />
+            <form action={signOutAction}>
+              <button className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface">
+                {t('shell.signOut')}
+              </button>
+            </form>
+          </div>
         </header>
         <div className="flex-1">{children}</div>
       </div>

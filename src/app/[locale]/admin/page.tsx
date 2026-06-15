@@ -1,6 +1,7 @@
 import { setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { prisma } from '@/lib/prisma';
+import { pick } from '@/lib/admin-i18n';
 
 export default async function AdminPage({
   params,
@@ -20,18 +21,19 @@ export default async function AdminPage({
     prisma.blogPost.count(),
   ]);
 
+  const tb = pick(locale);
   const stats = [
-    { label: 'المنتجات', value: products, href: '/admin/products', sub: `${published} منشور` },
-    { label: 'العلامات التجارية', value: brands, href: '/admin/brands' },
-    { label: 'الفئات', value: categories, href: '/admin/categories' },
-    { label: 'المجموعات', value: collections, href: '/admin/collections' },
-    { label: 'صفحات المحتوى', value: pages, href: '/admin/content/pages' },
-    { label: 'مقالات المدونة', value: posts, href: '/admin/content/blog' },
+    { label: tb('Products', 'المنتجات'), value: products, href: '/admin/products', sub: `${published} ${tb('published', 'منشور')}` },
+    { label: tb('Brands', 'العلامات التجارية'), value: brands, href: '/admin/brands' },
+    { label: tb('Categories', 'الفئات'), value: categories, href: '/admin/categories' },
+    { label: tb('Collections', 'المجموعات'), value: collections, href: '/admin/collections' },
+    { label: tb('Content pages', 'صفحات المحتوى'), value: pages, href: '/admin/content/pages' },
+    { label: tb('Blog posts', 'مقالات المدونة'), value: posts, href: '/admin/content/blog' },
   ];
 
   return (
     <div className="p-6">
-      <h1 className="mb-6 font-heading text-xl font-semibold">اللوحة الرئيسية</h1>
+      <h1 className="mb-6 font-heading text-xl font-semibold">{tb('Dashboard', 'اللوحة الرئيسية')}</h1>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {stats.map((s) => (
           <Link

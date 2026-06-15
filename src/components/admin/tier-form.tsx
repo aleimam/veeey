@@ -1,10 +1,12 @@
 'use client';
 
 import { useActionState } from 'react';
+import { useLocale } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { saveTierAction } from '@/server/tier-actions';
 import type { AdminFormState } from '@/server/admin-actions';
 import { Field, FormError, SubmitButton, inputCls } from './ui';
+import { pick } from '@/lib/admin-i18n';
 
 type Defaults = {
   key?: string;
@@ -19,6 +21,7 @@ type Defaults = {
 /** Create/edit a loyalty tier (FR-PRC-03). */
 export function TierForm({ id, locale, defaults = {} }: { id?: string; locale: string; defaults?: Defaults }) {
   const [state, action] = useActionState<AdminFormState, FormData>(saveTierAction, {});
+  const tb = pick(useLocale());
 
   return (
     <form action={action} className="max-w-2xl space-y-5">
@@ -26,35 +29,35 @@ export function TierForm({ id, locale, defaults = {} }: { id?: string; locale: s
       <input type="hidden" name="locale" value={locale} />
       {id && <input type="hidden" name="id" value={id} />}
 
-      <Field label="الاسم (بالإنجليزية)">
+      <Field label={tb('Name (English)', 'الاسم (بالإنجليزية)')}>
         <input name="nameEn" required defaultValue={defaults.nameEn ?? ''} className={inputCls} />
       </Field>
-      <Field label="الاسم (بالعربية)">
+      <Field label={tb('Name (Arabic)', 'الاسم (بالعربية)')}>
         <input name="nameAr" required dir="rtl" defaultValue={defaults.nameAr ?? ''} className={inputCls} />
       </Field>
-      <Field label="الكود" hint="معرّف ثابت، مثل GREEN / VEEEYIP / SELECT.">
+      <Field label={tb('Key', 'الكود')} hint={tb('Stable identifier, e.g. GREEN / VEEEYIP / SELECT.', 'معرّف ثابت، مثل GREEN / VEEEYIP / SELECT.')}>
         <input name="key" required defaultValue={defaults.key ?? ''} className={inputCls} />
       </Field>
       <div className="grid grid-cols-2 gap-4">
-        <Field label="الرتبة" hint="1 = الفئة الأساسية؛ كلما زاد الرقم زادت الميزات.">
+        <Field label={tb('Rank', 'الرتبة')} hint={tb('1 = base tier; higher number means more perks.', '1 = الفئة الأساسية؛ كلما زاد الرقم زادت الميزات.')}>
           <input name="rank" type="number" min={1} required defaultValue={defaults.rank ?? 1} className={inputCls} />
         </Field>
-        <Field label="النقاط لكل ج.م" hint="معدّل اكتساب النقاط لهذه الفئة.">
+        <Field label={tb('Points per EGP', 'النقاط لكل ج.م')} hint={tb('Points earn rate for this tier.', 'معدّل اكتساب النقاط لهذه الفئة.')}>
           <input name="earnRatePerEgp" type="number" min={0} required defaultValue={defaults.earnRatePerEgp ?? 1} className={inputCls} />
         </Field>
       </div>
       <div className="grid grid-cols-2 gap-4">
-        <Field label="اللون" hint="قيمة Hex، تُستخدم لشارة الفئة.">
+        <Field label={tb('Color', 'اللون')} hint={tb('Hex value, used for the tier badge.', 'قيمة Hex، تُستخدم لشارة الفئة.')}>
           <input name="color" type="text" placeholder="#48884D" defaultValue={defaults.color ?? ''} className={inputCls} />
         </Field>
-        <Field label="الشارة" hint="تسمية أو رمز اختياري.">
+        <Field label={tb('Badge', 'الشارة')} hint={tb('Optional label or symbol.', 'تسمية أو رمز اختياري.')}>
           <input name="badge" type="text" defaultValue={defaults.badge ?? ''} className={inputCls} />
         </Field>
       </div>
 
       <div className="flex items-center gap-3">
-        <SubmitButton>حفظ الفئة</SubmitButton>
-        <Link href="/admin/tiers" className="text-sm text-muted-foreground hover:underline">إلغاء</Link>
+        <SubmitButton>{tb('Save tier', 'حفظ الفئة')}</SubmitButton>
+        <Link href="/admin/tiers" className="text-sm text-muted-foreground hover:underline">{tb('Cancel', 'إلغاء')}</Link>
       </div>
     </form>
   );

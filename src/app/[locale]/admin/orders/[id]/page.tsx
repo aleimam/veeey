@@ -7,6 +7,7 @@ import { listProducts } from '@/lib/catalog-service';
 import { ALLOWED_TRANSITIONS, type OrderStatus } from '@/lib/order-status';
 import { formatEGP } from '@/lib/format';
 import { StatusBadge, inputCls } from '@/components/admin/ui';
+import { pick } from '@/lib/admin-i18n';
 import {
   transitionOrderAction, assignPharmacistAction, setPayCheckAction, setOrderMetaAction,
   setTrackingAction, addOrderItemAction, removeOrderItemAction, addGiftToOrderAction,
@@ -17,6 +18,7 @@ const monthYear = (d: Date | null) => (d ? `${String(d.getUTCMonth() + 1).padSta
 export default async function OrderDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;
   setRequestLocale(locale);
+  const tb = pick(locale);
   const order = await getOrder(id);
   if (!order) notFound();
 
@@ -36,20 +38,20 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ lo
         <div>
           <h1 className="font-heading text-xl font-semibold">{order.number}</h1>
           <p className="text-sm text-muted-foreground">
-            {order.customer?.user.email ?? order.guestEmail ?? 'زائر'} · {order.placedAt.toISOString().slice(0, 10)} · المخاطرة {order.riskScore ?? 0} · <StatusBadge status={order.status} />
+            {order.customer?.user.email ?? order.guestEmail ?? tb('Guest', 'زائر')} · {order.placedAt.toISOString().slice(0, 10)} · {tb('Risk', 'المخاطرة')} {order.riskScore ?? 0} · <StatusBadge status={order.status} />
           </p>
         </div>
-        <a href={`/api/admin/orders/${order.id}/invoice`} target="_blank" rel="noreferrer" className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">طباعة الفاتورة (PDF)</a>
+        <a href={`/api/admin/orders/${order.id}/invoice`} target="_blank" rel="noreferrer" className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">{tb('Print invoice (PDF)', 'طباعة الفاتورة (PDF)')}</a>
       </header>
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Items + edit-in-Hold */}
         <section className="lg:col-span-2">
-          <h2 className="mb-3 text-sm font-semibold">العناصر</h2>
+          <h2 className="mb-3 text-sm font-semibold">{tb('Items', 'العناصر')}</h2>
           <div className="overflow-x-auto rounded-lg border border-border">
             <table className="w-full text-sm">
               <thead className="bg-surface text-xs uppercase text-muted-foreground">
-                <tr><th className="p-2 text-start">المنتج</th><th className="p-2">الصلاحية</th><th className="p-2">الوزن</th><th className="p-2">الكمية</th><th className="p-2">الإجمالي</th><th className="p-2" /></tr>
+                <tr><th className="p-2 text-start">{tb('Product', 'المنتج')}</th><th className="p-2">{tb('Expiry', 'الصلاحية')}</th><th className="p-2">{tb('Weight', 'الوزن')}</th><th className="p-2">{tb('Qty', 'الكمية')}</th><th className="p-2">{tb('Total', 'الإجمالي')}</th><th className="p-2" /></tr>
               </thead>
               <tbody>
                 {order.items.map((it) => (
@@ -61,7 +63,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ lo
                     <td className="p-2 text-center">{formatEGP(Number(it.unitPricePiastres) * it.qty)}</td>
                     <td className="p-2 text-end">
                       {editable && (
-                        <form action={removeOrderItemAction}>{hidden({ orderItemId: it.id })}<button className="text-xs text-destructive hover:underline">إزالة</button></form>
+                        <form action={removeOrderItemAction}>{hidden({ orderItemId: it.id })}<button className="text-xs text-destructive hover:underline">{tb('Remove', 'إزالة')}</button></form>
                       )}
                     </td>
                   </tr>
@@ -70,22 +72,22 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ lo
             </table>
           </div>
           {order.gifts.length > 0 && (
-            <p className="mt-2 text-xs text-muted-foreground">🎁 هدايا داخلية (مخفية عن العميل): {order.gifts.map((g) => `${g.gift.code}×${g.qty}`).join(', ')}</p>
+            <p className="mt-2 text-xs text-muted-foreground">🎁 {tb('Internal gifts (hidden from customer)', 'هدايا داخلية (مخفية عن العميل)')}: {order.gifts.map((g) => `${g.gift.code}×${g.qty}`).join(', ')}</p>
           )}
           <div className="mt-2 text-end text-sm">
-            <span className="text-muted-foreground">الإجمالي </span><span className="font-semibold">{formatEGP(Number(order.totalPiastres))}</span>
+            <span className="text-muted-foreground">{tb('Total', 'الإجمالي')} </span><span className="font-semibold">{formatEGP(Number(order.totalPiastres))}</span>
           </div>
 
           {editable && (
             <form action={addOrderItemAction} className="mt-4 flex flex-wrap items-end gap-2 rounded-lg border border-dashed border-border p-3">
               {hidden({})}
-              <span className="w-full text-xs font-medium uppercase text-muted-foreground">التعديل أثناء الانتظار — إضافة عنصر</span>
+              <span className="w-full text-xs font-medium uppercase text-muted-foreground">{tb('Edit during hold — add item', 'التعديل أثناء الانتظار — إضافة عنصر')}</span>
               <select name="productId" className={`${inputCls} w-64`} required>
-                <option value="">— المنتج —</option>
+                <option value="">{tb('— Product —', '— المنتج —')}</option>
                 {products.map((p) => <option key={p.id} value={p.id}>{p.nameEn} ({p.sku})</option>)}
               </select>
               <input type="number" name="qty" min="1" defaultValue={1} className={`${inputCls} w-20`} />
-              <button className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground">إضافة (FEFO)</button>
+              <button className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground">{tb('Add (FEFO)', 'إضافة (FEFO)')}</button>
             </form>
           )}
         </section>
@@ -93,9 +95,9 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ lo
         {/* Controls */}
         <aside className="space-y-5 text-sm">
           <div className="rounded-lg border border-border p-4">
-            <p className="mb-2 font-medium">الحالة</p>
+            <p className="mb-2 font-medium">{tb('Status', 'الحالة')}</p>
             <div className="flex flex-wrap gap-2">
-              {transitions.length === 0 && <span className="text-xs text-muted-foreground">حالة نهائية.</span>}
+              {transitions.length === 0 && <span className="text-xs text-muted-foreground">{tb('Final status.', 'حالة نهائية.')}</span>}
               {transitions.map((t) => (
                 <form key={t} action={transitionOrderAction}>{hidden({ status: t })}<button className="rounded-md border border-border px-2.5 py-1 text-xs hover:bg-surface">{t}</button></form>
               ))}
@@ -104,58 +106,58 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ lo
 
           <form action={assignPharmacistAction} className="rounded-lg border border-border p-4">
             {hidden({})}
-            <p className="mb-2 font-medium">الصيدلي</p>
+            <p className="mb-2 font-medium">{tb('Pharmacist', 'الصيدلي')}</p>
             <select name="pharmacistId" defaultValue={order.pharmacist?.id ?? ''} className={inputCls}>
-              <option value="">— غير معيَّن —</option>
+              <option value="">{tb('— Unassigned —', '— غير معيَّن —')}</option>
               {staff.map((s) => <option key={s.id} value={s.id}>{s.name ?? s.email}</option>)}
             </select>
-            <button className="mt-2 w-full rounded-md border border-border px-3 py-1.5 hover:bg-surface">تعيين</button>
+            <button className="mt-2 w-full rounded-md border border-border px-3 py-1.5 hover:bg-surface">{tb('Assign', 'تعيين')}</button>
           </form>
 
           <form action={setPayCheckAction} className="rounded-lg border border-border p-4">
             {hidden({})}
-            <p className="mb-2 font-medium">مراجعة الدفع</p>
+            <p className="mb-2 font-medium">{tb('Payment check', 'مراجعة الدفع')}</p>
             <select name="payCheck" defaultValue={order.payCheck} className={inputCls}>
               {['NO', 'YES', 'PROBLEM'].map((p) => <option key={p} value={p}>{p}</option>)}
             </select>
-            <button className="mt-2 w-full rounded-md border border-border px-3 py-1.5 hover:bg-surface">حفظ</button>
+            <button className="mt-2 w-full rounded-md border border-border px-3 py-1.5 hover:bg-surface">{tb('Save', 'حفظ')}</button>
           </form>
 
           <form action={setTrackingAction} className="rounded-lg border border-border p-4">
             {hidden({})}
-            <p className="mb-2 font-medium">التتبع → تم الشحن</p>
-            <input name="trackingNumber" placeholder="رقم بوليصة الشحن" defaultValue={order.trackingNumber ?? ''} className={inputCls} />
+            <p className="mb-2 font-medium">{tb('Tracking → Shipped', 'التتبع → تم الشحن')}</p>
+            <input name="trackingNumber" placeholder={tb('Waybill number', 'رقم بوليصة الشحن')} defaultValue={order.trackingNumber ?? ''} className={inputCls} />
             <select name="courier" defaultValue={order.courier ?? ''} className={`${inputCls} mt-2`}>
-              <option value="">— شركة الشحن —</option>
+              <option value="">{tb('— Courier —', '— شركة الشحن —')}</option>
               {['ARAMEX', 'SMSA', 'OWN'].map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
-            <button className="mt-2 w-full rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground">إضافة تتبع</button>
+            <button className="mt-2 w-full rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground">{tb('Add tracking', 'إضافة تتبع')}</button>
           </form>
 
           <form action={setOrderMetaAction} className="rounded-lg border border-border p-4">
             {hidden({})}
-            <p className="mb-2 font-medium">البيانات الوصفية</p>
+            <p className="mb-2 font-medium">{tb('Metadata', 'البيانات الوصفية')}</p>
             <select name="customerOrderType" defaultValue={order.customerOrderType ?? ''} className={inputCls}>
-              <option value="">نوع العميل…</option>
+              <option value="">{tb('Customer type…', 'نوع العميل…')}</option>
               {['DISCOUNT_CHASER', 'DOCTOR_RECOMMENDED', 'SALES_ADVICE', 'SELF_ORDERING'].map((v) => <option key={v} value={v}>{v}</option>)}
             </select>
             <select name="orderProductType" defaultValue={order.orderProductType ?? ''} className={`${inputCls} mt-2`}>
-              <option value="">نوع المنتج…</option>
+              <option value="">{tb('Product type…', 'نوع المنتج…')}</option>
               {['MISCELLANEOUS', 'MALE_SUPPORT', 'PREMIUM', 'NEW', 'TREND'].map((v) => <option key={v} value={v}>{v}</option>)}
             </select>
-            <input name="source" placeholder="مصدر الطلب" defaultValue={order.source ?? ''} className={`${inputCls} mt-2`} />
-            <button className="mt-2 w-full rounded-md border border-border px-3 py-1.5 hover:bg-surface">حفظ</button>
+            <input name="source" placeholder={tb('Order source', 'مصدر الطلب')} defaultValue={order.source ?? ''} className={`${inputCls} mt-2`} />
+            <button className="mt-2 w-full rounded-md border border-border px-3 py-1.5 hover:bg-surface">{tb('Save', 'حفظ')}</button>
           </form>
 
           {gifts.length > 0 && (
             <form action={addGiftToOrderAction} className="rounded-lg border border-border p-4">
               {hidden({})}
-              <p className="mb-2 font-medium">إضافة هدية (مخفية)</p>
+              <p className="mb-2 font-medium">{tb('Add gift (hidden)', 'إضافة هدية (مخفية)')}</p>
               <select name="giftId" className={inputCls}>
-                {gifts.map((g) => <option key={g.id} value={g.id}>{g.code} · {g.internalName} (المخزون {g.stock})</option>)}
+                {gifts.map((g) => <option key={g.id} value={g.id}>{g.code} · {g.internalName} ({tb('Stock', 'المخزون')} {g.stock})</option>)}
               </select>
               <input type="number" name="qty" min="1" defaultValue={1} className={`${inputCls} mt-2`} />
-              <button className="mt-2 w-full rounded-md border border-border px-3 py-1.5 hover:bg-surface">إضافة هدية</button>
+              <button className="mt-2 w-full rounded-md border border-border px-3 py-1.5 hover:bg-surface">{tb('Add gift', 'إضافة هدية')}</button>
             </form>
           )}
         </aside>

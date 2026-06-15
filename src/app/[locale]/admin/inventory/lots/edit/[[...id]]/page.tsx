@@ -4,10 +4,12 @@ import { listProducts } from '@/lib/catalog-service';
 import { listLocations } from '@/lib/location-service';
 import { piastresToEgp } from '@/lib/format';
 import { LotForm } from '@/components/admin/lot-form';
+import { pick } from '@/lib/admin-i18n';
 
 export default async function LotEditPage({ params }: { params: Promise<{ locale: string; id?: string[] }> }) {
   const { locale, id } = await params;
   setRequestLocale(locale);
+  const tb = pick(locale);
   const lotId = id?.[0];
 
   const [lot, products, locations] = await Promise.all([
@@ -34,12 +36,12 @@ export default async function LotEditPage({ params }: { params: Promise<{ locale
 
   const suggestionText =
     suggestion && suggestion.pct > 0
-      ? `مقترح −${suggestion.pct}% (≈ ${suggestion.suggestedPiastres != null ? piastresToEgp(suggestion.suggestedPiastres) : '—'} ج.م). ${suggestion.reason} بتأكيد الصيدلي.`
+      ? `${tb('Suggested', 'مقترح')} −${suggestion.pct}% (≈ ${suggestion.suggestedPiastres != null ? piastresToEgp(suggestion.suggestedPiastres) : '—'} ${tb('EGP', 'ج.م')}). ${suggestion.reason} ${tb('subject to pharmacist confirmation.', 'بتأكيد الصيدلي.')}`
       : undefined;
 
   return (
     <div className="p-6">
-      <h1 className="mb-6 font-heading text-xl font-semibold">{lotId ? 'تعديل الدفعة' : 'دفعة جديدة'}</h1>
+      <h1 className="mb-6 font-heading text-xl font-semibold">{lotId ? tb('Edit lot', 'تعديل الدفعة') : tb('New lot', 'دفعة جديدة')}</h1>
       <LotForm
         locale={locale}
         defaults={defaults}

@@ -3,6 +3,7 @@ import { listTiers } from '@/lib/tier-service';
 import { AdminList } from '@/components/admin/resource-list';
 import { InUseNotice } from '@/components/admin/row-actions';
 import { deleteTierAction } from '@/server/tier-actions';
+import { pick } from '@/lib/admin-i18n';
 
 type SP = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
@@ -11,15 +12,16 @@ export default async function TiersPage({ params, searchParams }: { params: Prom
   const { locale } = await params;
   const sp = await searchParams;
   setRequestLocale(locale);
+  const tb = pick(locale);
   const tiers = await listTiers();
 
   return (
     <AdminList
-      title="فئات الولاء"
+      title={tb('Loyalty tiers', 'فئات الولاء')}
       newHref="/admin/tiers/edit"
-      newLabel="فئة جديدة"
-      head={['الرتبة', 'الاسم', 'العربية', 'الكود', 'نقاط / ج.م', 'اللون', 'الأعضاء', 'القواعد']}
-      editLabel="تعديل والقواعد"
+      newLabel={tb('New tier', 'فئة جديدة')}
+      head={[tb('Rank', 'الرتبة'), tb('Name', 'الاسم'), tb('Arabic', 'العربية'), tb('Key', 'الكود'), tb('Points / EGP', 'نقاط / ج.م'), tb('Color', 'اللون'), tb('Members', 'الأعضاء'), tb('Rules', 'القواعد')]}
+      editLabel={tb('Edit & rules', 'تعديل والقواعد')}
       notice={<InUseNotice show={one(sp.error) === 'in_use'} />}
       rows={tiers.map((t) => ({
         key: t.id,
@@ -41,7 +43,7 @@ export default async function TiersPage({ params, searchParams }: { params: Prom
           <form action={deleteTierAction}>
             <input type="hidden" name="id" value={t.id} />
             <input type="hidden" name="locale" value={locale} />
-            <button className="text-destructive hover:underline">حذف</button>
+            <button className="text-destructive hover:underline">{tb('Delete', 'حذف')}</button>
           </form>
         ),
       }))}

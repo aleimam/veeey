@@ -1,10 +1,12 @@
 'use client';
 
 import { useActionState } from 'react';
+import { useLocale } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { saveRoleAction } from '@/server/staff-actions';
 import type { AdminFormState } from '@/server/admin-actions';
 import { Field, FormError, SubmitButton, inputCls } from './ui';
+import { pick } from '@/lib/admin-i18n';
 
 type PermOpt = { key: string; description: string };
 
@@ -20,6 +22,7 @@ export function RoleForm({
   defaults?: { key?: string; name?: string; description?: string | null; permissionKeys?: string[] };
 }) {
   const [state, action] = useActionState<AdminFormState, FormData>(saveRoleAction, {});
+  const tb = pick(useLocale());
   const checked = new Set(defaults.permissionKeys ?? []);
 
   return (
@@ -29,19 +32,19 @@ export function RoleForm({
       {id && <input type="hidden" name="id" value={id} />}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="الكود" hint="معرّف ثابت، مثل operations.">
+        <Field label={tb('Key', 'الكود')} hint={tb('Stable identifier, e.g. operations.', 'معرّف ثابت، مثل operations.')}>
           <input name="key" required defaultValue={defaults.key ?? ''} className={inputCls} />
         </Field>
-        <Field label="الاسم">
+        <Field label={tb('Name', 'الاسم')}>
           <input name="name" required defaultValue={defaults.name ?? ''} className={inputCls} />
         </Field>
       </div>
-      <Field label="الوصف">
+      <Field label={tb('Description', 'الوصف')}>
         <input name="description" defaultValue={defaults.description ?? ''} className={inputCls} />
       </Field>
 
       <fieldset>
-        <legend className="mb-2 text-sm font-medium text-foreground">الصلاحيات</legend>
+        <legend className="mb-2 text-sm font-medium text-foreground">{tb('Permissions', 'الصلاحيات')}</legend>
         <div className="grid gap-2 rounded-lg border border-border p-4 sm:grid-cols-2">
           {permissions.map((p) => (
             <label key={p.key} className="flex items-start gap-2 text-sm">
@@ -53,8 +56,8 @@ export function RoleForm({
       </fieldset>
 
       <div className="flex items-center gap-3">
-        <SubmitButton>{id ? 'حفظ الدور' : 'إنشاء دور'}</SubmitButton>
-        <Link href="/admin/roles" className="text-sm text-muted-foreground hover:underline">إلغاء</Link>
+        <SubmitButton>{id ? tb('Save role', 'حفظ الدور') : tb('Create role', 'إنشاء دور')}</SubmitButton>
+        <Link href="/admin/roles" className="text-sm text-muted-foreground hover:underline">{tb('Cancel', 'إلغاء')}</Link>
       </div>
     </form>
   );

@@ -2,6 +2,8 @@
 
 import { useRef, useState } from 'react';
 import Image from 'next/image';
+import { useLocale } from 'next-intl';
+import { pick } from '@/lib/admin-i18n';
 
 /**
  * Drag / drop / paste / pick image uploader (FR-CAT-06). Posts each file to
@@ -12,6 +14,7 @@ export function ImageUploader({ initial = [] }: { initial?: string[] }) {
   const [urls, setUrls] = useState<string[]>(initial);
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const tb = pick(useLocale());
 
   async function upload(file: File) {
     setBusy(true);
@@ -45,7 +48,7 @@ export function ImageUploader({ initial = [] }: { initial?: string[] }) {
         onPaste={(e) => handleFiles(e.clipboardData.files)}
         className="flex h-28 cursor-pointer items-center justify-center rounded-md border border-dashed border-border bg-surface text-sm text-muted-foreground"
       >
-        {busy ? 'جارٍ الرفع…' : 'اسحب أو الصق أو انقر لإضافة صور'}
+        {busy ? tb('Uploading…', 'جارٍ الرفع…') : tb('Drag, paste, or click to add images', 'اسحب أو الصق أو انقر لإضافة صور')}
       </div>
       <input
         ref={inputRef}
@@ -72,7 +75,7 @@ export function ImageUploader({ initial = [] }: { initial?: string[] }) {
                 type="button"
                 onClick={() => setUrls((list) => list.filter((x) => x !== u))}
                 className="absolute -end-2 -top-2 size-5 rounded-full bg-destructive text-xs text-white"
-                aria-label="إزالة الصورة"
+                aria-label={tb('Remove image', 'إزالة الصورة')}
               >
                 ×
               </button>

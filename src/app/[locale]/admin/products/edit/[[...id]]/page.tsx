@@ -3,6 +3,7 @@ import { getProduct } from '@/lib/catalog-service';
 import { listBrands, listCategories, listTags, listAttributes } from '@/lib/taxonomy-service';
 import { piastresToEgp } from '@/lib/format';
 import { ProductForm, type ProductDefaults } from '@/components/admin/product-form';
+import { pick } from '@/lib/admin-i18n';
 
 export default async function ProductEditPage({
   params,
@@ -11,6 +12,7 @@ export default async function ProductEditPage({
 }) {
   const { locale, id } = await params;
   setRequestLocale(locale);
+  const tb = pick(locale);
   const productId = id?.[0];
 
   const [brands, categories, tags, attributes, product] = await Promise.all([
@@ -64,7 +66,7 @@ export default async function ProductEditPage({
   return (
     <div className="p-6">
       <h1 className="mb-6 font-heading text-xl font-semibold">
-        {productId ? 'تعديل منتج' : 'منتج جديد'}
+        {productId ? tb('Edit product', 'تعديل منتج') : tb('New product', 'منتج جديد')}
       </h1>
       <ProductForm
         locale={locale}
