@@ -2,7 +2,7 @@
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { saveSmtpConfig, clearSmtpConfig, saveAiConfig, clearAiConfig, saveSmsConfig, clearSmsConfig, saveWhatsappConfig, clearWhatsappConfig } from '@/lib/provider-config-service';
+import { saveSmtpConfig, clearSmtpConfig, saveAiConfig, clearAiConfig, saveSmsConfig, clearSmsConfig, saveWhatsappConfig, clearWhatsappConfig, saveOpayConfig, clearOpayConfig, saveKashierConfig, clearKashierConfig } from '@/lib/provider-config-service';
 import { requirePermission } from '@/lib/auth-guards';
 import { dispatchEmail, dispatchSms } from '@/lib/notification-dispatch';
 
@@ -121,6 +121,58 @@ export async function saveWhatsappConfigAction(fd: FormData): Promise<void> {
 export async function clearWhatsappConfigAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
   try { await clearWhatsappConfig(); } catch (e) { console.error('wa clear failed', e); }
+  revalidatePath(`/${locale}/admin/providers`);
+  redirect(`/${locale}/admin/providers?cleared=1`);
+}
+
+// ---- Payments: OPay --------------------------------------------------------
+export async function saveOpayConfigAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  try {
+    await saveOpayConfig({
+      'opay.merchantId': str(fd, 'merchantId'),
+      'opay.publicKey': str(fd, 'publicKey'),
+      'opay.privateKey': str(fd, 'privateKey'),
+      'opay.environment': str(fd, 'environment') || 'sandbox',
+    });
+  } catch (e) {
+    console.error('opay save failed', e);
+    revalidatePath(`/${locale}/admin/providers`);
+    redirect(`/${locale}/admin/providers?error=1`);
+  }
+  revalidatePath(`/${locale}/admin/providers`);
+  redirect(`/${locale}/admin/providers?saved=1`);
+}
+
+export async function clearOpayConfigAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  try { await clearOpayConfig(); } catch (e) { console.error('opay clear failed', e); }
+  revalidatePath(`/${locale}/admin/providers`);
+  redirect(`/${locale}/admin/providers?cleared=1`);
+}
+
+// ---- Payments: Kashier -----------------------------------------------------
+export async function saveKashierConfigAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  try {
+    await saveKashierConfig({
+      'kashier.merchantId': str(fd, 'merchantId'),
+      'kashier.apiKey': str(fd, 'apiKey'),
+      'kashier.secretKey': str(fd, 'secretKey'),
+      'kashier.environment': str(fd, 'environment') || 'test',
+    });
+  } catch (e) {
+    console.error('kashier save failed', e);
+    revalidatePath(`/${locale}/admin/providers`);
+    redirect(`/${locale}/admin/providers?error=1`);
+  }
+  revalidatePath(`/${locale}/admin/providers`);
+  redirect(`/${locale}/admin/providers?saved=1`);
+}
+
+export async function clearKashierConfigAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  try { await clearKashierConfig(); } catch (e) { console.error('kashier clear failed', e); }
   revalidatePath(`/${locale}/admin/providers`);
   redirect(`/${locale}/admin/providers?cleared=1`);
 }

@@ -99,3 +99,51 @@ export async function getWhatsappFormValues() {
   const m = await rawMap('wa.');
   return { sender: m['wa.sender'] ?? '', hasToken: !!m['wa.token'] };
 }
+
+// ---- Payments: OPay (hosted Cashier) ---------------------------------------
+// merchantId + publicKey are not secret; privateKey signs requests (secret).
+export type OpayConfig = { merchantId: string; publicKey: string; privateKey: string; environment: string };
+
+export async function getOpayConfig(): Promise<OpayConfig | null> {
+  const m = await rawMap('opay.');
+  const merchantId = m['opay.merchantId'] || process.env.OPAY_MERCHANT_ID;
+  const publicKey = m['opay.publicKey'] || process.env.OPAY_PUBLIC_KEY;
+  const privateKey = m['opay.privateKey'] || process.env.OPAY_SECRET_KEY;
+  if (!merchantId || !publicKey || !privateKey) return null;
+  return { merchantId, publicKey, privateKey, environment: m['opay.environment'] || process.env.OPAY_ENVIRONMENT || 'sandbox' };
+}
+export const opayConfigured = async () => !!(await getOpayConfig());
+
+export async function getOpayFormValues() {
+  const m = await rawMap('opay.');
+  return {
+    merchantId: m['opay.merchantId'] ?? '',
+    publicKey: m['opay.publicKey'] ?? '',
+    environment: m['opay.environment'] ?? 'sandbox',
+    hasPrivate: !!m['opay.privateKey'],
+  };
+}
+
+// ---- Payments: Kashier (hosted payment page / iframe) ----------------------
+// apiKey builds the checkout hash; secretKey verifies webhooks. Both secret.
+export type KashierConfig = { merchantId: string; apiKey: string; secretKey: string; environment: string };
+
+export async function getKashierConfig(): Promise<KashierConfig | null> {
+  const m = await rawMap('kashier.');
+  const merchantId = m['kashier.merchantId'] || process.env.KASHIER_MID;
+  const apiKey = m['kashier.apiKey'] || process.env.KASHIER_API_KEY;
+  const secretKey = m['kashier.secretKey'] || process.env.KASHIER_SECRET_KEY || '';
+  if (!merchantId || !apiKey) return null;
+  return { merchantId, apiKey, secretKey, environment: m['kashier.environment'] || process.env.KASHIER_ENVIRONMENT || 'test' };
+}
+export const kashierConfigured = async () => !!(await getKashierConfig());
+
+export async function getKashierFormValues() {
+  const m = await rawMap('kashier.');
+  return {
+    merchantId: m['kashier.merchantId'] ?? '',
+    environment: m['kashier.environment'] ?? 'test',
+    hasApiKey: !!m['kashier.apiKey'],
+    hasSecret: !!m['kashier.secretKey'],
+  };
+}

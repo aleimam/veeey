@@ -1,6 +1,6 @@
 import { setRequestLocale } from 'next-intl/server';
-import { getSmtpFormValues, emailConfigured, getAiFormValues, aiConfigured, getSmsFormValues, smsConfigured, getWhatsappFormValues } from '@/lib/provider-config';
-import { saveSmtpConfigAction, clearSmtpConfigAction, sendTestEmailAction, saveAiConfigAction, clearAiConfigAction, saveSmsConfigAction, clearSmsConfigAction, sendTestSmsAction, saveWhatsappConfigAction, clearWhatsappConfigAction } from '@/server/provider-actions';
+import { getSmtpFormValues, emailConfigured, getAiFormValues, aiConfigured, getSmsFormValues, smsConfigured, getWhatsappFormValues, getOpayFormValues, opayConfigured, getKashierFormValues, kashierConfigured } from '@/lib/provider-config';
+import { saveSmtpConfigAction, clearSmtpConfigAction, sendTestEmailAction, saveAiConfigAction, clearAiConfigAction, saveSmsConfigAction, clearSmsConfigAction, sendTestSmsAction, saveWhatsappConfigAction, clearWhatsappConfigAction, saveOpayConfigAction, clearOpayConfigAction, saveKashierConfigAction, clearKashierConfigAction } from '@/server/provider-actions';
 import { inputCls } from '@/components/admin/ui';
 
 type SP = Record<string, string | string[] | undefined>;
@@ -10,8 +10,9 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
   const { locale } = await params;
   const sp = await searchParams;
   setRequestLocale(locale);
-  const [smtp, configured, ai, aiOn, sms, smsOn, wa] = await Promise.all([
+  const [smtp, configured, ai, aiOn, sms, smsOn, wa, opay, opayOn, kashier, kashierOn] = await Promise.all([
     getSmtpFormValues(), emailConfigured(), getAiFormValues(), aiConfigured(), getSmsFormValues(), smsConfigured(), getWhatsappFormValues(),
+    getOpayFormValues(), opayConfigured(), getKashierFormValues(), kashierConfigured(),
   ]);
   const test = one(sp.test);
   const smsTest = one(sp.smstest);
@@ -20,7 +21,7 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
     <div className="p-6">
       <h1 className="mb-1 font-heading text-xl font-semibold">Providers</h1>
       <p className="mb-6 max-w-2xl text-sm text-muted-foreground">
-        Email, AI, SMS &amp; WhatsApp credentials. Secrets are stored securely and never shown again after saving — leave a password/token blank to keep the current one.
+        Email, AI, SMS, WhatsApp &amp; payment-gateway credentials. Secrets are stored securely and never shown again after saving — leave a password/token blank to keep the current one.
       </p>
 
       {one(sp.saved) === '1' && <p className="mb-4 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">Saved.</p>}
@@ -167,6 +168,70 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
             <button formAction={clearWhatsappConfigAction} className="rounded-md border border-border px-3 py-2 text-sm text-destructive hover:bg-surface">Clear</button>
           </div>
         </form>
+      </section>
+
+      <section className="mt-10 max-w-2xl">
+        <h2 className="mb-1 font-heading text-lg font-semibold">Payments — OPay (cards)</h2>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Hosted card checkout (Visa / MasterCard). Status: {opayOn ? '✓ configured' : '— not configured'}. Find these in your OPay merchant dashboard → API keys. Keep <strong>Environment</strong> on Sandbox until you go live.
+        </p>
+        <form action={saveOpayConfigAction} className="space-y-4 rounded-lg border border-border p-4">
+          <input type="hidden" name="locale" value={locale} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="text-sm font-medium">Environment
+              <select name="environment" defaultValue={opay.environment} className={inputCls}>
+                <option value="sandbox">Sandbox</option>
+                <option value="live">Live</option>
+              </select>
+            </label>
+            <label className="text-sm font-medium">Merchant ID
+              <input name="merchantId" defaultValue={opay.merchantId} autoComplete="off" className={inputCls} />
+            </label>
+            <label className="text-sm font-medium">Public key
+              <input name="publicKey" defaultValue={opay.publicKey} autoComplete="off" className={inputCls} />
+            </label>
+            <label className="text-sm font-medium">Private (secret) key
+              <input name="privateKey" type="password" autoComplete="new-password" placeholder={opay.hasPrivate ? '•••••••• (stored — blank keeps it)' : ''} className={inputCls} />
+            </label>
+          </div>
+          <div className="flex items-center gap-3">
+            <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Save OPay settings</button>
+            <button formAction={clearOpayConfigAction} className="rounded-md border border-border px-3 py-2 text-sm text-destructive hover:bg-surface">Clear</button>
+          </div>
+        </form>
+        <p className="mt-2 text-xs text-muted-foreground">Charging customers via OPay is wired in the next step (hosted redirect + webhook). Saving keys here readies it.</p>
+      </section>
+
+      <section className="mt-10 max-w-2xl">
+        <h2 className="mb-1 font-heading text-lg font-semibold">Payments — Kashier (cards)</h2>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Hosted card checkout (Visa / MasterCard). Status: {kashierOn ? '✓ configured' : '— not configured'}. Find these in your Kashier dashboard → Settings → API. The <strong>Payment API key</strong> signs the checkout; the <strong>Secret key</strong> verifies webhooks. Keep <strong>Environment</strong> on Test until you go live.
+        </p>
+        <form action={saveKashierConfigAction} className="space-y-4 rounded-lg border border-border p-4">
+          <input type="hidden" name="locale" value={locale} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="text-sm font-medium">Environment
+              <select name="environment" defaultValue={kashier.environment} className={inputCls}>
+                <option value="test">Test</option>
+                <option value="live">Live</option>
+              </select>
+            </label>
+            <label className="text-sm font-medium">Merchant ID (MID)
+              <input name="merchantId" defaultValue={kashier.merchantId} autoComplete="off" className={inputCls} />
+            </label>
+            <label className="text-sm font-medium">Payment API key
+              <input name="apiKey" type="password" autoComplete="new-password" placeholder={kashier.hasApiKey ? '•••••••• (stored — blank keeps it)' : ''} className={inputCls} />
+            </label>
+            <label className="text-sm font-medium">Secret key (webhooks)
+              <input name="secretKey" type="password" autoComplete="new-password" placeholder={kashier.hasSecret ? '•••••••• (stored — blank keeps it)' : ''} className={inputCls} />
+            </label>
+          </div>
+          <div className="flex items-center gap-3">
+            <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Save Kashier settings</button>
+            <button formAction={clearKashierConfigAction} className="rounded-md border border-border px-3 py-2 text-sm text-destructive hover:bg-surface">Clear</button>
+          </div>
+        </form>
+        <p className="mt-2 text-xs text-muted-foreground">Charging customers via Kashier is wired in the next step (hosted payment page + webhook). Saving keys here readies it.</p>
       </section>
     </div>
   );

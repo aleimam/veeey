@@ -12,7 +12,7 @@ import { audit } from '@/lib/audit';
 export * from '@/lib/provider-config';
 
 const PERM = 'settings.manage';
-const SECRET_KEYS = new Set(['smtp.pass', 'ai.apiKey', 'sms.password', 'wa.token']);
+const SECRET_KEYS = new Set(['smtp.pass', 'ai.apiKey', 'sms.password', 'wa.token', 'opay.privateKey', 'kashier.apiKey', 'kashier.secretKey']);
 
 async function saveKeys(keys: string[], values: Record<string, string>, prefix: string, action: string) {
   const user = await requirePermission(PERM);
@@ -64,4 +64,24 @@ export async function clearWhatsappConfig() {
   const user = await requirePermission(PERM);
   await prisma.setting.deleteMany({ where: { key: { startsWith: 'wa.' } } });
   await audit({ actorType: 'USER', actorId: user.id, action: 'provider.wa.clear', entityType: 'Setting', entityId: 'wa.*' });
+}
+
+// ---- Payments: OPay --------------------------------------------------------
+export function saveOpayConfig(values: Record<string, string>) {
+  return saveKeys(['opay.merchantId', 'opay.publicKey', 'opay.environment', 'opay.privateKey'], values, 'opay.', 'provider.opay.update');
+}
+export async function clearOpayConfig() {
+  const user = await requirePermission(PERM);
+  await prisma.setting.deleteMany({ where: { key: { startsWith: 'opay.' } } });
+  await audit({ actorType: 'USER', actorId: user.id, action: 'provider.opay.clear', entityType: 'Setting', entityId: 'opay.*' });
+}
+
+// ---- Payments: Kashier -----------------------------------------------------
+export function saveKashierConfig(values: Record<string, string>) {
+  return saveKeys(['kashier.merchantId', 'kashier.environment', 'kashier.apiKey', 'kashier.secretKey'], values, 'kashier.', 'provider.kashier.update');
+}
+export async function clearKashierConfig() {
+  const user = await requirePermission(PERM);
+  await prisma.setting.deleteMany({ where: { key: { startsWith: 'kashier.' } } });
+  await audit({ actorType: 'USER', actorId: user.id, action: 'provider.kashier.clear', entityType: 'Setting', entityId: 'kashier.*' });
 }
