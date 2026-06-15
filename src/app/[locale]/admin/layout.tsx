@@ -16,6 +16,7 @@ const NAV: { href: string; label: string; permission?: PermissionKey }[] = [
   { href: '/admin/products', label: 'Products', permission: 'catalog.read' },
   { href: '/admin/inventory', label: 'Inventory', permission: 'inventory.manage' },
   { href: '/admin/stocktake', label: 'Stocktake', permission: 'stocktake.manage' },
+  { href: '/admin/shipping', label: 'Shipping', permission: 'settings.manage' },
   { href: '/admin/gifts', label: 'Gifts', permission: 'orders.write' },
   { href: '/admin/brands', label: 'Brands', permission: 'catalog.write' },
   { href: '/admin/categories', label: 'Categories', permission: 'catalog.write' },
