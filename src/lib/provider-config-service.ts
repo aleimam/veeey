@@ -12,7 +12,7 @@ import { audit } from '@/lib/audit';
 export * from '@/lib/provider-config';
 
 const PERM = 'settings.manage';
-const SECRET_KEYS = new Set(['smtp.pass', 'ai.apiKey']);
+const SECRET_KEYS = new Set(['smtp.pass', 'ai.apiKey', 'sms.password', 'wa.token']);
 
 async function saveKeys(keys: string[], values: Record<string, string>, prefix: string, action: string) {
   const user = await requirePermission(PERM);
@@ -46,4 +46,22 @@ export async function clearAiConfig() {
   const user = await requirePermission(PERM);
   await prisma.setting.deleteMany({ where: { key: { startsWith: 'ai.' } } });
   await audit({ actorType: 'USER', actorId: user.id, action: 'provider.ai.clear', entityType: 'Setting', entityId: 'ai.*' });
+}
+
+export function saveSmsConfig(values: Record<string, string>) {
+  return saveKeys(['sms.username', 'sms.sender', 'sms.environment', 'sms.language', 'sms.password'], values, 'sms.', 'provider.sms.update');
+}
+export async function clearSmsConfig() {
+  const user = await requirePermission(PERM);
+  await prisma.setting.deleteMany({ where: { key: { startsWith: 'sms.' } } });
+  await audit({ actorType: 'USER', actorId: user.id, action: 'provider.sms.clear', entityType: 'Setting', entityId: 'sms.*' });
+}
+
+export function saveWhatsappConfig(values: Record<string, string>) {
+  return saveKeys(['wa.sender', 'wa.token'], values, 'wa.', 'provider.wa.update');
+}
+export async function clearWhatsappConfig() {
+  const user = await requirePermission(PERM);
+  await prisma.setting.deleteMany({ where: { key: { startsWith: 'wa.' } } });
+  await audit({ actorType: 'USER', actorId: user.id, action: 'provider.wa.clear', entityType: 'Setting', entityId: 'wa.*' });
 }

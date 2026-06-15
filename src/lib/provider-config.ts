@@ -55,3 +55,47 @@ export async function getAiFormValues() {
   const m = await rawMap('ai.');
   return { model: m['ai.model'] ?? '', enabled: (m['ai.enabled'] ?? 'true') !== 'false', hasKey: !!m['ai.apiKey'], defaultModel: DEFAULT_AI_MODEL };
 }
+
+// ---- SMS (SMSMisr / sms.com.eg) --------------------------------------------
+export type SmsConfig = { username: string; password: string; sender: string; environment: string; language: string };
+
+/** Normalize an Egyptian mobile to SMSMisr's `2011…` form (country code, no +/0). */
+export function normalizeMobile(raw: string): string {
+  const d = raw.replace(/\D/g, '');
+  if (d.startsWith('20')) return d;
+  if (d.startsWith('0')) return `20${d.slice(1)}`;
+  return d;
+}
+
+export async function getSmsConfig(): Promise<SmsConfig | null> {
+  const m = await rawMap('sms.');
+  const username = m['sms.username'] || process.env.SMS_USERNAME;
+  const password = m['sms.password'] || process.env.SMS_PASSWORD;
+  const sender = m['sms.sender'] || process.env.SMS_SENDER;
+  if (!username || !password || !sender) return null;
+  return {
+    username,
+    password,
+    sender,
+    environment: m['sms.environment'] || process.env.SMS_ENVIRONMENT || '2', // default Test for safety
+    language: m['sms.language'] || process.env.SMS_LANGUAGE || '1',
+  };
+}
+export const smsConfigured = async () => !!(await getSmsConfig());
+
+export async function getSmsFormValues() {
+  const m = await rawMap('sms.');
+  return {
+    username: m['sms.username'] ?? '',
+    sender: m['sms.sender'] ?? '',
+    environment: m['sms.environment'] ?? '2',
+    language: m['sms.language'] ?? '1',
+    hasPass: !!m['sms.password'],
+  };
+}
+
+// ---- WhatsApp (config-only for now) ----------------------------------------
+export async function getWhatsappFormValues() {
+  const m = await rawMap('wa.');
+  return { sender: m['wa.sender'] ?? '', hasToken: !!m['wa.token'] };
+}

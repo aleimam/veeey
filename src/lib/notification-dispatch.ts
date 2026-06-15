@@ -1,5 +1,5 @@
 import webpush from 'web-push';
-import { getSmtpConfig } from '@/lib/provider-config';
+import { getSmtpConfig, getSmsConfig, normalizeMobile } from '@/lib/provider-config';
 
 /**
  * Channel dispatch (FR-NOT-02). Without credentials a send is reported `skipped`
@@ -46,6 +46,36 @@ export async function dispatchEmail(to: string, subject: string, body: string): 
     }
   }
   return { ok: false, skipped: true };
+}
+
+/** SMS via SMSMisr (sms.com.eg). Mobile may be comma-separated; each is
+ *  normalized to the 2011… form. Success response code is 1901. */
+export async function dispatchSms(to: string, message: string): Promise<DispatchResult> {
+  const cfg = await getSmsConfig();
+  if (!cfg) return { ok: false, skipped: true };
+  const mobile = to.split(',').map((m) => normalizeMobile(m)).filter(Boolean).join(',');
+  if (!mobile) return { ok: false, error: 'no_mobile' };
+  try {
+    const body = new URLSearchParams({
+      environment: cfg.environment,
+      username: cfg.username,
+      password: cfg.password,
+      sender: cfg.sender,
+      mobile,
+      language: cfg.language,
+      message,
+    });
+    const res = await fetch('https://smsmisr.com/api/SMS/', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body,
+    });
+    const json = (await res.json().catch(() => null)) as { code?: string | number } | null;
+    if (json && String(json.code) === '1901') return { ok: true };
+    return { ok: false, error: `sms_${json?.code ?? res.status}` };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message.slice(0, 120) : 'sms_error' };
+  }
 }
 
 export async function dispatchPush(sub: { endpoint: string; p256dh: string; auth: string }, payload: object): Promise<DispatchResult> {

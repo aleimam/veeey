@@ -4,7 +4,7 @@
  * unit-tested.
  */
 export type NotifyType = 'ORDER' | 'PRICE_DROP' | 'BACK_IN_STOCK' | 'MARKETING';
-export type NotifyChannel = 'EMAIL' | 'PUSH';
+export type NotifyChannel = 'EMAIL' | 'SMS' | 'WHATSAPP' | 'PUSH';
 export type Prefs = { email: boolean; push: boolean; orderUpdates: boolean; priceDrop: boolean; backInStock: boolean; marketing: boolean };
 
 export const DEFAULT_PREFS: Prefs = { email: true, push: true, orderUpdates: true, priceDrop: true, backInStock: true, marketing: false };
