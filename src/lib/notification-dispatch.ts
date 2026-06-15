@@ -1,13 +1,15 @@
 import webpush from 'web-push';
+import { getSmtpConfig } from '@/lib/provider-config-service';
 
 /**
- * Channel dispatch (FR-NOT-02). Both channels are env-gated: without credentials
- * a send is reported `skipped` (recorded, ready to send once configured) rather
- * than failing. Email → Resend HTTP API (no SDK dep); Push → web-push + VAPID.
+ * Channel dispatch (FR-NOT-02). Without credentials a send is reported `skipped`
+ * (recorded, ready once configured) rather than failing. Email → admin-configured
+ * SMTP (nodemailer) if set, else Resend HTTP API (env); Push → web-push + VAPID.
  */
 export type DispatchResult = { ok: boolean; skipped?: boolean; error?: string };
 
-export const emailEnabled = () => !!process.env.RESEND_API_KEY;
+// Sync env check (for the admin status line); the real send also resolves DB-stored SMTP.
+export const emailEnabled = () => !!(process.env.RESEND_API_KEY || process.env.SMTP_HOST);
 export const pushEnabled = () => !!(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
 
 let vapidReady = false;
@@ -18,17 +20,32 @@ function configureVapid() {
 }
 
 export async function dispatchEmail(to: string, subject: string, body: string): Promise<DispatchResult> {
-  if (!emailEnabled()) return { ok: false, skipped: true };
-  try {
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ from: process.env.EMAIL_FROM ?? 'Veeey <info@veeey.com>', to, subject, text: body }),
-    });
-    return res.ok ? { ok: true } : { ok: false, error: `email_http_${res.status}` };
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message.slice(0, 120) : 'email_error' };
+  // 1) Admin-configured SMTP (DB or env) via nodemailer.
+  const smtp = await getSmtpConfig();
+  if (smtp) {
+    try {
+      const { createTransport } = await import('nodemailer');
+      const transport = createTransport({ host: smtp.host, port: smtp.port, secure: smtp.secure, auth: { user: smtp.user, pass: smtp.pass } });
+      await transport.sendMail({ from: `${smtp.fromName} <${smtp.from}>`, to, subject, text: body });
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message.slice(0, 120) : 'smtp_error' };
+    }
   }
+  // 2) Resend HTTP API (env fallback).
+  if (process.env.RESEND_API_KEY) {
+    try {
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ from: process.env.EMAIL_FROM ?? 'Veeey <info@veeey.com>', to, subject, text: body }),
+      });
+      return res.ok ? { ok: true } : { ok: false, error: `email_http_${res.status}` };
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message.slice(0, 120) : 'email_error' };
+    }
+  }
+  return { ok: false, skipped: true };
 }
 
 export async function dispatchPush(sub: { endpoint: string; p256dh: string; auth: string }, payload: object): Promise<DispatchResult> {

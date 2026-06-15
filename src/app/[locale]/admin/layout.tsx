@@ -36,6 +36,7 @@ const NAV: { href: string; label: string; permission?: PermissionKey }[] = [
   { href: '/admin/integration', label: 'Integration', permission: 'settings.manage' },
   { href: '/admin/users', label: 'Staff users', permission: 'rbac.manage' },
   { href: '/admin/roles', label: 'Roles', permission: 'rbac.manage' },
+  { href: '/admin/providers', label: 'Providers', permission: 'settings.manage' },
   { href: '/admin/settings', label: 'Settings', permission: 'settings.manage' },
 ];
 
