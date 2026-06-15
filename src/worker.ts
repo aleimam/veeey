@@ -16,6 +16,11 @@ async function main() {
     process.exit(1);
   }
 
+  // pg-boss v12 requires a queue to exist before work/send/schedule. createQueue
+  // is idempotent — safe to call on every boot.
+  await boss.createQueue(QUEUES.notify);
+  await boss.createQueue(QUEUES.alerts);
+
   await boss.work(QUEUES.notify, async ([job]) => {
     await notify(job.data as NotifyInput);
   });
