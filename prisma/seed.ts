@@ -8,6 +8,7 @@
  * Idempotent: config is upserted by unique key; catalog is created once (guarded).
  * Run: `DATABASE_URL=... npx tsx prisma/seed.ts`  (or `npm run db:seed`).
  */
+import 'dotenv/config'; // tsx doesn't auto-load .env (Next does) — load it for standalone runs
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client';
 import {

@@ -1,3 +1,4 @@
+import 'dotenv/config'; // tsx doesn't auto-load .env (Next does) — load it for the standalone worker
 import { getBoss, QUEUES } from '@/lib/jobs';
 import { processProductChangeEvents } from '@/lib/alert-service';
 import { notify, type NotifyInput } from '@/lib/notification-service';
