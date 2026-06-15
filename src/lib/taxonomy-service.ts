@@ -104,7 +104,7 @@ export async function saveTag(id: string | null, raw: TagInput) {
 const attributeSchema = z.object({
   key: z.string().trim().min(1),
   ...bilingual,
-  kind: z.enum(['SUPPLEMENT', 'DEVICE', 'OTHER']).default('SUPPLEMENT'),
+  kind: z.enum(['SUPPLEMENT', 'DEVICE', 'INJECTION']).default('SUPPLEMENT'),
 });
 export type AttributeInput = z.input<typeof attributeSchema>;
 

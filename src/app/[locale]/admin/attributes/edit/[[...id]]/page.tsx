@@ -13,7 +13,7 @@ export default async function AttributeEditPage({ params }: { params: Promise<{ 
     { name: 'key', label: tb('Key (technical identifier, e.g. size)', 'المفتاح (مُعرّف تقني، مثل size)'), type: 'text', required: true },
     { name: 'nameEn', label: tb('Name (English)', 'الاسم (بالإنجليزية)'), type: 'text', required: true },
     { name: 'nameAr', label: tb('Name (Arabic)', 'الاسم (بالعربية)'), type: 'text' },
-    { name: 'kind', label: tb('Applies to', 'ينطبق على'), type: 'select', options: [{ value: 'SUPPLEMENT', label: tb('Supplement', 'مكمل غذائي') }, { value: 'DEVICE', label: tb('Device', 'جهاز') }, { value: 'OTHER', label: tb('Other', 'أخرى') }] },
+    { name: 'kind', label: tb('Applies to', 'ينطبق على'), type: 'select', options: [{ value: 'SUPPLEMENT', label: tb('Supplement', 'مكمل غذائي') }, { value: 'DEVICE', label: tb('Device', 'جهاز') }, { value: 'INJECTION', label: tb('Injection', 'حقن') }] },
   ];
   const attributeId = id?.[0];
   const attribute = attributeId ? await getAttribute(attributeId) : null;

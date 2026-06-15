@@ -77,8 +77,8 @@ export async function saveProductAction(_p: AdminFormState, fd: FormData): Promi
     nameAr: str(fd, 'nameAr'),
     slugEn: str(fd, 'slugEn'),
     slugAr: str(fd, 'slugAr'),
-    kind: (str(fd, 'kind') ?? 'SUPPLEMENT') as 'SUPPLEMENT' | 'DEVICE' | 'OTHER',
-    status: (str(fd, 'status') ?? 'DRAFT') as 'DRAFT' | 'PUBLISHED' | 'ARCHIVED',
+    kind: (str(fd, 'kind') ?? 'SUPPLEMENT') as 'SUPPLEMENT' | 'DEVICE' | 'INJECTION',
+    status: (str(fd, 'status') ?? 'PUBLISHED') as 'DRAFT' | 'PUBLISHED' | 'PRIVATE' | 'ARCHIVED',
     brandId: str(fd, 'brandId') ?? null,
     basePriceEgp: str(fd, 'basePriceEgp') ?? '0',
     shortDescEn: str(fd, 'shortDescEn'),
@@ -88,6 +88,7 @@ export async function saveProductAction(_p: AdminFormState, fd: FormData): Promi
     weightG: str(fd, 'weightG'),
     servingsPerUnit: str(fd, 'servingsPerUnit'),
     dailyDosage: str(fd, 'dailyDosage'),
+    dailyDosageMax: str(fd, 'dailyDosageMax'),
     productType: (str(fd, 'productType') ?? null) as
       | 'MISCELLANEOUS' | 'MALE_SUPPORT' | 'PREMIUM' | 'NEW' | 'TREND' | null,
     categoryIds: arr(fd, 'categoryIds'),
@@ -168,7 +169,7 @@ export async function saveAttributeAction(_p: AdminFormState, fd: FormData): Pro
   try {
     await saveAttribute(str(fd, 'id') ?? null, {
       key: str(fd, 'key') ?? '', nameEn: str(fd, 'nameEn') ?? '', nameAr: str(fd, 'nameAr'),
-      kind: (str(fd, 'kind') ?? 'SUPPLEMENT') as 'SUPPLEMENT' | 'DEVICE' | 'OTHER',
+      kind: (str(fd, 'kind') ?? 'SUPPLEMENT') as 'SUPPLEMENT' | 'DEVICE' | 'INJECTION',
     });
   } catch (e) { return fail(e); }
   done(locale, 'attributes');

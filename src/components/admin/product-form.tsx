@@ -25,6 +25,7 @@ export type ProductDefaults = {
   weightG?: number | null;
   servingsPerUnit?: number | null;
   dailyDosage?: number | null;
+  dailyDosageMax?: number | null;
   shortDescEn?: string;
   shortDescAr?: string;
   longDescEn?: string;
@@ -94,20 +95,22 @@ export function ProductForm({
           <select name="kind" defaultValue={d.kind ?? 'SUPPLEMENT'} className={inputCls}>
             <option value="SUPPLEMENT">{tb('Supplement', 'مكمل غذائي')}</option>
             <option value="DEVICE">{tb('Device', 'جهاز')}</option>
-            <option value="OTHER">{tb('Other', 'أخرى')}</option>
+            <option value="INJECTION">{tb('Injection', 'حقن')}</option>
           </select>
         </Field>
         <Field label={tb('Status', 'الحالة')}>
-          <select name="status" defaultValue={d.status ?? 'DRAFT'} className={inputCls}>
-            <option value="DRAFT">{tb('Draft', 'مسودة')}</option>
+          <select name="status" defaultValue={d.status ?? 'PUBLISHED'} className={inputCls}>
             <option value="PUBLISHED">{tb('Published', 'منشور')}</option>
+            <option value="PRIVATE">{tb('Private (staff only)', 'خاص (للموظفين فقط)')}</option>
+            <option value="DRAFT">{tb('Draft', 'مسودة')}</option>
             <option value="ARCHIVED">{tb('Archived', 'مؤرشف')}</option>
           </select>
         </Field>
         <Field label={tb('Base price (EGP)', 'السعر الأساسي (ج.م)')}><input name="basePriceEgp" type="number" step="0.01" min="0" defaultValue={d.basePriceEgp ?? 0} className={inputCls} /></Field>
         <Field label={tb('Weight (g)', 'الوزن (جم)')}><input name="weightG" type="number" min="0" defaultValue={d.weightG ?? ''} className={inputCls} /></Field>
         <Field label={tb('Servings per unit', 'عدد الجرعات في العبوة')} hint={tb('Used in the supply-duration calculator.', 'يُستخدم في حاسبة مدة الاستخدام.')}><input name="servingsPerUnit" type="number" min="0" defaultValue={d.servingsPerUnit ?? ''} className={inputCls} /></Field>
-        <Field label={tb('Daily dosage', 'الجرعة اليومية')} hint={tb('Number of servings consumed per day.', 'عدد الجرعات المستهلكة يوميًا.')}><input name="dailyDosage" type="number" min="0" defaultValue={d.dailyDosage ?? ''} className={inputCls} /></Field>
+        <Field label={tb('Daily dosage — min', 'الجرعة اليومية — الحد الأدنى')} hint={tb('Min servings per day (also the calculator default).', 'أقل عدد جرعات يوميًا (وافتراضي الحاسبة).')}><input name="dailyDosage" type="number" min="0" defaultValue={d.dailyDosage ?? ''} className={inputCls} /></Field>
+        <Field label={tb('Daily dosage — max', 'الجرعة اليومية — الحد الأقصى')} hint={tb('Optional upper bound of the dose range.', 'الحد الأعلى الاختياري لنطاق الجرعة.')}><input name="dailyDosageMax" type="number" min="0" defaultValue={d.dailyDosageMax ?? ''} className={inputCls} /></Field>
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2">

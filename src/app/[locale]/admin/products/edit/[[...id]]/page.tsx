@@ -43,6 +43,7 @@ export default async function ProductEditPage({
         weightG: product.weightG,
         servingsPerUnit: product.servingsPerUnit,
         dailyDosage: product.dailyDosage,
+        dailyDosageMax: product.dailyDosageMax,
         shortDescEn: product.shortDescEn ?? '',
         shortDescAr: product.shortDescAr ?? '',
         longDescEn: product.longDescEn ?? '',

@@ -29,7 +29,7 @@ export default async function ProductsPage({
     status: 'PUBLISHED' as const,
     ...(q ? { nameEn: { contains: q, mode: 'insensitive' as const } } : {}),
     ...(brand ? { brandId: brand } : {}),
-    ...(kind ? { kind: kind as 'SUPPLEMENT' | 'DEVICE' | 'OTHER' } : {}),
+    ...(kind ? { kind: kind as 'SUPPLEMENT' | 'DEVICE' | 'INJECTION' } : {}),
     ...(inStock ? { lots: { some: { status: 'LIVE' as const, qtyOnHand: { gt: 0 } } } } : {}),
     ...(offers ? { lots: { some: { saleFlag: true } } } : {}),
   };

@@ -23,12 +23,13 @@ datasource db {
 enum ProductKind {
   SUPPLEMENT
   DEVICE
-  OTHER
+  INJECTION
 }
 
 enum ProductStatus {
   DRAFT
   PUBLISHED
+  PRIVATE // staff-visible only; hidden from storefront, feeds, search
   ARCHIVED
 }
 
@@ -520,6 +521,7 @@ model Brand {
   descriptionEn String?
   descriptionAr String?
   logoUrl       String?
+  bannerUrl     String?
   // SEO/AEO (FR-SEO-07)
   metaTitleEn   String?
   metaTitleAr   String?
@@ -602,12 +604,13 @@ model Product {
   brand             Brand?            @relation(fields: [brandId], references: [id])
   weightG           Int?
   basePricePiastres BigInt            @default(0)
-  status            ProductStatus     @default(DRAFT)
+  status            ProductStatus     @default(PUBLISHED)
   productType       OrderProductType? // merchandising tag (FR-ORD-05 list reused)
 
   // Health duration calculator inputs (FR-HEALTH-01 / FR-REPL-01)
   servingsPerUnit     Int?
-  dailyDosage         Int?
+  dailyDosage         Int? // min daily dose (also the calculator default)
+  dailyDosageMax      Int? // optional upper bound of the dose range
   defaultSupplierHint String?
 
   // AI-generated review summary (FR-REV-04) — cached, regenerated on demand

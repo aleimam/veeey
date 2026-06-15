@@ -17,8 +17,8 @@ export const productWriteSchema = z.object({
   nameAr: z.string().trim().optional().nullable(),
   slugEn: z.string().trim().optional(),
   slugAr: z.string().trim().optional(),
-  kind: z.enum(['SUPPLEMENT', 'DEVICE', 'OTHER']).default('SUPPLEMENT'),
-  status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']).default('DRAFT'),
+  kind: z.enum(['SUPPLEMENT', 'DEVICE', 'INJECTION']).default('SUPPLEMENT'),
+  status: z.enum(['DRAFT', 'PUBLISHED', 'PRIVATE', 'ARCHIVED']).default('PUBLISHED'),
   brandId: z.string().optional().nullable(),
   basePriceEgp: z.coerce.number().nonnegative().default(0),
   shortDescEn: z.string().optional().nullable(),
@@ -28,6 +28,7 @@ export const productWriteSchema = z.object({
   weightG: z.coerce.number().int().nonnegative().optional().nullable(),
   servingsPerUnit: z.coerce.number().int().nonnegative().optional().nullable(),
   dailyDosage: z.coerce.number().int().nonnegative().optional().nullable(),
+  dailyDosageMax: z.coerce.number().int().nonnegative().optional().nullable(),
   productType: z
     .enum(['MISCELLANEOUS', 'MALE_SUPPORT', 'PREMIUM', 'NEW', 'TREND'])
     .optional()
@@ -82,6 +83,7 @@ function scalarFields(data: z.infer<typeof productWriteSchema>) {
     weightG: data.weightG ?? null,
     servingsPerUnit: data.servingsPerUnit ?? null,
     dailyDosage: data.dailyDosage ?? null,
+    dailyDosageMax: data.dailyDosageMax ?? null,
     productType: data.productType ?? null,
     restricted: data.restricted,
     restrictHideCatalog: data.restrictHideCatalog,
@@ -104,7 +106,7 @@ export async function listProducts(opts: { search?: string; status?: string } = 
       ...(opts.search
         ? { OR: [{ nameEn: { contains: opts.search, mode: 'insensitive' } }, { sku: { contains: opts.search, mode: 'insensitive' } }] }
         : {}),
-      ...(opts.status ? { status: opts.status as 'DRAFT' | 'PUBLISHED' | 'ARCHIVED' } : {}),
+      ...(opts.status ? { status: opts.status as 'DRAFT' | 'PUBLISHED' | 'PRIVATE' | 'ARCHIVED' } : {}),
     },
     include: { brand: true, images: { take: 1, orderBy: { sortOrder: 'asc' } } },
     orderBy: { updatedAt: 'desc' },
