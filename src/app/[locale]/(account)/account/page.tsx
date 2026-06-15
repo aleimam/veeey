@@ -61,6 +61,7 @@ export default async function AccountPage({ params }: { params: Promise<{ locale
             <div className="text-sm text-muted-foreground">{t('referralCode')}</div>
             <div className="mt-1 font-mono text-lg font-semibold text-foreground">{customer.referralCode}</div>
             <div className="text-xs text-muted-foreground">{t('referralNote')}</div>
+            <a href={`/${locale}/register?ref=${customer.referralCode}`} className="mt-1 block break-all text-xs text-primary hover:underline">{`/${locale}/register?ref=${customer.referralCode}`}</a>
           </div>
         </div>
       )}

@@ -44,6 +44,19 @@ export async function registerCustomer(
     data: { email: parsed.data.email, name: parsed.data.name, passwordHash },
   });
   await ensureCustomerProfile(user.id);
+
+  // Referral attribution (FR-LOY): link to the referrer's customer if the code matches.
+  const ref = ((formData.get('ref') as string) || '').trim();
+  if (ref) {
+    try {
+      const referrer = await prisma.customer.findUnique({ where: { referralCode: ref } });
+      const me = await prisma.customer.findUnique({ where: { userId: user.id } });
+      if (referrer && me && referrer.id !== me.id) {
+        await prisma.customer.update({ where: { id: me.id }, data: { referredById: referrer.id } });
+      }
+    } catch { /* referral attribution is best-effort */ }
+  }
+
   await audit({
     actorType: 'CUSTOMER',
     actorId: user.id,

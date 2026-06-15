@@ -6,7 +6,7 @@ import { audit } from '@/lib/audit';
 import { canTransition, isDelivered, type OrderStatus } from '@/lib/order-status';
 import { availableQty } from '@/lib/inventory';
 import { getShippingFee, type ShippingTypeKey } from '@/lib/shipping-service';
-import { creditOrderPoints } from '@/lib/loyalty-service';
+import { creditOrderPoints, creditReferralReward } from '@/lib/loyalty-service';
 import { enqueue, QUEUES } from '@/lib/jobs';
 import { notify, type NotifyInput } from '@/lib/notification-service';
 import { recordOutbox } from '@/lib/integration/integration-service';
@@ -68,6 +68,7 @@ export async function transitionOrder(id: string, to: OrderStatus, reason?: stri
   // Loyalty points are earned once the order is delivered (revenue realized).
   if (isDelivered(to)) {
     await creditOrderPoints(id);
+    await creditReferralReward(id); // referrer earns a configured share of the referee's order points
     // Push revenue to YeldnIN for reconciliation (no-op while the flag is off).
     await recordOutbox('revenue.event', updated.number, { veeeyOrderId: updated.number, amountEgp: Number(updated.totalPiastres) / 100, occurredAt: new Date().toISOString() });
   }

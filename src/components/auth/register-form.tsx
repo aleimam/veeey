@@ -8,7 +8,7 @@ import { registerCustomer, type AuthFormState } from '@/server/auth-actions';
 const field =
   'mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring';
 
-export function RegisterForm({ locale }: { locale: string }) {
+export function RegisterForm({ locale, referralCode }: { locale: string; referralCode?: string }) {
   const t = useTranslations('auth');
   const [state, action, pending] = useActionState<AuthFormState, FormData>(
     registerCustomer,
@@ -29,6 +29,7 @@ export function RegisterForm({ locale }: { locale: string }) {
 
       <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="recaptchaToken" value="" />
+      {referralCode && <input type="hidden" name="ref" value={referralCode} />}
 
       <label className="mt-5 block text-sm font-medium">
         {t('register.name')}
