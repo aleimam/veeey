@@ -1,5 +1,6 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { prisma } from '@/lib/prisma';
+import { getHomeContent } from '@/lib/home-content-service';
 import { toCardProduct, cardProductInclude } from '@/lib/storefront';
 import { getCurrentUser } from '@/lib/auth-guards';
 import { recentlyViewed, recommendedForYou, buyAgain, popularInTier } from '@/lib/personalization-service';
@@ -23,6 +24,7 @@ export default async function HomePage({
   const { locale } = await params;
   setRequestLocale(locale);
   const tRows = await getTranslations('storefront.rows');
+  const homeContent = await getHomeContent(locale);
 
   // Degrade gracefully — a DB hiccup should still render the storefront shell.
   let bestsellers: ReturnType<typeof toCardProduct>[] = [];
@@ -68,7 +70,7 @@ export default async function HomePage({
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <HeroSection />
+      <HeroSection content={homeContent} />
       <TrustStrip />
       <ShopByGoal />
       <Bestsellers products={bestsellers} locale={locale} />
