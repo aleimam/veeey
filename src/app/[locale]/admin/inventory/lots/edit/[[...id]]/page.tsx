@@ -46,6 +46,7 @@ export default async function LotEditPage({ params }: { params: Promise<{ locale
         locale={locale}
         defaults={defaults}
         products={products.map((p) => ({ value: p.id, label: `${p.nameEn} (${p.sku})` }))}
+        productPrices={Object.fromEntries(products.map((p) => [p.id, piastresToEgp(p.basePricePiastres)]))}
         locations={locations.map((l) => ({ value: l.id, label: l.name }))}
         suggestion={suggestionText}
       />
