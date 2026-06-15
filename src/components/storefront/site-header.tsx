@@ -5,11 +5,11 @@ import { Link } from '@/i18n/navigation'
 
 const navItems: { key: string; href: string }[] = [
   { key: 'shopByGoal', href: '/products' },
-  { key: 'vitamins', href: '/products' },
-  { key: 'devices', href: '/products' },
+  { key: 'vitamins', href: '/products?kind=SUPPLEMENT' },
+  { key: 'devices', href: '/products?kind=DEVICE' },
   { key: 'brands', href: '/products' },
-  { key: 'offers', href: '/products' },
-  { key: 'specialOrder', href: '/products' },
+  { key: 'offers', href: '/products?offers=1' },
+  { key: 'specialOrder', href: '/p/special-order' },
   { key: 'play', href: '/play' },
   { key: 'blog', href: '/blog' },
 ]
