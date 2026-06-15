@@ -12,6 +12,7 @@ import { maxRedeemablePoints, pointsToPiastres } from '@/lib/loyalty';
 import { getNumberSetting } from '@/lib/settings-service';
 import { enqueue, QUEUES } from '@/lib/jobs';
 import { notify, type NotifyInput } from '@/lib/notification-service';
+import { smsConfigured } from '@/lib/provider-config';
 
 /** Checkout → Order (FR-CHK-*, FR-ORD-01). Converts cart soft-holds into a real
  *  order: each reservation becomes an OrderItem bound to its lot (exact expiry
@@ -160,9 +161,15 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
     toEmail = customerId
       ? (await prisma.customer.findUnique({ where: { id: customerId }, include: { user: { select: { email: true } } } }))?.user.email ?? null
       : data.guestEmail ?? null;
+    const vars = { name: data.name, number, total: Number(total) / 100 };
     if (toEmail) {
-      const payload: NotifyInput = { customerId, toAddress: toEmail, type: 'ORDER', channel: 'EMAIL', templateKey: 'order.placed', vars: { name: data.name, number, total: Number(total) / 100 }, refType: 'order', refId: order.id };
+      const payload: NotifyInput = { customerId, toAddress: toEmail, type: 'ORDER', channel: 'EMAIL', templateKey: 'order.placed', vars, refType: 'order', refId: order.id };
       await enqueue(QUEUES.notify, payload, () => notify(payload));
+    }
+    // Order-placed SMS — only when SMS is configured and the customer gave a phone.
+    if (data.phone && (await smsConfigured())) {
+      const sms: NotifyInput = { customerId, toAddress: data.phone, type: 'ORDER', channel: 'SMS', templateKey: 'order.placed', vars, refType: 'order', refId: order.id };
+      await enqueue(QUEUES.notify, sms, () => notify(sms));
     }
   } catch { /* notifications never block checkout */ }
 

@@ -9,16 +9,32 @@ import { getShippingFee, type ShippingTypeKey } from '@/lib/shipping-service';
 import { creditOrderPoints, creditReferralReward } from '@/lib/loyalty-service';
 import { enqueue, QUEUES } from '@/lib/jobs';
 import { notify, type NotifyInput } from '@/lib/notification-service';
+import { smsConfigured } from '@/lib/provider-config';
 import { recordOutbox } from '@/lib/integration/integration-service';
+
+/** Phone captured on the order's address snapshot (used for order SMS). */
+function orderPhone(shippingAddressJson: unknown): string | null {
+  const j = shippingAddressJson as { phone?: string } | null;
+  return j?.phone?.trim() || null;
+}
 
 /** Best-effort order email (FR-NOT-01). Resolves recipient, enqueues, never throws. */
 async function notifyOrder(orderId: string, templateKey: string) {
   try {
     const order = await prisma.order.findUnique({ where: { id: orderId }, include: { customer: { include: { user: { select: { email: true } } } } } });
-    const toEmail = order?.customer?.user.email ?? order?.guestEmail ?? null;
-    if (!order || !toEmail) return;
-    const payload: NotifyInput = { customerId: order.customerId, toAddress: toEmail, type: 'ORDER', channel: 'EMAIL', templateKey, vars: { number: order.number, tracking: order.trackingNumber ?? '' }, refType: 'order', refId: orderId };
-    await enqueue(QUEUES.notify, payload, () => notify(payload));
+    if (!order) return;
+    const vars = { number: order.number, tracking: order.trackingNumber ?? '' };
+    const toEmail = order.customer?.user.email ?? order.guestEmail ?? null;
+    if (toEmail) {
+      const payload: NotifyInput = { customerId: order.customerId, toAddress: toEmail, type: 'ORDER', channel: 'EMAIL', templateKey, vars, refType: 'order', refId: orderId };
+      await enqueue(QUEUES.notify, payload, () => notify(payload));
+    }
+    // Order SMS — only when SMS is configured and a phone is on the order.
+    const phone = orderPhone(order.shippingAddressJson);
+    if (phone && (await smsConfigured())) {
+      const sms: NotifyInput = { customerId: order.customerId, toAddress: phone, type: 'ORDER', channel: 'SMS', templateKey, vars, refType: 'order', refId: orderId };
+      await enqueue(QUEUES.notify, sms, () => notify(sms));
+    }
   } catch {
     // notifications never block order ops
   }
