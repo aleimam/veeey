@@ -1,6 +1,7 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { prisma } from '@/lib/prisma';
-import { getHomeContent } from '@/lib/home-content-service';
+import { getHomeContent, getFeaturedCollectionId } from '@/lib/home-content-service';
+import { resolveCollectionProducts } from '@/lib/content-service';
 import { toCardProduct, cardProductInclude } from '@/lib/storefront';
 import { getCurrentUser } from '@/lib/auth-guards';
 import { recentlyViewed, recommendedForYou, buyAgain, popularInTier } from '@/lib/personalization-service';
@@ -29,12 +30,17 @@ export default async function HomePage({
   // Degrade gracefully — a DB hiccup should still render the storefront shell.
   let bestsellers: ReturnType<typeof toCardProduct>[] = [];
   try {
-    const dbProducts = await prisma.product.findMany({
-      where: { status: 'PUBLISHED' },
-      include: cardProductInclude,
-      orderBy: [{ ratingCount: 'desc' }, { updatedAt: 'desc' }],
-      take: 8,
-    });
+    const featuredId = await getFeaturedCollectionId();
+    // Admin-chosen collection drives the featured row; re-query with the card include.
+    const featuredIds = featuredId ? (await resolveCollectionProducts(featuredId)).slice(0, 8).map((p) => p.id) : [];
+    const dbProducts = featuredId
+      ? (featuredIds.length ? await prisma.product.findMany({ where: { id: { in: featuredIds }, status: 'PUBLISHED' }, include: cardProductInclude }) : [])
+      : await prisma.product.findMany({
+          where: { status: 'PUBLISHED' },
+          include: cardProductInclude,
+          orderBy: [{ ratingCount: 'desc' }, { updatedAt: 'desc' }],
+          take: 8,
+        });
     bestsellers = dbProducts.map((p) => toCardProduct(p, locale));
   } catch {
     bestsellers = [];

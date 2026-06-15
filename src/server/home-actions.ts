@@ -2,7 +2,7 @@
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { HOME_FIELDS, saveHomeContent } from '@/lib/home-content-service';
+import { HOME_FIELDS, FEATURED_KEY, saveHomeContent } from '@/lib/home-content-service';
 
 const localeOf = (fd: FormData) => (fd.get('locale') === 'ar' ? 'ar' : 'en');
 
@@ -16,6 +16,8 @@ export async function saveHomeContentAction(fd: FormData): Promise<void> {
       values[k] = typeof v === 'string' ? v : '';
     }
   }
+  const featured = fd.get(FEATURED_KEY);
+  values[FEATURED_KEY] = typeof featured === 'string' ? featured : '';
   try {
     await saveHomeContent(values);
   } catch (e) {

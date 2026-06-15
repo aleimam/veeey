@@ -23,7 +23,19 @@ export const HOME_FIELDS: { key: string; label: string; multiline?: boolean }[] 
   { key: 'home.card3.desc', label: 'Card 3 — description', multiline: true },
 ];
 
-const KNOWN = new Set(HOME_FIELDS.flatMap((f) => [`${f.key}.en`, `${f.key}.ar`]));
+export const FEATURED_KEY = 'home.featuredCollectionId';
+
+const KNOWN = new Set([...HOME_FIELDS.flatMap((f) => [`${f.key}.en`, `${f.key}.ar`]), FEATURED_KEY]);
+
+/** Collection chosen to drive the homepage featured row (null = auto top-rated). */
+export async function getFeaturedCollectionId(): Promise<string | null> {
+  try {
+    const row = await prisma.setting.findUnique({ where: { key: FEATURED_KEY } });
+    return row?.value || null;
+  } catch {
+    return null;
+  }
+}
 
 async function rawMap(): Promise<Record<string, string>> {
   try {

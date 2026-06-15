@@ -1,5 +1,6 @@
 import { setRequestLocale } from 'next-intl/server';
-import { HOME_FIELDS, getHomeRaw } from '@/lib/home-content-service';
+import { HOME_FIELDS, FEATURED_KEY, getHomeRaw } from '@/lib/home-content-service';
+import { listCollections } from '@/lib/content-service';
 import { saveHomeContentAction } from '@/server/home-actions';
 import { inputCls } from '@/components/admin/ui';
 
@@ -10,7 +11,7 @@ export default async function HomepageAdmin({ params, searchParams }: { params: 
   const { locale } = await params;
   const sp = await searchParams;
   setRequestLocale(locale);
-  const values = await getHomeRaw();
+  const [values, collections] = await Promise.all([getHomeRaw(), listCollections()]);
 
   return (
     <div className="p-6">
@@ -24,6 +25,18 @@ export default async function HomepageAdmin({ params, searchParams }: { params: 
 
       <form action={saveHomeContentAction} className="max-w-3xl space-y-6">
         <input type="hidden" name="locale" value={locale} />
+
+        <div className="rounded-lg border border-border p-4">
+          <p className="mb-2 text-sm font-semibold">Featured row (Bestsellers)</p>
+          <label className="block text-sm font-medium">Source collection
+            <select name={FEATURED_KEY} defaultValue={values[FEATURED_KEY] ?? ''} className={inputCls}>
+              <option value="">Auto — most popular</option>
+              {collections.map((c) => <option key={c.id} value={c.id}>{c.titleEn}</option>)}
+            </select>
+            <span className="mt-1 block text-xs font-normal text-muted-foreground">Pick a collection to feature, or leave on auto (top-rated products).</span>
+          </label>
+        </div>
+
         {HOME_FIELDS.map((f) => (
           <div key={f.key} className="rounded-lg border border-border p-4">
             <p className="mb-2 text-sm font-semibold">{f.label}</p>
