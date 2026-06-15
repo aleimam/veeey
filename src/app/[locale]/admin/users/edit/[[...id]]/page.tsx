@@ -11,8 +11,8 @@ export default async function StaffEditPage({ params }: { params: Promise<{ loca
 
   return (
     <div className="p-6">
-      <Link href="/admin/users" className="text-sm text-primary hover:underline">← Staff users</Link>
-      <h1 className="mb-6 mt-2 font-heading text-xl font-semibold">{uid ? 'Edit staff user' : 'New staff user'}</h1>
+      <Link href="/admin/users" className="text-sm text-primary hover:underline">← المستخدمون</Link>
+      <h1 className="mb-6 mt-2 font-heading text-xl font-semibold">{uid ? 'تعديل المستخدم' : 'مستخدم جديد'}</h1>
       <StaffForm
         id={uid}
         locale={locale}

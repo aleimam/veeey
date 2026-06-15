@@ -8,13 +8,13 @@ export default async function LocationsPage({ params }: { params: Promise<{ loca
   const locations = await listLocations();
   return (
     <AdminList
-      title="Locations"
+      title="المواقع"
       newHref="/admin/inventory/locations/edit"
-      newLabel="New location"
-      head={['Name', 'Type', 'UltraFast zone']}
+      newLabel="موقع جديد"
+      head={['الاسم', 'النوع', 'منطقة UltraFast']}
       rows={locations.map((l) => ({
         key: l.id,
-        cells: [l.name, l.type, l.isUltraFastZone ? 'Yes' : '—'],
+        cells: [l.name, l.type, l.isUltraFastZone ? 'نعم' : '—'],
         editHref: `/admin/inventory/locations/edit/${l.id}`,
       }))}
     />

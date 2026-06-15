@@ -15,11 +15,11 @@ export default async function TiersPage({ params, searchParams }: { params: Prom
 
   return (
     <AdminList
-      title="Loyalty tiers"
+      title="فئات الولاء"
       newHref="/admin/tiers/edit"
-      newLabel="New tier"
-      head={['Rank', 'Name', 'Arabic', 'Key', 'Pts / EGP', 'Color', 'Members', 'Rules']}
-      editLabel="Edit & rules"
+      newLabel="فئة جديدة"
+      head={['الرتبة', 'الاسم', 'العربية', 'الكود', 'نقاط / ج.م', 'اللون', 'الأعضاء', 'القواعد']}
+      editLabel="تعديل والقواعد"
       notice={<InUseNotice show={one(sp.error) === 'in_use'} />}
       rows={tiers.map((t) => ({
         key: t.id,
@@ -41,7 +41,7 @@ export default async function TiersPage({ params, searchParams }: { params: Prom
           <form action={deleteTierAction}>
             <input type="hidden" name="id" value={t.id} />
             <input type="hidden" name="locale" value={locale} />
-            <button className="text-destructive hover:underline">Delete</button>
+            <button className="text-destructive hover:underline">حذف</button>
           </form>
         ),
       }))}

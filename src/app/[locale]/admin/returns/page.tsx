@@ -9,10 +9,10 @@ export default async function ReturnsPage({ params }: { params: Promise<{ locale
   const returns = await listReturns();
   return (
     <AdminList
-      title="Returns"
+      title="المرتجعات"
       newHref="/admin/returns"
-      newLabel="Returns"
-      head={['Order', 'Reason', 'Items', 'Status', 'Date']}
+      newLabel="المرتجعات"
+      head={['الطلب', 'السبب', 'العناصر', 'الحالة', 'التاريخ']}
       rows={returns.map((r) => ({
         key: r.id,
         cells: [r.order.number, r.reasonCode, String(r.items.length), <StatusBadge key="s" status={r.status} />, r.createdAt.toISOString().slice(0, 10)],

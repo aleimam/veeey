@@ -13,17 +13,17 @@ export function IntakePublishForm({ locale, lotId }: { locale: string; lotId: st
       <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="lotId" value={lotId} />
       <label className="text-xs">
-        Expiry
+        الصلاحية
         <input type="date" name="expiryDate" required className={`${inputCls} w-40`} />
       </label>
       <label className="text-xs">
-        Sale price (EGP)
+        سعر التخفيض (ج.م)
         <input type="number" step="0.01" min="0" name="priceOverrideEgp" className={`${inputCls} w-32`} />
       </label>
       <label className="flex items-center gap-1 text-xs">
-        <input type="checkbox" name="saleFlag" className="size-4" /> sale
+        <input type="checkbox" name="saleFlag" className="size-4" /> تخفيض
       </label>
-      <SubmitButton>Publish</SubmitButton>
+      <SubmitButton>نشر</SubmitButton>
     </form>
   );
 }

@@ -21,17 +21,17 @@ export default async function AdminPage({
   ]);
 
   const stats = [
-    { label: 'Products', value: products, href: '/admin/products', sub: `${published} published` },
-    { label: 'Brands', value: brands, href: '/admin/brands' },
-    { label: 'Categories', value: categories, href: '/admin/categories' },
-    { label: 'Collections', value: collections, href: '/admin/collections' },
-    { label: 'CMS Pages', value: pages, href: '/admin/content/pages' },
-    { label: 'Blog Posts', value: posts, href: '/admin/content/blog' },
+    { label: 'المنتجات', value: products, href: '/admin/products', sub: `${published} منشور` },
+    { label: 'العلامات التجارية', value: brands, href: '/admin/brands' },
+    { label: 'الفئات', value: categories, href: '/admin/categories' },
+    { label: 'المجموعات', value: collections, href: '/admin/collections' },
+    { label: 'صفحات المحتوى', value: pages, href: '/admin/content/pages' },
+    { label: 'مقالات المدونة', value: posts, href: '/admin/content/blog' },
   ];
 
   return (
     <div className="p-6">
-      <h1 className="mb-6 font-heading text-xl font-semibold">Dashboard</h1>
+      <h1 className="mb-6 font-heading text-xl font-semibold">اللوحة الرئيسية</h1>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {stats.map((s) => (
           <Link

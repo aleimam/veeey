@@ -4,11 +4,11 @@ import { saveSocialLinkAction } from '@/server/social-actions';
 import { EntityForm, type FieldSpec } from '@/components/admin/entity-form';
 
 const FIELDS: FieldSpec[] = [
-  { name: 'platform', label: 'Platform', type: 'select', options: SOCIAL_PLATFORMS.map((p) => ({ value: p.value, label: p.label })) },
-  { name: 'label', label: 'Label (optional — required for "Other")', type: 'text' },
-  { name: 'url', label: 'URL', type: 'text', required: true },
-  { name: 'sortOrder', label: 'Sort order', type: 'text', hint: 'Lower shows first.' },
-  { name: 'active', label: 'Active (show in footer)', type: 'checkbox' },
+  { name: 'platform', label: 'المنصة', type: 'select', options: SOCIAL_PLATFORMS.map((p) => ({ value: p.value, label: p.label })) },
+  { name: 'label', label: 'التسمية (اختياري — مطلوبة لـ «أخرى»)', type: 'text' },
+  { name: 'url', label: 'الرابط', type: 'text', required: true },
+  { name: 'sortOrder', label: 'الترتيب', type: 'text', hint: 'الأقل يظهر أولًا.' },
+  { name: 'active', label: 'نشط (إظهار في التذييل)', type: 'checkbox' },
 ];
 
 export default async function SocialEditPage({ params }: { params: Promise<{ locale: string; id?: string[] }> }) {
@@ -18,7 +18,7 @@ export default async function SocialEditPage({ params }: { params: Promise<{ loc
   const link = sid ? await getSocialLink(sid) : null;
   return (
     <div className="p-6">
-      <h1 className="mb-6 font-heading text-xl font-semibold">{sid ? 'Edit social link' : 'New social link'}</h1>
+      <h1 className="mb-6 font-heading text-xl font-semibold">{sid ? 'تعديل رابط التواصل' : 'رابط تواصل جديد'}</h1>
       <EntityForm
         action={saveSocialLinkAction}
         fields={FIELDS}

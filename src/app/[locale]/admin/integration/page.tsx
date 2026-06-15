@@ -11,19 +11,19 @@ export default async function IntegrationPage({ params }: { params: Promise<{ lo
 
   return (
     <div className="p-6">
-      <h1 className="mb-2 font-heading text-xl font-semibold">YeldnIN integration</h1>
+      <h1 className="mb-2 font-heading text-xl font-semibold">تكامل YeldnIN</h1>
       <p className="text-sm text-muted-foreground">
-        Status: <span className={enabled ? 'font-medium text-primary' : 'font-medium text-muted-foreground'}>{enabled ? 'ENABLED' : 'DISABLED (default)'}</span> · outbound target <code className="text-xs">{yeldninBaseUrl()}</code>
+        الحالة: <span className={enabled ? 'font-medium text-primary' : 'font-medium text-muted-foreground'}>{enabled ? 'مُفعّل' : 'مُعطّل (افتراضي)'}</span> · وجهة الإرسال <code className="text-xs">{yeldninBaseUrl()}</code>
       </p>
       <div className="mt-3 rounded-lg border border-amber-300/50 bg-amber-50/40 p-3 text-xs text-muted-foreground">
-        ⚠️ Ships disabled. Before enabling in staging: re-baseline <code>INTEGRATION_CONTRACT.md</code> against the latest YeldnIN description, set <code>INTEGRATION_ENABLED=1</code> + <code>INTEGRATION_CLIENT_VEEEY_SECRET</code>, and develop against <code>npm run mock:yeldnin</code>.
+        ⚠️ يُشحن مُعطّلًا. قبل التفعيل في بيئة الاختبار: أعد ضبط <code>INTEGRATION_CONTRACT.md</code> وفق أحدث وصف لـ YeldnIN، واضبط <code>INTEGRATION_ENABLED=1</code> + <code>INTEGRATION_CLIENT_VEEEY_SECRET</code>، وطوّر مقابل <code>npm run mock:yeldnin</code>.
       </div>
 
-      <h2 className="mb-3 mt-6 text-sm font-semibold">Outbox ({events.length})</h2>
+      <h2 className="mb-3 mt-6 text-sm font-semibold">صندوق الصادر ({events.length})</h2>
       <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-sm">
           <thead className="bg-surface text-xs uppercase text-muted-foreground">
-            <tr><th className="p-2 text-start">When</th><th className="p-2 text-start">Type</th><th className="p-2 text-start">Aggregate</th><th className="p-2">Attempts</th><th className="p-2">Status</th><th className="p-2 text-start">Last error</th></tr>
+            <tr><th className="p-2 text-start">الوقت</th><th className="p-2 text-start">النوع</th><th className="p-2 text-start">الكيان</th><th className="p-2">المحاولات</th><th className="p-2">الحالة</th><th className="p-2 text-start">آخر خطأ</th></tr>
           </thead>
           <tbody>
             {events.map((e) => (
@@ -36,7 +36,7 @@ export default async function IntegrationPage({ params }: { params: Promise<{ lo
                 <td className="p-2 text-xs text-muted-foreground">{e.lastError ?? '—'}</td>
               </tr>
             ))}
-            {events.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">No outbound events {enabled ? 'yet' : '(integration disabled)'}.</td></tr>}
+            {events.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">لا توجد أحداث صادرة {enabled ? 'بعد' : '(التكامل مُعطّل)'}.</td></tr>}
           </tbody>
         </table>
       </div>

@@ -29,19 +29,19 @@ export function RoleForm({
       {id && <input type="hidden" name="id" value={id} />}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Key" hint="Stable identifier, e.g. operations.">
+        <Field label="الكود" hint="معرّف ثابت، مثل operations.">
           <input name="key" required defaultValue={defaults.key ?? ''} className={inputCls} />
         </Field>
-        <Field label="Name">
+        <Field label="الاسم">
           <input name="name" required defaultValue={defaults.name ?? ''} className={inputCls} />
         </Field>
       </div>
-      <Field label="Description">
+      <Field label="الوصف">
         <input name="description" defaultValue={defaults.description ?? ''} className={inputCls} />
       </Field>
 
       <fieldset>
-        <legend className="mb-2 text-sm font-medium text-foreground">Permissions</legend>
+        <legend className="mb-2 text-sm font-medium text-foreground">الصلاحيات</legend>
         <div className="grid gap-2 rounded-lg border border-border p-4 sm:grid-cols-2">
           {permissions.map((p) => (
             <label key={p.key} className="flex items-start gap-2 text-sm">
@@ -53,8 +53,8 @@ export function RoleForm({
       </fieldset>
 
       <div className="flex items-center gap-3">
-        <SubmitButton>{id ? 'Save role' : 'Create role'}</SubmitButton>
-        <Link href="/admin/roles" className="text-sm text-muted-foreground hover:underline">Cancel</Link>
+        <SubmitButton>{id ? 'حفظ الدور' : 'إنشاء دور'}</SubmitButton>
+        <Link href="/admin/roles" className="text-sm text-muted-foreground hover:underline">إلغاء</Link>
       </div>
     </form>
   );

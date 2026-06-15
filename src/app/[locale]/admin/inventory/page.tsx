@@ -19,15 +19,15 @@ export default async function InventoryOverviewPage({ params }: { params: Promis
   ]);
 
   const cards = [
-    { label: 'Live lots in stock', value: live, href: '/admin/inventory/lots' },
-    { label: 'Pending intake', value: quarantine, href: '/admin/inventory/intake', sub: 'received, awaiting publish' },
-    { label: 'Expiring ≤ 90 days', value: expiringSoon, href: '/admin/inventory/lots', sub: 'review for discounts' },
-    { label: 'Locations', value: locations, href: '/admin/inventory/locations' },
+    { label: 'الدفعات المتاحة في المخزون', value: live, href: '/admin/inventory/lots' },
+    { label: 'إدخال قيد الانتظار', value: quarantine, href: '/admin/inventory/intake', sub: 'تم الاستلام، في انتظار النشر' },
+    { label: 'تنتهي صلاحيتها خلال ≤ 90 يوم', value: expiringSoon, href: '/admin/inventory/lots', sub: 'مراجعة للخصومات' },
+    { label: 'المواقع', value: locations, href: '/admin/inventory/locations' },
   ];
 
   return (
     <div className="p-6">
-      <h1 className="mb-6 font-heading text-xl font-semibold">Inventory</h1>
+      <h1 className="mb-6 font-heading text-xl font-semibold">المخزون</h1>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((c) => (
           <Link key={c.label} href={c.href} className="rounded-lg border border-border bg-card p-5 transition hover:border-primary">

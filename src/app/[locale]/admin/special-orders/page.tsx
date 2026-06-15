@@ -10,15 +10,15 @@ export default async function SpecialOrdersPage({ params }: { params: Promise<{ 
 
   return (
     <div className="p-6">
-      <h1 className="mb-6 font-heading text-xl font-semibold">Special orders ({items.length})</h1>
+      <h1 className="mb-6 font-heading text-xl font-semibold">الطلبات الخاصة ({items.length})</h1>
       <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-sm">
           <thead className="bg-surface text-xs uppercase text-muted-foreground">
             <tr>
-              <th className="p-3 text-start">Requester</th>
-              <th className="p-3 text-start">Product</th>
-              <th className="p-3 text-start">Status</th>
-              <th className="p-3 text-start">Deadline</th>
+              <th className="p-3 text-start">مقدّم الطلب</th>
+              <th className="p-3 text-start">المنتج</th>
+              <th className="p-3 text-start">الحالة</th>
+              <th className="p-3 text-start">الموعد النهائي</th>
               <th className="p-3" />
             </tr>
           </thead>
@@ -32,10 +32,10 @@ export default async function SpecialOrdersPage({ params }: { params: Promise<{ 
                 <td className="p-3">{s.requestedProductText ?? '—'}</td>
                 <td className="p-3"><StatusBadge status={s.status} /></td>
                 <td className="p-3 text-muted-foreground">{s.deadlineAt ? s.deadlineAt.toISOString().slice(0, 10) : '—'}</td>
-                <td className="p-3 text-end"><Link href={`/admin/special-orders/${s.id}`} className="text-primary hover:underline">Manage</Link></td>
+                <td className="p-3 text-end"><Link href={`/admin/special-orders/${s.id}`} className="text-primary hover:underline">إدارة</Link></td>
               </tr>
             ))}
-            {items.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">No special orders yet.</td></tr>}
+            {items.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">لا توجد طلبات خاصة بعد.</td></tr>}
           </tbody>
         </table>
       </div>

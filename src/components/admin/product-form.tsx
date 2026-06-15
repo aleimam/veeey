@@ -43,12 +43,12 @@ export type ProductDefaults = {
 };
 
 const RESTRICTIONS: { name: keyof ProductDefaults; label: string }[] = [
-  { name: 'restricted', label: 'Flag as restricted' },
-  { name: 'restrictHideCatalog', label: 'Hide from public catalog' },
-  { name: 'restrictHideFeeds', label: 'Hide from Google/Meta feeds' },
-  { name: 'restrictDisableCards', label: 'Disable card payments' },
-  { name: 'restrictRequireLogin', label: 'Require login' },
-  { name: 'restrictAgeConsent', label: 'Require age/consent' },
+  { name: 'restricted', label: 'تمييز كمنتج مقيّد' },
+  { name: 'restrictHideCatalog', label: 'إخفاء من الكتالوج العام' },
+  { name: 'restrictHideFeeds', label: 'إخفاء من خلاصات Google/Meta' },
+  { name: 'restrictDisableCards', label: 'تعطيل الدفع بالبطاقة' },
+  { name: 'restrictRequireLogin', label: 'يتطلب تسجيل الدخول' },
+  { name: 'restrictAgeConsent', label: 'يتطلب تأكيد السن/الموافقة' },
 ];
 
 export function ProductForm({
@@ -76,62 +76,62 @@ export function ProductForm({
       {d.id && <input type="hidden" name="id" value={d.id} />}
 
       <section className="grid gap-4 sm:grid-cols-2">
-        <Field label="Name (English)"><input name="nameEn" required defaultValue={d.nameEn ?? ''} className={inputCls} /></Field>
-        <Field label="Name (Arabic)"><input name="nameAr" defaultValue={d.nameAr ?? ''} dir="rtl" className={inputCls} /></Field>
-        <Field label="SKU" hint="Leave blank to auto-generate (VEY-…)."><input name="sku" defaultValue={d.sku ?? ''} className={inputCls} /></Field>
-        <Field label="Brand">
+        <Field label="الاسم (بالإنجليزية)"><input name="nameEn" required defaultValue={d.nameEn ?? ''} className={inputCls} /></Field>
+        <Field label="الاسم (بالعربية)"><input name="nameAr" defaultValue={d.nameAr ?? ''} dir="rtl" className={inputCls} /></Field>
+        <Field label="رمز المنتج (SKU)" hint="اتركه فارغًا للتوليد التلقائي (VEY-…)."><input name="sku" defaultValue={d.sku ?? ''} className={inputCls} /></Field>
+        <Field label="العلامة التجارية">
           <select name="brandId" defaultValue={d.brandId ?? ''} className={inputCls}>
-            <option value="">— none —</option>
+            <option value="">— بدون —</option>
             {brands.map((b) => <option key={b.value} value={b.value}>{b.label}</option>)}
           </select>
         </Field>
-        <Field label="Slug (English)" hint="Leave blank to auto-generate."><input name="slugEn" defaultValue={d.slugEn ?? ''} className={inputCls} /></Field>
-        <Field label="Slug (Arabic)" hint="Leave blank to auto-generate."><input name="slugAr" defaultValue={d.slugAr ?? ''} className={inputCls} /></Field>
-        <Field label="Kind">
+        <Field label="المُعرّف (بالإنجليزية)" hint="اتركه فارغًا للتوليد التلقائي."><input name="slugEn" defaultValue={d.slugEn ?? ''} className={inputCls} /></Field>
+        <Field label="المُعرّف (بالعربية)" hint="اتركه فارغًا للتوليد التلقائي."><input name="slugAr" defaultValue={d.slugAr ?? ''} className={inputCls} /></Field>
+        <Field label="النوع">
           <select name="kind" defaultValue={d.kind ?? 'SUPPLEMENT'} className={inputCls}>
-            <option value="SUPPLEMENT">Supplement</option>
-            <option value="DEVICE">Device</option>
-            <option value="OTHER">Other</option>
+            <option value="SUPPLEMENT">مكمل غذائي</option>
+            <option value="DEVICE">جهاز</option>
+            <option value="OTHER">أخرى</option>
           </select>
         </Field>
-        <Field label="Status">
+        <Field label="الحالة">
           <select name="status" defaultValue={d.status ?? 'DRAFT'} className={inputCls}>
-            <option value="DRAFT">Draft</option>
-            <option value="PUBLISHED">Published</option>
-            <option value="ARCHIVED">Archived</option>
+            <option value="DRAFT">مسودة</option>
+            <option value="PUBLISHED">منشور</option>
+            <option value="ARCHIVED">مؤرشف</option>
           </select>
         </Field>
-        <Field label="Base price (EGP)"><input name="basePriceEgp" type="number" step="0.01" min="0" defaultValue={d.basePriceEgp ?? 0} className={inputCls} /></Field>
-        <Field label="Merchandising type">
+        <Field label="السعر الأساسي (ج.م)"><input name="basePriceEgp" type="number" step="0.01" min="0" defaultValue={d.basePriceEgp ?? 0} className={inputCls} /></Field>
+        <Field label="نوع العرض التسويقي">
           <select name="productType" defaultValue={d.productType ?? ''} className={inputCls}>
-            <option value="">— none —</option>
+            <option value="">— بدون —</option>
             {['MISCELLANEOUS', 'MALE_SUPPORT', 'PREMIUM', 'NEW', 'TREND'].map((v) => <option key={v} value={v}>{v}</option>)}
           </select>
         </Field>
-        <Field label="Weight (g)"><input name="weightG" type="number" min="0" defaultValue={d.weightG ?? ''} className={inputCls} /></Field>
-        <Field label="Servings per unit" hint="Powers the duration calculator."><input name="servingsPerUnit" type="number" min="0" defaultValue={d.servingsPerUnit ?? ''} className={inputCls} /></Field>
-        <Field label="Daily dosage" hint="Servings consumed per day."><input name="dailyDosage" type="number" min="0" defaultValue={d.dailyDosage ?? ''} className={inputCls} /></Field>
+        <Field label="الوزن (جم)"><input name="weightG" type="number" min="0" defaultValue={d.weightG ?? ''} className={inputCls} /></Field>
+        <Field label="عدد الجرعات في العبوة" hint="يُستخدم في حاسبة مدة الاستخدام."><input name="servingsPerUnit" type="number" min="0" defaultValue={d.servingsPerUnit ?? ''} className={inputCls} /></Field>
+        <Field label="الجرعة اليومية" hint="عدد الجرعات المستهلكة يوميًا."><input name="dailyDosage" type="number" min="0" defaultValue={d.dailyDosage ?? ''} className={inputCls} /></Field>
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2">
-        <Field label="Short description (EN)"><textarea name="shortDescEn" rows={2} defaultValue={d.shortDescEn ?? ''} className={inputCls} /></Field>
-        <Field label="Short description (AR)"><textarea name="shortDescAr" rows={2} dir="rtl" defaultValue={d.shortDescAr ?? ''} className={inputCls} /></Field>
-        <Field label="Long description (EN)"><textarea name="longDescEn" rows={4} defaultValue={d.longDescEn ?? ''} className={inputCls} /></Field>
-        <Field label="Long description (AR)"><textarea name="longDescAr" rows={4} dir="rtl" defaultValue={d.longDescAr ?? ''} className={inputCls} /></Field>
+        <Field label="وصف مختصر (بالإنجليزية)"><textarea name="shortDescEn" rows={2} defaultValue={d.shortDescEn ?? ''} className={inputCls} /></Field>
+        <Field label="وصف مختصر (بالعربية)"><textarea name="shortDescAr" rows={2} dir="rtl" defaultValue={d.shortDescAr ?? ''} className={inputCls} /></Field>
+        <Field label="وصف تفصيلي (بالإنجليزية)"><textarea name="longDescEn" rows={4} defaultValue={d.longDescEn ?? ''} className={inputCls} /></Field>
+        <Field label="وصف تفصيلي (بالعربية)"><textarea name="longDescAr" rows={4} dir="rtl" defaultValue={d.longDescAr ?? ''} className={inputCls} /></Field>
       </section>
 
       <section className="grid gap-4 sm:grid-cols-3">
-        <Field label="Categories" hint="Ctrl/Cmd to multi-select.">
+        <Field label="الفئات" hint="استخدم Ctrl/Cmd للتحديد المتعدد.">
           <select name="categoryIds" multiple defaultValue={d.categoryIds ?? []} className={`${inputCls} h-32`}>
             {categories.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
         </Field>
-        <Field label="Tags" hint="Ctrl/Cmd to multi-select.">
+        <Field label="الوسوم" hint="استخدم Ctrl/Cmd للتحديد المتعدد.">
           <select name="tagIds" multiple defaultValue={d.tagIds ?? []} className={`${inputCls} h-32`}>
             {tags.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
         </Field>
-        <Field label="Attributes" hint="Ctrl/Cmd to multi-select.">
+        <Field label="الخصائص" hint="استخدم Ctrl/Cmd للتحديد المتعدد.">
           <select name="attributeValueIds" multiple defaultValue={d.attributeValueIds ?? []} className={`${inputCls} h-32`}>
             {attributeValues.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
           </select>
@@ -139,12 +139,12 @@ export function ProductForm({
       </section>
 
       <section>
-        <p className="mb-2 text-sm font-medium">Images</p>
+        <p className="mb-2 text-sm font-medium">الصور</p>
         <ImageUploader initial={d.imageUrls ?? []} />
       </section>
 
       <fieldset className="rounded-md border border-border p-4">
-        <legend className="px-1 text-sm font-medium">Restriction profile (default off)</legend>
+        <legend className="px-1 text-sm font-medium">إعدادات التقييد (معطّلة افتراضيًا)</legend>
         <div className="grid gap-2 sm:grid-cols-2">
           {RESTRICTIONS.map((r) => (
             <label key={r.name} className="flex items-center gap-2 text-sm">
@@ -156,14 +156,14 @@ export function ProductForm({
       </fieldset>
 
       <section className="grid gap-4 sm:grid-cols-2">
-        <Field label="SEO title (EN)"><input name="metaTitleEn" defaultValue={d.metaTitleEn ?? ''} className={inputCls} /></Field>
-        <Field label="SEO description (EN)"><input name="metaDescEn" defaultValue={d.metaDescEn ?? ''} className={inputCls} /></Field>
-        <Field label="AI summary (EN)" hint="For AEO / AI engines."><textarea name="aiSummaryEn" rows={2} defaultValue={d.aiSummaryEn ?? ''} className={inputCls} /></Field>
+        <Field label="عنوان SEO (بالإنجليزية)"><input name="metaTitleEn" defaultValue={d.metaTitleEn ?? ''} className={inputCls} /></Field>
+        <Field label="وصف SEO (بالإنجليزية)"><input name="metaDescEn" defaultValue={d.metaDescEn ?? ''} className={inputCls} /></Field>
+        <Field label="ملخص الذكاء الاصطناعي (بالإنجليزية)" hint="لمحركات AEO / الذكاء الاصطناعي."><textarea name="aiSummaryEn" rows={2} defaultValue={d.aiSummaryEn ?? ''} className={inputCls} /></Field>
       </section>
 
       <div className="flex items-center gap-3">
-        <SubmitButton>Save product</SubmitButton>
-        <Link href="/admin/products" className="text-sm text-muted-foreground hover:underline">Cancel</Link>
+        <SubmitButton>حفظ المنتج</SubmitButton>
+        <Link href="/admin/products" className="text-sm text-muted-foreground hover:underline">إلغاء</Link>
       </div>
     </form>
   );

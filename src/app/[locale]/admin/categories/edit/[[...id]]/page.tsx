@@ -12,24 +12,24 @@ export default async function CategoryEditPage({ params }: { params: Promise<{ l
     listCategories(),
   ]);
   const parentOptions = [
-    { value: '', label: '— none —' },
+    { value: '', label: '— بدون —' },
     ...all.filter((c) => c.id !== categoryId).map((c) => ({ value: c.id, label: c.nameEn })),
   ];
 
   const fields: FieldSpec[] = [
-    { name: 'nameEn', label: 'Name (English)', type: 'text', required: true },
-    { name: 'nameAr', label: 'Name (Arabic)', type: 'text' },
-    { name: 'slug', label: 'Slug', type: 'slug' },
-    { name: 'parentId', label: 'Parent category', type: 'select', options: parentOptions },
-    { name: 'descriptionEn', label: 'Description (EN)', type: 'textarea' },
-    { name: 'imageUrl', label: 'Image URL', type: 'text' },
-    { name: 'metaTitleEn', label: 'SEO title (EN)', type: 'text' },
-    { name: 'metaDescEn', label: 'SEO description (EN)', type: 'text' },
+    { name: 'nameEn', label: 'الاسم (بالإنجليزية)', type: 'text', required: true },
+    { name: 'nameAr', label: 'الاسم (بالعربية)', type: 'text' },
+    { name: 'slug', label: 'المُعرّف', type: 'slug' },
+    { name: 'parentId', label: 'الفئة الأم', type: 'select', options: parentOptions },
+    { name: 'descriptionEn', label: 'الوصف (بالإنجليزية)', type: 'textarea' },
+    { name: 'imageUrl', label: 'رابط الصورة', type: 'text' },
+    { name: 'metaTitleEn', label: 'عنوان SEO (بالإنجليزية)', type: 'text' },
+    { name: 'metaDescEn', label: 'وصف SEO (بالإنجليزية)', type: 'text' },
   ];
 
   return (
     <div className="p-6">
-      <h1 className="mb-6 font-heading text-xl font-semibold">{categoryId ? 'Edit category' : 'New category'}</h1>
+      <h1 className="mb-6 font-heading text-xl font-semibold">{categoryId ? 'تعديل الفئة' : 'فئة جديدة'}</h1>
       <EntityForm action={saveCategoryAction} fields={fields} defaults={category ?? {}} id={categoryId} locale={locale} listHref="/admin/categories" />
     </div>
   );

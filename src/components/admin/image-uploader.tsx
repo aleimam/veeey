@@ -45,7 +45,7 @@ export function ImageUploader({ initial = [] }: { initial?: string[] }) {
         onPaste={(e) => handleFiles(e.clipboardData.files)}
         className="flex h-28 cursor-pointer items-center justify-center rounded-md border border-dashed border-border bg-surface text-sm text-muted-foreground"
       >
-        {busy ? 'Uploading…' : 'Drag, paste, or click to add images'}
+        {busy ? 'جارٍ الرفع…' : 'اسحب أو الصق أو انقر لإضافة صور'}
       </div>
       <input
         ref={inputRef}
@@ -72,7 +72,7 @@ export function ImageUploader({ initial = [] }: { initial?: string[] }) {
                 type="button"
                 onClick={() => setUrls((list) => list.filter((x) => x !== u))}
                 className="absolute -end-2 -top-2 size-5 rounded-full bg-destructive text-xs text-white"
-                aria-label="Remove image"
+                aria-label="إزالة الصورة"
               >
                 ×
               </button>

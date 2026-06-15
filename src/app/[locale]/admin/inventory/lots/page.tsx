@@ -14,19 +14,19 @@ export default async function LotsPage({ params }: { params: Promise<{ locale: s
 
   return (
     <AdminList
-      title="Lots"
+      title="الدفعات"
       newHref="/admin/inventory/lots/edit"
-      newLabel="New lot"
-      head={['Product', 'Location', 'Expiry', 'On hand', 'Avail', 'Price', 'Status']}
+      newLabel="دفعة جديدة"
+      head={['المنتج', 'الموقع', 'الصلاحية', 'المتاح', 'القابل للبيع', 'السعر', 'الحالة']}
       rows={lots.map((l) => ({
         key: l.id,
         cells: [
           `${l.product.nameEn}`,
           l.location.name,
-          l.expiryDate ? monthYear(l.expiryDate) : 'No expiry',
+          l.expiryDate ? monthYear(l.expiryDate) : 'بدون صلاحية',
           String(l.qtyOnHand),
           String(availableQty(l)),
-          formatEGP(Number(l.priceOverridePiastres ?? l.product.basePricePiastres)) + (l.saleFlag ? ' · sale' : ''),
+          formatEGP(Number(l.priceOverridePiastres ?? l.product.basePricePiastres)) + (l.saleFlag ? ' · تخفيض' : ''),
           <StatusBadge key="s" status={l.status} />,
         ],
         editHref: `/admin/inventory/lots/edit/${l.id}`,

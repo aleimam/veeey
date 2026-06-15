@@ -13,8 +13,8 @@ export default async function RoleEditPage({ params }: { params: Promise<{ local
 
   return (
     <div className="p-6">
-      <Link href="/admin/roles" className="text-sm text-primary hover:underline">← Roles</Link>
-      <h1 className="mb-6 mt-2 font-heading text-xl font-semibold">{rid ? 'Edit role' : 'New role'}</h1>
+      <Link href="/admin/roles" className="text-sm text-primary hover:underline">← الأدوار</Link>
+      <h1 className="mb-6 mt-2 font-heading text-xl font-semibold">{rid ? 'تعديل الدور' : 'دور جديد'}</h1>
       <RoleForm
         id={rid}
         locale={locale}

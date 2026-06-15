@@ -6,9 +6,9 @@ import { saveCollectionAction } from '@/server/admin-actions';
 import { EntityForm, type FieldSpec } from '@/components/admin/entity-form';
 
 const STATUS = [
-  { value: 'DRAFT', label: 'Draft' },
-  { value: 'PUBLISHED', label: 'Published' },
-  { value: 'ARCHIVED', label: 'Archived' },
+  { value: 'DRAFT', label: 'مسودة' },
+  { value: 'PUBLISHED', label: 'منشور' },
+  { value: 'ARCHIVED', label: 'مؤرشف' },
 ];
 
 export default async function CollectionEditPage({ params }: { params: Promise<{ locale: string; id?: string[] }> }) {
@@ -22,15 +22,15 @@ export default async function CollectionEditPage({ params }: { params: Promise<{
   ]);
 
   const fields: FieldSpec[] = [
-    { name: 'titleEn', label: 'Title (English)', type: 'text', required: true },
-    { name: 'titleAr', label: 'Title (Arabic)', type: 'text' },
-    { name: 'slug', label: 'Slug', type: 'slug' },
-    { name: 'descriptionEn', label: 'Description (EN)', type: 'textarea' },
-    { name: 'type', label: 'Type', type: 'select', options: [{ value: 'MANUAL', label: 'Manual picks' }, { value: 'AUTO', label: 'Auto (rule)' }] },
-    { name: 'status', label: 'Status', type: 'select', options: STATUS },
-    { name: 'ruleCategoryId', label: 'Auto rule: category', type: 'select', options: [{ value: '', label: '— none —' }, ...categories.map((c) => ({ value: c.id, label: c.nameEn }))] },
-    { name: 'ruleTagSlug', label: 'Auto rule: tag slug', type: 'text' },
-    { name: 'productIds', label: 'Manual products', type: 'multiselect', options: products.map((p) => ({ value: p.id, label: p.nameEn })) },
+    { name: 'titleEn', label: 'العنوان (إنجليزي)', type: 'text', required: true },
+    { name: 'titleAr', label: 'العنوان (عربي)', type: 'text' },
+    { name: 'slug', label: 'المُعرّف', type: 'slug' },
+    { name: 'descriptionEn', label: 'الوصف (إنجليزي)', type: 'textarea' },
+    { name: 'type', label: 'النوع', type: 'select', options: [{ value: 'MANUAL', label: 'اختيار يدوي' }, { value: 'AUTO', label: 'تلقائي (قاعدة)' }] },
+    { name: 'status', label: 'الحالة', type: 'select', options: STATUS },
+    { name: 'ruleCategoryId', label: 'قاعدة تلقائية: الفئة', type: 'select', options: [{ value: '', label: '— بدون —' }, ...categories.map((c) => ({ value: c.id, label: c.nameEn }))] },
+    { name: 'ruleTagSlug', label: 'قاعدة تلقائية: مُعرّف الوسم', type: 'text' },
+    { name: 'productIds', label: 'منتجات يدوية', type: 'multiselect', options: products.map((p) => ({ value: p.id, label: p.nameEn })) },
   ];
 
   const defaults = collection
@@ -39,7 +39,7 @@ export default async function CollectionEditPage({ params }: { params: Promise<{
 
   return (
     <div className="p-6">
-      <h1 className="mb-6 font-heading text-xl font-semibold">{collectionId ? 'Edit collection' : 'New collection'}</h1>
+      <h1 className="mb-6 font-heading text-xl font-semibold">{collectionId ? 'تعديل المجموعة' : 'مجموعة جديدة'}</h1>
       <EntityForm action={saveCollectionAction} fields={fields} defaults={defaults} id={collectionId} locale={locale} listHref="/admin/collections" />
     </div>
   );

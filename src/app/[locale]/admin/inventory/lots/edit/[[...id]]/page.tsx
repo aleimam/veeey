@@ -34,12 +34,12 @@ export default async function LotEditPage({ params }: { params: Promise<{ locale
 
   const suggestionText =
     suggestion && suggestion.pct > 0
-      ? `Suggested −${suggestion.pct}% (≈ ${suggestion.suggestedPiastres != null ? piastresToEgp(suggestion.suggestedPiastres) : '—'} EGP). ${suggestion.reason} Pharmacist confirms.`
+      ? `مقترح −${suggestion.pct}% (≈ ${suggestion.suggestedPiastres != null ? piastresToEgp(suggestion.suggestedPiastres) : '—'} ج.م). ${suggestion.reason} بتأكيد الصيدلي.`
       : undefined;
 
   return (
     <div className="p-6">
-      <h1 className="mb-6 font-heading text-xl font-semibold">{lotId ? 'Edit lot' : 'New lot'}</h1>
+      <h1 className="mb-6 font-heading text-xl font-semibold">{lotId ? 'تعديل الدفعة' : 'دفعة جديدة'}</h1>
       <LotForm
         locale={locale}
         defaults={defaults}

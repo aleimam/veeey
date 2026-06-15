@@ -27,34 +27,34 @@ export function StaffForm({
       <input type="hidden" name="locale" value={locale} />
       {id && <input type="hidden" name="id" value={id} />}
 
-      <Field label="Full name">
+      <Field label="الاسم الكامل">
         <input name="name" required defaultValue={defaults.name ?? ''} className={inputCls} />
       </Field>
 
       {id ? (
-        <Field label="Email">
+        <Field label="البريد الإلكتروني">
           <input value={defaults.email ?? ''} disabled className={`${inputCls} opacity-60`} />
         </Field>
       ) : (
-        <Field label="Email">
+        <Field label="البريد الإلكتروني">
           <input name="email" type="email" required defaultValue="" className={inputCls} />
         </Field>
       )}
 
-      <Field label="Role">
+      <Field label="الدور">
         <select name="roleId" required defaultValue={defaults.roleId ?? ''} className={inputCls}>
-          <option value="" disabled>Select a role…</option>
+          <option value="" disabled>اختر دورًا…</option>
           {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
         </select>
       </Field>
 
-      <Field label={id ? 'New password' : 'Password'} hint={id ? 'Leave blank to keep the current password.' : 'At least 8 characters.'}>
+      <Field label={id ? 'كلمة مرور جديدة' : 'كلمة المرور'} hint={id ? 'اتركها فارغة للإبقاء على كلمة المرور الحالية.' : '8 أحرف على الأقل.'}>
         <input name="password" type="password" minLength={8} required={!id} autoComplete="new-password" className={inputCls} />
       </Field>
 
       <div className="flex items-center gap-3">
-        <SubmitButton>{id ? 'Save changes' : 'Create user'}</SubmitButton>
-        <Link href="/admin/users" className="text-sm text-muted-foreground hover:underline">Cancel</Link>
+        <SubmitButton>{id ? 'حفظ التغييرات' : 'إنشاء مستخدم'}</SubmitButton>
+        <Link href="/admin/users" className="text-sm text-muted-foreground hover:underline">إلغاء</Link>
       </div>
     </form>
   );

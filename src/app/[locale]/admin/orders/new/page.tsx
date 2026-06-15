@@ -16,8 +16,8 @@ export default async function NewOrderPage({ params }: { params: Promise<{ local
 
   return (
     <div className="p-6">
-      <Link href="/admin/orders" className="text-sm text-primary hover:underline">← Orders</Link>
-      <h1 className="mb-6 mt-2 font-heading text-xl font-semibold">New order</h1>
+      <Link href="/admin/orders" className="text-sm text-primary hover:underline">← الطلبات</Link>
+      <h1 className="mb-6 mt-2 font-heading text-xl font-semibold">طلب جديد</h1>
       <ManualOrderForm
         locale={locale}
         products={products.map((p) => ({ value: p.id, label: `${p.nameEn} (${p.sku})` }))}

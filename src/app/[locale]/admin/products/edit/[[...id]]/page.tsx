@@ -64,7 +64,7 @@ export default async function ProductEditPage({
   return (
     <div className="p-6">
       <h1 className="mb-6 font-heading text-xl font-semibold">
-        {productId ? 'Edit product' : 'New product'}
+        {productId ? 'تعديل منتج' : 'منتج جديد'}
       </h1>
       <ProductForm
         locale={locale}

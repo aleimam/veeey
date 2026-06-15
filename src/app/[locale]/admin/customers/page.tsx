@@ -14,11 +14,11 @@ export default async function CustomersPage({ params }: { params: Promise<{ loca
 
   return (
     <div className="p-6">
-      <h1 className="mb-6 font-heading text-xl font-semibold">Customers ({customers.length})</h1>
+      <h1 className="mb-6 font-heading text-xl font-semibold">العملاء ({customers.length})</h1>
       <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-sm">
           <thead className="bg-surface text-xs uppercase text-muted-foreground">
-            <tr><th className="p-3 text-start">Email</th><th className="p-3 text-start">Tier</th><th className="p-3 text-start">Points</th><th className="p-3 text-start">Lifetime</th></tr>
+            <tr><th className="p-3 text-start">البريد الإلكتروني</th><th className="p-3 text-start">الفئة</th><th className="p-3 text-start">النقاط</th><th className="p-3 text-start">إجمالي الإنفاق</th></tr>
           </thead>
           <tbody>
             {customers.map((c) => (
@@ -29,17 +29,17 @@ export default async function CustomersPage({ params }: { params: Promise<{ loca
                     <input type="hidden" name="locale" value={locale} />
                     <input type="hidden" name="customerId" value={c.id} />
                     <select name="tierId" defaultValue={c.tierId ?? ''} className={`${inputCls} w-36`}>
-                      <option value="">— none —</option>
+                      <option value="">— بدون —</option>
                       {tiers.map((t) => <option key={t.id} value={t.id}>{t.nameEn}</option>)}
                     </select>
-                    <button className="text-xs text-primary hover:underline">Set</button>
+                    <button className="text-xs text-primary hover:underline">تعيين</button>
                   </form>
                 </td>
                 <td className="p-3">{c.pointsBalance.toLocaleString('en-US')}</td>
                 <td className="p-3">{formatEGP(Number(c.lifetimeSpendPiastres))}</td>
               </tr>
             ))}
-            {customers.length === 0 && <tr><td colSpan={4} className="p-6 text-center text-muted-foreground">No customers yet.</td></tr>}
+            {customers.length === 0 && <tr><td colSpan={4} className="p-6 text-center text-muted-foreground">لا يوجد عملاء بعد.</td></tr>}
           </tbody>
         </table>
       </div>

@@ -15,10 +15,10 @@ export default async function RolesPage({ params, searchParams }: { params: Prom
 
   return (
     <AdminList
-      title="Roles & permissions"
+      title="الأدوار والصلاحيات"
       newHref="/admin/roles/edit"
-      newLabel="New role"
-      head={['Name', 'Key', 'Description', 'Users', 'Permissions']}
+      newLabel="دور جديد"
+      head={['الاسم', 'الكود', 'الوصف', 'المستخدمون', 'الصلاحيات']}
       notice={<InUseNotice show={one(sp.error) === 'in_use'} />}
       rows={roles.map((r) => ({
         key: r.id,
@@ -28,7 +28,7 @@ export default async function RolesPage({ params, searchParams }: { params: Prom
           <form action={deleteRoleAction}>
             <input type="hidden" name="id" value={r.id} />
             <input type="hidden" name="locale" value={locale} />
-            <button className="text-destructive hover:underline">Delete</button>
+            <button className="text-destructive hover:underline">حذف</button>
           </form>
         ),
       }))}

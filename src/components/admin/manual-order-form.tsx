@@ -29,43 +29,43 @@ export function ManualOrderForm({
       <input type="hidden" name="locale" value={locale} />
 
       <section>
-        <h2 className="mb-3 font-heading text-lg font-semibold">Customer</h2>
-        <Field label="Customer email" hint="Match an existing account, or leave blank / enter a new email for a guest order.">
+        <h2 className="mb-3 font-heading text-lg font-semibold">العميل</h2>
+        <Field label="بريد العميل الإلكتروني" hint="اربطه بحساب موجود، أو اتركه فارغًا / أدخل بريدًا جديدًا لطلب زائر.">
           <input name="customerEmail" type="email" className={inputCls} />
         </Field>
       </section>
 
       <section>
-        <h2 className="mb-3 font-heading text-lg font-semibold">Delivery</h2>
+        <h2 className="mb-3 font-heading text-lg font-semibold">التوصيل</h2>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Full name"><input name="name" required className={inputCls} /></Field>
-          <Field label="Phone"><input name="phone" required className={inputCls} /></Field>
-          <Field label="Governorate"><input name="governorate" required className={inputCls} /></Field>
-          <Field label="City"><input name="city" required className={inputCls} /></Field>
-          <Field label="Area / district"><input name="area" required className={inputCls} /></Field>
-          <Field label="Street address"><input name="street" required className={inputCls} /></Field>
+          <Field label="الاسم بالكامل"><input name="name" required className={inputCls} /></Field>
+          <Field label="الهاتف"><input name="phone" required className={inputCls} /></Field>
+          <Field label="المحافظة"><input name="governorate" required className={inputCls} /></Field>
+          <Field label="المدينة"><input name="city" required className={inputCls} /></Field>
+          <Field label="المنطقة / الحي"><input name="area" required className={inputCls} /></Field>
+          <Field label="عنوان الشارع"><input name="street" required className={inputCls} /></Field>
         </div>
       </section>
 
       <section>
-        <h2 className="mb-3 font-heading text-lg font-semibold">Items</h2>
+        <h2 className="mb-3 font-heading text-lg font-semibold">العناصر</h2>
         <div className="space-y-3">
           {rows.map((id) => (
             <div key={id} className="flex items-end gap-3">
-              <label className="block flex-1 text-sm font-medium">Product
+              <label className="block flex-1 text-sm font-medium">المنتج
                 <select name="productId" className={inputCls} defaultValue="">
-                  <option value="" disabled>Select a product…</option>
+                  <option value="" disabled>اختر منتجًا…</option>
                   {products.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
                 </select>
               </label>
-              <label className="block w-24 text-sm font-medium">Qty
+              <label className="block w-24 text-sm font-medium">الكمية
                 <input name="qty" type="number" min={1} defaultValue={1} className={inputCls} />
               </label>
               <button
                 type="button"
                 onClick={() => setRows((r) => (r.length > 1 ? r.filter((x) => x !== id) : r))}
                 className="mb-1 rounded-md border border-border px-3 py-2 text-sm text-muted-foreground hover:text-destructive"
-                aria-label="Remove line"
+                aria-label="إزالة السطر"
               >
                 ✕
               </button>
@@ -77,33 +77,33 @@ export function ManualOrderForm({
           onClick={() => { setRows((r) => [...r, seq]); setSeq((s) => s + 1); }}
           className="mt-3 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface"
         >
-          + Add line
+          + إضافة سطر
         </button>
-        <p className="mt-2 text-xs text-muted-foreground">Lots are picked nearest-expiry first (FEFO); stock is deducted on creation.</p>
+        <p className="mt-2 text-xs text-muted-foreground">يتم اختيار الدفعات الأقرب انتهاءً أولًا (FEFO)؛ ويُخصم المخزون عند الإنشاء.</p>
       </section>
 
       <section>
-        <h2 className="mb-3 font-heading text-lg font-semibold">Shipping & payment</h2>
+        <h2 className="mb-3 font-heading text-lg font-semibold">الشحن والدفع</h2>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Shipping">
+          <Field label="الشحن">
             <select name="shippingType" className={inputCls} defaultValue={shippingTypes[0]?.value}>
               {shippingTypes.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
           </Field>
-          <Field label="Payment method">
+          <Field label="طريقة الدفع">
             <select name="paymentMethod" className={inputCls} defaultValue={paymentMethods[0]?.value}>
               {paymentMethods.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
             </select>
           </Field>
         </div>
         <label className="mt-3 flex items-center gap-2 text-sm">
-          <input type="checkbox" name="discreetPackaging" className="size-4" /> Discreet, unbranded packaging
+          <input type="checkbox" name="discreetPackaging" className="size-4" /> تغليف محايد بدون علامة تجارية
         </label>
       </section>
 
       <div className="flex items-center gap-3">
-        <SubmitButton>Create order</SubmitButton>
-        <Link href="/admin/orders" className="text-sm text-muted-foreground hover:underline">Cancel</Link>
+        <SubmitButton>إنشاء طلب</SubmitButton>
+        <Link href="/admin/orders" className="text-sm text-muted-foreground hover:underline">إلغاء</Link>
       </div>
     </form>
   );

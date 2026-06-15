@@ -15,14 +15,14 @@ export default async function UsersPage({ params, searchParams }: { params: Prom
 
   return (
     <AdminList
-      title="Staff users"
+      title="المستخدمون"
       newHref="/admin/users/edit"
-      newLabel="New user"
-      head={['Name', 'Email', 'Role']}
-      editLabel="Edit"
+      newLabel="مستخدم جديد"
+      head={['الاسم', 'البريد الإلكتروني', 'الدور']}
+      editLabel="تعديل"
       notice={selfError ? (
         <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          You can’t revoke your own access.
+          لا يمكنك إلغاء صلاحيتك.
         </p>
       ) : undefined}
       rows={staff.map((u) => ({
@@ -33,7 +33,7 @@ export default async function UsersPage({ params, searchParams }: { params: Prom
           <form action={revokeStaffAction}>
             <input type="hidden" name="id" value={u.id} />
             <input type="hidden" name="locale" value={locale} />
-            <button className="text-destructive hover:underline">Revoke access</button>
+            <button className="text-destructive hover:underline">إلغاء الصلاحية</button>
           </form>
         ),
       }))}
