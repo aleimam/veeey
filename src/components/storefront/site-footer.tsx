@@ -1,4 +1,5 @@
 import { getTranslations } from "next-intl/server"
+import { Link } from "@/i18n/navigation"
 import { VeeeyLogo } from "@/components/storefront/veeey-logo"
 import { Button } from "@/components/storefront/ui/button"
 import { LanguageSwitcher } from "@/components/storefront/language-switcher"
@@ -11,6 +12,29 @@ const columns = [
   { key: "policies", links: ["authenticity", "privacy", "terms", "compensation"] },
   { key: "about", links: ["story", "pharmacists", "careers", "blog"] },
 ]
+
+// Footer link → destination. CMS info pages live at /p/<slug>; functional ones
+// route to real pages. (Shop column gets real category links in a later pass.)
+const HREFS: Record<string, string> = {
+  "shop.vitamins": "/products?kind=SUPPLEMENT",
+  "shop.devices": "/products?kind=DEVICE",
+  "shop.brands": "/products",
+  "shop.offers": "/products?offers=1",
+  "shop.specialOrder": "/p/special-order",
+  "help.track": "/account",
+  "help.shipping": "/p/shipping-delivery",
+  "help.returns": "/p/returns",
+  "help.contact": "/p/contact",
+  "help.faq": "/p/faq",
+  "policies.authenticity": "/p/authenticity-guarantee",
+  "policies.privacy": "/p/privacy-policy",
+  "policies.terms": "/p/terms-of-service",
+  "policies.compensation": "/p/compensation-policy",
+  "about.story": "/p/about",
+  "about.pharmacists": "/p/our-pharmacists",
+  "about.careers": "/p/careers",
+  "about.blog": "/blog",
+}
 
 const payments = ["card", "cod", "pos", "bank"]
 const platformLabel = (p: string) => SOCIAL_PLATFORMS.find((x) => x.value === p)?.label ?? p
@@ -56,9 +80,9 @@ export async function SiteFooter() {
                 <ul className="mt-4 flex flex-col gap-2.5 text-sm text-slate-foreground/70">
                   {col.links.map((link) => (
                     <li key={link}>
-                      <a href="#" className="transition-colors hover:text-lime">
+                      <Link href={HREFS[`${col.key}.${link}`] ?? "#"} className="transition-colors hover:text-lime">
                         {t(`${col.key}.${link}`)}
-                      </a>
+                      </Link>
                     </li>
                   ))}
                 </ul>
