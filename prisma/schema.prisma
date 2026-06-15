@@ -1379,3 +1379,24 @@ model SocialLink {
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
 }
+
+// Editable homepage testimonials + trust badges (admin-managed, ordered).
+model HomeTestimonial {
+  id        String   @id @default(cuid())
+  quoteEn   String
+  quoteAr   String?
+  name      String
+  location  String?
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model HomeTrustBadge {
+  id        String   @id @default(cuid())
+  labelEn   String
+  labelAr   String?
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}

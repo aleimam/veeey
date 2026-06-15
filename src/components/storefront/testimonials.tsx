@@ -7,8 +7,13 @@ const quotes = [
   { quote: "quote3", name: "Mona E.", location: "loc3" },
 ] as const
 
-export function Testimonials() {
+type Item = { quote: string; name: string; location: string }
+
+export function Testimonials({ items }: { items?: Item[] }) {
   const t = useTranslations("storefront.testimonials")
+  const data: Item[] = items && items.length
+    ? items
+    : quotes.map((q) => ({ quote: t(q.quote), name: q.name, location: t(q.location) }))
   return (
     <section className="bg-surface">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
@@ -28,22 +33,22 @@ export function Testimonials() {
         </div>
 
         <div className="mt-8 grid gap-5 md:grid-cols-3">
-          {quotes.map((item) => (
+          {data.map((item, i) => (
             <figure
-              key={item.name}
+              key={i}
               className="flex flex-col rounded-2xl border border-border bg-card p-6"
             >
               <div className="flex" aria-hidden="true">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Star key={i} className="size-4 fill-gold text-gold" />
+                {Array.from({ length: 5 }).map((_, j) => (
+                  <Star key={j} className="size-4 fill-gold text-gold" />
                 ))}
               </div>
               <blockquote className="mt-4 flex-1 text-pretty text-sm leading-relaxed text-foreground">
-                {t(item.quote)}
+                {item.quote}
               </blockquote>
               <figcaption className="mt-5 text-sm">
                 <span className="font-medium text-foreground">{item.name}</span>
-                <span className="text-muted-foreground"> · {t(item.location)}</span>
+                {item.location && <span className="text-muted-foreground"> · {item.location}</span>}
               </figcaption>
             </figure>
           ))}

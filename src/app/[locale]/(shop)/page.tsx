@@ -2,6 +2,7 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { prisma } from '@/lib/prisma';
 import { getHomeContent, getFeaturedCollectionId } from '@/lib/home-content-service';
 import { resolveCollectionProducts } from '@/lib/content-service';
+import { activeTestimonials, activeTrustBadges } from '@/lib/home-extras-service';
 import { toCardProduct, cardProductInclude } from '@/lib/storefront';
 import { getCurrentUser } from '@/lib/auth-guards';
 import { recentlyViewed, recommendedForYou, buyAgain, popularInTier } from '@/lib/personalization-service';
@@ -26,6 +27,9 @@ export default async function HomePage({
   setRequestLocale(locale);
   const tRows = await getTranslations('storefront.rows');
   const homeContent = await getHomeContent(locale);
+  const [dbTestimonials, dbBadges] = await Promise.all([activeTestimonials(), activeTrustBadges()]);
+  const testimonials = dbTestimonials.map((t) => ({ quote: (locale === 'ar' ? t.quoteAr : t.quoteEn) || t.quoteEn, name: t.name, location: t.location ?? '' }));
+  const trustBadges = dbBadges.map((b) => (locale === 'ar' ? b.labelAr : b.labelEn) || b.labelEn);
 
   // Degrade gracefully — a DB hiccup should still render the storefront shell.
   let bestsellers: ReturnType<typeof toCardProduct>[] = [];
@@ -77,7 +81,7 @@ export default async function HomePage({
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <HeroSection content={homeContent} />
-      <TrustStrip />
+      <TrustStrip badges={trustBadges} />
       <ShopByGoal />
       <Bestsellers products={bestsellers} locale={locale} />
       <ProductRow title={tRows('recentlyViewed')} products={recent} locale={locale} />
@@ -87,7 +91,7 @@ export default async function HomePage({
       <ExpiryPricing />
       <SpecialOrder />
       <Membership />
-      <Testimonials />
+      <Testimonials items={testimonials} />
       <BlogTeaser />
     </>
   );

@@ -1,4 +1,5 @@
 import { setRequestLocale } from 'next-intl/server';
+import { Link } from '@/i18n/navigation';
 import { HOME_FIELDS, FEATURED_KEY, getHomeRaw } from '@/lib/home-content-service';
 import { listCollections } from '@/lib/content-service';
 import { saveHomeContentAction } from '@/server/home-actions';
@@ -16,9 +17,13 @@ export default async function HomepageAdmin({ params, searchParams }: { params: 
   return (
     <div className="p-6">
       <h1 className="mb-1 font-heading text-xl font-semibold">Homepage content</h1>
-      <p className="mb-6 max-w-2xl text-sm text-muted-foreground">
+      <p className="mb-4 max-w-2xl text-sm text-muted-foreground">
         Edit the hero and announcement bar. Leave a field blank to use the default text. The page layout is fixed; this changes the wording only.
       </p>
+      <div className="mb-6 flex gap-3 text-sm">
+        <Link href="/admin/homepage/testimonials" className="rounded-md border border-border px-3 py-1.5 hover:bg-surface">Manage testimonials →</Link>
+        <Link href="/admin/homepage/trust" className="rounded-md border border-border px-3 py-1.5 hover:bg-surface">Manage trust badges →</Link>
+      </div>
 
       {one(sp.saved) === '1' && <p className="mb-4 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">Saved.</p>}
       {one(sp.error) === '1' && <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">Could not save.</p>}
