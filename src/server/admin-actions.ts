@@ -16,8 +16,35 @@ import {
   deleteAttributeValue,
 } from '@/lib/taxonomy-service';
 import { savePage, savePost, saveCollection } from '@/lib/content-service';
+import {
+  InUseError,
+  archiveBrand, deleteBrand,
+  archiveCategory, deleteCategory,
+  archiveTag, deleteTag,
+  archiveAttribute, deleteAttribute,
+  archiveCoupon, deleteCoupon,
+  archiveGift, deleteGift,
+  archiveCollection, deleteCollection,
+  archivePage, deletePage,
+  archivePost, deletePost,
+  deleteProduct,
+} from '@/lib/soft-delete-service';
 
 export type AdminFormState = { error?: string };
+
+// ---- Soft-delete dispatch (archive/restore + guarded hard-delete) ----------
+type ArchiveFn = (id: string, archived: boolean) => Promise<unknown>;
+type DeleteFn = (id: string) => Promise<unknown>;
+
+const ARCHIVERS: Record<string, ArchiveFn> = {
+  brand: archiveBrand, category: archiveCategory, tag: archiveTag, attribute: archiveAttribute,
+  coupon: archiveCoupon, gift: archiveGift, collection: archiveCollection, page: archivePage, post: archivePost,
+};
+const DELETERS: Record<string, DeleteFn> = {
+  brand: deleteBrand, category: deleteCategory, tag: deleteTag, attribute: deleteAttribute,
+  coupon: deleteCoupon, gift: deleteGift, collection: deleteCollection, page: deletePage, post: deletePost,
+  product: deleteProduct,
+};
 
 // ---- FormData helpers ------------------------------------------------------
 const localeOf = (fd: FormData) => (fd.get('locale') === 'ar' ? 'ar' : 'en');
@@ -206,4 +233,39 @@ export async function saveCollectionAction(_p: AdminFormState, fd: FormData): Pr
     });
   } catch (e) { return fail(e); }
   done(locale, 'collections');
+}
+
+// ---- Archive / restore (soft-delete) ---------------------------------------
+export async function archiveEntityAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const entity = str(fd, 'entity');
+  const id = str(fd, 'id');
+  const path = str(fd, 'path') ?? '';
+  const archived = fd.get('archived') === '1';
+  const fn = entity ? ARCHIVERS[entity] : undefined;
+  if (fn && id) {
+    try { await fn(id, archived); } catch (e) { fail(e); }
+  }
+  done(locale, path);
+}
+
+// ---- Guarded hard-delete (refuses when the record is in use) ----------------
+export async function deleteEntityAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const entity = str(fd, 'entity');
+  const id = str(fd, 'id');
+  const path = str(fd, 'path') ?? '';
+  const fn = entity ? DELETERS[entity] : undefined;
+  if (fn && id) {
+    try {
+      await fn(id);
+    } catch (e) {
+      if (e instanceof InUseError) {
+        revalidatePath(`/${locale}/admin/${path}`);
+        redirect(`/${locale}/admin/${path}?error=in_use`);
+      }
+      fail(e);
+    }
+  }
+  done(locale, path);
 }

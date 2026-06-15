@@ -3,13 +3,21 @@ import { Link } from '@/i18n/navigation';
 import { listProducts } from '@/lib/catalog-service';
 import { formatEGP } from '@/lib/format';
 import { StatusBadge } from '@/components/admin/ui';
+import { InUseNotice } from '@/components/admin/row-actions';
+import { deleteEntityAction } from '@/server/admin-actions';
+
+type SP = Record<string, string | string[] | undefined>;
+const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
 export default async function ProductsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<SP>;
 }) {
   const { locale } = await params;
+  const sp = await searchParams;
   setRequestLocale(locale);
   const products = await listProducts();
 
@@ -21,6 +29,8 @@ export default async function ProductsPage({
           New product
         </Link>
       </header>
+
+      <InUseNotice show={one(sp.error) === 'in_use'} />
 
       <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-sm">
@@ -42,8 +52,17 @@ export default async function ProductsPage({
                 <td className="p-3 text-muted-foreground">{p.brand?.nameEn ?? '—'}</td>
                 <td className="p-3">{formatEGP(Number(p.basePricePiastres))}</td>
                 <td className="p-3"><StatusBadge status={p.status} /></td>
-                <td className="p-3 text-end">
-                  <Link href={`/admin/products/edit/${p.id}`} className="text-primary hover:underline">Edit</Link>
+                <td className="p-3">
+                  <div className="flex items-center justify-end gap-3">
+                    <Link href={`/admin/products/edit/${p.id}`} className="text-primary hover:underline">Edit</Link>
+                    <form action={deleteEntityAction}>
+                      <input type="hidden" name="entity" value="product" />
+                      <input type="hidden" name="id" value={p.id} />
+                      <input type="hidden" name="path" value="products" />
+                      <input type="hidden" name="locale" value={locale} />
+                      <button className="text-destructive hover:underline">Delete</button>
+                    </form>
+                  </div>
                 </td>
               </tr>
             ))}

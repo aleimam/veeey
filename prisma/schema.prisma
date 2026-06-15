@@ -376,8 +376,8 @@ model Customer {
   reviews           Review[]
   loyaltyTxns       LoyaltyTransaction[]
   returns           Return[]
-  referralsMade     Referral[]           @relation("ReferralInviter")
-  referralReceived  Referral?            @relation("ReferralInvitee")
+  referralsMade     Referral[]              @relation("ReferralInviter")
+  referralReceived  Referral?               @relation("ReferralInvitee")
   couponRedemptions CouponRedemption[]
   analyticsSessions AnalyticsSession[]
   analyticsEvents   AnalyticsEvent[]
@@ -526,6 +526,7 @@ model Brand {
   metaDescAr    String?
   legacyName    String?
   products      Product[]
+  archivedAt    DateTime?
   createdAt     DateTime  @default(now())
 }
 
@@ -545,26 +546,29 @@ model Category {
   metaDescEn    String?
   metaDescAr    String?
   products      Product[]  @relation("ProductCategories")
+  archivedAt    DateTime?
   createdAt     DateTime   @default(now())
 
   @@index([parentId])
 }
 
 model Tag {
-  id       String    @id @default(cuid())
-  slug     String    @unique
-  nameEn   String
-  nameAr   String?
-  products Product[] @relation("ProductTags")
+  id         String    @id @default(cuid())
+  slug       String    @unique
+  nameEn     String
+  nameAr     String?
+  products   Product[] @relation("ProductTags")
+  archivedAt DateTime?
 }
 
 model Attribute {
-  id     String           @id @default(cuid())
-  key    String           @unique
-  nameEn String
-  nameAr String?
-  kind   ProductKind      @default(SUPPLEMENT) // which product set it applies to
-  values AttributeValue[]
+  id         String           @id @default(cuid())
+  key        String           @unique
+  nameEn     String
+  nameAr     String?
+  kind       ProductKind      @default(SUPPLEMENT) // which product set it applies to
+  values     AttributeValue[]
+  archivedAt DateTime?
 }
 
 model AttributeValue {
@@ -885,6 +889,7 @@ model Gift {
   stock        Int         @default(0)
   expiry       DateTime?
   costPiastres BigInt?
+  archivedAt   DateTime?
   createdAt    DateTime    @default(now())
   orderGifts   OrderGift[]
 }

@@ -43,7 +43,7 @@ export default async function ProductsPage({
 
   const [dbProducts, brands] = await Promise.all([
     prisma.product.findMany({ where, include: cardProductInclude, orderBy, take: 60 }),
-    prisma.brand.findMany({ orderBy: { nameEn: 'asc' } }),
+    prisma.brand.findMany({ where: { archivedAt: null }, orderBy: { nameEn: 'asc' } }),
   ]);
 
   let products = dbProducts.map((p) => toCardProduct(p, locale));

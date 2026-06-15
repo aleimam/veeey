@@ -1,21 +1,31 @@
 import { setRequestLocale } from 'next-intl/server';
 import { listBrands } from '@/lib/taxonomy-service';
 import { AdminList } from '@/components/admin/resource-list';
+import { RowActions, ArchivedToggle, InUseNotice } from '@/components/admin/row-actions';
 
-export default async function BrandsPage({ params }: { params: Promise<{ locale: string }> }) {
+type SP = Record<string, string | string[] | undefined>;
+const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+
+export default async function BrandsPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<SP> }) {
   const { locale } = await params;
+  const sp = await searchParams;
   setRequestLocale(locale);
-  const brands = await listBrands();
+  const showingArchived = one(sp.archived) === '1';
+  const all = await listBrands();
+  const brands = all.filter((b) => (showingArchived ? b.archivedAt : !b.archivedAt));
   return (
     <AdminList
-      title="Brands"
+      title={showingArchived ? 'Brands (archived)' : 'Brands'}
       newHref="/admin/brands/edit"
       newLabel="New brand"
       head={['Name', 'Arabic', 'Slug']}
+      toolbar={<ArchivedToggle path="brands" showingArchived={showingArchived} />}
+      notice={<InUseNotice show={one(sp.error) === 'in_use'} />}
       rows={brands.map((b) => ({
         key: b.id,
         cells: [b.nameEn, b.nameAr ?? '—', b.slug],
         editHref: `/admin/brands/edit/${b.id}`,
+        actions: <RowActions entity="brand" id={b.id} path="brands" locale={locale} archived={!!b.archivedAt} />,
       }))}
     />
   );
