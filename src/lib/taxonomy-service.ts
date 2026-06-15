@@ -18,6 +18,7 @@ const brandSchema = z.object({
   descriptionEn: z.string().optional().nullable(),
   descriptionAr: z.string().optional().nullable(),
   logoUrl: z.string().optional().nullable(),
+  bannerUrl: z.string().optional().nullable(),
   metaTitleEn: z.string().optional().nullable(),
   metaDescEn: z.string().optional().nullable(),
 });
@@ -36,7 +37,7 @@ export async function saveBrand(id: string | null, raw: BrandInput) {
   const data = {
     nameEn: d.nameEn, nameAr: d.nameAr ?? null, slug,
     descriptionEn: d.descriptionEn ?? null, descriptionAr: d.descriptionAr ?? null,
-    logoUrl: d.logoUrl ?? null, metaTitleEn: d.metaTitleEn ?? null, metaDescEn: d.metaDescEn ?? null,
+    logoUrl: d.logoUrl ?? null, bannerUrl: d.bannerUrl ?? null, metaTitleEn: d.metaTitleEn ?? null, metaDescEn: d.metaDescEn ?? null,
   };
   const brand = id
     ? await prisma.brand.update({ where: { id }, data })

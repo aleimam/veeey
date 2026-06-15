@@ -13,7 +13,8 @@ export default async function BrandEditPage({ params }: { params: Promise<{ loca
     { name: 'nameAr', label: tb('Name (Arabic)', 'الاسم (بالعربية)'), type: 'text' },
     { name: 'slug', label: tb('Slug', 'المُعرّف'), type: 'slug' },
     { name: 'descriptionEn', label: tb('Description (English)', 'الوصف (بالإنجليزية)'), type: 'textarea' },
-    { name: 'logoUrl', label: tb('Logo URL', 'رابط الشعار'), type: 'text' },
+    { name: 'logoUrl', label: tb('Photo / logo', 'الصورة / الشعار'), type: 'image' },
+    { name: 'bannerUrl', label: tb('Banner', 'البانر'), type: 'image' },
     { name: 'metaTitleEn', label: tb('SEO title (English)', 'عنوان SEO (بالإنجليزية)'), type: 'text' },
     { name: 'metaDescEn', label: tb('SEO description (English)', 'وصف SEO (بالإنجليزية)'), type: 'text' },
   ];

@@ -5,11 +5,13 @@ import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import type { AdminFormState } from '@/server/admin-actions';
 import { Field, FormError, SubmitButton, inputCls } from './ui';
+import { SingleImageUploader } from './image-uploader';
 
 export type FieldSpec =
   | { name: string; label: string; type: 'text' | 'textarea' | 'slug'; required?: boolean; hint?: string }
   | { name: string; label: string; type: 'select'; options: { value: string; label: string }[]; required?: boolean }
   | { name: string; label: string; type: 'checkbox' }
+  | { name: string; label: string; type: 'image'; hint?: string }
   | { name: string; label: string; type: 'multiselect'; options: { value: string; label: string }[] };
 
 type Action = (prev: AdminFormState, fd: FormData) => Promise<AdminFormState>;
@@ -69,6 +71,13 @@ export function EntityForm({
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </select>
+            </Field>
+          );
+        }
+        if (f.type === 'image') {
+          return (
+            <Field key={f.name} label={f.label} hint={f.hint}>
+              <SingleImageUploader name={f.name} initial={(def as string) ?? ''} />
             </Field>
           );
         }

@@ -86,3 +86,53 @@ export function ImageUploader({ initial = [] }: { initial?: string[] }) {
     </div>
   );
 }
+
+/**
+ * Single-image uploader for one named field (e.g. brand logo / banner). Posts to
+ * /api/admin/upload and keeps the chosen URL in a hidden input `name`.
+ */
+export function SingleImageUploader({ name, initial = '' }: { name: string; initial?: string }) {
+  const [url, setUrl] = useState(initial);
+  const [busy, setBusy] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const tb = pick(useLocale());
+
+  async function upload(file: File) {
+    setBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/admin/upload', { method: 'POST', body: fd });
+      if (res.ok) {
+        const data = (await res.json()) as { url: string };
+        setUrl(data.url);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div>
+      <input type="hidden" name={name} value={url} />
+      <div className="flex items-center gap-3">
+        <div
+          onClick={() => inputRef.current?.click()}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f?.type.startsWith('image/')) upload(f); }}
+          onPaste={(e) => { const f = e.clipboardData.files?.[0]; if (f?.type.startsWith('image/')) upload(f); }}
+          className="flex h-20 flex-1 cursor-pointer items-center justify-center rounded-md border border-dashed border-border bg-surface text-sm text-muted-foreground"
+        >
+          {busy ? tb('Uploading…', 'جارٍ الرفع…') : url ? tb('Click to replace', 'انقر للاستبدال') : tb('Drag, paste, or click to upload', 'اسحب أو الصق أو انقر للرفع')}
+        </div>
+        {url && (
+          <div className="relative">
+            <Image src={url} alt="" width={80} height={80} unoptimized className="size-20 rounded-md border border-border object-cover" />
+            <button type="button" onClick={() => setUrl('')} className="absolute -end-2 -top-2 size-5 rounded-full bg-destructive text-xs text-white" aria-label={tb('Remove image', 'إزالة الصورة')}>×</button>
+          </div>
+        )}
+      </div>
+      <input ref={inputRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); }} />
+    </div>
+  );
+}

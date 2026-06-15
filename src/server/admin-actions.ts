@@ -137,7 +137,7 @@ export async function saveBrandAction(_p: AdminFormState, fd: FormData): Promise
   try {
     await saveBrand(str(fd, 'id') ?? null, {
       nameEn: str(fd, 'nameEn') ?? '', nameAr: str(fd, 'nameAr'), slug: str(fd, 'slug'),
-      descriptionEn: str(fd, 'descriptionEn'), logoUrl: str(fd, 'logoUrl'),
+      descriptionEn: str(fd, 'descriptionEn'), logoUrl: str(fd, 'logoUrl'), bannerUrl: str(fd, 'bannerUrl'),
       metaTitleEn: str(fd, 'metaTitleEn'), metaDescEn: str(fd, 'metaDescEn'),
     });
   } catch (e) { return fail(e); }
