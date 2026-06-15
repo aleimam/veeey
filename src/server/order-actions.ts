@@ -11,6 +11,7 @@ import {
   addOrderItem,
   removeOrderItem,
   addGiftToOrder,
+  createManualOrder,
 } from '@/lib/order-service';
 import { saveGift } from '@/lib/gift-service';
 import { processReturn } from '@/lib/return-service';
@@ -31,6 +32,40 @@ const num = (fd: FormData, k: string) => {
 function backToOrder(locale: string, id: string): never {
   revalidatePath(`/${locale}/admin/orders/${id}`);
   redirect(`/${locale}/admin/orders/${id}`);
+}
+
+export async function createManualOrderAction(_p: AdminFormState, fd: FormData): Promise<AdminFormState> {
+  const locale = localeOf(fd);
+  const productIds = fd.getAll('productId').filter((v): v is string => typeof v === 'string');
+  const qtys = fd.getAll('qty').filter((v): v is string => typeof v === 'string');
+  const items = productIds
+    .map((productId, i) => ({ productId, qty: Number(qtys[i] ?? 0) }))
+    .filter((it) => it.productId && it.qty > 0);
+  if (items.length === 0) return { error: 'no_items' };
+
+  let order;
+  try {
+    order = await createManualOrder({
+      customerEmail: str(fd, 'customerEmail') ?? '',
+      name: str(fd, 'name') ?? '',
+      phone: str(fd, 'phone') ?? '',
+      governorate: str(fd, 'governorate') ?? '',
+      city: str(fd, 'city') ?? '',
+      area: str(fd, 'area') ?? '',
+      street: str(fd, 'street') ?? '',
+      shippingType: (str(fd, 'shippingType') ?? 'FAST_FREE') as 'FAST_FREE' | 'ULTRAFAST' | 'PICK_FROM_OFFICE',
+      paymentMethod: (str(fd, 'paymentMethod') ?? 'COD') as 'COD' | 'POS_ON_DELIVERY' | 'BANK_TRANSFER' | 'WALLET' | 'OPAY' | 'KASHIER',
+      discreetPackaging: fd.get('discreetPackaging') != null,
+      items,
+    });
+  } catch (e) {
+    if (e instanceof Error && e.message === 'INSUFFICIENT_STOCK') return { error: 'insufficient_stock' };
+    if (e instanceof Error && e.message === 'FORBIDDEN') return { error: 'forbidden' };
+    console.error('manual order failed', e);
+    return { error: 'invalid' };
+  }
+  revalidatePath(`/${locale}/admin/orders`);
+  redirect(`/${locale}/admin/orders/${order.id}`);
 }
 
 export async function transitionOrderAction(fd: FormData): Promise<void> {

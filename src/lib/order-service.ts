@@ -1,8 +1,11 @@
+import { z } from 'zod';
+import { randomInt } from 'node:crypto';
 import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
 import { canTransition, isDelivered, type OrderStatus } from '@/lib/order-status';
 import { availableQty } from '@/lib/inventory';
+import { getShippingFee, type ShippingTypeKey } from '@/lib/shipping-service';
 import { creditOrderPoints } from '@/lib/loyalty-service';
 import { enqueue, QUEUES } from '@/lib/jobs';
 import { notify, type NotifyInput } from '@/lib/notification-service';
@@ -150,6 +153,85 @@ export async function removeOrderItem(orderItemId: string) {
     return item.orderId;
   });
   await audit({ actorType: 'USER', actorId: user.id, action: 'order.item.remove', entityType: 'Order', entityId: orderId });
+}
+
+/** Manual / phone order creation (FR-ORD-05). Staff build an order on a
+ *  customer's behalf: resolve the customer by email (or treat as guest), FEFO-
+ *  allocate each line across nearest-expiry lots, decrement stock + ledger, and
+ *  snapshot the address. Created in PENDING_CONFIRMATION, attributed to the staff
+ *  member (pharmacist) with source = "manual". */
+const manualOrderSchema = z.object({
+  customerEmail: z.string().trim().email().optional().or(z.literal('')),
+  name: z.string().trim().min(1),
+  phone: z.string().trim().min(6),
+  governorate: z.string().trim().min(1),
+  city: z.string().trim().min(1),
+  area: z.string().trim().min(1),
+  street: z.string().trim().min(1),
+  shippingType: z.enum(['FAST_FREE', 'ULTRAFAST', 'PICK_FROM_OFFICE']).default('FAST_FREE'),
+  paymentMethod: z.enum(['COD', 'POS_ON_DELIVERY', 'BANK_TRANSFER', 'WALLET', 'OPAY', 'KASHIER']).default('COD'),
+  discreetPackaging: z.boolean().default(false),
+  items: z.array(z.object({ productId: z.string().min(1), qty: z.coerce.number().int().positive() })).min(1),
+});
+export type ManualOrderInput = z.input<typeof manualOrderSchema>;
+
+export async function createManualOrder(raw: ManualOrderInput) {
+  const user = await requirePermission('orders.write');
+  const d = manualOrderSchema.parse(raw);
+  const shipping = await getShippingFee(d.shippingType as ShippingTypeKey);
+
+  let customerId: string | null = null;
+  let guestEmail: string | undefined;
+  if (d.customerEmail) {
+    const email = d.customerEmail.toLowerCase();
+    const u = await prisma.user.findUnique({ where: { email }, include: { customer: true } });
+    if (u?.customer) customerId = u.customer.id;
+    else guestEmail = email;
+  }
+
+  const number = `VY-${Date.now().toString(36).toUpperCase()}-${randomInt(100, 999)}`;
+  const addressSnapshot = { name: d.name, phone: d.phone, governorate: d.governorate, city: d.city, area: d.area, street: d.street };
+
+  const order = await prisma.$transaction(async (tx) => {
+    let shippingAddressId: string | null = null;
+    if (customerId) {
+      const addr = await tx.address.create({ data: { customerId, governorate: d.governorate, city: d.city, area: d.area, street: d.street, phone: d.phone } });
+      shippingAddressId = addr.id;
+    }
+    const ord = await tx.order.create({
+      data: {
+        number, customerId, guestEmail,
+        status: 'PENDING_CONFIRMATION', paymentMethod: d.paymentMethod, paymentState: 'PENDING', payCheck: 'NO',
+        subtotalPiastres: 0n, shippingPiastres: shipping, discountPiastres: 0n, totalPiastres: shipping,
+        shippingType: d.shippingType, discreetPackaging: d.discreetPackaging,
+        shippingAddressId, shippingAddressJson: addressSnapshot,
+        pharmacistId: user.id, source: 'manual',
+      },
+    });
+
+    let subtotal = 0n;
+    for (const it of d.items) {
+      const lots = await tx.lot.findMany({ where: { productId: it.productId, status: 'LIVE' }, orderBy: { expiryDate: 'asc' }, include: { product: true } });
+      let remaining = it.qty;
+      for (const lot of lots) {
+        if (remaining <= 0) break;
+        const avail = availableQty(lot);
+        if (avail <= 0) continue;
+        const take = Math.min(avail, remaining);
+        const unit = lot.priceOverridePiastres ?? lot.product.basePricePiastres;
+        await tx.orderItem.create({ data: { orderId: ord.id, productId: it.productId, lotId: lot.id, qty: take, unitPricePiastres: unit, lineExpiry: lot.expiryDate, weightG: lot.product.weightG } });
+        await tx.lot.update({ where: { id: lot.id }, data: { qtyOnHand: { decrement: take } } });
+        await tx.movementLedger.create({ data: { lotId: lot.id, locationId: lot.locationId, type: 'SALE', qtyDelta: -take, refType: 'order', refId: ord.id } });
+        subtotal += unit * BigInt(take);
+        remaining -= take;
+      }
+      if (remaining > 0) throw new Error('INSUFFICIENT_STOCK');
+    }
+    return tx.order.update({ where: { id: ord.id }, data: { subtotalPiastres: subtotal, totalPiastres: subtotal + shipping } });
+  });
+
+  await audit({ actorType: 'USER', actorId: user.id, action: 'order.manual.create', entityType: 'Order', entityId: order.id, data: { number } });
+  return order;
 }
 
 /** Add a hidden 0-value gift (Gx-*) to an order (FR-ORD-10). */

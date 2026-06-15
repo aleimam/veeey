@@ -41,6 +41,8 @@ const ERRORS: Record<string, string> = {
   forbidden: 'You don’t have permission to do that.',
   exists: 'An account with this email already exists.',
   self: 'You can’t change your own access here.',
+  no_items: 'Add at least one product line.',
+  insufficient_stock: 'Not enough stock for one of the products. Reduce the quantity or check inventory.',
 };
 
 export function FormError({ error }: { error?: string }) {

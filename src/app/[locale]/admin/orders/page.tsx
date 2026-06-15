@@ -25,7 +25,10 @@ export default async function OrdersPage({
   return (
     <div className="p-6">
       <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-heading text-xl font-semibold">Orders ({orders.length})</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="font-heading text-xl font-semibold">Orders ({orders.length})</h1>
+          <Link href="/admin/orders/new" className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">New order</Link>
+        </div>
         <form className="flex flex-wrap items-end gap-2 text-sm">
           <select name="status" defaultValue={status ?? ''} className={`${inputCls} w-44`}>
             <option value="">All statuses</option>
