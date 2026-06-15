@@ -48,5 +48,190 @@
       "recaptcha": "Verification failed. Please try again.",
       "credentials": "Incorrect email or password."
     }
+  },
+  "storefront": {
+    "nav": {
+      "shopByGoal": "Shop by goal",
+      "vitamins": "Vitamins & supplements",
+      "devices": "Devices",
+      "brands": "Brands",
+      "offers": "Offers",
+      "specialOrder": "Special order",
+      "play": "Play",
+      "blog": "Blog"
+    },
+    "header": {
+      "searchPlaceholder": "Try \"omega 3\", \"Solgar\", or \"energy\"…",
+      "searchPlaceholderShort": "Try \"omega 3\" or \"energy\"…",
+      "searchAria": "Search products",
+      "account": "Account",
+      "wishlist": "Wishlist",
+      "cart": "Cart",
+      "home": "Veeey home"
+    },
+    "announcement": {
+      "promo": "Free shipping nationwide · UltraFast delivery 3–6h in Greater Cairo"
+    },
+    "footer": {
+      "blurb": "Premium dietary supplements and health devices, imported directly from the USA, UK and EU. Health Inside.",
+      "newsletterLabel": "Get health insights & offers",
+      "emailPlaceholder": "Your email",
+      "subscribe": "Subscribe",
+      "rights": "© {year} Veeey. Health Inside. All rights reserved.",
+      "paymentMethods": "Accepted payment methods",
+      "pay": {
+        "opay": "OPay",
+        "kashier": "Kashier",
+        "cod": "Cash on delivery",
+        "pos": "POS on delivery",
+        "bank": "Bank transfer"
+      },
+      "cols": {
+        "shop": "Shop",
+        "help": "Help",
+        "policies": "Policies",
+        "about": "About"
+      },
+      "shop": {
+        "vitamins": "Vitamins & supplements",
+        "devices": "Devices",
+        "brands": "Brands",
+        "offers": "Offers",
+        "specialOrder": "Special order"
+      },
+      "help": {
+        "track": "Track my order",
+        "shipping": "Shipping & delivery",
+        "returns": "Returns",
+        "contact": "Contact us",
+        "faq": "FAQ"
+      },
+      "policies": {
+        "authenticity": "Authenticity guarantee",
+        "privacy": "Privacy policy",
+        "terms": "Terms of service",
+        "compensation": "Compensation policy"
+      },
+      "about": {
+        "story": "Our story",
+        "pharmacists": "Our pharmacists",
+        "careers": "Careers",
+        "blog": "Blog"
+      }
+    },
+    "hero": {
+      "title": "Premium health, with nothing to hide.",
+      "subtitle": "Every product shows its expiry date before you buy.",
+      "shop": "Shop",
+      "learnMore": "Learn more",
+      "cards": {
+        "bestsellersTitle": "Bestsellers",
+        "bestsellersDesc": "The supplements our customers reorder most.",
+        "bestsellersAlt": "A grouped arrangement of premium supplement bottles",
+        "shortExpiryTitle": "Short-expiry deals",
+        "shortExpiryDesc": "Same product, smarter price.",
+        "shortExpiryAlt": "A single supplement bottle with a date detail",
+        "specialOrderTitle": "Special order",
+        "specialOrderDesc": "We bring anything from the USA, UK & EU.",
+        "specialOrderAlt": "A shipping parcel beside imported supplement bottles"
+      }
+    },
+    "trust": {
+      "aria": "Why shop with Veeey",
+      "authentic": "Authentic imports",
+      "expiry": "Expiry shown on every item",
+      "freeShipping": "Free shipping",
+      "ultrafast": "UltraFast 3–6h",
+      "compensated": "On-time or compensated"
+    },
+    "goals": {
+      "title": "Shop by health goal",
+      "immunity": "Immunity",
+      "energy": "Energy",
+      "brain": "Brain & focus",
+      "sleep": "Sleep",
+      "heart": "Heart",
+      "devices": "Devices"
+    },
+    "bestsellers": {
+      "title": "Bestsellers",
+      "viewAll": "View all"
+    },
+    "rows": {
+      "recentlyViewed": "Recently viewed",
+      "buyAgain": "Buy it again",
+      "popularInTier": "Popular with {tier} members",
+      "popularNow": "Popular now",
+      "recommended": "Recommended for you"
+    },
+    "expiryPricing": {
+      "title": "Choose your expiry, choose your price",
+      "subtitle": "Same product, different lots. Pick the shelf life that fits your routine — and pay accordingly.",
+      "productName": "Nordic Naturals Ultimate Omega 3",
+      "productAlt": "Nordic Naturals Ultimate Omega 3 supplement bottle",
+      "legend": "Select an expiry date and price",
+      "fullShelf": "Full shelf life",
+      "addToCart": "Add to cart — {price}",
+      "exp": "Exp {date}"
+    },
+    "specialOrder": {
+      "title": "Can't find it? We'll bring it.",
+      "subtitle": "If it's sold abroad, we can source it for you — authentic, tracked, and on a fixed timeline.",
+      "step": "Step {n}",
+      "tellTitle": "Tell us the product",
+      "tellDesc": "Share a link or a name — any brand.",
+      "reserveTitle": "Reserve with 25% deposit",
+      "reserveDesc": "We lock your price and start sourcing.",
+      "flyTitle": "We buy & fly it to Egypt",
+      "flyDesc": "Direct from the USA, UK & EU in ~20 days.",
+      "compensationTitle": "Late? Automatic compensation",
+      "compensationDesc": "On-time delivery, guaranteed in writing.",
+      "cta": "Start a special order"
+    },
+    "membership": {
+      "title": "Membership that rewards label-readers",
+      "subtitle": "Earn points on everything you buy, and unlock more the longer you stay.",
+      "learnMore": "Learn more",
+      "greenRate": "1 pt / EGP",
+      "greenPerk1": "Points on every order",
+      "greenPerk2": "Member-only offers",
+      "greenPerk3": "Birthday reward",
+      "ipRate": "2 pts / EGP",
+      "ipPerk1": "Everything in Green",
+      "ipPerk2": "Priority UltraFast slots",
+      "ipPerk3": "Early access to deals",
+      "selectRate": "3 pts / EGP",
+      "selectPerk1": "Everything in VeeeyIP",
+      "selectPerk2": "Dedicated pharmacist",
+      "selectPerk3": "Members-only products"
+    },
+    "testimonials": {
+      "title": "Trusted by label-readers",
+      "ratingSuffix": "on Trustpilot",
+      "quote1": "Finally a store that shows the expiry before I pay. I ordered at 9am and the courier was at my door by lunch.",
+      "loc1": "New Cairo",
+      "quote2": "They special-ordered a brand I couldn't find anywhere in Egypt. Sealed, authentic, and exactly on the date they promised.",
+      "loc2": "Sheikh Zayed",
+      "quote3": "The pharmacist actually called to check the dosage was right for me. That kind of care is rare.",
+      "loc3": "Maadi"
+    },
+    "blog": {
+      "title": "Medical insights from our pharmacists",
+      "allArticles": "All articles",
+      "readMore": "Read more",
+      "category": "Medical insights",
+      "title1": "How to read a supplement label like a pharmacist",
+      "excerpt1": "Dosage, bioavailability, and the fine print that actually matters.",
+      "title2": "Does expiry date really change a supplement's potency?",
+      "excerpt2": "What shelf life means for vitamins, omegas, and minerals."
+    },
+    "productCard": {
+      "earnPoints": "Earn {points} pts",
+      "addToCart": "Add {name} to cart",
+      "ratingLabel": "Rated {rating} out of 5 from {reviews} reviews"
+    },
+    "whatsapp": {
+      "aria": "Chat with us on WhatsApp"
+    }
   }
 }

@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl"
 import { VeeeyLogo } from "@/components/storefront/veeey-logo"
 import { Button } from "@/components/storefront/ui/button"
 import { LanguageSwitcher } from "@/components/storefront/language-switcher"
@@ -29,15 +30,16 @@ function TwitterIcon({ className }: { className?: string }) {
 }
 
 const columns = [
-  { title: "Shop", links: ["Vitamins & supplements", "Devices", "Brands", "Offers", "Special order"] },
-  { title: "Help", links: ["Track my order", "Shipping & delivery", "Returns", "Contact us", "FAQ"] },
-  { title: "Policies", links: ["Authenticity guarantee", "Privacy policy", "Terms of service", "Compensation policy"] },
-  { title: "About", links: ["Our story", "Our pharmacists", "Careers", "Blog"] },
+  { key: "shop", links: ["vitamins", "devices", "brands", "offers", "specialOrder"] },
+  { key: "help", links: ["track", "shipping", "returns", "contact", "faq"] },
+  { key: "policies", links: ["authenticity", "privacy", "terms", "compensation"] },
+  { key: "about", links: ["story", "pharmacists", "careers", "blog"] },
 ]
 
-const payments = ["OPay", "Kashier", "COD", "POS on delivery", "Bank transfer"]
+const payments = ["opay", "kashier", "cod", "pos", "bank"]
 
 export function SiteFooter() {
+  const t = useTranslations("storefront.footer")
   return (
     <footer className="bg-slate text-slate-foreground">
       <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
@@ -45,26 +47,25 @@ export function SiteFooter() {
           <div className="max-w-sm">
             <VeeeyLogo variant="light" />
             <p className="mt-4 text-sm leading-relaxed text-slate-foreground/70">
-              Premium dietary supplements and health devices, imported directly from the USA, UK and
-              EU. Health Inside.
+              {t("blurb")}
             </p>
             <form className="mt-6">
               <label htmlFor="newsletter" className="text-sm font-medium">
-                Get health insights & offers
+                {t("newsletterLabel")}
               </label>
               <div className="mt-2 flex gap-2">
                 <input
                   id="newsletter"
                   type="email"
                   required
-                  placeholder="Your email"
+                  placeholder={t("emailPlaceholder")}
                   className="h-10 w-full rounded-xl border border-white/15 bg-white/5 px-3.5 text-sm text-slate-foreground outline-none transition-colors placeholder:text-slate-foreground/50 focus:border-lime"
                 />
                 <Button
                   type="submit"
                   className="h-10 shrink-0 bg-lime px-4 text-lime-foreground hover:bg-lime/90"
                 >
-                  Subscribe
+                  {t("subscribe")}
                 </Button>
               </div>
             </form>
@@ -72,13 +73,13 @@ export function SiteFooter() {
 
           <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
             {columns.map((col) => (
-              <div key={col.title}>
-                <h3 className="text-sm font-medium">{col.title}</h3>
+              <div key={col.key}>
+                <h3 className="text-sm font-medium">{t(`cols.${col.key}`)}</h3>
                 <ul className="mt-4 flex flex-col gap-2.5 text-sm text-slate-foreground/70">
                   {col.links.map((link) => (
                     <li key={link}>
                       <a href="#" className="transition-colors hover:text-lime">
-                        {link}
+                        {t(`${col.key}.${link}`)}
                       </a>
                     </li>
                   ))}
@@ -90,13 +91,13 @@ export function SiteFooter() {
 
         <div className="mt-12 border-t border-white/10 pt-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-            <ul className="flex flex-wrap items-center gap-2" aria-label="Accepted payment methods">
+            <ul className="flex flex-wrap items-center gap-2" aria-label={t("paymentMethods")}>
               {payments.map((p) => (
                 <li
                   key={p}
                   className="rounded-md border border-white/15 px-2.5 py-1 text-xs text-slate-foreground/80"
                 >
-                  {p}
+                  {t(`pay.${p}`)}
                 </li>
               ))}
             </ul>
@@ -118,7 +119,7 @@ export function SiteFooter() {
           </div>
 
           <p className="mt-8 text-xs text-slate-foreground/50">
-            © {new Date().getFullYear()} Veeey. Health Inside. All rights reserved.
+            {t("rights", { year: new Date().getFullYear() })}
           </p>
         </div>
       </div>

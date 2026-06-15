@@ -1,5 +1,6 @@
 import Image from 'next/image'
 import { Star, Plus } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { formatEGP, formatPoints } from '@/lib/format'
 import { Link } from '@/i18n/navigation'
 import { addToCartAction } from '@/server/cart-actions'
@@ -20,6 +21,7 @@ export type Product = {
 }
 
 function StarRating({ rating, reviews }: { rating: number; reviews: number }) {
+  const t = useTranslations('storefront.productCard')
   return (
     <div className="flex items-center gap-1.5">
       <div className="flex items-center" aria-hidden="true">
@@ -38,13 +40,14 @@ function StarRating({ rating, reviews }: { rating: number; reviews: number }) {
         {rating.toFixed(1)} ({reviews})
       </span>
       <span className="sr-only">
-        Rated {rating} out of 5 from {reviews} reviews
+        {t('ratingLabel', { rating, reviews })}
       </span>
     </div>
   )
 }
 
 export function ProductCard({ product, locale = 'en' }: { product: Product; locale?: string }) {
+  const t = useTranslations('storefront.productCard')
   return (
     <article className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all duration-300 hover:-translate-y-1">
       <Link
@@ -103,7 +106,7 @@ export function ProductCard({ product, locale = 'en' }: { product: Product; loca
                 )}
               </div>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Earn {formatPoints(product.points)} pts
+                {t('earnPoints', { points: formatPoints(product.points) })}
               </p>
             </div>
             <form action={addToCartAction}>
@@ -112,7 +115,7 @@ export function ProductCard({ product, locale = 'en' }: { product: Product; loca
               <input type="hidden" name="locale" value={locale} />
               <button
                 type="submit"
-                aria-label={`Add ${product.name} to cart`}
+                aria-label={t('addToCart', { name: product.name })}
                 className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-border text-primary transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground"
               >
                 <Plus className="size-4" aria-hidden="true" />

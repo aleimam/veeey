@@ -1,4 +1,4 @@
-import { setRequestLocale } from 'next-intl/server';
+import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { prisma } from '@/lib/prisma';
 import { toCardProduct, cardProductInclude } from '@/lib/storefront';
 import { getCurrentUser } from '@/lib/auth-guards';
@@ -22,6 +22,7 @@ export default async function HomePage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
+  const tRows = await getTranslations('storefront.rows');
 
   // Degrade gracefully — a DB hiccup should still render the storefront shell.
   let bestsellers: ReturnType<typeof toCardProduct>[] = [];
@@ -71,10 +72,10 @@ export default async function HomePage({
       <TrustStrip />
       <ShopByGoal />
       <Bestsellers products={bestsellers} locale={locale} />
-      <ProductRow title="Recently viewed" products={recent} locale={locale} />
-      <ProductRow title="Buy it again" products={again} locale={locale} />
-      <ProductRow title={tierName ? `Popular with ${tierName} members` : 'Popular now'} products={tierPop} locale={locale} />
-      <ProductRow title="Recommended for you" products={recommended} locale={locale} />
+      <ProductRow title={tRows('recentlyViewed')} products={recent} locale={locale} />
+      <ProductRow title={tRows('buyAgain')} products={again} locale={locale} />
+      <ProductRow title={tierName ? tRows('popularInTier', { tier: tierName }) : tRows('popularNow')} products={tierPop} locale={locale} />
+      <ProductRow title={tRows('recommended')} products={recommended} locale={locale} />
       <ExpiryPricing />
       <SpecialOrder />
       <Membership />

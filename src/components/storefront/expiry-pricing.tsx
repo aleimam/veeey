@@ -3,16 +3,18 @@
 import { useState } from "react"
 import Image from "next/image"
 import { Check } from "lucide-react"
+import { useTranslations } from "next-intl"
 import { formatEGP } from "@/lib/format"
 import { Button } from "@/components/storefront/ui/button"
 
 const options = [
-  { expiry: "Exp 11/2026", price: 560, note: "−38%", fullShelf: false },
-  { expiry: "Exp 06/2027", price: 765, note: "−15%", fullShelf: false },
-  { expiry: "Exp 03/2028", price: 900, note: "Full shelf life", fullShelf: true },
+  { date: "11/2026", price: 560, note: "−38%", fullShelf: false },
+  { date: "06/2027", price: 765, note: "−15%", fullShelf: false },
+  { date: "03/2028", price: 900, note: null, fullShelf: true },
 ]
 
 export function ExpiryPricing() {
+  const t = useTranslations("storefront.expiryPricing")
   const [selected, setSelected] = useState(2)
 
   return (
@@ -21,7 +23,7 @@ export function ExpiryPricing() {
         <div className="relative mx-auto aspect-square w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card">
           <Image
             src="/products/omega-3.png"
-            alt="Nordic Naturals Ultimate Omega 3 supplement bottle"
+            alt={t("productAlt")}
             fill
             sizes="(max-width: 1024px) 100vw, 50vw"
             className="object-cover"
@@ -30,25 +32,24 @@ export function ExpiryPricing() {
 
         <div>
           <h2 className="text-balance text-2xl font-medium tracking-tight text-foreground sm:text-3xl">
-            Choose your expiry, choose your price
+            {t("title")}
           </h2>
           <p className="mt-3 text-pretty leading-relaxed text-muted-foreground">
-            Same product, different lots. Pick the shelf life that fits your routine — and pay
-            accordingly.
+            {t("subtitle")}
           </p>
 
           <p className="mt-6 text-sm font-medium text-foreground">
-            Nordic Naturals Ultimate Omega 3
+            {t("productName")}
           </p>
 
           <fieldset className="mt-3">
-            <legend className="sr-only">Select an expiry date and price</legend>
+            <legend className="sr-only">{t("legend")}</legend>
             <div className="flex flex-col gap-3">
               {options.map((option, i) => {
                 const isSelected = selected === i
                 return (
                   <button
-                    key={option.expiry}
+                    key={option.date}
                     type="button"
                     onClick={() => setSelected(i)}
                     aria-pressed={isSelected}
@@ -69,13 +70,13 @@ export function ExpiryPricing() {
                         )}
                       </span>
                       <div>
-                        <p className="text-sm font-medium text-foreground">{option.expiry}</p>
+                        <p className="text-sm font-medium text-foreground">{t("exp", { date: option.date })}</p>
                         <p
                           className={`text-xs ${
                             option.fullShelf ? "text-primary" : "text-muted-foreground"
                           }`}
                         >
-                          {option.note}
+                          {option.fullShelf ? t("fullShelf") : option.note}
                         </p>
                       </div>
                     </div>
@@ -89,7 +90,7 @@ export function ExpiryPricing() {
           </fieldset>
 
           <Button size="lg" className="mt-6 h-11 px-6">
-            Add to cart — {formatEGP(options[selected].price)}
+            {t("addToCart", { price: formatEGP(options[selected].price) })}
           </Button>
         </div>
       </div>

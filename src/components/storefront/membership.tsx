@@ -1,44 +1,31 @@
 import { Check } from "lucide-react"
+import { useTranslations } from "next-intl"
 import { Button } from "@/components/storefront/ui/button"
 import { cn } from "@/lib/utils"
 
 const tiers = [
-  {
-    name: "Veeey Green",
-    rate: "1 pt / EGP",
-    perks: ["Points on every order", "Member-only offers", "Birthday reward"],
-    dark: false,
-  },
-  {
-    name: "VeeeyIP",
-    rate: "2 pts / EGP",
-    perks: ["Everything in Green", "Priority UltraFast slots", "Early access to deals"],
-    dark: false,
-  },
-  {
-    name: "Veeey Select",
-    rate: "3 pts / EGP",
-    perks: ["Everything in VeeeyIP", "Dedicated pharmacist", "Members-only products"],
-    dark: true,
-  },
-]
+  { key: "green", name: "Veeey Green", perks: ["greenPerk1", "greenPerk2", "greenPerk3"], rate: "greenRate", dark: false },
+  { key: "ip", name: "VeeeyIP", perks: ["ipPerk1", "ipPerk2", "ipPerk3"], rate: "ipRate", dark: false },
+  { key: "select", name: "Veeey Select", perks: ["selectPerk1", "selectPerk2", "selectPerk3"], rate: "selectRate", dark: true },
+] as const
 
 export function Membership() {
+  const t = useTranslations("storefront.membership")
   return (
     <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
       <div className="max-w-2xl">
         <h2 className="text-balance text-2xl font-medium tracking-tight text-foreground sm:text-3xl">
-          Membership that rewards label-readers
+          {t("title")}
         </h2>
         <p className="mt-3 text-pretty leading-relaxed text-muted-foreground">
-          Earn points on everything you buy, and unlock more the longer you stay.
+          {t("subtitle")}
         </p>
       </div>
 
       <div className="mt-8 grid gap-5 md:grid-cols-3">
         {tiers.map((tier) => (
           <div
-            key={tier.name}
+            key={tier.key}
             className={cn(
               "flex flex-col rounded-2xl border p-6",
               tier.dark
@@ -53,7 +40,7 @@ export function Membership() {
                 tier.dark ? "text-lime" : "text-primary",
               )}
             >
-              {tier.rate}
+              {t(tier.rate)}
             </p>
             <ul className="mt-5 flex flex-1 flex-col gap-3">
               {tier.perks.map((perk) => (
@@ -66,7 +53,7 @@ export function Membership() {
                     aria-hidden="true"
                   />
                   <span className={tier.dark ? "text-slate-foreground/80" : "text-muted-foreground"}>
-                    {perk}
+                    {t(perk)}
                   </span>
                 </li>
               ))}
@@ -79,7 +66,7 @@ export function Membership() {
                 tier.dark && "bg-lime text-lime-foreground hover:bg-lime/90",
               )}
             >
-              Learn more
+              {t("learnMore")}
             </Button>
           </div>
         ))}
