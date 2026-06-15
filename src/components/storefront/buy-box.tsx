@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { formatEGP, formatPoints } from '@/lib/format';
 import { addToCartAction } from '@/server/cart-actions';
 
@@ -28,6 +29,7 @@ export function BuyBox({
   productId: string;
   locale?: string;
 }) {
+  const t = useTranslations('storefront.buyBox');
   const [selected, setSelected] = useState(0);
 
   if (lots.length === 0) {
@@ -35,13 +37,13 @@ export function BuyBox({
       <div className="rounded-2xl border border-border bg-card p-5">
         <p className="text-2xl font-semibold text-foreground">{formatEGP(basePricePiastres)}</p>
         <span className="mt-2 inline-flex rounded-full bg-gold/15 px-2.5 py-1 text-xs font-medium text-slate">
-          Pre-order · ~25% deposit
+          {t('preorderBadge')}
         </span>
         <p className="mt-3 text-sm text-muted-foreground">
-          Not in stock right now — reserve it with a 25% deposit and we’ll special-order it for you.
+          {t('preorderNote')}
         </p>
         <button className="mt-4 w-full rounded-xl bg-primary px-4 py-2.5 font-medium text-primary-foreground hover:opacity-90">
-          Pre-order
+          {t('preorder')}
         </button>
       </div>
     );
@@ -58,11 +60,11 @@ export function BuyBox({
           <span className="text-sm text-muted-foreground line-through">{formatEGP(basePricePiastres)}</span>
         )}
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">Earn {formatPoints(points)} points</p>
+      <p className="mt-1 text-xs text-muted-foreground">{t('earnPoints', { points: formatPoints(points) })}</p>
 
       {lots.length > 1 && (
         <div className="mt-4">
-          <p className="mb-2 text-sm font-medium text-foreground">Choose expiry</p>
+          <p className="mb-2 text-sm font-medium text-foreground">{t('chooseExpiry')}</p>
           <div className="flex flex-wrap gap-2">
             {lots.map((l, i) => (
               <button
@@ -76,7 +78,7 @@ export function BuyBox({
               >
                 <span className="block font-medium">{formatEGP(l.pricePiastres)}</span>
                 <span className="block text-xs text-muted-foreground">
-                  Exp {l.expiry}{l.sale ? ' · sale' : ''}
+                  {t('exp', { date: l.expiry })}{l.sale ? ` · ${t('sale')}` : ''}
                 </span>
               </button>
             ))}
@@ -85,7 +87,7 @@ export function BuyBox({
       )}
 
       <span className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
-        <span className="size-1.5 rounded-full bg-primary" /> In stock
+        <span className="size-1.5 rounded-full bg-primary" /> {t('inStock')}
       </span>
 
       <form action={addToCartAction} className="mt-4">
@@ -93,7 +95,7 @@ export function BuyBox({
         <input type="hidden" name="qty" value="1" />
         <input type="hidden" name="locale" value={locale} />
         <button type="submit" className="w-full rounded-xl bg-primary px-4 py-2.5 font-medium text-primary-foreground hover:opacity-90">
-          Add to cart
+          {t('addToCart')}
         </button>
       </form>
     </div>

@@ -1,4 +1,4 @@
-import { setRequestLocale } from 'next-intl/server';
+import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { redirect, Link } from '@/i18n/navigation';
 import { getCurrentUser } from '@/lib/auth-guards';
 import { prisma } from '@/lib/prisma';
@@ -30,49 +30,50 @@ export default async function AccountPage({ params }: { params: Promise<{ locale
   ]);
 
   const reorders = user.customerId ? await reorderSuggestions(user.customerId, locale, currentDate()) : [];
+  const t = await getTranslations('storefront.account');
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-12">
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="font-heading text-2xl font-semibold text-foreground">Your account</h1>
+          <h1 className="font-heading text-2xl font-semibold text-foreground">{t('title')}</h1>
           <p className="text-sm text-muted-foreground">{user.email}</p>
         </div>
         <div className="flex items-center gap-3">
-          <Link href="/account/notifications" className="text-sm text-primary hover:underline">Notifications</Link>
-          <Link href="/" className="text-sm text-primary hover:underline">Store</Link>
-          <form action={signOutAction}><button className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface">Sign out</button></form>
+          <Link href="/account/notifications" className="text-sm text-primary hover:underline">{t('notifications')}</Link>
+          <Link href="/" className="text-sm text-primary hover:underline">{t('store')}</Link>
+          <form action={signOutAction}><button className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface">{t('signOut')}</button></form>
         </div>
       </div>
 
       {customer && (
         <div className="mb-8 grid gap-4 sm:grid-cols-3">
           <div className="rounded-lg border border-border p-4">
-            <div className="text-sm text-muted-foreground">Tier</div>
-            <div className="mt-1 text-lg font-semibold" style={{ color: customer.tier?.color ?? undefined }}>{customer.tier?.nameEn ?? '—'}</div>
+            <div className="text-sm text-muted-foreground">{t('tier')}</div>
+            <div className="mt-1 text-lg font-semibold" style={{ color: customer.tier?.color ?? undefined }}>{(locale === 'ar' ? customer.tier?.nameAr : customer.tier?.nameEn) ?? '—'}</div>
           </div>
           <div className="rounded-lg border border-border p-4">
-            <div className="text-sm text-muted-foreground">Points</div>
+            <div className="text-sm text-muted-foreground">{t('points')}</div>
             <div className="mt-1 text-lg font-semibold text-primary">{customer.pointsBalance.toLocaleString('en-US')}</div>
-            <div className="text-xs text-muted-foreground">200 points = 1 EGP</div>
+            <div className="text-xs text-muted-foreground">{t('pointsNote')}</div>
           </div>
           <div className="rounded-lg border border-border p-4">
-            <div className="text-sm text-muted-foreground">Your referral code</div>
+            <div className="text-sm text-muted-foreground">{t('referralCode')}</div>
             <div className="mt-1 font-mono text-lg font-semibold text-foreground">{customer.referralCode}</div>
-            <div className="text-xs text-muted-foreground">Invite friends, earn points</div>
+            <div className="text-xs text-muted-foreground">{t('referralNote')}</div>
           </div>
         </div>
       )}
 
       {reorders.length > 0 && (
         <section className="mb-8">
-          <h2 className="mb-3 font-heading text-lg font-semibold">Time to reorder</h2>
+          <h2 className="mb-3 font-heading text-lg font-semibold">{t('reorderTitle')}</h2>
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {reorders.slice(0, 4).map((r) => (
               <div key={r.product.slug} className="space-y-1">
                 <ProductCard product={r.product} locale={locale} />
                 <p className={`text-xs ${r.daysLeft <= 0 ? 'font-medium text-destructive' : 'text-muted-foreground'}`}>
-                  {r.daysLeft <= 0 ? 'Likely run out — reorder now' : `~${r.daysLeft} days of supply left`}
+                  {r.daysLeft <= 0 ? t('runOut') : t('daysLeft', { days: r.daysLeft })}
                 </p>
               </div>
             ))}
@@ -80,14 +81,14 @@ export default async function AccountPage({ params }: { params: Promise<{ locale
         </section>
       )}
 
-      <h2 className="mb-3 font-heading text-lg font-semibold">Order history</h2>
+      <h2 className="mb-3 font-heading text-lg font-semibold">{t('orderHistory')}</h2>
       {orders.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No orders yet. <Link href="/products" className="text-primary hover:underline">Start shopping</Link>.</p>
+        <p className="text-sm text-muted-foreground">{t('noOrders')} <Link href="/products" className="text-primary hover:underline">{t('startShopping')}</Link>.</p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-sm">
             <thead className="bg-surface text-xs uppercase text-muted-foreground">
-              <tr><th className="p-3 text-start">Order</th><th className="p-3 text-start">Items</th><th className="p-3 text-start">Total</th><th className="p-3 text-start">Status</th><th className="p-3" /></tr>
+              <tr><th className="p-3 text-start">{t('colOrder')}</th><th className="p-3 text-start">{t('colItems')}</th><th className="p-3 text-start">{t('colTotal')}</th><th className="p-3 text-start">{t('colStatus')}</th><th className="p-3" /></tr>
             </thead>
             <tbody>
               {orders.map((o) => (
@@ -101,7 +102,7 @@ export default async function AccountPage({ params }: { params: Promise<{ locale
                       <form action={requestReturnAction}>
                         <input type="hidden" name="locale" value={locale} />
                         <input type="hidden" name="orderId" value={o.id} />
-                        <button className="text-xs text-primary hover:underline">Request return</button>
+                        <button className="text-xs text-primary hover:underline">{t('requestReturn')}</button>
                       </form>
                     )}
                   </td>

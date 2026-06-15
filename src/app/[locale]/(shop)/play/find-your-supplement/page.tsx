@@ -1,4 +1,4 @@
-import { setRequestLocale } from 'next-intl/server';
+import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { prisma } from '@/lib/prisma';
 import { GUIDED_QUIZ } from '@/lib/guided-selling';
@@ -26,9 +26,11 @@ export default async function FindSupplementPage({ params, searchParams }: { par
     recs = products.map((p) => toCardProduct(p, locale));
   }
 
+  const t = await getTranslations('storefront.findSupplement');
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
-      <h1 className="font-heading text-2xl font-semibold text-foreground">Find your supplement</h1>
+      <h1 className="font-heading text-2xl font-semibold text-foreground">{t('title')}</h1>
 
       {goals.length === 0 ? (
         <form action={findSupplementAction} className="mt-6 space-y-6">
@@ -45,17 +47,17 @@ export default async function FindSupplementPage({ params, searchParams }: { par
               </div>
             </fieldset>
           ))}
-          <button className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground">See my recommendations</button>
+          <button className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground">{t('seeRecs')}</button>
         </form>
       ) : (
         <div className="mt-4">
-          <p className="text-sm text-muted-foreground">Based on your answers, these may suit you:</p>
+          <p className="text-sm text-muted-foreground">{t('basedOn')}</p>
           {recs.length > 0 ? (
             <div className="-mx-4 sm:-mx-6 lg:-mx-8"><ProductRow title="" products={recs} locale={locale} /></div>
           ) : (
-            <p className="mt-3 text-sm">No exact match yet — <Link href="/products" className="text-primary hover:underline">browse all products</Link>.</p>
+            <p className="mt-3 text-sm">{t('noMatchPrefix')}<Link href="/products" className="text-primary hover:underline">{t('browseAll')}</Link>.</p>
           )}
-          <Link href="/play/find-your-supplement" className="mt-4 inline-block text-sm text-primary hover:underline">↺ Retake the quiz</Link>
+          <Link href="/play/find-your-supplement" className="mt-4 inline-block text-sm text-primary hover:underline">{t('retake')}</Link>
         </div>
       )}
     </div>

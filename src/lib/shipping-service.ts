@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server';
 import { prisma } from '@/lib/prisma';
 
 /** Shipping (FR-SHP-*). Three customer-facing types with admin-configurable fees
@@ -21,28 +22,29 @@ export function listAreas() {
 
 export type DeliverOption = {
   type: ShippingTypeKey;
-  labelEn: string;
+  label: string;
   feePiastres: bigint;
   eta: string;
 };
 
 /** Available shipping options for an area (UltraFast only where eligible). */
-export async function deliverToOptions(areaId?: string): Promise<DeliverOption[]> {
-  const [types, area] = await Promise.all([
+export async function deliverToOptions(areaId?: string, locale = 'en'): Promise<DeliverOption[]> {
+  const [types, area, t] = await Promise.all([
     listShippingTypes(),
     areaId ? prisma.shippingArea.findUnique({ where: { id: areaId } }) : Promise.resolve(null),
+    getTranslations({ locale, namespace: 'storefront.shipping' }),
   ]);
   return types
-    .filter((t) => t.type !== 'ULTRAFAST' || (area?.allowsUltraFast ?? false))
-    .map((t) => ({
-      type: t.type as ShippingTypeKey,
-      labelEn: t.labelEn,
-      feePiastres: t.feePiastres,
+    .filter((s) => s.type !== 'ULTRAFAST' || (area?.allowsUltraFast ?? false))
+    .map((s) => ({
+      type: s.type as ShippingTypeKey,
+      label: (locale === 'ar' ? s.labelAr : s.labelEn) ?? s.labelEn,
+      feePiastres: s.feePiastres,
       eta:
-        t.type === 'ULTRAFAST'
-          ? '3–6 hours'
-          : t.type === 'PICK_FROM_OFFICE'
-            ? 'Same day at our office'
-            : (area?.etaText ?? '1–3 working days'),
+        s.type === 'ULTRAFAST'
+          ? t('etaUltra')
+          : s.type === 'PICK_FROM_OFFICE'
+            ? t('etaPickup')
+            : (area?.etaText ?? t('etaStandard')),
     }));
 }

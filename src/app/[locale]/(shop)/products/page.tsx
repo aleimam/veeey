@@ -1,4 +1,4 @@
-import { setRequestLocale } from 'next-intl/server';
+import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { prisma } from '@/lib/prisma';
 import { toCardProduct, cardProductInclude } from '@/lib/storefront';
 import { ProductCard } from '@/components/storefront/product-card';
@@ -51,10 +51,12 @@ export default async function ProductsPage({
     products = [...products].sort((a, b) => a.expiry.localeCompare(b.expiry));
   }
 
+  const t = await getTranslations('storefront.listing');
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       <h1 className="mb-6 font-heading text-2xl font-semibold text-foreground">
-        {q ? `Results for “${q}”` : 'All products'}
+        {q ? t('resultsFor', { q }) : t('allProducts')}
       </h1>
 
       <div className="grid gap-8 lg:grid-cols-[230px_1fr]">
@@ -62,32 +64,32 @@ export default async function ProductsPage({
           <form action={`/${locale}/products`} className="space-y-5 text-sm">
             {q && <input type="hidden" name="q" value={q} />}
             <div>
-              <label className="mb-1 block font-medium">Brand</label>
+              <label className="mb-1 block font-medium">{t('brand')}</label>
               <select name="brand" defaultValue={brand ?? ''} className="w-full rounded-md border border-border bg-card px-2 py-1.5">
-                <option value="">All brands</option>
-                {brands.map((b) => <option key={b.id} value={b.id}>{b.nameEn}</option>)}
+                <option value="">{t('allBrands')}</option>
+                {brands.map((b) => <option key={b.id} value={b.id}>{(locale === 'ar' ? b.nameAr : b.nameEn) ?? b.nameEn}</option>)}
               </select>
             </div>
             <div>
-              <label className="mb-1 block font-medium">Type</label>
+              <label className="mb-1 block font-medium">{t('type')}</label>
               <select name="kind" defaultValue={kind ?? ''} className="w-full rounded-md border border-border bg-card px-2 py-1.5">
-                <option value="">All</option>
-                <option value="SUPPLEMENT">Supplements</option>
-                <option value="DEVICE">Devices</option>
+                <option value="">{t('all')}</option>
+                <option value="SUPPLEMENT">{t('supplements')}</option>
+                <option value="DEVICE">{t('devices')}</option>
               </select>
             </div>
             <div>
-              <label className="mb-1 block font-medium">Sort</label>
+              <label className="mb-1 block font-medium">{t('sort')}</label>
               <select name="sort" defaultValue={sort} className="w-full rounded-md border border-border bg-card px-2 py-1.5">
-                <option value="popular">Most popular</option>
-                <option value="price_asc">Price: low to high</option>
-                <option value="price_desc">Price: high to low</option>
-                <option value="expiry">Nearest expiry</option>
+                <option value="popular">{t('mostPopular')}</option>
+                <option value="price_asc">{t('priceLow')}</option>
+                <option value="price_desc">{t('priceHigh')}</option>
+                <option value="expiry">{t('nearestExpiry')}</option>
               </select>
             </div>
-            <label className="flex items-center gap-2"><input type="checkbox" name="instock" value="1" defaultChecked={inStock} /> In stock only</label>
-            <label className="flex items-center gap-2"><input type="checkbox" name="offers" value="1" defaultChecked={offers} /> On offer</label>
-            <button className="w-full rounded-md bg-primary px-3 py-2 font-medium text-primary-foreground">Apply filters</button>
+            <label className="flex items-center gap-2"><input type="checkbox" name="instock" value="1" defaultChecked={inStock} /> {t('inStockOnly')}</label>
+            <label className="flex items-center gap-2"><input type="checkbox" name="offers" value="1" defaultChecked={offers} /> {t('onOffer')}</label>
+            <button className="w-full rounded-md bg-primary px-3 py-2 font-medium text-primary-foreground">{t('apply')}</button>
           </form>
         </aside>
 
@@ -98,12 +100,12 @@ export default async function ProductsPage({
             </div>
           ) : (
             <div className="rounded-2xl border border-dashed border-border p-10 text-center">
-              <p className="font-medium text-foreground">No products match your filters.</p>
+              <p className="font-medium text-foreground">{t('noMatch')}</p>
               <p className="mt-2 text-sm text-muted-foreground">
-                Can’t find what you need? We special-order almost anything from abroad.
+                {t('noMatchNote')}
               </p>
               <Link href="/products" className="mt-4 inline-block text-sm font-medium text-primary hover:underline">
-                Clear filters
+                {t('clearFilters')}
               </Link>
             </div>
           )}

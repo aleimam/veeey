@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
-import { setRequestLocale } from 'next-intl/server';
+import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { prisma } from '@/lib/prisma';
 import { piastresToEgp } from '@/lib/format';
 import { BuyBox, type BuyLot } from '@/components/storefront/buy-box';
@@ -64,9 +64,12 @@ export default async function ProductPage({
     qty: l.qtyOnHand,
   }));
 
+  const t = await getTranslations('storefront.pdp');
+  const tRows = await getTranslations('storefront.rows');
+
   const specs = p.attributeValues.map((av) => ({
-    name: av.attributeValue.attribute.nameEn,
-    value: av.attributeValue.valueEn,
+    name: (locale === 'ar' ? av.attributeValue.attribute.nameAr : av.attributeValue.attribute.nameEn) ?? av.attributeValue.attribute.nameEn,
+    value: (locale === 'ar' ? av.attributeValue.valueAr : av.attributeValue.valueEn) ?? av.attributeValue.valueEn,
   }));
 
   const [fbt, alsoViewed] = await Promise.all([
@@ -118,10 +121,10 @@ export default async function ProductPage({
 
         {/* Details */}
         <div>
-          {p.brand && <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{p.brand.nameEn}</p>}
+          {p.brand && <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{(locale === 'ar' ? p.brand.nameAr : p.brand.nameEn) ?? p.brand.nameEn}</p>}
           <h1 className="mt-1 font-heading text-2xl font-semibold text-foreground sm:text-3xl">{name}</h1>
           {p.ratingCount > 0 && (
-            <p className="mt-2 text-sm text-muted-foreground">★ {(p.ratingAvg ?? 0).toFixed(1)} ({p.ratingCount} reviews)</p>
+            <p className="mt-2 text-sm text-muted-foreground">★ {(p.ratingAvg ?? 0).toFixed(1)} {t('reviewsCount', { count: p.ratingCount })}</p>
           )}
 
           <div className="mt-5">
@@ -133,13 +136,13 @@ export default async function ProductPage({
               <input type="hidden" name="locale" value={locale} />
               <input type="hidden" name="productId" value={p.id} />
               <input type="hidden" name="back" value={`/products/${slug}`} />
-              <button className="text-muted-foreground hover:text-primary">♡ Save to wishlist</button>
+              <button className="text-muted-foreground hover:text-primary">{t('saveWishlist')}</button>
             </form>
             <form action={toggleCompareAction}>
               <input type="hidden" name="locale" value={locale} />
               <input type="hidden" name="productId" value={p.id} />
               <input type="hidden" name="back" value="/compare" />
-              <button className="text-muted-foreground hover:text-primary">⇄ Add to compare</button>
+              <button className="text-muted-foreground hover:text-primary">{t('addCompare')}</button>
             </form>
           </div>
 
@@ -153,14 +156,14 @@ export default async function ProductPage({
 
       {longDesc && (
         <section className="mt-12 max-w-3xl">
-          <h2 className="mb-3 font-heading text-lg font-semibold">About this product</h2>
+          <h2 className="mb-3 font-heading text-lg font-semibold">{t('about')}</h2>
           <p className="whitespace-pre-line leading-relaxed text-foreground/80">{longDesc}</p>
         </section>
       )}
 
       {specs.length > 0 && (
         <section className="mt-12 max-w-3xl">
-          <h2 className="mb-3 font-heading text-lg font-semibold">Specifications</h2>
+          <h2 className="mb-3 font-heading text-lg font-semibold">{t('specs')}</h2>
           <dl className="overflow-hidden rounded-lg border border-border">
             {specs.map((s, i) => (
               <div key={i} className="flex border-t border-border first:border-t-0">
@@ -173,11 +176,11 @@ export default async function ProductPage({
       )}
 
       <section className="mt-12 max-w-3xl">
-        <h2 className="mb-3 font-heading text-lg font-semibold">Reviews</h2>
+        <h2 className="mb-3 font-heading text-lg font-semibold">{t('reviews')}</h2>
 
         {p.aiReviewSummary && (
           <div className="mb-5 rounded-xl border border-border bg-surface p-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-primary">✨ AI summary of reviews</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-primary">{t('aiSummary')}</p>
             <p className="mt-1 text-sm text-foreground">{p.aiReviewSummary}</p>
           </div>
         )}
@@ -201,30 +204,30 @@ export default async function ProductPage({
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-muted-foreground">No reviews yet — be the first to review this product.</p>
+          <p className="text-sm text-muted-foreground">{t('noReviews')}</p>
         )}
 
         <form action={submitReviewAction} className="mt-6 space-y-3 rounded-xl border border-border p-4">
-          <p className="text-sm font-semibold">Write a review</p>
+          <p className="text-sm font-semibold">{t('writeReview')}</p>
           <input type="hidden" name="locale" value={locale} />
           <input type="hidden" name="productId" value={p.id} />
           <input type="hidden" name="slug" value={slug} />
-          <label className="block text-sm">Rating
+          <label className="block text-sm">{t('rating')}
             <select name="rating" defaultValue="5" className="mt-1 block w-24 rounded-md border border-border bg-background px-2 py-1.5 text-sm">
               {[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n} ★</option>)}
             </select>
           </label>
-          <input name="title" placeholder="Title (optional)" className="block w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-          <textarea name="body" rows={3} placeholder="Share your experience…" className="block w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-          <input name="media" placeholder="Photo/video URLs (space-separated, optional)" className="block w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-          <p className="text-xs text-muted-foreground">Reviews are published after moderation.</p>
-          <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Submit review</button>
+          <input name="title" placeholder={t('titlePlaceholder')} className="block w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
+          <textarea name="body" rows={3} placeholder={t('bodyPlaceholder')} className="block w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
+          <input name="media" placeholder={t('mediaPlaceholder')} className="block w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
+          <p className="text-xs text-muted-foreground">{t('moderationNote')}</p>
+          <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">{t('submitReview')}</button>
         </form>
       </section>
 
       <div className="-mx-4 mt-8 sm:-mx-6 lg:-mx-8">
-        <ProductRow title="Frequently bought together" products={fbt} locale={locale} />
-        <ProductRow title="Recently viewed" products={alsoViewed} locale={locale} />
+        <ProductRow title={t('fbt')} products={fbt} locale={locale} />
+        <ProductRow title={tRows('recentlyViewed')} products={alsoViewed} locale={locale} />
       </div>
     </div>
   );

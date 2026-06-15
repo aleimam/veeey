@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -16,6 +17,7 @@ type State = 'unknown' | 'unsupported' | 'unconfigured' | 'on' | 'off' | 'busy';
 /** Web Push opt-in for the current device (FR-NOT-02). Subscribes via the service
  *  worker + VAPID key and registers the subscription server-side. */
 export function PushOptIn({ vapidPublicKey }: { vapidPublicKey?: string }) {
+  const t = useTranslations('storefront.accountNotif');
   const [state, setState] = useState<State>('unknown');
 
   useEffect(() => {
@@ -64,15 +66,15 @@ export function PushOptIn({ vapidPublicKey }: { vapidPublicKey?: string }) {
     }
   }
 
-  if (state === 'unconfigured') return <p className="text-xs text-muted-foreground">Web push isn&rsquo;t configured on this environment.</p>;
-  if (state === 'unsupported') return <p className="text-xs text-muted-foreground">Your browser doesn&rsquo;t support push notifications.</p>;
+  if (state === 'unconfigured') return <p className="text-xs text-muted-foreground">{t('pushUnconfigured')}</p>;
+  if (state === 'unsupported') return <p className="text-xs text-muted-foreground">{t('pushUnsupported')}</p>;
   return (
     <button
       onClick={state === 'on' ? unsubscribe : subscribe}
       disabled={state === 'busy' || state === 'unknown'}
       className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface disabled:opacity-50"
     >
-      {state === 'on' ? 'Disable push on this device' : 'Enable push on this device'}
+      {state === 'on' ? t('disablePush') : t('enablePush')}
     </button>
   );
 }

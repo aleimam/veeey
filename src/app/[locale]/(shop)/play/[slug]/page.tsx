@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { setRequestLocale } from 'next-intl/server';
+import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { getQuiz } from '@/lib/play-service';
 import { submitQuizAction } from '@/server/play-actions';
@@ -16,6 +16,7 @@ export default async function QuizPage({ params, searchParams }: { params: Promi
 
   const done = (Array.isArray(sp.done) ? sp.done[0] : sp.done) === '1';
   const questions = (quiz.questionsJson as QuizQuestion[] | null) ?? [];
+  const t = await getTranslations('storefront.quizPage');
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6 lg:px-8">
@@ -23,11 +24,11 @@ export default async function QuizPage({ params, searchParams }: { params: Promi
 
       {done ? (
         <div className="mt-6 rounded-xl border border-border bg-surface p-6 text-center">
-          <p className="text-lg font-medium">Thanks for playing! 🎉</p>
-          <p className="mt-1 text-sm text-muted-foreground">Your answers were recorded.</p>
+          <p className="text-lg font-medium">{t('thanks')}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{t('recorded')}</p>
           <div className="mt-4 flex justify-center gap-4 text-sm">
-            <Link href={`/play/${slug}`} className="text-primary hover:underline">Play again</Link>
-            <Link href="/play" className="text-primary hover:underline">More in Play</Link>
+            <Link href={`/play/${slug}`} className="text-primary hover:underline">{t('playAgain')}</Link>
+            <Link href="/play" className="text-primary hover:underline">{t('morePlay')}</Link>
           </div>
         </div>
       ) : (
@@ -47,8 +48,8 @@ export default async function QuizPage({ params, searchParams }: { params: Promi
               </div>
             </fieldset>
           ))}
-          {questions.length === 0 && <p className="text-sm text-muted-foreground">This quiz has no questions yet.</p>}
-          <button className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground">Submit answers</button>
+          {questions.length === 0 && <p className="text-sm text-muted-foreground">{t('noQuestions')}</p>}
+          <button className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground">{t('submitAnswers')}</button>
         </form>
       )}
     </div>

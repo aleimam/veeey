@@ -1,4 +1,4 @@
-import { setRequestLocale } from 'next-intl/server';
+import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { redirect, Link } from '@/i18n/navigation';
 import { getCurrentUser } from '@/lib/auth-guards';
 import { getPrefs } from '@/lib/notification-service';
@@ -15,19 +15,20 @@ export default async function NotificationsPage({ params }: { params: Promise<{ 
   if (!user?.customerId) return null;
 
   const prefs = await getPrefs(user.customerId);
+  const t = await getTranslations('storefront.accountNotif');
   const rows = [
-    { name: 'email', label: 'Email notifications', checked: prefs.email },
-    { name: 'push', label: 'Push notifications', checked: prefs.push },
-    { name: 'orderUpdates', label: 'Order updates', checked: prefs.orderUpdates },
-    { name: 'priceDrop', label: 'Wishlist price-drop alerts', checked: prefs.priceDrop },
-    { name: 'backInStock', label: 'Back-in-stock alerts', checked: prefs.backInStock },
-    { name: 'marketing', label: 'Offers & marketing', checked: prefs.marketing },
+    { name: 'email', label: t('email'), checked: prefs.email },
+    { name: 'push', label: t('push'), checked: prefs.push },
+    { name: 'orderUpdates', label: t('orderUpdates'), checked: prefs.orderUpdates },
+    { name: 'priceDrop', label: t('priceDrop'), checked: prefs.priceDrop },
+    { name: 'backInStock', label: t('backInStock'), checked: prefs.backInStock },
+    { name: 'marketing', label: t('marketing'), checked: prefs.marketing },
   ];
 
   return (
     <main className="mx-auto w-full max-w-2xl px-6 py-12">
-      <Link href="/account" className="text-sm text-primary hover:underline">← Account</Link>
-      <h1 className="mt-2 font-heading text-2xl font-semibold text-foreground">Notification preferences</h1>
+      <Link href="/account" className="text-sm text-primary hover:underline">{t('back')}</Link>
+      <h1 className="mt-2 font-heading text-2xl font-semibold text-foreground">{t('title')}</h1>
 
       <form action={saveNotificationPrefsAction} className="mt-6 space-y-2">
         <input type="hidden" name="locale" value={locale} />
@@ -36,11 +37,11 @@ export default async function NotificationsPage({ params }: { params: Promise<{ 
             <input type="checkbox" name={r.name} defaultChecked={r.checked} /> {r.label}
           </label>
         ))}
-        <button className="mt-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Save preferences</button>
+        <button className="mt-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">{t('save')}</button>
       </form>
 
       <div className="mt-8">
-        <p className="mb-2 text-sm font-semibold">Push on this device</p>
+        <p className="mb-2 text-sm font-semibold">{t('pushOnDevice')}</p>
         <PushOptIn vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY} />
       </div>
     </main>

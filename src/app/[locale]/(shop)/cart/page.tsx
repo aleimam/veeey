@@ -1,5 +1,5 @@
 import Image from 'next/image';
-import { setRequestLocale } from 'next-intl/server';
+import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { readCartId, getCart } from '@/lib/cart-service';
 import { listAreas, deliverToOptions } from '@/lib/shipping-service';
@@ -20,25 +20,26 @@ export default async function CartPage({
   const sp = await searchParams;
   setRequestLocale(locale);
 
+  const t = await getTranslations('storefront.cart');
   const cartId = await readCartId();
   const lines = cartId ? await getCart(cartId, locale) : [];
 
   if (lines.length === 0) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-20 text-center">
-        <h1 className="font-heading text-2xl font-semibold text-foreground">Your cart is empty</h1>
-        <Link href="/products" className="mt-4 inline-block text-sm font-medium text-primary hover:underline">Browse products</Link>
+        <h1 className="font-heading text-2xl font-semibold text-foreground">{t('emptyTitle')}</h1>
+        <Link href="/products" className="mt-4 inline-block text-sm font-medium text-primary hover:underline">{t('browse')}</Link>
       </div>
     );
   }
 
   const subtotal = lines.reduce((s, l) => s + l.subtotalPiastres, 0);
   const areaId = (Array.isArray(sp.area) ? sp.area[0] : sp.area) ?? undefined;
-  const [areas, deliver] = await Promise.all([listAreas(), deliverToOptions(areaId)]);
+  const [areas, deliver] = await Promise.all([listAreas(), deliverToOptions(areaId, locale)]);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
-      <h1 className="mb-6 font-heading text-2xl font-semibold text-foreground">Your cart</h1>
+      <h1 className="mb-6 font-heading text-2xl font-semibold text-foreground">{t('title')}</h1>
       <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
         <ul className="space-y-4">
           {lines.map((l) => (
@@ -48,18 +49,18 @@ export default async function CartPage({
               </div>
               <div className="flex flex-1 flex-col">
                 <Link href={`/products/${l.slug}`} className="font-medium text-foreground hover:text-primary">{l.name}</Link>
-                <span className="mt-1 inline-flex w-fit rounded-full bg-accent px-2 py-0.5 text-xs text-accent-foreground">Exp {monthYear(l.nearestExpiry)}</span>
+                <span className="mt-1 inline-flex w-fit rounded-full bg-accent px-2 py-0.5 text-xs text-accent-foreground">{t('exp', { date: monthYear(l.nearestExpiry) })}</span>
                 <div className="mt-auto flex items-center justify-between">
                   <form action={updateCartQtyAction} className="flex items-center gap-2">
                     <input type="hidden" name="locale" value={locale} />
                     <input type="hidden" name="productId" value={l.productId} />
                     <input type="number" name="qty" min="0" defaultValue={l.qty} className="w-16 rounded-md border border-border bg-card px-2 py-1 text-sm" />
-                    <button className="text-xs text-primary hover:underline">Update</button>
+                    <button className="text-xs text-primary hover:underline">{t('update')}</button>
                   </form>
                   <form action={removeFromCartAction}>
                     <input type="hidden" name="locale" value={locale} />
                     <input type="hidden" name="productId" value={l.productId} />
-                    <button className="text-xs text-muted-foreground hover:text-destructive">Remove</button>
+                    <button className="text-xs text-muted-foreground hover:text-destructive">{t('remove')}</button>
                   </form>
                 </div>
               </div>
@@ -71,28 +72,28 @@ export default async function CartPage({
         <aside className="space-y-5">
           <div className="rounded-xl border border-border p-5">
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Subtotal</span>
+              <span className="text-muted-foreground">{t('subtotal')}</span>
               <span className="font-semibold text-foreground">{formatEGP(subtotal)}</span>
             </div>
             <Link href="/checkout" className="mt-4 block rounded-xl bg-primary px-4 py-2.5 text-center font-medium text-primary-foreground hover:opacity-90">
-              Proceed to checkout
+              {t('proceed')}
             </Link>
           </div>
 
           <div className="rounded-xl border border-border p-5">
-            <p className="mb-2 text-sm font-medium text-foreground">Deliver to</p>
+            <p className="mb-2 text-sm font-medium text-foreground">{t('deliverTo')}</p>
             <form className="mb-3">
               <select name="area" defaultValue={areaId ?? ''} className="w-full rounded-md border border-border bg-card px-2 py-1.5 text-sm">
-                <option value="">Select your area</option>
+                <option value="">{t('selectArea')}</option>
                 {areas.map((a) => <option key={a.id} value={a.id}>{a.name} · {a.zone.governorate}</option>)}
               </select>
-              <button className="mt-2 w-full rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface">Check options</button>
+              <button className="mt-2 w-full rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface">{t('checkOptions')}</button>
             </form>
             <ul className="space-y-1 text-sm">
               {deliver.map((o) => (
                 <li key={o.type} className="flex justify-between">
-                  <span>{o.labelEn} <span className="text-muted-foreground">· {o.eta}</span></span>
-                  <span className="font-medium">{Number(o.feePiastres) === 0 ? 'Free' : formatEGP(Number(o.feePiastres))}</span>
+                  <span>{o.label} <span className="text-muted-foreground">· {o.eta}</span></span>
+                  <span className="font-medium">{Number(o.feePiastres) === 0 ? t('free') : formatEGP(Number(o.feePiastres))}</span>
                 </li>
               ))}
             </ul>

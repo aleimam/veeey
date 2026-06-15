@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 /**
  * "How long will this last" duration calculator (FR-HEALTH-01). Uses the
@@ -13,15 +14,16 @@ export function DurationCalculator({
   servings: number;
   defaultDosage: number;
 }) {
+  const t = useTranslations('storefront.duration');
   const [dosage, setDosage] = useState(Math.max(1, defaultDosage || 1));
   const days = Math.floor(servings / dosage);
   const months = Math.floor(days / 30);
 
   return (
     <div className="rounded-2xl border border-border bg-surface p-5">
-      <h3 className="text-sm font-semibold text-foreground">How long will this last?</h3>
+      <h3 className="text-sm font-semibold text-foreground">{t('title')}</h3>
       <div className="mt-3 flex items-center gap-3 text-sm">
-        <label className="text-muted-foreground" htmlFor="dosage">Servings per day</label>
+        <label className="text-muted-foreground" htmlFor="dosage">{t('perDay')}</label>
         <input
           id="dosage"
           type="number"
@@ -32,10 +34,10 @@ export function DurationCalculator({
         />
       </div>
       <p className="mt-3 text-foreground">
-        <span className="text-2xl font-semibold text-primary">{days}</span> days
-        {months >= 1 && <span className="text-muted-foreground"> (~{months} month{months > 1 ? 's' : ''})</span>}
+        <span className="text-2xl font-semibold text-primary">{days}</span> {t('days')}
+        {months >= 1 && <span className="text-muted-foreground"> {t('months', { months })}</span>}
       </p>
-      <p className="mt-1 text-xs text-muted-foreground">{servings} servings ÷ {dosage}/day</p>
+      <p className="mt-1 text-xs text-muted-foreground">{t('formula', { servings, dosage })}</p>
     </div>
   );
 }

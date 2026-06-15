@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { setRequestLocale } from 'next-intl/server';
+import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { readCartId, getCart } from '@/lib/cart-service';
 import { listShippingTypes } from '@/lib/shipping-service';
 import { enabledPaymentMethods } from '@/lib/payments';
@@ -19,15 +19,17 @@ export default async function CheckoutPage({ params }: { params: Promise<{ local
   const [types, user] = await Promise.all([listShippingTypes(), getCurrentUser()]);
   const customer = user?.customerId ? await prisma.customer.findUnique({ where: { id: user.customerId } }) : null;
 
+  const tp = await getTranslations('storefront.checkout');
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
-      <h1 className="mb-6 font-heading text-2xl font-semibold text-foreground">Checkout</h1>
+      <h1 className="mb-6 font-heading text-2xl font-semibold text-foreground">{tp('title')}</h1>
       <CheckoutForm
         locale={locale}
         isLoggedIn={!!user}
         defaultName={user?.name ?? undefined}
         subtotalPiastres={subtotal}
-        shippingOptions={types.map((t) => ({ type: t.type, labelEn: t.labelEn, feePiastres: Number(t.feePiastres) }))}
+        shippingOptions={types.map((s) => ({ type: s.type, label: (locale === 'ar' ? s.labelAr : s.labelEn) ?? s.labelEn, feePiastres: Number(s.feePiastres) }))}
         paymentMethods={enabledPaymentMethods().map((m) => ({ key: m.key, label: m.label }))}
         pointsBalance={customer?.pointsBalance ?? 0}
       />

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useSyncExternalStore } from 'react';
+import { useTranslations } from 'next-intl';
 
 const KEY = 'veeey-disclaimer';
 
@@ -18,6 +19,7 @@ function getStored(): string | null {
 
 /** First-visit supplement disclaimer pop-up (FR-SF-04). */
 export function EntryDisclaimer() {
+  const t = useTranslations('storefront.disclaimer');
   const stored = useSyncExternalStore(subscribe, getStored, () => null);
   const [dismissed, setDismissed] = useState(false);
 
@@ -35,17 +37,15 @@ export function EntryDisclaimer() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate/40 p-4" role="dialog" aria-modal="true">
       <div className="max-w-md rounded-2xl bg-card p-6 shadow-xl">
-        <h2 className="font-heading text-lg font-semibold text-foreground">A quick note</h2>
+        <h2 className="font-heading text-lg font-semibold text-foreground">{t('title')}</h2>
         <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-          Dietary supplements are not intended to diagnose, treat, cure, or prevent any disease.
-          Consult your physician or pharmacist before use, especially if pregnant, nursing, or taking
-          medication. Veeey’s pharmacists are here to help.
+          {t('body')}
         </p>
         <button
           onClick={accept}
           className="mt-5 w-full rounded-xl bg-primary px-4 py-2.5 font-medium text-primary-foreground hover:opacity-90"
         >
-          I understand
+          {t('accept')}
         </button>
       </div>
     </div>
