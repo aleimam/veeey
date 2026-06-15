@@ -139,3 +139,122 @@ DATABASE_URL=… npm run worker
 - **Custom domain:** when ready, point it in Vercel and update `NEXT_PUBLIC_SITE_URL`.
 - **Product images:** add CDN hostnames to `images.remotePatterns` in `next.config.ts`
   before serving migrated product images.
+
+---
+
+## Self-hosting on a VPS (CWP) — alternative to Vercel
+
+Veeey runs well self-hosted, and for this app it's arguably a better fit: the
+**pg-boss worker** wants a persistent process and **Postgres can live on the same
+box**. The model: Next.js runs as a long-lived Node process on `:3100` (kept alive
+by **PM2**), **Nginx** reverse-proxies your domain to it, and CWP issues SSL.
+Next.js is **not** served like a PHP site — CWP's job here is just the proxy + TLS.
+
+### A. Install Node 20+ (alongside CWP's PHP stack)
+
+```bash
+# NodeSource (CentOS/AlmaLinux) — or use nvm
+curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+sudo dnf install -y nodejs
+node -v   # >= 20
+sudo npm i -g pm2
+```
+
+### B. PostgreSQL on the VPS
+
+```bash
+sudo dnf install -y postgresql-server postgresql-contrib
+sudo postgresql-setup --initdb
+sudo systemctl enable --now postgresql
+sudo -u postgres psql -c "CREATE USER veeey WITH PASSWORD 'STRONG_PASSWORD';"
+sudo -u postgres psql -c "CREATE DATABASE veeey OWNER veeey;"
+```
+In `pg_hba.conf` ensure local TCP uses `scram-sha-256`/`md5` (so a password URL
+works), then `sudo systemctl restart postgresql`.
+→ `DATABASE_URL="postgresql://veeey:STRONG_PASSWORD@localhost:5432/veeey"`
+
+### C. App setup
+
+```bash
+cd /home/veeey   # or any deploy dir
+git clone https://github.com/aleimam/veeey.git app && cd app
+cp .env.example .env
+# edit .env — at minimum:
+#   DATABASE_URL=postgresql://veeey:STRONG_PASSWORD@localhost:5432/veeey
+#   AUTH_SECRET=$(npx auth secret)        # paste the generated value
+#   NEXT_PUBLIC_SITE_URL=https://veeey.com
+npm ci
+npx prisma migrate deploy
+npm run db:seed          # optional synthetic demo data (skip for real data)
+npm run build
+```
+
+### D. Run under PM2 (app + worker, boot-persistent)
+
+```bash
+pm2 start npm --name veeey        -- start        # next start -p 3100
+pm2 start npm --name veeey-worker -- run worker    # pg-boss async + alert sweep
+pm2 save
+pm2 startup    # run the command it prints (registers a systemd unit)
+```
+The app listens on `127.0.0.1:3100` only — do **not** open 3100 in the firewall;
+traffic reaches it through Nginx. Open 80/443 only.
+
+### E. Nginx reverse proxy (recommended)
+
+> ⚠️ **CWP regenerates vhost configs**, so don't hand-edit the managed vhost — it
+> gets overwritten. Use CWP's **Nginx Reverse Proxy** / custom-config section, or
+> drop the block in a conf.d include CWP doesn't manage. Point the domain's docroot
+> proxy at the Node port:
+
+```nginx
+server {
+    listen 80;
+    server_name veeey.com www.veeey.com;
+
+    client_max_body_size 25m;            # product image / review media uploads
+    gzip on;
+    gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+
+    location / {
+        proxy_pass http://127.0.0.1:3100;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+```
+Then enable **AutoSSL/Let's Encrypt** for the domain in CWP (it rewrites this to
+443 + redirects 80→443).
+
+**Apache fallback** (if you proxy via Apache `mod_proxy` instead — enable
+`mod_proxy` + `mod_proxy_http`, add to the domain vhost via CWP custom config):
+
+```apache
+ProxyPreserveHost On
+ProxyPass        / http://127.0.0.1:3100/
+ProxyPassReverse / http://127.0.0.1:3100/
+RequestHeader set X-Forwarded-Proto "https"
+```
+
+### F. Redeploy (each release)
+
+```bash
+cd /home/veeey/app
+git pull
+npm ci
+npx prisma migrate deploy
+npm run build
+pm2 reload veeey && pm2 reload veeey-worker
+```
+
+### What you own on a VPS
+
+OS + Node + Postgres updates, PM2/process health, SSL renewal (CWP automates),
+backups (`pg_dump` on a cron), and running the redeploy steps. No usage fees, full
+control, app + DB + worker co-located.
