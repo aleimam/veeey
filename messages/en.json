@@ -187,6 +187,21 @@
       "compensationDesc": "On-time delivery, guaranteed in writing.",
       "cta": "Start a special order"
     },
+    "specialOrderForm": {
+      "title": "Request a special order",
+      "intro": "Can't find it? Tell us what you need and we'll source it for you — authentic, tracked, and on a fixed timeline.",
+      "terms": "Special orders are reserved with a {percent}% deposit and typically arrive within about {days} days; we back the delivery date with our compensation policy.",
+      "product": "Product name",
+      "productUrl": "Product link (optional)",
+      "name": "Your name",
+      "phone": "Phone",
+      "email": "Email (optional)",
+      "notes": "Notes (optional)",
+      "submit": "Send request",
+      "submittedTitle": "Request received",
+      "submittedNote": "Thank you — our team will contact you shortly to confirm the price and timeline.",
+      "error": "Please check your details and try again."
+    },
     "membership": {
       "title": "Membership that rewards label-readers",
       "subtitle": "Earn points on everything you buy, and unlock more the longer you stay.",

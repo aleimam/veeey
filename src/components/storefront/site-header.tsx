@@ -9,7 +9,7 @@ const navItems: { key: string; href: string }[] = [
   { key: 'devices', href: '/products?kind=DEVICE' },
   { key: 'brands', href: '/products' },
   { key: 'offers', href: '/products?offers=1' },
-  { key: 'specialOrder', href: '/p/special-order' },
+  { key: 'specialOrder', href: '/special-order' },
   { key: 'play', href: '/play' },
   { key: 'blog', href: '/blog' },
 ]

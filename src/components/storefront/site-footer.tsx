@@ -20,7 +20,7 @@ const HREFS: Record<string, string> = {
   "shop.devices": "/products?kind=DEVICE",
   "shop.brands": "/products",
   "shop.offers": "/products?offers=1",
-  "shop.specialOrder": "/p/special-order",
+  "shop.specialOrder": "/special-order",
   "help.track": "/account",
   "help.shipping": "/p/shipping-delivery",
   "help.returns": "/p/returns",

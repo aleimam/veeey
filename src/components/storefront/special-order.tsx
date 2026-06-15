@@ -1,6 +1,6 @@
 import { MessageSquare, Wallet, Plane, ShieldCheck } from "lucide-react"
 import { useTranslations } from "next-intl"
-import { Button } from "@/components/storefront/ui/button"
+import { Link } from "@/i18n/navigation"
 
 const steps = [
   { icon: MessageSquare, key: "tell" },
@@ -38,12 +38,12 @@ export function SpecialOrder() {
           ))}
         </ol>
 
-        <Button
-          size="lg"
-          className="mt-10 h-11 bg-lime px-6 text-lime-foreground hover:bg-lime/90"
+        <Link
+          href="/special-order"
+          className="mt-10 inline-flex h-11 items-center justify-center rounded-xl bg-lime px-6 text-sm font-medium text-lime-foreground transition-colors hover:bg-lime/90"
         >
           {t("cta")}
-        </Button>
+        </Link>
       </div>
     </section>
   )

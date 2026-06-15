@@ -13,6 +13,7 @@ const NAV: { href: string; label: string; permission?: PermissionKey }[] = [
   { href: '/admin/analytics', label: 'Analytics', permission: 'finance.read' },
   { href: '/admin/orders', label: 'Orders', permission: 'orders.read' },
   { href: '/admin/returns', label: 'Returns', permission: 'returns.manage' },
+  { href: '/admin/special-orders', label: 'Special orders', permission: 'orders.read' },
   { href: '/admin/products', label: 'Products', permission: 'catalog.read' },
   { href: '/admin/inventory', label: 'Inventory', permission: 'inventory.manage' },
   { href: '/admin/stocktake', label: 'Stocktake', permission: 'stocktake.manage' },

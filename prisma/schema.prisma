@@ -380,6 +380,7 @@ model Customer {
   referralReceived  Referral?               @relation("ReferralInvitee")
   couponRedemptions CouponRedemption[]
   analyticsSessions AnalyticsSession[]
+  specialOrders     SpecialOrder[]
   analyticsEvents   AnalyticsEvent[]
   playEntries       PlayEntry[]
   notifications     Notification[]
@@ -907,11 +908,19 @@ model OrderGift {
 
 model SpecialOrder {
   id                   String             @id @default(cuid())
-  orderId              String             @unique
-  order                Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  // A request is a standalone lead; an Order is linked once it converts.
+  orderId              String?            @unique
+  order                Order?             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  customerId           String?
+  customer             Customer?          @relation(fields: [customerId], references: [id], onDelete: SetNull)
   productId            String?
   product              Product?           @relation(fields: [productId], references: [id])
   requestedProductText String?
+  productUrl           String?
+  requesterName        String?
+  requesterPhone       String?
+  requesterEmail       String?
+  notes                String?
   yeldnRequestUid      String?            @unique
   slaType              String? // Fast 20d / Manufacturer 30d / Injection 40d
   deadlineAt           DateTime?
@@ -920,6 +929,9 @@ model SpecialOrder {
   compensationPiastres BigInt?
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
+
+  @@index([customerId])
+  @@index([status])
 }
 
 // ============================================================================
