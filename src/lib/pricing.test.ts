@@ -32,6 +32,11 @@ describe('loyalty', () => {
     expect(maxRedeemablePoints(300, 50000n)).toBe(300); // balance binds
     expect(maxRedeemablePoints(200000, 50000n)).toBe(100000); // order value (500 EGP × 200) binds
   });
+  it('honors a configurable redemption rate', () => {
+    expect(pointsToPiastres(450, 100)).toBe(400n); // 100 pts = 1 EGP → 4 EGP
+    expect(maxRedeemablePoints(200000, 50000n, 100)).toBe(50000); // 500 EGP × 100
+    expect(pointsToPiastres(450, 0)).toBe(200n); // invalid rate falls back to default 200
+  });
 });
 
 describe('coupon engine', () => {

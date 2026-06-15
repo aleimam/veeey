@@ -9,6 +9,7 @@ import { orderTotal, depositAndBalance } from '@/lib/checkout-math';
 import { scoreOrderRisk } from '@/lib/fraud';
 import { applyCoupon } from '@/lib/coupon-service';
 import { maxRedeemablePoints, pointsToPiastres } from '@/lib/loyalty';
+import { getNumberSetting } from '@/lib/settings-service';
 import { enqueue, QUEUES } from '@/lib/jobs';
 import { notify, type NotifyInput } from '@/lib/notification-service';
 
@@ -59,14 +60,15 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
     if (c.ok) { couponDiscount = c.discountPiastres; couponId = c.couponId; }
   }
 
-  // Loyalty redemption (200 pts = 1 EGP), capped by balance + remaining order value.
+  // Loyalty redemption — rate (points per EGP) is admin-configurable.
   let usePoints = 0;
   let pointsValue = 0n;
   if (customerId && data.redeemPoints > 0) {
     const cust = await prisma.customer.findUnique({ where: { id: customerId } });
+    const rate = await getNumberSetting('loyalty.redeemPointsPerEgp');
     const cap = subtotal - couponDiscount;
-    usePoints = Math.min(data.redeemPoints, maxRedeemablePoints(cust?.pointsBalance ?? 0, cap > 0n ? cap : 0n));
-    pointsValue = pointsToPiastres(usePoints);
+    usePoints = Math.min(data.redeemPoints, maxRedeemablePoints(cust?.pointsBalance ?? 0, cap > 0n ? cap : 0n, rate));
+    pointsValue = pointsToPiastres(usePoints, rate);
   }
 
   const discount = couponDiscount + pointsValue;

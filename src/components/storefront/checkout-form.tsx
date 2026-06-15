@@ -18,6 +18,7 @@ export function CheckoutForm({
   shippingOptions,
   paymentMethods,
   pointsBalance = 0,
+  pointsPerEgp = 200,
 }: {
   locale: string;
   isLoggedIn: boolean;
@@ -26,6 +27,7 @@ export function CheckoutForm({
   shippingOptions: ShipOpt[];
   paymentMethods: PayOpt[];
   pointsBalance?: number;
+  pointsPerEgp?: number;
 }) {
   const t = useTranslations('storefront.checkout');
   const tPay = useTranslations('storefront.payments');
@@ -95,7 +97,7 @@ export function CheckoutForm({
               <input name="couponCode" placeholder={t('couponPlaceholder')} className={field} />
             </label>
             {isLoggedIn && pointsBalance > 0 && (
-              <label className="block text-sm font-medium">{t('redeemPoints')} <span className="text-muted-foreground">{t('redeemPointsHint', { balance: pointsBalance })}</span>
+              <label className="block text-sm font-medium">{t('redeemPoints')} <span className="text-muted-foreground">{t('redeemPointsHint', { balance: pointsBalance, rate: pointsPerEgp })}</span>
                 <input name="redeemPoints" type="number" min="0" max={pointsBalance} step="200" defaultValue="0" className={field} />
               </label>
             )}

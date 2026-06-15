@@ -1360,3 +1360,11 @@ model IntegrationNonce {
 
   @@index([createdAt])
 }
+
+// Admin-configurable business constants (AGENTS.md rule #2 — never hard-code).
+// Simple key/value store; typed + defaulted in src/lib/settings-service.ts.
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @default(now()) @updatedAt
+}

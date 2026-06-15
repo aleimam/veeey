@@ -287,7 +287,7 @@
       "couponCode": "Coupon code",
       "couponPlaceholder": "e.g. WELCOME10",
       "redeemPoints": "Redeem points",
-      "redeemPointsHint": "(200 = 1 EGP · balance {balance})",
+      "redeemPointsHint": "({rate} = 1 EGP · balance {balance})",
       "discountsNote": "Discounts are applied to your total on the next step.",
       "payment": "Payment",
       "discreet": "Discreet, unbranded packaging",

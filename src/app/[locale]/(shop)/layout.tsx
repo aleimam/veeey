@@ -1,5 +1,6 @@
 import { setRequestLocale } from 'next-intl/server';
 import { readCartId, cartCount } from '@/lib/cart-service';
+import { getSetting } from '@/lib/settings-service';
 import { AnnouncementBar } from '@/components/storefront/announcement-bar';
 import { SiteHeader } from '@/components/storefront/site-header';
 import { SiteFooter } from '@/components/storefront/site-footer';
@@ -20,13 +21,14 @@ export default async function ShopLayout({
   setRequestLocale(locale);
   const cartId = await readCartId();
   const count = cartId ? await cartCount(cartId) : 0;
+  const whatsapp = await getSetting('store.whatsappNumber');
   return (
     <div className="min-h-screen bg-background">
       <AnnouncementBar />
       <SiteHeader locale={locale} cartCount={count} />
       <main>{children}</main>
       <SiteFooter />
-      <WhatsAppButton />
+      <WhatsAppButton phone={whatsapp} />
       <EntryDisclaimer />
     </div>
   );

@@ -1,11 +1,11 @@
 import { MessageCircle } from "lucide-react"
 import { useTranslations } from "next-intl"
 
-export function WhatsAppButton() {
+export function WhatsAppButton({ phone = "201000000000" }: { phone?: string }) {
   const t = useTranslations("storefront.whatsapp")
   return (
     <a
-      href="https://wa.me/201000000000"
+      href={`https://wa.me/${phone}`}
       target="_blank"
       rel="noreferrer"
       aria-label={t("aria")}
