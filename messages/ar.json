@@ -14,7 +14,11 @@
   "admin": {
     "title": "لوحة تحكم Veeey",
     "placeholder": "لوحة التحكم — تم تجهيزها مبدئيًا ولم تُربط بعد.",
-    "shell": { "title": "لوحة تحكم Veeey", "signOut": "تسجيل الخروج", "noRole": "بلا دور" },
+    "shell": {
+      "title": "لوحة تحكم Veeey",
+      "signOut": "تسجيل الخروج",
+      "noRole": "بلا دور"
+    },
     "nav": {
       "dashboard": "اللوحة الرئيسية",
       "analytics": "التحليلات",
@@ -426,7 +430,13 @@
       "total": "الإجمالي",
       "payment": "الدفع",
       "free": "مجاني",
-      "exp": "صلاحية {date}"
+      "exp": "صلاحية {date}",
+      "paymentPaid": "تم استلام الدفعة — شكرًا لك!",
+      "paymentPending": "نؤكد عملية الدفع الآن. سيتم تحديث هذه الصفحة بمجرد إتمامها.",
+      "paymentFailed": "لم تكتمل عملية الدفع.",
+      "paymentCancelled": "تم إلغاء عملية الدفع.",
+      "retryPayment": "إعادة محاولة الدفع",
+      "backToCart": "العودة إلى السلة"
     },
     "wishlist": {
       "title": "قائمة رغباتك",

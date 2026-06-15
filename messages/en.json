@@ -14,7 +14,11 @@
   "admin": {
     "title": "Veeey Admin",
     "placeholder": "Admin dashboard — scaffolded, not yet wired.",
-    "shell": { "title": "Veeey Admin", "signOut": "Sign out", "noRole": "no role" },
+    "shell": {
+      "title": "Veeey Admin",
+      "signOut": "Sign out",
+      "noRole": "no role"
+    },
     "nav": {
       "dashboard": "Dashboard",
       "analytics": "Analytics",
@@ -426,7 +430,13 @@
       "total": "Total",
       "payment": "Payment",
       "free": "Free",
-      "exp": "exp {date}"
+      "exp": "exp {date}",
+      "paymentPaid": "Payment received — thank you!",
+      "paymentPending": "We are confirming your payment. This page will update once it is settled.",
+      "paymentFailed": "Payment was not completed.",
+      "paymentCancelled": "Payment was cancelled.",
+      "retryPayment": "Try payment again",
+      "backToCart": "Back to cart"
     },
     "wishlist": {
       "title": "Your wishlist",

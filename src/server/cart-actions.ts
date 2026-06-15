@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { ensureCartId, readCartId, addToCart, setCartQty, removeFromCart } from '@/lib/cart-service';
 import { placeOrder, type CheckoutInput } from '@/lib/checkout-service';
+import { buildCardRedirect } from '@/lib/payment-gateways';
 
 const localeOf = (fd: FormData) => (fd.get('locale') === 'ar' ? 'ar' : 'en');
 const str = (fd: FormData, k: string) => {
@@ -75,13 +76,28 @@ export async function placeOrderAction(_p: CheckoutState, fd: FormData): Promise
   };
 
   let number: string;
+  let gatewayUrl: string | null = null;
   try {
     const result = await placeOrder(cartId, input);
     number = result.number;
+    // Online card method → hand off to the hosted gateway (Kashier/OPay). If no
+    // gateway is configured, buildCardRedirect returns null and we fall through
+    // to the local confirmation (order stays pending payment).
+    if (result.paymentMethod === 'KASHIER' || result.paymentMethod === 'OPAY') {
+      gatewayUrl = await buildCardRedirect({
+        number: result.number,
+        totalPiastres: result.totalPiastres,
+        locale,
+        name: result.name,
+        email: result.email,
+        phone: result.phone,
+      });
+    }
   } catch (e) {
     if (e instanceof Error && e.message === 'EMPTY_CART') return { error: 'empty' };
     console.error('placeOrder failed', e);
     return { error: 'invalid' };
   }
+  if (gatewayUrl) redirect(gatewayUrl);
   redirect(`/${locale}/checkout/confirmation?order=${number}`);
 }

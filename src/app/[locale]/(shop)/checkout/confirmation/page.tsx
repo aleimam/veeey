@@ -18,6 +18,7 @@ export default async function ConfirmationPage({
   const t = await getTranslations('storefront.confirmation');
   const tPay = await getTranslations('storefront.payments');
   const number = Array.isArray(sp.order) ? sp.order[0] : sp.order;
+  const cancelled = (Array.isArray(sp.cancelled) ? sp.cancelled[0] : sp.cancelled) === '1';
   const order = number ? await getOrderByNumber(number) : null;
 
   if (!order) {
@@ -29,6 +30,18 @@ export default async function ConfirmationPage({
     );
   }
 
+  const isCard = order.paymentMethod === 'KASHIER' || order.paymentMethod === 'OPAY';
+  // Online card flow: surface the gateway settlement state (webhook is the source
+  // of truth). Cancelled return → prompt a retry from the cart.
+  const payBanner = isCard
+    ? cancelled || order.paymentState === 'FAILED'
+      ? { tone: 'error' as const, msg: cancelled ? t('paymentCancelled') : t('paymentFailed'), retry: true }
+      : order.paymentState === 'PAID'
+        ? { tone: 'ok' as const, msg: t('paymentPaid'), retry: false }
+        : { tone: 'pending' as const, msg: t('paymentPending'), retry: false }
+    : null;
+  const toneCls = { ok: 'bg-primary/10 text-primary', pending: 'bg-gold/15 text-slate', error: 'bg-destructive/10 text-destructive' };
+
   return (
     <div className="mx-auto max-w-2xl px-4 py-16">
       <div className="rounded-2xl border border-border bg-card p-8 text-center">
@@ -38,6 +51,15 @@ export default async function ConfirmationPage({
           {t('placed', { number: order.number })}
         </p>
       </div>
+
+      {payBanner && (
+        <div className={`mt-6 rounded-xl px-4 py-3 text-center text-sm ${toneCls[payBanner.tone]}`}>
+          {payBanner.msg}
+          {payBanner.retry && (
+            <Link href="/cart" className="mt-1 block font-medium underline">{t('retryPayment')}</Link>
+          )}
+        </div>
+      )}
 
       <div className="mt-6 rounded-2xl border border-border p-6">
         <h2 className="mb-3 text-sm font-semibold">{t('summary')}</h2>

@@ -16,6 +16,7 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
   ]);
   const test = one(sp.test);
   const smsTest = one(sp.smstest);
+  const site = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://veeey.com').replace(/\/$/, '');
 
   return (
     <div className="p-6">
@@ -199,7 +200,7 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
             <button formAction={clearOpayConfigAction} className="rounded-md border border-border px-3 py-2 text-sm text-destructive hover:bg-surface">Clear</button>
           </div>
         </form>
-        <p className="mt-2 text-xs text-muted-foreground">Charging customers via OPay is wired in the next step (hosted redirect + webhook). Saving keys here readies it.</p>
+        <p className="mt-2 text-xs text-muted-foreground">In your OPay dashboard set the callback/webhook URL to <code className="rounded bg-surface px-1">{site}/api/payments/webhook/opay</code>. The card method uses whichever gateway is chosen in Settings → Payments (default: auto).</p>
       </section>
 
       <section className="mt-10 max-w-2xl">
@@ -231,7 +232,7 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
             <button formAction={clearKashierConfigAction} className="rounded-md border border-border px-3 py-2 text-sm text-destructive hover:bg-surface">Clear</button>
           </div>
         </form>
-        <p className="mt-2 text-xs text-muted-foreground">Charging customers via Kashier is wired in the next step (hosted payment page + webhook). Saving keys here readies it.</p>
+        <p className="mt-2 text-xs text-muted-foreground">In your Kashier dashboard set the webhook URL to <code className="rounded bg-surface px-1">{site}/api/payments/webhook/kashier</code>. The card method uses whichever gateway is chosen in Settings → Payments (default: auto).</p>
       </section>
     </div>
   );

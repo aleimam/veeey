@@ -24,6 +24,8 @@ export const SETTINGS: SettingDef[] = [
   // Referrals
   { key: 'referral.firstYearPercent', label: 'Referral reward — first year (%)', group: 'Referrals', type: 'percent', default: '100' },
   { key: 'referral.afterPercent', label: 'Referral reward — after first year (%)', group: 'Referrals', type: 'percent', default: '50' },
+  // Payments
+  { key: 'payments.cardGateway', label: 'Card gateway', group: 'Payments', type: 'text', default: 'auto', hint: 'auto | kashier | opay — which gateway handles Visa/MasterCard (auto prefers Kashier). Configure keys in Providers.' },
   // Store contact
   { key: 'store.contactEmail', label: 'Contact email', group: 'Store', type: 'text', default: 'info@veeey.com' },
   { key: 'store.whatsappNumber', label: 'WhatsApp number', group: 'Store', type: 'text', default: '201000000000', hint: 'Digits only, international format (no +).' },

@@ -155,8 +155,9 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
   await audit({ actorType: customerId ? 'CUSTOMER' : 'SYSTEM', actorId: customerId, action: 'order.placed', entityType: 'Order', entityId: order.id, data: { number, risk } });
 
   // Order-confirmation email (FR-NOT-01) — best effort, off the critical path.
+  let toEmail: string | null = null;
   try {
-    const toEmail = customerId
+    toEmail = customerId
       ? (await prisma.customer.findUnique({ where: { id: customerId }, include: { user: { select: { email: true } } } }))?.user.email ?? null
       : data.guestEmail ?? null;
     if (toEmail) {
@@ -165,7 +166,15 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
     }
   } catch { /* notifications never block checkout */ }
 
-  return { number: order.number, riskLevel: risk.level };
+  return {
+    number: order.number,
+    riskLevel: risk.level,
+    totalPiastres: total,
+    paymentMethod: data.paymentMethod,
+    name: data.name,
+    phone: data.phone,
+    email: toEmail ?? data.guestEmail ?? null,
+  };
 }
 
 export function getOrderByNumber(number: string) {
