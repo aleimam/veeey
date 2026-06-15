@@ -1,6 +1,7 @@
 'use client';
 
 import { useFormStatus } from 'react-dom';
+import { useTranslations } from 'next-intl';
 
 export const inputCls =
   'mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring';
@@ -23,15 +24,16 @@ export function Field({
   );
 }
 
-export function SubmitButton({ children = 'Save' }: { children?: React.ReactNode }) {
+export function SubmitButton({ children }: { children?: React.ReactNode }) {
   const { pending } = useFormStatus();
+  const t = useTranslations('admin.common');
   return (
     <button
       type="submit"
       disabled={pending}
       className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
     >
-      {pending ? 'Saving…' : children}
+      {pending ? `${t('save')}…` : (children ?? t('save'))}
     </button>
   );
 }

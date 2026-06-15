@@ -1,12 +1,13 @@
+import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 
-export function AdminList({
+export async function AdminList({
   title,
   newHref,
-  newLabel = 'New',
+  newLabel,
   head,
   rows,
-  editLabel = 'Edit',
+  editLabel,
   notice,
   toolbar,
 }: {
@@ -19,6 +20,7 @@ export function AdminList({
   notice?: React.ReactNode;
   toolbar?: React.ReactNode;
 }) {
+  const t = await getTranslations('admin.common');
   return (
     <div className="p-6">
       <header className="mb-6 flex items-center justify-between gap-4">
@@ -28,7 +30,7 @@ export function AdminList({
         <div className="flex items-center gap-3">
           {toolbar}
           <Link href={newHref} className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">
-            {newLabel}
+            {newLabel ?? t('new')}
           </Link>
         </div>
       </header>
@@ -47,7 +49,7 @@ export function AdminList({
                 {r.cells.map((c, i) => <td key={i} className="p-3">{c}</td>)}
                 <td className="p-3">
                   <div className="flex items-center justify-end gap-3">
-                    <Link href={r.editHref} className="text-primary hover:underline">{editLabel}</Link>
+                    <Link href={r.editHref} className="text-primary hover:underline">{editLabel ?? t('edit')}</Link>
                     {r.actions}
                   </div>
                 </td>

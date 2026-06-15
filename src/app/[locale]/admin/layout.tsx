@@ -1,4 +1,4 @@
-import { setRequestLocale } from 'next-intl/server';
+import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { redirect, Link } from '@/i18n/navigation';
 import { getCurrentUser } from '@/lib/auth-guards';
 import { canAccessAdmin } from '@/lib/rbac';
@@ -8,37 +8,37 @@ import { signOutAction } from '@/server/auth-actions';
 // Admin is always dynamic (reads the session).
 export const dynamic = 'force-dynamic';
 
-const NAV: { href: string; label: string; permission?: PermissionKey }[] = [
-  { href: '/admin', label: 'Dashboard' },
-  { href: '/admin/analytics', label: 'Analytics', permission: 'finance.read' },
-  { href: '/admin/orders', label: 'Orders', permission: 'orders.read' },
-  { href: '/admin/returns', label: 'Returns', permission: 'returns.manage' },
-  { href: '/admin/special-orders', label: 'Special orders', permission: 'orders.read' },
-  { href: '/admin/products', label: 'Products', permission: 'catalog.read' },
-  { href: '/admin/inventory', label: 'Inventory', permission: 'inventory.manage' },
-  { href: '/admin/stocktake', label: 'Stocktake', permission: 'stocktake.manage' },
-  { href: '/admin/shipping', label: 'Shipping', permission: 'settings.manage' },
-  { href: '/admin/gifts', label: 'Gifts', permission: 'orders.write' },
-  { href: '/admin/brands', label: 'Brands', permission: 'catalog.write' },
-  { href: '/admin/categories', label: 'Categories', permission: 'catalog.write' },
-  { href: '/admin/tags', label: 'Tags', permission: 'catalog.write' },
-  { href: '/admin/attributes', label: 'Attributes', permission: 'catalog.write' },
-  { href: '/admin/customers', label: 'Customers', permission: 'customers.read' },
-  { href: '/admin/tiers', label: 'Tiers', permission: 'pricing.manage' },
-  { href: '/admin/coupons', label: 'Coupons', permission: 'coupons.manage' },
-  { href: '/admin/homepage', label: 'Homepage', permission: 'content.manage' },
-  { href: '/admin/collections', label: 'Collections', permission: 'content.manage' },
-  { href: '/admin/content/pages', label: 'CMS Pages', permission: 'content.manage' },
-  { href: '/admin/content/blog', label: 'Blog', permission: 'content.manage' },
-  { href: '/admin/social', label: 'Social links', permission: 'content.manage' },
-  { href: '/admin/reviews', label: 'Reviews', permission: 'reviews.moderate' },
-  { href: '/admin/quizzes', label: 'Quizzes', permission: 'content.manage' },
-  { href: '/admin/notifications', label: 'Notifications', permission: 'content.manage' },
-  { href: '/admin/integration', label: 'Integration', permission: 'settings.manage' },
-  { href: '/admin/users', label: 'Staff users', permission: 'rbac.manage' },
-  { href: '/admin/roles', label: 'Roles', permission: 'rbac.manage' },
-  { href: '/admin/providers', label: 'Providers', permission: 'settings.manage' },
-  { href: '/admin/settings', label: 'Settings', permission: 'settings.manage' },
+const NAV: { href: string; key: string; permission?: PermissionKey }[] = [
+  { href: '/admin', key: 'dashboard' },
+  { href: '/admin/analytics', key: 'analytics', permission: 'finance.read' },
+  { href: '/admin/orders', key: 'orders', permission: 'orders.read' },
+  { href: '/admin/returns', key: 'returns', permission: 'returns.manage' },
+  { href: '/admin/special-orders', key: 'specialOrders', permission: 'orders.read' },
+  { href: '/admin/products', key: 'products', permission: 'catalog.read' },
+  { href: '/admin/inventory', key: 'inventory', permission: 'inventory.manage' },
+  { href: '/admin/stocktake', key: 'stocktake', permission: 'stocktake.manage' },
+  { href: '/admin/shipping', key: 'shipping', permission: 'settings.manage' },
+  { href: '/admin/gifts', key: 'gifts', permission: 'orders.write' },
+  { href: '/admin/brands', key: 'brands', permission: 'catalog.write' },
+  { href: '/admin/categories', key: 'categories', permission: 'catalog.write' },
+  { href: '/admin/tags', key: 'tags', permission: 'catalog.write' },
+  { href: '/admin/attributes', key: 'attributes', permission: 'catalog.write' },
+  { href: '/admin/customers', key: 'customers', permission: 'customers.read' },
+  { href: '/admin/tiers', key: 'tiers', permission: 'pricing.manage' },
+  { href: '/admin/coupons', key: 'coupons', permission: 'coupons.manage' },
+  { href: '/admin/homepage', key: 'homepage', permission: 'content.manage' },
+  { href: '/admin/collections', key: 'collections', permission: 'content.manage' },
+  { href: '/admin/content/pages', key: 'cmsPages', permission: 'content.manage' },
+  { href: '/admin/content/blog', key: 'blog', permission: 'content.manage' },
+  { href: '/admin/social', key: 'social', permission: 'content.manage' },
+  { href: '/admin/reviews', key: 'reviews', permission: 'reviews.moderate' },
+  { href: '/admin/quizzes', key: 'quizzes', permission: 'content.manage' },
+  { href: '/admin/notifications', key: 'notifications', permission: 'content.manage' },
+  { href: '/admin/integration', key: 'integration', permission: 'settings.manage' },
+  { href: '/admin/users', key: 'users', permission: 'rbac.manage' },
+  { href: '/admin/roles', key: 'roles', permission: 'rbac.manage' },
+  { href: '/admin/providers', key: 'providers', permission: 'settings.manage' },
+  { href: '/admin/settings', key: 'settings', permission: 'settings.manage' },
 ];
 
 export default async function AdminLayout({
@@ -58,21 +58,22 @@ export default async function AdminLayout({
   if (!canAccessAdmin(user.permissions)) redirect({ href: '/', locale });
 
   const nav = NAV.filter((item) => !item.permission || user.permissions.includes(item.permission));
+  const t = await getTranslations('admin');
 
   return (
     <div className="flex min-h-dvh">
       <aside className="hidden w-60 shrink-0 border-e border-border bg-surface p-4 sm:block">
         <div className="mb-6 font-heading text-lg font-semibold text-primary">
-          Veeey Admin
+          {t('shell.title')}
         </div>
         <nav className="flex flex-col gap-1">
           {nav.map((item, i) => (
             <Link
-              key={`${item.label}-${i}`}
+              key={`${item.key}-${i}`}
               href={item.href}
               className="rounded-md px-3 py-2 text-sm text-secondary-foreground hover:bg-card"
             >
-              {item.label}
+              {t(`nav.${item.key}`)}
             </Link>
           ))}
         </nav>
@@ -80,11 +81,11 @@ export default async function AdminLayout({
       <div className="flex flex-1 flex-col">
         <header className="flex items-center justify-between border-b border-border px-6 py-3">
           <span className="text-sm text-muted-foreground">
-            {user.email} · {user.roleKey ?? 'no role'}
+            {user.email} · {user.roleKey ?? t('shell.noRole')}
           </span>
           <form action={signOutAction}>
             <button className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface">
-              Sign out
+              {t('shell.signOut')}
             </button>
           </form>
         </header>

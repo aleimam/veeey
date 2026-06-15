@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import type { AdminFormState } from '@/server/admin-actions';
 import { Field, FormError, SubmitButton, inputCls } from './ui';
@@ -31,6 +32,7 @@ export function EntityForm({
   listHref: string;
 }) {
   const [state, formAction] = useActionState<AdminFormState, FormData>(action, {});
+  const tc = useTranslations('admin.common');
 
   return (
     <form action={formAction} className="max-w-2xl space-y-5">
@@ -95,7 +97,7 @@ export function EntityForm({
       <div className="flex items-center gap-3 pt-2">
         <SubmitButton />
         <Link href={listHref} className="text-sm text-muted-foreground hover:underline">
-          Cancel
+          {tc('cancel')}
         </Link>
       </div>
     </form>
