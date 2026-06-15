@@ -31,6 +31,8 @@ const NAV: { href: string; label: string; permission?: PermissionKey }[] = [
   { href: '/admin/quizzes', label: 'Quizzes', permission: 'content.manage' },
   { href: '/admin/notifications', label: 'Notifications', permission: 'content.manage' },
   { href: '/admin/integration', label: 'Integration', permission: 'settings.manage' },
+  { href: '/admin/users', label: 'Staff users', permission: 'rbac.manage' },
+  { href: '/admin/roles', label: 'Roles', permission: 'rbac.manage' },
 ];
 
 export default async function AdminLayout({

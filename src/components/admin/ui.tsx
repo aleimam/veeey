@@ -39,6 +39,8 @@ export function SubmitButton({ children = 'Save' }: { children?: React.ReactNode
 const ERRORS: Record<string, string> = {
   invalid: 'Please check the fields and try again.',
   forbidden: 'You don’t have permission to do that.',
+  exists: 'An account with this email already exists.',
+  self: 'You can’t change your own access here.',
 };
 
 export function FormError({ error }: { error?: string }) {
