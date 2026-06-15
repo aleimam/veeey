@@ -1,3 +1,5 @@
+import { LanguageSwitcher } from '@/components/storefront/language-switcher';
+
 export function AnnouncementBar() {
   return (
     <div className="bg-slate text-slate-foreground">
@@ -5,15 +7,7 @@ export function AnnouncementBar() {
         <p className="flex-1 text-pretty text-center sm:text-left">
           Free shipping nationwide · UltraFast delivery 3–6h in Greater Cairo
         </p>
-        <div className="hidden items-center gap-2 sm:flex" aria-label="Language switch">
-          <button className="font-medium text-slate-foreground transition-colors hover:text-lime">
-            EN
-          </button>
-          <span className="text-slate-foreground/40">|</span>
-          <button className="text-slate-foreground/70 transition-colors hover:text-lime" lang="ar">
-            العربية
-          </button>
-        </div>
+        <LanguageSwitcher className="hidden items-center gap-2 sm:flex" />
       </div>
     </div>
   )

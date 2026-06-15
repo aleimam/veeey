@@ -1,5 +1,6 @@
 import { VeeeyLogo } from "@/components/storefront/veeey-logo"
 import { Button } from "@/components/storefront/ui/button"
+import { LanguageSwitcher } from "@/components/storefront/language-switcher"
 
 function InstagramIcon({ className }: { className?: string }) {
   return (
@@ -101,13 +102,7 @@ export function SiteFooter() {
             </ul>
 
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 text-sm" aria-label="Language switch">
-                <button className="font-medium transition-colors hover:text-lime">EN</button>
-                <span className="text-slate-foreground/40">|</span>
-                <button lang="ar" className="text-slate-foreground/70 transition-colors hover:text-lime">
-                  العربية
-                </button>
-              </div>
+              <LanguageSwitcher className="flex items-center gap-2 text-sm" />
               <div className="flex items-center gap-1">
                 <a href="#" aria-label="Instagram" className="flex size-9 items-center justify-center rounded-xl text-slate-foreground/80 transition-colors hover:bg-white/10 hover:text-lime">
                   <InstagramIcon className="size-4.5" />
