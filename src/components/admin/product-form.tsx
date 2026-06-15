@@ -105,12 +105,6 @@ export function ProductForm({
           </select>
         </Field>
         <Field label={tb('Base price (EGP)', 'السعر الأساسي (ج.م)')}><input name="basePriceEgp" type="number" step="0.01" min="0" defaultValue={d.basePriceEgp ?? 0} className={inputCls} /></Field>
-        <Field label={tb('Marketing offer type', 'نوع العرض التسويقي')}>
-          <select name="productType" defaultValue={d.productType ?? ''} className={inputCls}>
-            <option value="">{tb('— None —', '— بدون —')}</option>
-            {['MISCELLANEOUS', 'MALE_SUPPORT', 'PREMIUM', 'NEW', 'TREND'].map((v) => <option key={v} value={v}>{v}</option>)}
-          </select>
-        </Field>
         <Field label={tb('Weight (g)', 'الوزن (جم)')}><input name="weightG" type="number" min="0" defaultValue={d.weightG ?? ''} className={inputCls} /></Field>
         <Field label={tb('Servings per unit', 'عدد الجرعات في العبوة')} hint={tb('Used in the supply-duration calculator.', 'يُستخدم في حاسبة مدة الاستخدام.')}><input name="servingsPerUnit" type="number" min="0" defaultValue={d.servingsPerUnit ?? ''} className={inputCls} /></Field>
         <Field label={tb('Daily dosage', 'الجرعة اليومية')} hint={tb('Number of servings consumed per day.', 'عدد الجرعات المستهلكة يوميًا.')}><input name="dailyDosage" type="number" min="0" defaultValue={d.dailyDosage ?? ''} className={inputCls} /></Field>

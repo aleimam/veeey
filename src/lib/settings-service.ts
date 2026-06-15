@@ -26,9 +26,12 @@ export const SETTINGS: SettingDef[] = [
   { key: 'referral.afterPercent', label: 'Referral reward — after first year (%)', group: 'Referrals', type: 'percent', default: '50' },
   // Payments
   { key: 'payments.cardGateway', label: 'Card gateway', group: 'Payments', type: 'text', default: 'auto', hint: 'auto | kashier | opay — which gateway handles Visa/MasterCard (auto prefers Kashier). Configure keys in Providers.' },
-  // Store contact
+  // Store contact (shown in the footer / contact block)
   { key: 'store.contactEmail', label: 'Contact email', group: 'Store', type: 'text', default: 'info@veeey.com' },
+  { key: 'store.phone', label: 'Phone number', group: 'Store', type: 'text', default: '', hint: 'Shown in the footer; tap-to-call on mobile.' },
   { key: 'store.whatsappNumber', label: 'WhatsApp number', group: 'Store', type: 'text', default: '201000000000', hint: 'Digits only, international format (no +).' },
+  { key: 'store.addressEn', label: 'Address (English)', group: 'Store', type: 'text', default: '' },
+  { key: 'store.addressAr', label: 'Address (Arabic)', group: 'Store', type: 'text', default: '' },
 ];
 
 const DEFAULTS: Record<string, string> = Object.fromEntries(SETTINGS.map((s) => [s.key, s.default]));

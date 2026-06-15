@@ -1,10 +1,11 @@
-import { getTranslations } from "next-intl/server"
+import { getTranslations, getLocale } from "next-intl/server"
 import { Link } from "@/i18n/navigation"
 import { VeeeyLogo } from "@/components/storefront/veeey-logo"
 import { Button } from "@/components/storefront/ui/button"
 import { LanguageSwitcher } from "@/components/storefront/language-switcher"
 import { SocialIcon } from "@/components/storefront/social-icon"
 import { activeSocialLinks, SOCIAL_PLATFORMS } from "@/lib/social-service"
+import { getAllSettings } from "@/lib/settings-service"
 
 const columns = [
   { key: "shop", links: ["vitamins", "devices", "brands", "offers", "specialOrder"] },
@@ -41,7 +42,13 @@ const platformLabel = (p: string) => SOCIAL_PLATFORMS.find((x) => x.value === p)
 
 export async function SiteFooter() {
   const t = await getTranslations("storefront.footer")
+  const locale = await getLocale()
   const social = await activeSocialLinks()
+  const settings = await getAllSettings()
+  const address = (locale === "ar" ? settings["store.addressAr"] : settings["store.addressEn"]) || settings["store.addressEn"] || ""
+  const phone = settings["store.phone"] || ""
+  const email = settings["store.contactEmail"] || ""
+  const whatsapp = settings["store.whatsappNumber"] || ""
   return (
     <footer className="bg-slate text-slate-foreground">
       <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
@@ -51,6 +58,14 @@ export async function SiteFooter() {
             <p className="mt-4 text-sm leading-relaxed text-slate-foreground/70">
               {t("blurb")}
             </p>
+            {(address || phone || email || whatsapp) && (
+              <ul className="mt-6 space-y-1.5 text-sm text-slate-foreground/70">
+                {address && <li className="flex gap-2"><span aria-hidden>📍</span><span>{address}</span></li>}
+                {phone && <li><a href={`tel:${phone.replace(/[^\d+]/g, "")}`} className="transition-colors hover:text-lime">📞 {phone}</a></li>}
+                {whatsapp && <li><a href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" className="transition-colors hover:text-lime">WhatsApp: {whatsapp}</a></li>}
+                {email && <li><a href={`mailto:${email}`} className="transition-colors hover:text-lime">✉️ {email}</a></li>}
+              </ul>
+            )}
             <form className="mt-6">
               <label htmlFor="newsletter" className="text-sm font-medium">
                 {t("newsletterLabel")}
