@@ -1368,3 +1368,14 @@ model Setting {
   value     String
   updatedAt DateTime @default(now()) @updatedAt
 }
+
+// Social media links shown in the footer (FR-SF). Admin-managed, ordered.
+model SocialLink {
+  id        String   @id @default(cuid())
+  platform  String // instagram | facebook | x | tiktok | youtube | linkedin | whatsapp | snapchat | other
+  label     String?
+  url       String
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}

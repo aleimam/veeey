@@ -1,33 +1,9 @@
-import { useTranslations } from "next-intl"
+import { getTranslations } from "next-intl/server"
 import { VeeeyLogo } from "@/components/storefront/veeey-logo"
 import { Button } from "@/components/storefront/ui/button"
 import { LanguageSwitcher } from "@/components/storefront/language-switcher"
-
-function InstagramIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
-      <rect x="2" y="2" width="20" height="20" rx="5" />
-      <circle cx="12" cy="12" r="4" />
-      <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
-    </svg>
-  )
-}
-
-function FacebookIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
-      <path d="M14 9h3V6h-3a4 4 0 0 0-4 4v2H7v3h3v6h3v-6h3l1-3h-4v-2a1 1 0 0 1 1-1z" />
-    </svg>
-  )
-}
-
-function TwitterIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
-      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.45-6.231zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z" />
-    </svg>
-  )
-}
+import { SocialIcon } from "@/components/storefront/social-icon"
+import { activeSocialLinks, SOCIAL_PLATFORMS } from "@/lib/social-service"
 
 const columns = [
   { key: "shop", links: ["vitamins", "devices", "brands", "offers", "specialOrder"] },
@@ -37,9 +13,11 @@ const columns = [
 ]
 
 const payments = ["card", "cod", "pos", "bank"]
+const platformLabel = (p: string) => SOCIAL_PLATFORMS.find((x) => x.value === p)?.label ?? p
 
-export function SiteFooter() {
-  const t = useTranslations("storefront.footer")
+export async function SiteFooter() {
+  const t = await getTranslations("storefront.footer")
+  const social = await activeSocialLinks()
   return (
     <footer className="bg-slate text-slate-foreground">
       <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
@@ -104,17 +82,22 @@ export function SiteFooter() {
 
             <div className="flex items-center gap-4">
               <LanguageSwitcher className="flex items-center gap-2 text-sm" />
-              <div className="flex items-center gap-1">
-                <a href="#" aria-label="Instagram" className="flex size-9 items-center justify-center rounded-xl text-slate-foreground/80 transition-colors hover:bg-white/10 hover:text-lime">
-                  <InstagramIcon className="size-4.5" />
-                </a>
-                <a href="#" aria-label="Facebook" className="flex size-9 items-center justify-center rounded-xl text-slate-foreground/80 transition-colors hover:bg-white/10 hover:text-lime">
-                  <FacebookIcon className="size-4.5" />
-                </a>
-                <a href="#" aria-label="Twitter" className="flex size-9 items-center justify-center rounded-xl text-slate-foreground/80 transition-colors hover:bg-white/10 hover:text-lime">
-                  <TwitterIcon className="size-4.5" />
-                </a>
-              </div>
+              {social.length > 0 && (
+                <div className="flex items-center gap-1">
+                  {social.map((s) => (
+                    <a
+                      key={s.id}
+                      href={s.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={s.label || platformLabel(s.platform)}
+                      className="flex size-9 items-center justify-center rounded-xl text-slate-foreground/80 transition-colors hover:bg-white/10 hover:text-lime"
+                    >
+                      <SocialIcon platform={s.platform} className="size-4.5" />
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
