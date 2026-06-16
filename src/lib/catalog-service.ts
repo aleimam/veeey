@@ -33,7 +33,7 @@ export const productWriteSchema = z.object({
     .enum(['MISCELLANEOUS', 'MALE_SUPPORT', 'PREMIUM', 'NEW', 'TREND'])
     .optional()
     .nullable(),
-  categoryIds: z.array(z.string()).default([]),
+  categoryIds: z.array(z.string()).max(4).default([]),
   tagIds: z.array(z.string()).default([]),
   attributeValueIds: z.array(z.string()).default([]),
   imageUrls: z.array(z.string()).default([]),

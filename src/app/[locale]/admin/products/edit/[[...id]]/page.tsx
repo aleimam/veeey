@@ -73,7 +73,7 @@ export default async function ProductEditPage({
         locale={locale}
         defaults={defaults}
         brands={brands.map((b) => ({ value: b.id, label: b.nameEn }))}
-        categories={categories.map((c) => ({ value: c.id, label: c.nameEn }))}
+        categories={categories.map((c) => ({ value: c.id, label: c.nameEn, parentId: c.parentId }))}
         tags={tags.map((t) => ({ value: t.id, label: t.nameEn }))}
         attributeValues={attributeValues}
       />

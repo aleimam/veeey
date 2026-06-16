@@ -6,6 +6,7 @@ import { Link } from '@/i18n/navigation';
 import { saveProductAction, type AdminFormState } from '@/server/admin-actions';
 import { Field, FormError, SubmitButton, inputCls } from './ui';
 import { ImageUploader } from './image-uploader';
+import { CategoryPicker, type CategoryOpt } from './category-picker';
 import { pick } from '@/lib/admin-i18n';
 
 type Opt = { value: string; label: string };
@@ -65,7 +66,7 @@ export function ProductForm({
   locale: string;
   defaults?: ProductDefaults;
   brands: Opt[];
-  categories: Opt[];
+  categories: CategoryOpt[];
   tags: Opt[];
   attributeValues: Opt[];
 }) {
@@ -121,10 +122,8 @@ export function ProductForm({
       </section>
 
       <section className="grid gap-4 sm:grid-cols-3">
-        <Field label={tb('Categories', 'الفئات')} hint={tb('Use Ctrl/Cmd for multi-select.', 'استخدم Ctrl/Cmd للتحديد المتعدد.')}>
-          <select name="categoryIds" multiple defaultValue={d.categoryIds ?? []} className={`${inputCls} h-32`}>
-            {categories.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-          </select>
+        <Field label={tb('Categories', 'الفئات')} hint={tb('Pick up to 4 (sub)categories.', 'اختر حتى 4 فئات أو فئات فرعية.')}>
+          <CategoryPicker categories={categories} initial={d.categoryIds ?? []} max={4} />
         </Field>
         <Field label={tb('Tags', 'الوسوم')} hint={tb('Use Ctrl/Cmd for multi-select.', 'استخدم Ctrl/Cmd للتحديد المتعدد.')}>
           <select name="tagIds" multiple defaultValue={d.tagIds ?? []} className={`${inputCls} h-32`}>
