@@ -125,7 +125,15 @@
       "password": "Password",
       "submit": "Sign in",
       "noAccount": "New to Veeey?",
-      "registerLink": "Create an account"
+      "registerLink": "Create an account",
+      "identifier": "Email, phone, or username",
+      "withPassword": "Password",
+      "withOtp": "Phone code (OTP)",
+      "phone": "Phone number",
+      "sendCode": "Send code",
+      "code": "Verification code",
+      "verify": "Verify & sign in",
+      "otpSent": "Code sent — check your SMS."
     },
     "register": {
       "title": "Create your Veeey account",
@@ -134,13 +142,17 @@
       "password": "Password",
       "submit": "Create account",
       "haveAccount": "Already have an account?",
-      "loginLink": "Sign in"
+      "loginLink": "Sign in",
+      "username": "Username (optional)",
+      "phone": "Phone (optional)"
     },
     "errors": {
       "invalid": "Please check your details and try again.",
       "exists": "An account with this email already exists.",
       "recaptcha": "Verification failed. Please try again.",
-      "credentials": "Incorrect email or password."
+      "credentials": "Incorrect email or password.",
+      "rate_limited": "Too many code requests. Try again later.",
+      "sms_off": "SMS login is not available right now."
     }
   },
   "storefront": {

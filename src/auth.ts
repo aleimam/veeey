@@ -9,27 +9,62 @@ import Twitter from 'next-auth/providers/twitter';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { verifyPassword } from '@/lib/password';
+import { normalizeMobile } from '@/lib/provider-config';
+import { verifyOtp } from '@/lib/otp-service';
 import { ensureCustomerProfile } from '@/lib/customer';
 
+// Login by email OR phone OR username + password (FR-ACC-01).
 const credentialsSchema = z.object({
-  email: z.string().email(),
+  identifier: z.string().trim().min(1),
   password: z.string().min(1),
 });
+const otpSchema = z.object({ phone: z.string().trim().min(1), code: z.string().trim().min(4) });
+
+/** Resolve a user by any of email / username / phone. */
+async function findByIdentifier(identifier: string) {
+  const phone = normalizeMobile(identifier);
+  return prisma.user.findFirst({
+    where: {
+      OR: [
+        { email: { equals: identifier, mode: 'insensitive' } },
+        { username: { equals: identifier, mode: 'insensitive' } },
+        { phone },
+        { phone: identifier },
+      ],
+    },
+  });
+}
 
 // Social providers self-configure from AUTH_<PROVIDER>_ID/SECRET env vars. They
 // are only added when configured, so the app builds & runs without them (FR-ACC-01).
 const providers: Provider[] = [
   Credentials({
-    credentials: { email: {}, password: {} },
+    credentials: { identifier: {}, password: {} },
     authorize: async (raw) => {
       const parsed = credentialsSchema.safeParse(raw);
       if (!parsed.success) return null;
-      const user = await prisma.user.findUnique({
-        where: { email: parsed.data.email },
-      });
+      const user = await findByIdentifier(parsed.data.identifier);
       if (!user?.passwordHash) return null;
       const ok = await verifyPassword(parsed.data.password, user.passwordHash);
       if (!ok) return null;
+      return { id: user.id, email: user.email, name: user.name };
+    },
+  }),
+  Credentials({
+    id: 'otp',
+    name: 'Phone OTP',
+    credentials: { phone: {}, code: {} },
+    authorize: async (raw) => {
+      const parsed = otpSchema.safeParse(raw);
+      if (!parsed.success) return null;
+      const phone = normalizeMobile(parsed.data.phone);
+      if (!(await verifyOtp(phone, parsed.data.code))) return null;
+      // Find-or-create a user for this phone (phone-first signup).
+      let user = await prisma.user.findFirst({ where: { phone } });
+      if (!user) {
+        user = await prisma.user.create({ data: { phone } });
+        await ensureCustomerProfile(user.id);
+      }
       return { id: user.id, email: user.email, name: user.name };
     },
   }),

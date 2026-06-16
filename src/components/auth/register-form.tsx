@@ -40,6 +40,14 @@ export function RegisterForm({ locale, referralCode }: { locale: string; referra
         <input name="email" type="email" required autoComplete="email" className={field} />
       </label>
       <label className="mt-4 block text-sm font-medium">
+        {t('register.phone')}
+        <input name="phone" type="tel" autoComplete="tel" placeholder="01XXXXXXXXX" className={field} />
+      </label>
+      <label className="mt-4 block text-sm font-medium">
+        {t('register.username')}
+        <input name="username" type="text" autoComplete="username" minLength={3} className={field} />
+      </label>
+      <label className="mt-4 block text-sm font-medium">
         {t('register.password')}
         <input name="password" type="password" required minLength={8} autoComplete="new-password" className={field} />
       </label>
