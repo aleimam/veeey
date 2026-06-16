@@ -1,4 +1,6 @@
 import { setRequestLocale } from 'next-intl/server';
+import { auth } from '@/auth';
+import { canAccessAdmin } from '@/lib/rbac';
 import { readCartId, cartCount } from '@/lib/cart-service';
 import { getSetting } from '@/lib/settings-service';
 import { getHomeContent } from '@/lib/home-content-service';
@@ -24,10 +26,12 @@ export default async function ShopLayout({
   const count = cartId ? await cartCount(cartId) : 0;
   const whatsapp = await getSetting('store.whatsappNumber');
   const home = await getHomeContent(locale);
+  const session = await auth();
+  const isStaff = canAccessAdmin(session?.user?.permissions ?? []);
   return (
     <div className="min-h-screen bg-background">
       <AnnouncementBar text={home.announcement} />
-      <SiteHeader locale={locale} cartCount={count} />
+      <SiteHeader locale={locale} cartCount={count} isStaff={isStaff} />
       <main>{children}</main>
       <SiteFooter />
       <WhatsAppButton phone={whatsapp} />

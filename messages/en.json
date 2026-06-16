@@ -17,7 +17,8 @@
     "shell": {
       "title": "Veeey Admin",
       "signOut": "Sign out",
-      "noRole": "no role"
+      "noRole": "no role",
+      "viewStore": "View store"
     },
     "nav": {
       "dashboard": "Dashboard",
@@ -173,7 +174,8 @@
       "account": "Account",
       "wishlist": "Wishlist",
       "cart": "Cart",
-      "home": "Veeey home"
+      "home": "Veeey home",
+      "admin": "Admin"
     },
     "announcement": {
       "promo": "Free shipping nationwide · UltraFast delivery 3–6h in Greater Cairo"
@@ -415,7 +417,9 @@
       "subtotal": "Subtotal",
       "total": "Total",
       "placeOrder": "Place order",
-      "noVat": "No VAT. You can pay cash on delivery."
+      "noVat": "No VAT. You can pay cash on delivery.",
+      "savedAddress": "Use a saved address",
+      "newAddress": "Enter a new address"
     },
     "cart": {
       "emptyTitle": "Your cart is empty",
@@ -569,7 +573,26 @@
       "colItems": "Items",
       "colTotal": "Total",
       "colStatus": "Status",
-      "requestReturn": "Request return"
+      "requestReturn": "Request return",
+      "addresses": {
+        "title": "My addresses",
+        "none": "No saved addresses yet.",
+        "addNew": "Add address",
+        "edit": "Edit",
+        "del": "Delete",
+        "makeDefault": "Make default",
+        "defaultBadge": "Default",
+        "governorate": "Governorate",
+        "city": "City",
+        "area": "Area",
+        "street": "Street",
+        "building": "Building (optional)",
+        "phone": "Phone",
+        "save": "Save address",
+        "saved": "Address saved.",
+        "back": "Back to account",
+        "manage": "Manage addresses"
+      }
     },
     "accountNotif": {
       "back": "← Account",

@@ -1,4 +1,4 @@
-import { Search, User, Heart, ShoppingBag } from 'lucide-react'
+import { Search, User, Heart, ShoppingBag, LayoutDashboard } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { VeeeyLogo } from '@/components/storefront/veeey-logo'
 import { Link } from '@/i18n/navigation'
@@ -32,7 +32,7 @@ function SearchBox({ locale, placeholder, ariaLabel }: { locale: string; placeho
   )
 }
 
-export function SiteHeader({ locale, cartCount = 0 }: { locale: string; cartCount?: number }) {
+export function SiteHeader({ locale, cartCount = 0, isStaff = false }: { locale: string; cartCount?: number; isStaff?: boolean }) {
   const t = useTranslations('storefront.header')
   const tNav = useTranslations('storefront.nav')
   return (
@@ -48,6 +48,11 @@ export function SiteHeader({ locale, cartCount = 0 }: { locale: string; cartCoun
           </div>
 
           <div className="ms-auto flex items-center gap-1 md:ms-0">
+            {isStaff && (
+              <Link href="/admin" aria-label={t('admin')} title={t('admin')} className="flex size-10 items-center justify-center rounded-xl text-primary transition-colors hover:bg-surface">
+                <LayoutDashboard className="size-5" aria-hidden="true" />
+              </Link>
+            )}
             <Link href="/account" aria-label={t('account')} className="flex size-10 items-center justify-center rounded-xl text-foreground transition-colors hover:bg-surface">
               <User className="size-5" aria-hidden="true" />
             </Link>

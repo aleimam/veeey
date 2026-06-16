@@ -5,7 +5,7 @@ import { getQuiz } from '@/lib/play-service';
 import { submitQuizAction } from '@/server/play-actions';
 
 type SP = Record<string, string | string[] | undefined>;
-type QuizQuestion = { q: string; options: string[] };
+type QuizQuestion = { q: string; qAr?: string; options: string[]; optionsAr?: string[] };
 
 export default async function QuizPage({ params, searchParams }: { params: Promise<{ locale: string; slug: string }>; searchParams: Promise<SP> }) {
   const { locale, slug } = await params;
@@ -16,11 +16,13 @@ export default async function QuizPage({ params, searchParams }: { params: Promi
 
   const done = (Array.isArray(sp.done) ? sp.done[0] : sp.done) === '1';
   const questions = (quiz.questionsJson as QuizQuestion[] | null) ?? [];
+  const ar = locale === 'ar';
+  const title = (ar && quiz.titleAr) || quiz.titleEn;
   const t = await getTranslations('storefront.quizPage');
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6 lg:px-8">
-      <h1 className="font-heading text-2xl font-semibold text-foreground">{quiz.titleEn}</h1>
+      <h1 className="font-heading text-2xl font-semibold text-foreground">{title}</h1>
 
       {done ? (
         <div className="mt-6 rounded-xl border border-border bg-surface p-6 text-center">
@@ -38,11 +40,11 @@ export default async function QuizPage({ params, searchParams }: { params: Promi
           <input type="hidden" name="quizId" value={quiz.id} />
           {questions.map((q, i) => (
             <fieldset key={i} className="rounded-xl border border-border p-4">
-              <legend className="px-1 text-sm font-semibold">{i + 1}. {q.q}</legend>
+              <legend className="px-1 text-sm font-semibold">{i + 1}. {(ar && q.qAr) || q.q}</legend>
               <div className="mt-2 space-y-2">
                 {q.options.map((o, j) => (
                   <label key={j} className="flex items-center gap-2 text-sm">
-                    <input type="radio" name={`q_${i}`} value={o} defaultChecked={j === 0} /> {o}
+                    <input type="radio" name={`q_${i}`} value={o} defaultChecked={j === 0} /> {(ar && q.optionsAr?.[j]) || o}
                   </label>
                 ))}
               </div>

@@ -122,10 +122,16 @@ export default async function AdminLayout({
       </aside>
       <div className="flex flex-1 flex-col">
         <header className="flex items-center justify-between border-b border-border px-6 py-3">
-          <span className="text-sm text-muted-foreground">
+          <Link href="/admin/profile" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+            <span className="flex size-7 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+              {(user.email ?? '?').slice(0, 1).toUpperCase()}
+            </span>
             {user.email} · {user.roleKey ?? t('shell.noRole')}
-          </span>
+          </Link>
           <div className="flex items-center gap-4">
+            <Link href="/" className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface">
+              {t('shell.viewStore')}
+            </Link>
             <LanguageSwitcher />
             <form action={signOutAction}>
               <button className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface">

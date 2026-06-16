@@ -1,25 +1,39 @@
 import { setRequestLocale } from 'next-intl/server';
-import { funnelCounts, topSearches, topViewedProducts, kpis } from '@/lib/analytics-service';
+import { funnelCounts, topSearches, topViewedProducts, kpis, commerceMetrics } from '@/lib/analytics-service';
 import { buildFunnel } from '@/lib/analytics';
 import { formatEGP } from '@/lib/format';
 import { pick } from '@/lib/admin-i18n';
 
 const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
 
+const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+
 export default async function AnalyticsPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const [counts, searches, products, k] = await Promise.all([funnelCounts(), topSearches(), topViewedProducts(), kpis()]);
+  const [counts, searches, products, k, m] = await Promise.all([funnelCounts(), topSearches(), topViewedProducts(), kpis(), commerceMetrics()]);
   const funnel = buildFunnel(counts);
   const top = funnel[0].count || 1;
   const tb = pick(locale);
+  const ar = locale === 'ar';
 
   const cards = [
     { label: tb('Revenue (last 30 days, delivered)', 'الإيرادات (آخر 30 يومًا، تم التسليم)'), value: formatEGP(k.revenue) },
     { label: tb('Orders (last 30 days)', 'الطلبات (آخر 30 يومًا)'), value: String(k.orders) },
     { label: tb('Average order value', 'متوسط قيمة الطلب'), value: formatEGP(k.aov) },
     { label: tb('Customers', 'العملاء'), value: String(k.customers) },
+    {
+      label: tb('Conversion rate (orders / sessions)', 'معدل التحويل (الطلبات / الجلسات)'),
+      value: m.conversionRate === null ? tb('No session data', 'لا توجد بيانات جلسات') : pct(m.conversionRate),
+    },
+    {
+      label: tb('Repeat-purchase rate', 'معدل الشراء المتكرر'),
+      value: m.repeatPurchaseRate === null ? tb('No buyers yet', 'لا يوجد مشترون بعد') : pct(m.repeatPurchaseRate),
+    },
   ];
+
+  const maxMonthRevenue = Math.max(1, ...m.revenueByMonth.map((b) => b.revenue));
 
   return (
     <div className="p-6">
@@ -47,6 +61,36 @@ export default async function AnalyticsPage({ params }: { params: Promise<{ loca
               <div className="w-16 text-end text-xs text-muted-foreground">{i === 0 ? '—' : pct(s.rate)}</div>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="mb-8">
+        <h2 className="mb-3 text-sm font-semibold">{tb('Revenue by month (last 6, delivered)', 'الإيرادات حسب الشهر (آخر 6 أشهر، تم التسليم)')}</h2>
+        <div className="space-y-2 rounded-lg border border-border p-4">
+          {m.revenueByMonth.map((b) => (
+            <div key={b.key} className="flex items-center gap-3 text-sm">
+              <div className="w-20 text-muted-foreground">{(ar ? MONTHS_AR : MONTHS_EN)[b.month]} {b.year}</div>
+              <div className="h-5 flex-1 overflow-hidden rounded bg-surface">
+                <div className="h-full rounded bg-primary" style={{ width: `${Math.max(2, (b.revenue / maxMonthRevenue) * 100)}%` }} />
+              </div>
+              <div className="w-28 text-end font-medium">{formatEGP(b.revenue)}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mb-8">
+        <h2 className="mb-3 text-sm font-semibold">{tb('Best sellers (last 30 days, by units)', 'الأكثر مبيعًا (آخر 30 يومًا، حسب الوحدات)')}</h2>
+        <div className="overflow-hidden rounded-lg border border-border">
+          <table className="w-full text-sm">
+            <thead className="bg-surface text-xs uppercase text-muted-foreground"><tr><th className="p-2 text-start">{tb('Product', 'المنتج')}</th><th className="p-2 text-start">{tb('SKU', 'الرمز')}</th><th className="p-2">{tb('Units sold', 'الوحدات المباعة')}</th></tr></thead>
+            <tbody>
+              {m.bestSellers.map((p) => (
+                <tr key={p.id} className="border-t border-border"><td className="p-2">{ar ? p.nameAr || p.nameEn : p.nameEn}</td><td className="p-2 text-muted-foreground">{p.sku}</td><td className="p-2 text-center font-medium">{p.qty}</td></tr>
+              ))}
+              {m.bestSellers.length === 0 && <tr><td colSpan={3} className="p-4 text-center text-muted-foreground">{tb('No sales yet.', 'لا توجد مبيعات بعد.')}</td></tr>}
+            </tbody>
+          </table>
         </div>
       </section>
 

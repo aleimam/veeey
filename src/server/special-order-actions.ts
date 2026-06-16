@@ -2,7 +2,7 @@
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { createSpecialOrderRequest, advanceSpecialOrder, setSpecialOrderDetails, SPECIAL_ORDER_STATUSES } from '@/lib/special-order-service';
+import { createSpecialOrderRequest, createSpecialOrderByAdmin, advanceSpecialOrder, setSpecialOrderDetails, SPECIAL_ORDER_STATUSES } from '@/lib/special-order-service';
 import { getCurrentUser } from '@/lib/auth-guards';
 import type { SpecialOrderStatus } from '@/generated/prisma/client';
 
@@ -39,6 +39,25 @@ export async function createSpecialOrderRequestAction(_p: SpecialOrderFormState,
 }
 
 // ---- Admin -----------------------------------------------------------------
+export async function createSpecialOrderAdminAction(_p: SpecialOrderFormState, fd: FormData): Promise<SpecialOrderFormState> {
+  const locale = localeOf(fd);
+  try {
+    await createSpecialOrderByAdmin({
+      requestedProductText: str(fd, 'requestedProductText') ?? '',
+      productUrl: str(fd, 'productUrl') ?? '',
+      requesterName: str(fd, 'requesterName') ?? '',
+      requesterPhone: str(fd, 'requesterPhone') ?? '',
+      requesterEmail: str(fd, 'requesterEmail') ?? '',
+      notes: str(fd, 'notes') ?? null,
+      customerEmail: str(fd, 'customerEmail') ?? '',
+    });
+  } catch {
+    return { error: 'invalid' };
+  }
+  revalidatePath(`/${locale}/admin/special-orders`);
+  redirect(`/${locale}/admin/special-orders`);
+}
+
 export async function advanceSpecialOrderAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
   const id = str(fd, 'id');

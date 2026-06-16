@@ -49,6 +49,41 @@ export async function createSpecialOrderRequest(input: SpecialOrderRequestInput,
 }
 
 // ---- Admin -----------------------------------------------------------------
+const adminCreateSchema = requestSchema.extend({
+  customerEmail: z.string().trim().email().optional().or(z.literal('')),
+});
+export type SpecialOrderAdminCreateInput = z.input<typeof adminCreateSchema>;
+
+/** Admin: staff create a special order on a customer's behalf (gated + audited). */
+export async function createSpecialOrderByAdmin(input: SpecialOrderAdminCreateInput) {
+  const user = await requirePermission('orders.write');
+  const d = adminCreateSchema.parse(input);
+
+  let customerId: string | null = null;
+  if (d.customerEmail) {
+    const linked = await prisma.user.findUnique({ where: { email: d.customerEmail }, select: { customer: { select: { id: true } } } });
+    customerId = linked?.customer?.id ?? null;
+  }
+
+  const leadDays = await getNumberSetting('specialOrder.defaultLeadDays');
+  const deadlineAt = new Date(Date.now() + Math.max(1, leadDays) * 86_400_000);
+  const so = await prisma.specialOrder.create({
+    data: {
+      customerId,
+      requestedProductText: d.requestedProductText,
+      productUrl: d.productUrl || null,
+      requesterName: d.requesterName,
+      requesterPhone: d.requesterPhone,
+      requesterEmail: d.requesterEmail || null,
+      notes: d.notes ?? null,
+      status: SPECIAL_ORDER_STATUSES[0],
+      deadlineAt,
+    },
+  });
+  await audit({ actorType: 'USER', actorId: user.id, action: 'special_order.admin_create', entityType: 'SpecialOrder', entityId: so.id });
+  return so;
+}
+
 export const listSpecialOrders = () =>
   prisma.specialOrder.findMany({
     orderBy: { createdAt: 'desc' },

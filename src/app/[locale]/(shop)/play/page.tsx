@@ -23,7 +23,7 @@ export default async function PlayPage({ params }: { params: Promise<{ locale: s
         {quizzes.map((q) => (
           <Link key={q.id} href={`/play/${q.slug}`} className={card}>
             <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{q.kind === 'AI_GENERATED' ? t('aiQuiz') : t('quiz')}</div>
-            <div className="mt-1 font-heading text-lg font-semibold">{q.titleEn}</div>
+            <div className="mt-1 font-heading text-lg font-semibold">{(locale === 'ar' && q.titleAr) || q.titleEn}</div>
           </Link>
         ))}
 

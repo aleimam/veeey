@@ -40,6 +40,7 @@ export default async function AccountPage({ params }: { params: Promise<{ locale
           <p className="text-sm text-muted-foreground">{user.email}</p>
         </div>
         <div className="flex items-center gap-3">
+          <Link href="/account/addresses" className="text-sm text-primary hover:underline">{t('addresses.manage')}</Link>
           <Link href="/account/notifications" className="text-sm text-primary hover:underline">{t('notifications')}</Link>
           <Link href="/" className="text-sm text-primary hover:underline">{t('store')}</Link>
           <form action={signOutAction}><button className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface">{t('signOut')}</button></form>

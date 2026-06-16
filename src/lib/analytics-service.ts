@@ -52,3 +52,57 @@ export async function kpis(days = 30) {
   const revenue = Number(delivered._sum.totalPiastres ?? 0n);
   return { revenue, deliveredOrders: delivered._count, orders, customers, aov: delivered._count > 0 ? Math.round(revenue / delivered._count) : 0 };
 }
+
+const DELIVERED = ['CASH_DELIVERED', 'CARD_DELIVERED'] as const;
+
+/**
+ * Extended commerce metrics for the analytics page (FR-ANL-*).
+ * - aov: revenue / order count over the window (delivered orders)
+ * - conversionRate: orders / analytics sessions over the window (null if no sessions)
+ * - repeatPurchaseRate: share of customers with >1 delivered order (all-time)
+ * - revenueByMonth: last `months` calendar months of delivered revenue (piastres)
+ * - bestSellers: top products by units sold over the window
+ */
+export async function commerceMetrics({ days = 30, months = 6, sellersLimit = 8 } = {}) {
+  const since = sinceDate(days);
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
+
+  const [delivered, orderCount, sessions, deliveredOrdersForRepeat, monthRows, sellerRows] = await Promise.all([
+    prisma.order.aggregate({ where: { status: { in: [...DELIVERED] }, placedAt: { gte: since } }, _sum: { totalPiastres: true }, _count: true }),
+    prisma.order.count({ where: { placedAt: { gte: since } } }),
+    prisma.analyticsSession.count({ where: { startedAt: { gte: since } } }),
+    prisma.order.groupBy({ by: ['customerId'], where: { status: { in: [...DELIVERED] }, customerId: { not: null } }, _count: { _all: true } }),
+    prisma.order.findMany({ where: { status: { in: [...DELIVERED] }, placedAt: { gte: monthStart } }, select: { placedAt: true, totalPiastres: true } }),
+    prisma.orderItem.groupBy({ by: ['productId'], where: { order: { placedAt: { gte: since } } }, _sum: { qty: true }, orderBy: { _sum: { qty: 'desc' } }, take: sellersLimit }),
+  ]);
+
+  const revenue = Number(delivered._sum.totalPiastres ?? 0n);
+  const aov = delivered._count > 0 ? Math.round(revenue / delivered._count) : 0;
+  const conversionRate = sessions > 0 ? orderCount / sessions : null;
+
+  const buyers = deliveredOrdersForRepeat.length;
+  const repeatBuyers = deliveredOrdersForRepeat.filter((c) => c._count._all > 1).length;
+  const repeatPurchaseRate = buyers > 0 ? repeatBuyers / buyers : null;
+
+  // Build a fixed list of the last `months` months, summing delivered revenue into each.
+  const monthBuckets = Array.from({ length: months }, (_, i) => {
+    const d = new Date(monthStart.getFullYear(), monthStart.getMonth() + i, 1);
+    return { key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, year: d.getFullYear(), month: d.getMonth(), revenue: 0 };
+  });
+  const bucketByKey = new Map(monthBuckets.map((b) => [b.key, b]));
+  for (const o of monthRows) {
+    const key = `${o.placedAt.getFullYear()}-${String(o.placedAt.getMonth() + 1).padStart(2, '0')}`;
+    const b = bucketByKey.get(key);
+    if (b) b.revenue += Number(o.totalPiastres);
+  }
+
+  const sellerProducts = await prisma.product.findMany({ where: { id: { in: sellerRows.map((r) => r.productId) } }, select: { id: true, sku: true, nameEn: true, nameAr: true } });
+  const sellerById = new Map(sellerProducts.map((p) => [p.id, p]));
+  const bestSellers = sellerRows.map((r) => {
+    const p = sellerById.get(r.productId);
+    return { id: r.productId, sku: p?.sku ?? r.productId, nameEn: p?.nameEn ?? r.productId, nameAr: p?.nameAr ?? null, qty: r._sum.qty ?? 0 };
+  });
+
+  return { revenue, deliveredOrders: delivered._count, orders: orderCount, sessions, aov, conversionRate, repeatPurchaseRate, revenueByMonth: monthBuckets, bestSellers };
+}

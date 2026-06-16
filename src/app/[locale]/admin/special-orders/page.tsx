@@ -12,7 +12,10 @@ export default async function SpecialOrdersPage({ params }: { params: Promise<{ 
 
   return (
     <div className="p-6">
-      <h1 className="mb-6 font-heading text-xl font-semibold">{tb('Special orders', 'الطلبات الخاصة')} ({items.length})</h1>
+      <div className="mb-6 flex items-center justify-between gap-3">
+        <h1 className="font-heading text-xl font-semibold">{tb('Special orders', 'الطلبات الخاصة')} ({items.length})</h1>
+        <Link href="/admin/special-orders/new" className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90">{tb('Create special order', 'إنشاء طلب خاص')}</Link>
+      </div>
       <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-sm">
           <thead className="bg-surface text-xs uppercase text-muted-foreground">

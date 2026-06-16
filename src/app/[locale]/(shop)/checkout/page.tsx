@@ -5,6 +5,7 @@ import { listShippingTypes } from '@/lib/shipping-service';
 import { enabledPaymentMethods } from '@/lib/payments';
 import { getNumberSetting } from '@/lib/settings-service';
 import { getCurrentUser } from '@/lib/auth-guards';
+import { listAddresses } from '@/lib/address-service';
 import { prisma } from '@/lib/prisma';
 import { CheckoutForm } from '@/components/storefront/checkout-form';
 
@@ -19,6 +20,9 @@ export default async function CheckoutPage({ params }: { params: Promise<{ local
   const subtotal = lines.reduce((s, l) => s + l.subtotalPiastres, 0);
   const [types, user] = await Promise.all([listShippingTypes(), getCurrentUser()]);
   const customer = user?.customerId ? await prisma.customer.findUnique({ where: { id: user.customerId } }) : null;
+  const savedAddresses = user?.customerId
+    ? (await listAddresses(user.customerId)).map((a) => ({ id: a.id, governorate: a.governorate, city: a.city, area: a.area, street: a.street, phone: a.phone }))
+    : [];
 
   const tp = await getTranslations('storefront.checkout');
   const pointsPerEgp = await getNumberSetting('loyalty.redeemPointsPerEgp');
@@ -35,6 +39,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ local
         paymentMethods={enabledPaymentMethods().map((m) => ({ key: m.key, label: m.label }))}
         pointsBalance={customer?.pointsBalance ?? 0}
         pointsPerEgp={pointsPerEgp}
+        savedAddresses={savedAddresses}
       />
     </div>
   );

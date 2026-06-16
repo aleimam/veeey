@@ -7,6 +7,8 @@ import { formatEGP } from '@/lib/format';
 
 type ShipOpt = { type: string; label: string; feePiastres: number };
 type PayOpt = { key: string; label: string };
+type SavedAddr = { id: string; governorate: string; city: string; area: string; street?: string | null; phone?: string | null };
+const blankAddr = { name: '', phone: '', governorate: '', city: '', area: '', street: '' };
 
 const field = 'mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring';
 
@@ -19,6 +21,7 @@ export function CheckoutForm({
   paymentMethods,
   pointsBalance = 0,
   pointsPerEgp = 200,
+  savedAddresses = [],
 }: {
   locale: string;
   isLoggedIn: boolean;
@@ -28,11 +31,18 @@ export function CheckoutForm({
   paymentMethods: PayOpt[];
   pointsBalance?: number;
   pointsPerEgp?: number;
+  savedAddresses?: SavedAddr[];
 }) {
   const t = useTranslations('storefront.checkout');
   const tPay = useTranslations('storefront.payments');
   const [state, action] = useActionState<CheckoutState, FormData>(placeOrderAction, {});
   const [shipping, setShipping] = useState(shippingOptions[0]?.type ?? 'FAST_FREE');
+  const [addr, setAddr] = useState({ ...blankAddr, name: defaultName ?? '' });
+  const set = (k: keyof typeof blankAddr) => (e: React.ChangeEvent<HTMLInputElement>) => setAddr((a) => ({ ...a, [k]: e.target.value }));
+  const pickSaved = (id: string) => {
+    const a = savedAddresses.find((x) => x.id === id);
+    setAddr(a ? { name: defaultName ?? '', phone: a.phone ?? '', governorate: a.governorate, city: a.city, area: a.area, street: a.street ?? '' } : { ...blankAddr, name: defaultName ?? '' });
+  };
   const fee = shippingOptions.find((s) => s.type === shipping)?.feePiastres ?? 0;
   const total = subtotalPiastres + fee;
 
@@ -48,6 +58,14 @@ export function CheckoutForm({
 
         <section>
           <h2 className="mb-3 font-heading text-lg font-semibold">{t('deliveryDetails')}</h2>
+          {savedAddresses.length > 0 && (
+            <label className="mb-4 block text-sm font-medium">{t('savedAddress')}
+              <select onChange={(e) => pickSaved(e.target.value)} className={field}>
+                <option value="">{t('newAddress')}</option>
+                {savedAddresses.map((a) => <option key={a.id} value={a.id}>{a.governorate} · {a.city} · {a.area}</option>)}
+              </select>
+            </label>
+          )}
           <div className="grid gap-4 sm:grid-cols-2">
             {!isLoggedIn && (
               <label className="block text-sm font-medium sm:col-span-2">{t('email')}
@@ -55,22 +73,22 @@ export function CheckoutForm({
               </label>
             )}
             <label className="block text-sm font-medium">{t('fullName')}
-              <input name="name" required defaultValue={defaultName ?? ''} className={field} />
+              <input name="name" required value={addr.name} onChange={set('name')} className={field} />
             </label>
             <label className="block text-sm font-medium">{t('phone')}
-              <input name="phone" required className={field} />
+              <input name="phone" required value={addr.phone} onChange={set('phone')} className={field} />
             </label>
             <label className="block text-sm font-medium">{t('governorate')}
-              <input name="governorate" required className={field} />
+              <input name="governorate" required value={addr.governorate} onChange={set('governorate')} className={field} />
             </label>
             <label className="block text-sm font-medium">{t('city')}
-              <input name="city" required className={field} />
+              <input name="city" required value={addr.city} onChange={set('city')} className={field} />
             </label>
             <label className="block text-sm font-medium">{t('area')}
-              <input name="area" required className={field} />
+              <input name="area" required value={addr.area} onChange={set('area')} className={field} />
             </label>
             <label className="block text-sm font-medium sm:col-span-2">{t('street')}
-              <input name="street" required className={field} />
+              <input name="street" required value={addr.street} onChange={set('street')} className={field} />
             </label>
           </div>
         </section>
