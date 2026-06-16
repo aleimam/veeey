@@ -126,6 +126,66 @@ const pages: Page[] = [
     bodyAr:
       'لم تجده؟ سنُحضره لك.\n\nإذا كان المنتج يُباع في الخارج، يمكننا توفيره لك — أصلي ومتتبَّع وضمن جدول زمني ثابت. شارك رابطًا أو اسم منتج وسيؤكّد فريقنا السعر وتاريخ التوصيل. تُحجز الطلبات الخاصة بعربون، ونضمن تاريخ التوصيل بسياسة التعويض.\n\nلطلب ذلك، تواصل معنا عبر info@veeey.com أو واتساب.',
   },
+  {
+    slug: 'payment-methods',
+    titleEn: 'Payment methods',
+    titleAr: 'طرق الدفع',
+    metaDescEn: 'Pay for your Veeey order by cash on delivery, card machine, or secure online card payment.',
+    bodyEn:
+      'You can pay for your Veeey order in the way that suits you best:\n\n• Cash on Delivery — pay our courier in cash when your order arrives.\n• Card machine on delivery — pay by Visa or MasterCard at your door.\n• Online card payment (Visa / MasterCard) — pay securely during checkout through our certified payment gateway. We never store your full card details.\n• Bank transfer and mobile wallet — available on request for some orders.\n\nAll prices are shown in Egyptian Pounds (EGP) and include any applicable taxes. If a payment fails, your order is kept pending so you can try again.',
+    bodyAr:
+      'يمكنك دفع قيمة طلبك من Veeey بالطريقة التي تناسبك:\n\n• الدفع عند الاستلام — ادفع نقدًا لمندوب التوصيل عند وصول طلبك.\n• الدفع بالبطاقة عند الاستلام — ادفع بفيزا أو ماستركارد على باب منزلك.\n• الدفع الإلكتروني بالبطاقة (فيزا / ماستركارد) — ادفع بأمان أثناء إتمام الطلب عبر بوابة دفع معتمدة. لا نحتفظ ببيانات بطاقتك كاملة أبدًا.\n• التحويل البنكي والمحفظة الإلكترونية — متاحان عند الطلب لبعض الطلبات.\n\nجميع الأسعار بالجنيه المصري وتشمل أي ضرائب مطبّقة. في حال فشل الدفع، يبقى طلبك معلّقًا لتتمكن من المحاولة مرة أخرى.',
+  },
+  {
+    slug: 'how-to-order',
+    titleEn: 'How to order',
+    titleAr: 'كيفية الطلب',
+    metaDescEn: 'Ordering from Veeey is simple — browse, add to cart, choose delivery, and pay your way.',
+    bodyEn:
+      'Ordering from Veeey takes just a few minutes:\n\n1. Browse our products or search for what you need. Every product shows its expiry date before you buy.\n2. Add items to your cart and open the cart to review your order.\n3. Sign in or continue as a guest, then enter your delivery details.\n4. Choose a delivery option — Free delivery across Egypt, or UltraFast 3–6 hour delivery in Greater Cairo.\n5. Pick a payment method and place your order.\n\nYou will receive an order confirmation, and a licensed pharmacist reviews your order before it ships. Need help? Contact us at info@veeey.com or on WhatsApp.',
+    bodyAr:
+      'الطلب من Veeey يستغرق دقائق قليلة:\n\n1. تصفّح منتجاتنا أو ابحث عمّا تريد. كل منتج يعرض تاريخ صلاحيته قبل الشراء.\n2. أضف المنتجات إلى السلة ثم افتح السلة لمراجعة طلبك.\n3. سجّل الدخول أو تابع كزائر، ثم أدخل بيانات التوصيل.\n4. اختر طريقة التوصيل — توصيل مجاني لكل أنحاء مصر، أو توصيل فائق السرعة خلال 3–6 ساعات في القاهرة الكبرى.\n5. اختر طريقة الدفع وأكّد طلبك.\n\nستصلك رسالة تأكيد، ويراجع صيدلي مرخّص طلبك قبل الشحن. تحتاج مساعدة؟ تواصل معنا عبر info@veeey.com أو واتساب.',
+  },
+  {
+    slug: 'track-order',
+    titleEn: 'Track your order',
+    titleAr: 'تتبّع طلبك',
+    metaDescEn: 'Track your Veeey order status from your account or with the tracking number we send you.',
+    bodyEn:
+      'You can follow your order every step of the way:\n\n• Sign in to your account and open “Order history” to see the latest status of each order.\n• When your order ships, we send you a tracking number so you can follow the delivery.\n• You will also receive updates by email (and SMS, if enabled) when your order is placed, shipped, and delivered.\n\nIf anything looks wrong, contact us at info@veeey.com or on WhatsApp and our team will help.',
+    bodyAr:
+      'يمكنك متابعة طلبك في كل مرحلة:\n\n• سجّل الدخول إلى حسابك وافتح «سجل الطلبات» لرؤية أحدث حالة لكل طلب.\n• عند شحن طلبك، نرسل لك رقم تتبّع لمتابعة التوصيل.\n• ستصلك أيضًا تحديثات عبر البريد الإلكتروني (والرسائل القصيرة إن كانت مفعّلة) عند تأكيد الطلب وشحنه وتسليمه.\n\nإذا لاحظت أي خطأ، تواصل معنا عبر info@veeey.com أو واتساب وسيساعدك فريقنا.',
+  },
+  {
+    slug: 'loyalty-rewards',
+    titleEn: 'Veeey rewards',
+    titleAr: 'مكافآت Veeey',
+    metaDescEn: 'Earn loyalty points on every Veeey order and unlock tier benefits as you shop.',
+    bodyEn:
+      'Every order brings you closer to more value.\n\n• Earn loyalty points on your purchases and redeem them for discounts at checkout.\n• Move up our membership tiers as you shop to unlock better pricing and perks.\n• Invite friends with your referral code and earn rewards when they shop.\n\nYou can see your points balance, tier, and referral code any time in your account. Point and reward values are set by Veeey and may be updated; the current values always apply at checkout.',
+    bodyAr:
+      'كل طلب يقرّبك من قيمة أكبر.\n\n• اكسب نقاط ولاء على مشترياتك واستبدلها بخصومات عند إتمام الطلب.\n• ارتقِ بين مستويات العضوية كلما تسوّقت لتفتح أسعارًا ومزايا أفضل.\n• ادعُ أصدقاءك برمز الإحالة الخاص بك واكسب مكافآت عند تسوّقهم.\n\nيمكنك رؤية رصيد نقاطك ومستواك ورمز الإحالة في أي وقت من حسابك. قيم النقاط والمكافآت تحدّدها Veeey وقد تُحدَّث؛ وتُطبَّق القيم الحالية دائمًا عند الدفع.',
+  },
+  {
+    slug: 'wholesale',
+    titleEn: 'Wholesale & bulk orders',
+    titleAr: 'الجملة والطلبات بالكميات',
+    metaDescEn: 'Veeey supplies pharmacies, clinics, gyms, and corporate buyers with bulk supplement orders.',
+    bodyEn:
+      'Buying for a pharmacy, clinic, gym, or team?\n\nVeeey supplies authentic supplements and health devices in bulk, with the same expiry transparency and pharmacist oversight as our retail store. We offer tailored pricing for larger quantities and can arrange recurring orders.\n\nTo discuss a wholesale or corporate order, contact us at info@veeey.com or on WhatsApp with the products and quantities you need, and our team will prepare a quote.',
+    bodyAr:
+      'تشتري لصيدلية أو عيادة أو صالة رياضية أو فريق؟\n\nتوفّر Veeey مكمّلات وأجهزة صحية أصلية بالكميات، بنفس شفافية الصلاحية وإشراف الصيادلة كما في متجرنا. نقدّم أسعارًا مخصّصة للكميات الكبيرة ويمكننا ترتيب طلبات متكرّرة.\n\nلمناقشة طلب جملة أو طلب للشركات، تواصل معنا عبر info@veeey.com أو واتساب مع المنتجات والكميات المطلوبة، وسيُعدّ فريقنا عرض سعر.',
+  },
+  {
+    slug: 'cookie-policy',
+    titleEn: 'Cookie policy',
+    titleAr: 'سياسة ملفات تعريف الارتباط',
+    metaDescEn: 'How Veeey uses cookies and similar technologies, and how you can control them.',
+    bodyEn:
+      'Veeey uses cookies and similar technologies to make the website work and to improve your experience.\n\n• Essential cookies keep you signed in, remember your cart, and keep the site secure. These are always on.\n• Analytics cookies help us understand how the site is used so we can improve it. These run only with your consent.\n• Preference cookies remember choices such as your language.\n\nYou can accept or decline non-essential cookies from our consent banner, and you can change your choice at any time in your browser settings. Declining analytics cookies will not stop you from shopping. For more detail on the data we hold, see our Privacy Policy.',
+    bodyAr:
+      'تستخدم Veeey ملفات تعريف الارتباط والتقنيات المشابهة لتشغيل الموقع وتحسين تجربتك.\n\n• الملفات الأساسية تُبقيك مسجّل الدخول وتتذكّر سلتك وتحافظ على أمان الموقع. وهي مفعّلة دائمًا.\n• ملفات التحليلات تساعدنا على فهم كيفية استخدام الموقع لتحسينه. وتعمل فقط بموافقتك.\n• ملفات التفضيلات تتذكّر اختياراتك مثل اللغة.\n\nيمكنك قبول أو رفض الملفات غير الأساسية من شريط الموافقة، ويمكنك تغيير اختيارك في أي وقت من إعدادات متصفحك. رفض ملفات التحليلات لن يمنعك من التسوّق. لمزيد من التفاصيل عن البيانات التي نحتفظ بها، راجع سياسة الخصوصية.',
+  },
 ];
 
 type Post = { slug: string; titleEn: string; titleAr: string; excerptEn: string; excerptAr: string; bodyEn: string; bodyAr: string };
