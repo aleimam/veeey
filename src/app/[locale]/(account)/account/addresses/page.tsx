@@ -3,6 +3,7 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { auth } from '@/auth';
 import { listAddresses } from '@/lib/address-service';
+import { GOVERNORATES, governorateLabel } from '@/lib/governorates';
 import { saveAddressAction, deleteAddressAction, setDefaultAddressAction } from '@/server/address-actions';
 
 type SP = Record<string, string | string[] | undefined>;
@@ -34,7 +35,7 @@ export default async function AddressesPage({ params, searchParams }: { params: 
           <div key={a.id} className="flex items-start justify-between gap-4 rounded-xl border border-border p-4">
             <div className="text-sm">
               <div className="font-medium">
-                {a.governorate} · {a.city} · {a.area}
+                {governorateLabel(a.governorate, locale)} · {a.city}{a.area ? ` · ${a.area}` : ''}
                 {a.isDefaultShipping && <span className="ms-2 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">{t('defaultBadge')}</span>}
               </div>
               <div className="text-muted-foreground">{[a.street, a.building, a.phone].filter(Boolean).join(' · ')}</div>
@@ -61,9 +62,13 @@ export default async function AddressesPage({ params, searchParams }: { params: 
         <h2 className="mb-3 font-heading text-lg font-semibold">{t('addNew')}</h2>
         <input type="hidden" name="locale" value={locale} />
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block text-sm font-medium">{t('governorate')}<input name="governorate" required className={field} /></label>
+          <label className="block text-sm font-medium">{t('governorate')}
+            <select name="governorate" required defaultValue="" className={field}>
+              <option value="" disabled>—</option>
+              {GOVERNORATES.map((g) => <option key={g.en} value={g.en}>{locale === 'ar' ? g.ar : g.en}</option>)}
+            </select>
+          </label>
           <label className="block text-sm font-medium">{t('city')}<input name="city" required className={field} /></label>
-          <label className="block text-sm font-medium">{t('area')}<input name="area" required className={field} /></label>
           <label className="block text-sm font-medium">{t('phone')}<input name="phone" className={field} /></label>
           <label className="block text-sm font-medium sm:col-span-2">{t('street')}<input name="street" className={field} /></label>
           <label className="block text-sm font-medium sm:col-span-2">{t('building')}<input name="building" className={field} /></label>

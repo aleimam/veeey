@@ -4,11 +4,12 @@ import { useActionState, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { placeOrderAction, type CheckoutState } from '@/server/cart-actions';
 import { formatEGP } from '@/lib/format';
+import { GOVERNORATES } from '@/lib/governorates';
 
 type ShipOpt = { type: string; label: string; feePiastres: number };
 type PayOpt = { key: string; label: string };
-type SavedAddr = { id: string; governorate: string; city: string; area: string; street?: string | null; phone?: string | null };
-const blankAddr = { name: '', phone: '', governorate: '', city: '', area: '', street: '' };
+type SavedAddr = { id: string; governorate: string; city: string; area?: string | null; street?: string | null; phone?: string | null };
+const blankAddr = { name: '', phone: '', governorate: '', city: '', street: '' };
 
 const field = 'mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring';
 
@@ -38,10 +39,10 @@ export function CheckoutForm({
   const [state, action] = useActionState<CheckoutState, FormData>(placeOrderAction, {});
   const [shipping, setShipping] = useState(shippingOptions[0]?.type ?? 'FAST_FREE');
   const [addr, setAddr] = useState({ ...blankAddr, name: defaultName ?? '' });
-  const set = (k: keyof typeof blankAddr) => (e: React.ChangeEvent<HTMLInputElement>) => setAddr((a) => ({ ...a, [k]: e.target.value }));
+  const set = (k: keyof typeof blankAddr) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setAddr((a) => ({ ...a, [k]: e.target.value }));
   const pickSaved = (id: string) => {
     const a = savedAddresses.find((x) => x.id === id);
-    setAddr(a ? { name: defaultName ?? '', phone: a.phone ?? '', governorate: a.governorate, city: a.city, area: a.area, street: a.street ?? '' } : { ...blankAddr, name: defaultName ?? '' });
+    setAddr(a ? { name: defaultName ?? '', phone: a.phone ?? '', governorate: a.governorate, city: a.city, street: a.street ?? '' } : { ...blankAddr, name: defaultName ?? '' });
   };
   const fee = shippingOptions.find((s) => s.type === shipping)?.feePiastres ?? 0;
   const total = subtotalPiastres + fee;
@@ -79,13 +80,13 @@ export function CheckoutForm({
               <input name="phone" required value={addr.phone} onChange={set('phone')} className={field} />
             </label>
             <label className="block text-sm font-medium">{t('governorate')}
-              <input name="governorate" required value={addr.governorate} onChange={set('governorate')} className={field} />
+              <select name="governorate" required value={addr.governorate} onChange={set('governorate')} className={field}>
+                <option value="" disabled>{t('selectGovernorate')}</option>
+                {GOVERNORATES.map((g) => <option key={g.en} value={g.en}>{locale === 'ar' ? g.ar : g.en}</option>)}
+              </select>
             </label>
             <label className="block text-sm font-medium">{t('city')}
               <input name="city" required value={addr.city} onChange={set('city')} className={field} />
-            </label>
-            <label className="block text-sm font-medium">{t('area')}
-              <input name="area" required value={addr.area} onChange={set('area')} className={field} />
             </label>
             <label className="block text-sm font-medium sm:col-span-2">{t('street')}
               <input name="street" required value={addr.street} onChange={set('street')} className={field} />

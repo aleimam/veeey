@@ -24,7 +24,7 @@ export const checkoutSchema = z.object({
   phone: z.string().min(6),
   governorate: z.string().min(1),
   city: z.string().min(1),
-  area: z.string().min(1),
+  area: z.string().optional().default(''),
   street: z.string().min(1),
   shippingType: z.enum(['FAST_FREE', 'ULTRAFAST', 'PICK_FROM_OFFICE']).default('FAST_FREE'),
   paymentMethod: z.enum(['COD', 'POS_ON_DELIVERY', 'BANK_TRANSFER', 'WALLET', 'OPAY', 'KASHIER']).default('COD'),

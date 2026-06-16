@@ -9,7 +9,7 @@ import { prisma } from '@/lib/prisma';
 export const addressSchema = z.object({
   governorate: z.string().trim().min(1),
   city: z.string().trim().min(1),
-  area: z.string().trim().min(1),
+  area: z.string().trim().optional(),
   street: z.string().trim().optional(),
   building: z.string().trim().optional(),
   phone: z.string().trim().optional(),
@@ -24,7 +24,7 @@ function data(d: z.infer<typeof addressSchema>, fallbackDefault = false) {
   return {
     governorate: d.governorate,
     city: d.city,
-    area: d.area,
+    area: d.area || '',
     street: d.street || null,
     building: d.building || null,
     phone: d.phone || null,

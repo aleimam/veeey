@@ -419,7 +419,8 @@
       "placeOrder": "Place order",
       "noVat": "No VAT. You can pay cash on delivery.",
       "savedAddress": "Use a saved address",
-      "newAddress": "Enter a new address"
+      "newAddress": "Enter a new address",
+      "selectGovernorate": "Select governorate"
     },
     "cart": {
       "emptyTitle": "Your cart is empty",

@@ -24,6 +24,8 @@ export const SETTINGS: SettingDef[] = [
   // Referrals
   { key: 'referral.firstYearPercent', label: 'Referral reward — first year (%)', group: 'Referrals', type: 'percent', default: '100' },
   { key: 'referral.afterPercent', label: 'Referral reward — after first year (%)', group: 'Referrals', type: 'percent', default: '50' },
+  { key: 'referral.codePrefix', label: 'Referral code prefix', group: 'Referrals', type: 'text', default: 'VEEEY-', hint: 'Prefix added to every new referral code, e.g. "VEEEY-".' },
+  { key: 'referral.codeLength', label: 'Referral code random length', group: 'Referrals', type: 'number', default: '8', hint: 'Number of random characters after the prefix (4–16).' },
   // Payments
   { key: 'payments.cardGateway', label: 'Card gateway', group: 'Payments', type: 'text', default: 'auto', hint: 'auto | kashier | opay — which gateway handles Visa/MasterCard (auto prefers Kashier). Configure keys in Providers.' },
   // Store contact (shown in the footer / contact block)
