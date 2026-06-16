@@ -64,6 +64,39 @@ export async function generateQuiz(topic: string, count = 5): Promise<GeneratedQ
   }
 }
 
+/**
+ * Translate a set of English fields to Arabic (#D1). Returns a map keyed by the
+ * same field names, or null when AI is off / unavailable. Assistive — staff
+ * review and can edit the result. Empty inputs are skipped.
+ */
+export async function translateToArabic(fields: Record<string, string>): Promise<Record<string, string> | null> {
+  const entries = Object.entries(fields).filter(([, v]) => typeof v === 'string' && v.trim());
+  if (entries.length === 0) return null;
+  const r = await resolveClient();
+  if (!r) return null;
+  const schema = {
+    type: 'object',
+    properties: Object.fromEntries(entries.map(([k]) => [k, { type: 'string' }])),
+    required: entries.map(([k]) => k),
+    additionalProperties: false,
+  } as const;
+  try {
+    const res = await r.c.messages.create({
+      model: r.model,
+      max_tokens: 2000,
+      output_config: { format: { type: 'json_schema', schema } },
+      messages: [{
+        role: 'user',
+        content: `Translate these e-commerce product fields from English to natural Modern Standard Arabic for Veeey, a premium Egyptian supplements & wellness store. Keep brand names, dosages, units, and numbers intact; use a clean marketing tone; do not add or omit information. Return JSON with the same keys. Fields:\n${JSON.stringify(Object.fromEntries(entries))}`,
+      }],
+    });
+    const text = firstText(res.content);
+    return text ? (JSON.parse(text) as Record<string, string>) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Summarize customer reviews into a short neutral blurb. Null if AI off / no reviews. */
 export async function summarizeReviews(productName: string, reviews: { rating: number; body: string }[]): Promise<string | null> {
   if (reviews.length === 0) return null;

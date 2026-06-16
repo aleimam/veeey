@@ -9,6 +9,7 @@ import { ImageUploader } from './image-uploader';
 import { CategoryPicker, type CategoryOpt } from './category-picker';
 import { AttributePicker, type AttrOpt } from './attribute-picker';
 import { quickCreateBrand, quickCreateTag } from '@/server/quick-actions';
+import { TranslateButton } from './translate-button';
 import { pick } from '@/lib/admin-i18n';
 
 type Opt = { value: string; label: string };
@@ -108,6 +109,17 @@ export function ProductForm({
       <FormError error={state.error} />
       <input type="hidden" name="locale" value={locale} />
       {d.id && <input type="hidden" name="id" value={d.id} />}
+
+      <div className="flex items-center justify-between rounded-md border border-border bg-surface px-3 py-2">
+        <span className="text-xs text-muted-foreground">{tb('Fill English, then auto-translate the Arabic fields.', 'املأ الإنجليزية ثم ترجم الحقول العربية تلقائيًا.')}</span>
+        <TranslateButton pairs={[
+          { en: 'nameEn', ar: 'nameAr' },
+          { en: 'shortDescEn', ar: 'shortDescAr' },
+          { en: 'longDescEn', ar: 'longDescAr' },
+          { en: 'metaTitleEn', ar: 'metaTitleAr' },
+          { en: 'metaDescEn', ar: 'metaDescAr' },
+        ]} />
+      </div>
 
       <section className="grid gap-4 sm:grid-cols-2">
         <Field label={tb('Name (English)', 'الاسم (بالإنجليزية)')}><input name="nameEn" required defaultValue={d.nameEn ?? ''} className={inputCls} /></Field>

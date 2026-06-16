@@ -1,6 +1,8 @@
 'use server';
 
 import { saveBrand, saveTag, saveAttribute, addAttributeValue } from '@/lib/taxonomy-service';
+import { translateToArabic } from '@/lib/ai';
+import { requirePermission } from '@/lib/auth-guards';
 
 /**
  * Inline quick-create actions (#C1/#C2) — called from the product form to add a
@@ -31,4 +33,11 @@ export async function quickCreateAttribute(name: string, kind: 'SUPPLEMENT' | 'D
 export async function quickCreateAttributeValue(attributeId: string, value: string): Promise<{ id: string; label: string }> {
   const v = await addAttributeValue(attributeId, value.trim());
   return { id: v.id, label: v.valueEn };
+}
+
+/** Translate English admin fields to Arabic via the configured AI (#D1). Staff
+ *  review the result before saving. Returns null when AI is off. */
+export async function translateFieldsAction(fields: Record<string, string>): Promise<Record<string, string> | null> {
+  await requirePermission('catalog.write');
+  return translateToArabic(fields);
 }
