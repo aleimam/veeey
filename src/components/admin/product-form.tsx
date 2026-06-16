@@ -1,12 +1,14 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 import { useLocale } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { saveProductAction, type AdminFormState } from '@/server/admin-actions';
 import { Field, FormError, SubmitButton, inputCls } from './ui';
 import { ImageUploader } from './image-uploader';
 import { CategoryPicker, type CategoryOpt } from './category-picker';
+import { AttributePicker, type AttrOpt } from './attribute-picker';
+import { quickCreateBrand, quickCreateTag } from '@/server/quick-actions';
 import { pick } from '@/lib/admin-i18n';
 
 type Opt = { value: string; label: string };
@@ -61,18 +63,45 @@ export function ProductForm({
   brands,
   categories,
   tags,
-  attributeValues,
+  attributes,
 }: {
   locale: string;
   defaults?: ProductDefaults;
   brands: Opt[];
   categories: CategoryOpt[];
   tags: Opt[];
-  attributeValues: Opt[];
+  attributes: AttrOpt[];
 }) {
   const [state, action] = useActionState<AdminFormState, FormData>(saveProductAction, {});
   const tb = pick(useLocale());
   const d = defaults;
+  const [kind, setKind] = useState<string>(d.kind ?? 'SUPPLEMENT');
+  const [brandOpts, setBrandOpts] = useState<Opt[]>(brands);
+  const [brandId, setBrandId] = useState<string>(d.brandId ?? '');
+  const [newBrand, setNewBrand] = useState('');
+  const [tagOpts, setTagOpts] = useState<Opt[]>(tags);
+  const [newTag, setNewTag] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function addBrand() {
+    if (!newBrand.trim()) return;
+    setBusy(true);
+    try {
+      const b = await quickCreateBrand(newBrand.trim());
+      setBrandOpts((o) => [...o, { value: b.id, label: b.label }]);
+      setBrandId(b.id);
+      setNewBrand('');
+    } finally { setBusy(false); }
+  }
+  async function addTag() {
+    if (!newTag.trim()) return;
+    setBusy(true);
+    try {
+      const t = await quickCreateTag(newTag.trim());
+      setTagOpts((o) => [...o, { value: t.id, label: t.label }]);
+      setNewTag('');
+    } finally { setBusy(false); }
+  }
 
   return (
     <form action={action} className="max-w-3xl space-y-6">
@@ -85,15 +114,19 @@ export function ProductForm({
         <Field label={tb('Name (Arabic)', 'الاسم (بالعربية)')}><input name="nameAr" defaultValue={d.nameAr ?? ''} dir="rtl" className={inputCls} /></Field>
         <Field label={tb('SKU', 'رمز المنتج (SKU)')} hint={tb('Leave empty to auto-generate (VEY-…).', 'اتركه فارغًا للتوليد التلقائي (VEY-…).')}><input name="sku" defaultValue={d.sku ?? ''} className={inputCls} /></Field>
         <Field label={tb('Brand', 'العلامة التجارية')}>
-          <select name="brandId" defaultValue={d.brandId ?? ''} className={inputCls}>
+          <select name="brandId" value={brandId} onChange={(e) => setBrandId(e.target.value)} className={inputCls}>
             <option value="">{tb('— None —', '— بدون —')}</option>
-            {brands.map((b) => <option key={b.value} value={b.value}>{b.label}</option>)}
+            {brandOpts.map((b) => <option key={b.value} value={b.value}>{b.label}</option>)}
           </select>
+          <div className="mt-1 flex items-center gap-2 text-xs">
+            <input value={newBrand} onChange={(e) => setNewBrand(e.target.value)} placeholder={tb('New brand', 'علامة جديدة')} className={`${inputCls} py-1`} />
+            <button type="button" onClick={addBrand} disabled={busy || !newBrand.trim()} className="whitespace-nowrap text-primary hover:underline disabled:opacity-50">{tb('+ Add', '+ إضافة')}</button>
+          </div>
         </Field>
         <Field label={tb('Slug (English)', 'المُعرّف (بالإنجليزية)')} hint={tb('Leave empty to auto-generate.', 'اتركه فارغًا للتوليد التلقائي.')}><input name="slugEn" defaultValue={d.slugEn ?? ''} className={inputCls} /></Field>
         <Field label={tb('Slug (Arabic)', 'المُعرّف (بالعربية)')} hint={tb('Leave empty to auto-generate.', 'اتركه فارغًا للتوليد التلقائي.')}><input name="slugAr" defaultValue={d.slugAr ?? ''} className={inputCls} /></Field>
         <Field label={tb('Type', 'النوع')}>
-          <select name="kind" defaultValue={d.kind ?? 'SUPPLEMENT'} className={inputCls}>
+          <select name="kind" value={kind} onChange={(e) => setKind(e.target.value)} className={inputCls}>
             <option value="SUPPLEMENT">{tb('Supplement', 'مكمل غذائي')}</option>
             <option value="DEVICE">{tb('Device', 'جهاز')}</option>
             <option value="INJECTION">{tb('Injection', 'حقن')}</option>
@@ -109,9 +142,13 @@ export function ProductForm({
         </Field>
         <Field label={tb('Base price (EGP)', 'السعر الأساسي (ج.م)')}><input name="basePriceEgp" type="number" step="0.01" min="0" defaultValue={d.basePriceEgp ?? 0} className={inputCls} /></Field>
         <Field label={tb('Weight (g)', 'الوزن (جم)')}><input name="weightG" type="number" min="0" defaultValue={d.weightG ?? ''} className={inputCls} /></Field>
-        <Field label={tb('Servings per unit', 'عدد الجرعات في العبوة')} hint={tb('Used in the supply-duration calculator.', 'يُستخدم في حاسبة مدة الاستخدام.')}><input name="servingsPerUnit" type="number" min="0" defaultValue={d.servingsPerUnit ?? ''} className={inputCls} /></Field>
-        <Field label={tb('Daily dosage — min', 'الجرعة اليومية — الحد الأدنى')} hint={tb('Min servings per day (also the calculator default).', 'أقل عدد جرعات يوميًا (وافتراضي الحاسبة).')}><input name="dailyDosage" type="number" min="0" defaultValue={d.dailyDosage ?? ''} className={inputCls} /></Field>
-        <Field label={tb('Daily dosage — max', 'الجرعة اليومية — الحد الأقصى')} hint={tb('Optional upper bound of the dose range.', 'الحد الأعلى الاختياري لنطاق الجرعة.')}><input name="dailyDosageMax" type="number" min="0" defaultValue={d.dailyDosageMax ?? ''} className={inputCls} /></Field>
+        {kind !== 'DEVICE' && (
+          <>
+            <Field label={tb('Servings per unit', 'عدد الجرعات في العبوة')} hint={tb('Used in the supply-duration calculator.', 'يُستخدم في حاسبة مدة الاستخدام.')}><input name="servingsPerUnit" type="number" min="0" defaultValue={d.servingsPerUnit ?? ''} className={inputCls} /></Field>
+            <Field label={tb('Daily dosage — min', 'الجرعة اليومية — الحد الأدنى')} hint={tb('Min servings per day (also the calculator default).', 'أقل عدد جرعات يوميًا (وافتراضي الحاسبة).')}><input name="dailyDosage" type="number" min="0" defaultValue={d.dailyDosage ?? ''} className={inputCls} /></Field>
+            <Field label={tb('Daily dosage — max', 'الجرعة اليومية — الحد الأقصى')} hint={tb('Optional upper bound of the dose range.', 'الحد الأعلى الاختياري لنطاق الجرعة.')}><input name="dailyDosageMax" type="number" min="0" defaultValue={d.dailyDosageMax ?? ''} className={inputCls} /></Field>
+          </>
+        )}
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2">
@@ -126,14 +163,16 @@ export function ProductForm({
           <CategoryPicker categories={categories} initial={d.categoryIds ?? []} max={4} />
         </Field>
         <Field label={tb('Tags', 'الوسوم')} hint={tb('Use Ctrl/Cmd for multi-select.', 'استخدم Ctrl/Cmd للتحديد المتعدد.')}>
-          <select name="tagIds" multiple defaultValue={d.tagIds ?? []} className={`${inputCls} h-32`}>
-            {tags.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+          <select name="tagIds" multiple defaultValue={d.tagIds ?? []} className={`${inputCls} h-24`}>
+            {tagOpts.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
+          <div className="mt-1 flex items-center gap-2 text-xs">
+            <input value={newTag} onChange={(e) => setNewTag(e.target.value)} placeholder={tb('New tag', 'وسم جديد')} className={`${inputCls} py-1`} />
+            <button type="button" onClick={addTag} disabled={busy || !newTag.trim()} className="whitespace-nowrap text-primary hover:underline disabled:opacity-50">{tb('+ Add', '+ إضافة')}</button>
+          </div>
         </Field>
-        <Field label={tb('Attributes', 'الخصائص')} hint={tb('Use Ctrl/Cmd for multi-select.', 'استخدم Ctrl/Cmd للتحديد المتعدد.')}>
-          <select name="attributeValueIds" multiple defaultValue={d.attributeValueIds ?? []} className={`${inputCls} h-32`}>
-            {attributeValues.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
-          </select>
+        <Field label={tb('Attributes', 'الخصائص')} hint={tb('Pick attribute, then value.', 'اختر الخاصية ثم القيمة.')}>
+          <AttributePicker attributes={attributes} initial={d.attributeValueIds ?? []} kind={kind} />
         </Field>
       </section>
 

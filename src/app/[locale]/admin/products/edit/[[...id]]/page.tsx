@@ -23,9 +23,12 @@ export default async function ProductEditPage({
     productId ? getProduct(productId) : Promise.resolve(null),
   ]);
 
-  const attributeValues = attributes.flatMap((a) =>
-    a.values.map((v) => ({ value: v.id, label: `${a.nameEn}: ${v.valueEn}` })),
-  );
+  const attributeOpts = attributes.map((a) => ({
+    id: a.id,
+    label: a.nameEn,
+    kind: a.kind,
+    values: a.values.map((v) => ({ id: v.id, label: v.valueEn })),
+  }));
 
   const defaults: ProductDefaults = product
     ? {
@@ -75,7 +78,7 @@ export default async function ProductEditPage({
         brands={brands.map((b) => ({ value: b.id, label: b.nameEn }))}
         categories={categories.map((c) => ({ value: c.id, label: c.nameEn, parentId: c.parentId }))}
         tags={tags.map((t) => ({ value: t.id, label: t.nameEn }))}
-        attributeValues={attributeValues}
+        attributes={attributeOpts}
       />
     </div>
   );
