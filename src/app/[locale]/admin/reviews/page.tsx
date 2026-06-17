@@ -3,22 +3,46 @@ import { listReviews } from '@/lib/review-service';
 import { moderateReviewAction, regenSummaryAction } from '@/server/admin-play-actions';
 import { aiConfigured } from '@/lib/provider-config';
 import { StatusBadge } from '@/components/admin/ui';
-import { ExportBar } from '@/components/admin/export-bar';
+import { ExportBar, exportQs } from '@/components/admin/export-bar';
+import { FilterBar } from '@/components/admin/filter-bar';
 import { pick } from '@/lib/admin-i18n';
 
-export default async function AdminReviewsPage({ params }: { params: Promise<{ locale: string }> }) {
+type SP = Record<string, string | string[] | undefined>;
+const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+
+export default async function AdminReviewsPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<SP>;
+}) {
   const { locale } = await params;
+  const sp = await searchParams;
   setRequestLocale(locale);
   const tb = pick(locale);
-  const reviews = await listReviews();
+  const status = one(sp.status);
+  const rating = one(sp.rating);
+  const q = one(sp.q);
+  const reviews = await listReviews({ status, rating, q });
   const ai = await aiConfigured();
 
   return (
     <div className="p-6">
       <header className="mb-6 flex items-center justify-between">
         <h1 className="font-heading text-xl font-semibold">{tb('Reviews', 'المراجعات')} ({reviews.length})</h1>
-        <ExportBar entity="reviews" locale={locale} query="" />
+        <ExportBar entity="reviews" locale={locale} query={exportQs(sp)} />
       </header>
+      <FilterBar
+        locale={locale}
+        path="reviews"
+        values={{ q, status, rating }}
+        fields={[
+          { name: 'q', label: tb('Search', 'بحث'), type: 'text', placeholder: tb('Search', 'بحث') },
+          { name: 'status', label: tb('Status', 'الحالة'), type: 'select', options: ['PENDING', 'APPROVED', 'REJECTED'].map((s) => ({ value: s, label: s })) },
+          { name: 'rating', label: tb('Rating', 'التقييم'), type: 'select', options: [1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: String(n) })) },
+        ]}
+      />
       <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-sm">
           <thead className="bg-surface text-xs uppercase text-muted-foreground">

@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
 import { egpToPiastres } from '@/lib/format';
+import type { Prisma } from '@/generated/prisma/client';
 
 /** Returns & refunds (FR-RET-*). Returned stock goes to QUARANTINE for pharmacist
  *  review (re-shelf to the correct lot or write off — never auto-resell). */
@@ -14,8 +15,15 @@ export async function requestReturn(orderId: string, customerId: string | null, 
   return ret;
 }
 
-export const listReturns = () =>
-  prisma.return.findMany({ include: { order: { select: { number: true } }, items: true }, orderBy: { createdAt: 'desc' } });
+export const listReturns = ({ status, q }: { status?: string; q?: string } = {}) =>
+  prisma.return.findMany({
+    where: {
+      ...(status ? { status: status as Prisma.ReturnWhereInput['status'] } : {}),
+      ...(q ? { order: { number: { contains: q, mode: 'insensitive' } } } : {}),
+    },
+    include: { order: { select: { number: true } }, items: true },
+    orderBy: { createdAt: 'desc' },
+  });
 
 export const getReturn = (id: string) =>
   prisma.return.findUnique({ where: { id }, include: { order: { select: { number: true } }, items: { include: { orderItem: { include: { product: { select: { nameEn: true } }, lot: true } } } } } });

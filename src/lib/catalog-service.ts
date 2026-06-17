@@ -100,13 +100,17 @@ function scalarFields(data: z.infer<typeof productWriteSchema>) {
   };
 }
 
-export async function listProducts(opts: { search?: string; status?: string } = {}) {
+export async function listProducts(
+  opts: { search?: string; status?: string; kind?: string; brand?: string } = {},
+) {
   return prisma.product.findMany({
     where: {
       ...(opts.search
         ? { OR: [{ nameEn: { contains: opts.search, mode: 'insensitive' } }, { sku: { contains: opts.search, mode: 'insensitive' } }] }
         : {}),
       ...(opts.status ? { status: opts.status as 'DRAFT' | 'PUBLISHED' | 'PRIVATE' | 'ARCHIVED' } : {}),
+      ...(opts.kind ? { kind: opts.kind as 'SUPPLEMENT' | 'DEVICE' | 'INJECTION' } : {}),
+      ...(opts.brand ? { brandId: opts.brand } : {}),
     },
     include: { brand: true, images: { take: 1, orderBy: { sortOrder: 'asc' } } },
     orderBy: { updatedAt: 'desc' },

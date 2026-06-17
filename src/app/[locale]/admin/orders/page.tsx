@@ -3,8 +3,9 @@ import { Link } from '@/i18n/navigation';
 import { listOrders } from '@/lib/order-service';
 import { ORDER_STATUSES } from '@/lib/order-status';
 import { formatEGP } from '@/lib/format';
-import { StatusBadge, inputCls } from '@/components/admin/ui';
+import { StatusBadge } from '@/components/admin/ui';
 import { ExportBar, exportQs } from '@/components/admin/export-bar';
+import { FilterBar } from '@/components/admin/filter-bar';
 import { pick } from '@/lib/admin-i18n';
 
 type SP = Record<string, string | string[] | undefined>;
@@ -21,9 +22,13 @@ export default async function OrdersPage({
   const sp = await searchParams;
   setRequestLocale(locale);
   const tb = pick(locale);
+  const q = one(sp.q);
   const status = one(sp.status);
+  const payment = one(sp.payment);
   const payCheck = one(sp.payCheck);
-  const orders = await listOrders({ status, payCheck });
+  const from = one(sp.from);
+  const to = one(sp.to);
+  const orders = await listOrders({ q, status, payment, payCheck, from, to });
 
   return (
     <div className="p-6">
@@ -33,19 +38,21 @@ export default async function OrdersPage({
           <Link href="/admin/orders/new" className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">{tb('New order', 'طلب جديد')}</Link>
           <ExportBar entity="orders" locale={locale} query={exportQs(sp)} />
         </div>
-        <form className="flex flex-wrap items-end gap-2 text-sm">
-          <select name="status" defaultValue={status ?? ''} className={`${inputCls} w-44`}>
-            <option value="">{tb('All statuses', 'كل الحالات')}</option>
-            {ORDER_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-          <select name="payCheck" defaultValue={payCheck ?? ''} className={`${inputCls} w-36`}>
-            <option value="">{tb('Payment check', 'مراجعة الدفع')}</option>
-            {['NO', 'YES', 'PROBLEM'].map((p) => <option key={p} value={p}>{p}</option>)}
-          </select>
-          <button className="rounded-md border border-border px-3 py-2 hover:bg-surface">{tb('Filter', 'تصفية')}</button>
-          <a href={`/api/admin/orders/export`} className="rounded-md bg-slate px-3 py-2 font-medium text-slate-foreground">{tb('Export CSV', 'تصدير CSV')}</a>
-        </form>
       </header>
+
+      <FilterBar
+        locale={locale}
+        path="orders"
+        values={{ q, status, payment, payCheck, from, to }}
+        fields={[
+          { name: 'q', label: tb('Order number', 'رقم الطلب'), type: 'text', placeholder: tb('Order number', 'رقم الطلب') },
+          { name: 'status', label: tb('Status', 'الحالة'), type: 'select', options: ORDER_STATUSES.map((s) => ({ value: s, label: s })) },
+          { name: 'payment', label: tb('Payment', 'الدفع'), type: 'select', options: ['COD', 'POS_ON_DELIVERY', 'KASHIER', 'BANK_TRANSFER', 'WALLET'].map((p) => ({ value: p, label: p })) },
+          { name: 'payCheck', label: tb('Payment check', 'مراجعة الدفع'), type: 'select', options: ['NO', 'YES', 'PROBLEM'].map((p) => ({ value: p, label: p })) },
+          { name: 'from', label: tb('From', 'من'), type: 'date' },
+          { name: 'to', label: tb('To', 'إلى'), type: 'date' },
+        ]}
+      />
 
       <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-sm">

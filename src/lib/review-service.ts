@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requirePermission, getCurrentUser } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
 import { summarizeReviews } from '@/lib/ai';
-import type { ReviewStatus } from '@/generated/prisma/client';
+import type { Prisma } from '@/generated/prisma/client';
 
 /** Reviews (FR-REV-*): customer submission with photos/videos, moderation, and
  *  an AI-generated summary cached on the product. */
@@ -34,13 +34,19 @@ export async function submitReview(raw: ReviewInput) {
   });
 }
 
-export const listReviews = (status?: ReviewStatus) =>
-  prisma.review.findMany({
-    where: status ? { status } : {},
+export const listReviews = ({ status, rating, q }: { status?: string; rating?: string; q?: string } = {}) => {
+  const where: Prisma.ReviewWhereInput = {};
+  if (status) where.status = status as Prisma.ReviewWhereInput['status'];
+  const ratingNum = Number(rating);
+  if (rating && !Number.isNaN(ratingNum)) where.rating = ratingNum;
+  if (q) where.OR = [{ body: { contains: q, mode: 'insensitive' } }, { authorName: { contains: q, mode: 'insensitive' } }];
+  return prisma.review.findMany({
+    where,
     include: { product: { select: { id: true, nameEn: true, slugEn: true } }, media: true },
     orderBy: { createdAt: 'desc' },
     take: 200,
   });
+};
 
 export const getReview = (id: string) => prisma.review.findUnique({ where: { id }, include: { product: true, media: true } });
 

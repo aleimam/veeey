@@ -24,7 +24,11 @@ const brandSchema = z.object({
 });
 export type BrandInput = z.input<typeof brandSchema>;
 
-export const listBrands = () => prisma.brand.findMany({ orderBy: { nameEn: 'asc' } });
+export const listBrands = ({ q }: { q?: string } = {}) =>
+  prisma.brand.findMany({
+    where: q ? { nameEn: { contains: q, mode: 'insensitive' } } : undefined,
+    orderBy: { nameEn: 'asc' },
+  });
 export const getBrand = (id: string) => prisma.brand.findUnique({ where: { id } });
 
 export async function saveBrand(id: string | null, raw: BrandInput) {
@@ -58,8 +62,12 @@ const categorySchema = z.object({
 });
 export type CategoryInput = z.input<typeof categorySchema>;
 
-export const listCategories = () =>
-  prisma.category.findMany({ include: { parent: true }, orderBy: { nameEn: 'asc' } });
+export const listCategories = ({ q }: { q?: string } = {}) =>
+  prisma.category.findMany({
+    where: q ? { nameEn: { contains: q, mode: 'insensitive' } } : undefined,
+    include: { parent: true },
+    orderBy: { nameEn: 'asc' },
+  });
 export const getCategory = (id: string) => prisma.category.findUnique({ where: { id } });
 
 export async function saveCategory(id: string | null, raw: CategoryInput) {

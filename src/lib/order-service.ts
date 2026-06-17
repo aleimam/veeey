@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { randomInt } from 'node:crypto';
+import type { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
@@ -43,12 +44,22 @@ async function notifyOrder(orderId: string, templateKey: string) {
 /** Order management & fulfillment (FR-ORD-*). Status changes are guarded by the
  *  transition map; edit-in-Hold keeps stock correct via the movement ledger. */
 
-export function listOrders(opts: { status?: string; payCheck?: string; search?: string } = {}) {
+export function listOrders(opts: { status?: string; payment?: string; payCheck?: string; search?: string; q?: string; from?: string; to?: string } = {}) {
   return prisma.order.findMany({
     where: {
       ...(opts.status ? { status: opts.status as OrderStatus } : {}),
+      ...(opts.payment ? { paymentMethod: opts.payment as Prisma.OrderWhereInput['paymentMethod'] } : {}),
       ...(opts.payCheck ? { payCheck: opts.payCheck as 'NO' | 'YES' | 'PROBLEM' } : {}),
+      ...(opts.q ? { number: { contains: opts.q, mode: 'insensitive' } } : {}),
       ...(opts.search ? { OR: [{ number: { contains: opts.search, mode: 'insensitive' } }, { guestEmail: { contains: opts.search, mode: 'insensitive' } }] } : {}),
+      ...(opts.from || opts.to
+        ? {
+            placedAt: {
+              ...(opts.from ? { gte: new Date(opts.from) } : {}),
+              ...(opts.to ? { lte: new Date(`${opts.to}T23:59:59`) } : {}),
+            },
+          }
+        : {}),
     },
     include: { pharmacist: { select: { name: true } }, customer: { include: { user: { select: { email: true } } } }, _count: { select: { items: true } } },
     orderBy: { placedAt: 'desc' },
