@@ -1,0 +1,40 @@
+'use server';
+
+import { redirect } from 'next/navigation';
+import { revalidatePath } from 'next/cache';
+import { requirePermission } from '@/lib/auth-guards';
+import { prisma } from '@/lib/prisma';
+import { setTracking } from '@/lib/order-service';
+import { createAramexShipment, trackAramex } from '@/lib/carriers/aramex';
+
+const localeOf = (fd: FormData) => (fd.get('locale') === 'ar' ? 'ar' : 'en');
+const str = (fd: FormData, k: string) => { const v = fd.get(k); return typeof v === 'string' ? v.trim() : ''; };
+
+/** Create an Aramex shipment for an order → AWB + label; marks it shipped. */
+export async function createAramexShipmentAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const id = str(fd, 'orderId');
+  await requirePermission('orders.fulfill');
+  const order = await prisma.order.findUnique({ where: { id } });
+  if (!order) redirect(`/${locale}/admin/orders`);
+
+  const r = await createAramexShipment({ number: order.number, totalPiastres: order.totalPiastres, paymentMethod: order.paymentMethod, shippingAddressJson: order.shippingAddressJson });
+  if (!r.ok) {
+    revalidatePath(`/${locale}/admin/orders/${id}`);
+    redirect(`/${locale}/admin/orders/${id}?shiperr=${encodeURIComponent(r.error)}`);
+  }
+  await setTracking(id, r.awb, 'ARAMEX'); // sets SHIPPED + notifies
+  revalidatePath(`/${locale}/admin/orders/${id}`);
+  redirect(`/${locale}/admin/orders/${id}?shipok=1${r.labelUrl ? `&label=${encodeURIComponent(r.labelUrl)}` : ''}`);
+}
+
+/** Fetch the latest Aramex tracking status for the order's waybill. */
+export async function trackAramexAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const id = str(fd, 'orderId');
+  const awb = str(fd, 'awb');
+  await requirePermission('orders.read');
+  const r = await trackAramex(awb);
+  const last = r.ok && r.updates && r.updates.length ? r.updates[0].status : (r.error ?? 'no_updates');
+  redirect(`/${locale}/admin/orders/${id}?track=${encodeURIComponent(String(last).slice(0, 90))}`);
+}

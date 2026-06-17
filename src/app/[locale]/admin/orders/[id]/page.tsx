@@ -7,26 +7,37 @@ import { listProducts } from '@/lib/catalog-service';
 import { ALLOWED_TRANSITIONS, type OrderStatus } from '@/lib/order-status';
 import { formatEGP } from '@/lib/format';
 import { StatusBadge, inputCls } from '@/components/admin/ui';
+import { aramexConfigured } from '@/lib/provider-config';
 import { pick } from '@/lib/admin-i18n';
 import {
   transitionOrderAction, assignPharmacistAction, setPayCheckAction, setOrderMetaAction,
   setTrackingAction, addOrderItemAction, removeOrderItemAction, addGiftToOrderAction,
 } from '@/server/order-actions';
+import { createAramexShipmentAction, trackAramexAction } from '@/server/carrier-actions';
+
+type SP = Record<string, string | string[] | undefined>;
+const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
 const monthYear = (d: Date | null) => (d ? `${String(d.getUTCMonth() + 1).padStart(2, '0')}/${d.getUTCFullYear()}` : '—');
 
-export default async function OrderDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
+export default async function OrderDetailPage({ params, searchParams }: { params: Promise<{ locale: string; id: string }>; searchParams: Promise<SP> }) {
   const { locale, id } = await params;
+  const sp = await searchParams;
   setRequestLocale(locale);
   const tb = pick(locale);
   const order = await getOrder(id);
   if (!order) notFound();
 
-  const [staff, gifts, products] = await Promise.all([
+  const [staff, gifts, products, aramexOn] = await Promise.all([
     prisma.user.findMany({ where: { roleId: { not: null } }, select: { id: true, name: true, email: true } }),
     listGifts(),
     listProducts(),
+    aramexConfigured(),
   ]);
+  const shipErr = one(sp.shiperr);
+  const shipOk = one(sp.shipok) === '1';
+  const labelUrl = one(sp.label);
+  const trackMsg = one(sp.track);
   const editable = (['HOLD', 'EDIT', 'PROCESSING', 'PENDING_CONFIRMATION'] as string[]).includes(order.status);
   const transitions = ALLOWED_TRANSITIONS[order.status as OrderStatus] ?? [];
   const hidden = (extra: Record<string, string>) =>
@@ -133,6 +144,30 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ lo
             </select>
             <button className="mt-2 w-full rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground">{tb('Add tracking', 'إضافة تتبع')}</button>
           </form>
+
+          {aramexOn && (
+            <div className="rounded-lg border border-border p-4">
+              <p className="mb-2 font-medium">{tb('Aramex', 'Aramex')}</p>
+              {shipOk && <p className="mb-2 rounded-md bg-primary/10 px-2 py-1 text-xs text-primary">{tb('Shipment created.', 'تم إنشاء الشحنة.')}</p>}
+              {shipErr && <p className="mb-2 rounded-md bg-destructive/10 px-2 py-1 text-xs text-destructive">{tb('Aramex error: ', 'خطأ Aramex: ')}{shipErr}</p>}
+              {trackMsg && <p className="mb-2 rounded-md bg-gold/15 px-2 py-1 text-xs text-slate">{tb('Status: ', 'الحالة: ')}{trackMsg}</p>}
+              {order.courier === 'ARAMEX' && order.trackingNumber ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">{tb('AWB', 'بوليصة الشحن')}: <span className="font-medium text-foreground">{order.trackingNumber}</span></p>
+                  {labelUrl && <a href={labelUrl} target="_blank" rel="noreferrer" className="block rounded-md border border-border px-3 py-1.5 text-center text-sm hover:bg-surface">{tb('Print label', 'طباعة الملصق')}</a>}
+                  <form action={trackAramexAction}>
+                    {hidden({ awb: order.trackingNumber })}
+                    <button className="w-full rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface">{tb('Refresh tracking', 'تحديث التتبع')}</button>
+                  </form>
+                </div>
+              ) : (
+                <form action={createAramexShipmentAction}>
+                  {hidden({})}
+                  <button className="w-full rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">{tb('Create Aramex shipment', 'إنشاء شحنة Aramex')}</button>
+                </form>
+              )}
+            </div>
+          )}
 
           <form action={setOrderMetaAction} className="rounded-lg border border-border p-4">
             {hidden({})}
