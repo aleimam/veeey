@@ -7,13 +7,13 @@ import { listProducts } from '@/lib/catalog-service';
 import { ALLOWED_TRANSITIONS, type OrderStatus } from '@/lib/order-status';
 import { formatEGP } from '@/lib/format';
 import { StatusBadge, inputCls } from '@/components/admin/ui';
-import { aramexConfigured } from '@/lib/provider-config';
+import { aramexConfigured, smsaConfigured } from '@/lib/provider-config';
 import { pick } from '@/lib/admin-i18n';
 import {
   transitionOrderAction, assignPharmacistAction, setPayCheckAction, setOrderMetaAction,
   setTrackingAction, addOrderItemAction, removeOrderItemAction, addGiftToOrderAction,
 } from '@/server/order-actions';
-import { createAramexShipmentAction, trackAramexAction } from '@/server/carrier-actions';
+import { createAramexShipmentAction, trackAramexAction, createSmsaShipmentAction, trackSmsaAction } from '@/server/carrier-actions';
 
 type SP = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
@@ -28,11 +28,12 @@ export default async function OrderDetailPage({ params, searchParams }: { params
   const order = await getOrder(id);
   if (!order) notFound();
 
-  const [staff, gifts, products, aramexOn] = await Promise.all([
+  const [staff, gifts, products, aramexOn, smsaOn] = await Promise.all([
     prisma.user.findMany({ where: { roleId: { not: null } }, select: { id: true, name: true, email: true } }),
     listGifts(),
     listProducts(),
     aramexConfigured(),
+    smsaConfigured(),
   ]);
   const shipErr = one(sp.shiperr);
   const shipOk = one(sp.shipok) === '1';
@@ -164,6 +165,27 @@ export default async function OrderDetailPage({ params, searchParams }: { params
                 <form action={createAramexShipmentAction}>
                   {hidden({})}
                   <button className="w-full rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">{tb('Create Aramex shipment', 'إنشاء شحنة Aramex')}</button>
+                </form>
+              )}
+            </div>
+          )}
+
+          {smsaOn && (
+            <div className="rounded-lg border border-border p-4">
+              <p className="mb-2 font-medium">{tb('SMSA', 'SMSA')}</p>
+              {order.courier === 'SMSA' && order.trackingNumber ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">{tb('AWB', 'بوليصة الشحن')}: <span className="font-medium text-foreground">{order.trackingNumber}</span></p>
+                  <a href={`/api/admin/carriers/smsa-label?awb=${encodeURIComponent(order.trackingNumber)}`} target="_blank" rel="noreferrer" className="block rounded-md border border-border px-3 py-1.5 text-center text-sm hover:bg-surface">{tb('Print label', 'طباعة الملصق')}</a>
+                  <form action={trackSmsaAction}>
+                    {hidden({ awb: order.trackingNumber })}
+                    <button className="w-full rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface">{tb('Refresh tracking', 'تحديث التتبع')}</button>
+                  </form>
+                </div>
+              ) : (
+                <form action={createSmsaShipmentAction}>
+                  {hidden({})}
+                  <button className="w-full rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">{tb('Create SMSA shipment', 'إنشاء شحنة SMSA')}</button>
                 </form>
               )}
             </div>

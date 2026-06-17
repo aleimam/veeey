@@ -282,7 +282,7 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
       <section className="mt-10 max-w-2xl">
         <h2 className="mb-1 font-heading text-lg font-semibold">{tb('Shipping — SMSA', 'الشحن — SMSA')}</h2>
         <p className="mb-4 text-sm text-muted-foreground">
-          {tb('Status', 'الحالة')}: {smsaOn ? tb('✓ configured', '✓ مُهيّأ') : tb('— not configured', '— غير مُهيّأ')}. {tb('Store your credentials now; SMSA shipment creation is wired once you provide the REST API docs.', 'احفظ بياناتك الآن؛ يُفعَّل إنشاء شحنات SMSA بمجرد تزويدنا بوثائق واجهة REST.')}
+          {tb('Status', 'الحالة')}: {smsaOn ? tb('✓ configured', '✓ مُهيّأ') : tb('— not configured', '— غير مُهيّأ')}. {tb('SMSA SOAP web service (pass key). Create shipments + labels and track from an order.', 'خدمة SMSA عبر SOAP (مفتاح المرور). أنشئ الشحنات والملصقات وتتبّعها من صفحة الطلب.')}
         </p>
         <form action={saveSmsaConfigAction} className="space-y-4 rounded-lg border border-border p-4">
           <input type="hidden" name="locale" value={locale} />
