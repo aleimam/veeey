@@ -1,6 +1,6 @@
 import { setRequestLocale } from 'next-intl/server';
-import { getSmtpFormValues, emailConfigured, getAiFormValues, aiConfigured, getSmsFormValues, smsConfigured, getWhatsappFormValues, getOpayFormValues, opayConfigured, getKashierFormValues, kashierConfigured } from '@/lib/provider-config';
-import { saveSmtpConfigAction, clearSmtpConfigAction, sendTestEmailAction, saveAiConfigAction, clearAiConfigAction, saveSmsConfigAction, clearSmsConfigAction, sendTestSmsAction, saveWhatsappConfigAction, clearWhatsappConfigAction, saveOpayConfigAction, clearOpayConfigAction, saveKashierConfigAction, clearKashierConfigAction } from '@/server/provider-actions';
+import { getSmtpFormValues, emailConfigured, getAiFormValues, aiConfigured, getSmsFormValues, smsConfigured, getWhatsappFormValues, getOpayFormValues, opayConfigured, getKashierFormValues, kashierConfigured, getAramexFormValues, aramexConfigured, getSmsaFormValues, smsaConfigured } from '@/lib/provider-config';
+import { saveSmtpConfigAction, clearSmtpConfigAction, sendTestEmailAction, saveAiConfigAction, clearAiConfigAction, saveSmsConfigAction, clearSmsConfigAction, sendTestSmsAction, saveWhatsappConfigAction, clearWhatsappConfigAction, saveOpayConfigAction, clearOpayConfigAction, saveKashierConfigAction, clearKashierConfigAction, saveAramexConfigAction, clearAramexConfigAction, saveSmsaConfigAction, clearSmsaConfigAction } from '@/server/provider-actions';
 import { inputCls } from '@/components/admin/ui';
 import { pick } from '@/lib/admin-i18n';
 
@@ -12,9 +12,10 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
   const sp = await searchParams;
   setRequestLocale(locale);
   const tb = pick(locale);
-  const [smtp, configured, ai, aiOn, sms, smsOn, wa, opay, opayOn, kashier, kashierOn] = await Promise.all([
+  const [smtp, configured, ai, aiOn, sms, smsOn, wa, opay, opayOn, kashier, kashierOn, aramex, aramexOn, smsa, smsaOn] = await Promise.all([
     getSmtpFormValues(), emailConfigured(), getAiFormValues(), aiConfigured(), getSmsFormValues(), smsConfigured(), getWhatsappFormValues(),
     getOpayFormValues(), opayConfigured(), getKashierFormValues(), kashierConfigured(),
+    getAramexFormValues(), aramexConfigured(), getSmsaFormValues(), smsaConfigured(),
   ]);
   const test = one(sp.test);
   const smsTest = one(sp.smstest);
@@ -235,6 +236,75 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
           </div>
         </form>
         <p className="mt-2 text-xs text-muted-foreground">{tb('In the Kashier dashboard, set the webhook URL to ', 'في لوحة تحكم Kashier اضبط رابط الويب هوك على ')}<code className="rounded bg-surface px-1">{site}/api/payments/webhook/kashier</code>{tb('. The card method uses the gateway selected in Settings ← Payments (default: automatic).', '. تستخدم طريقة البطاقة البوابة المختارة في الإعدادات ← المدفوعات (الافتراضي: تلقائي).')}</p>
+      </section>
+
+      <section className="mt-10 max-w-2xl">
+        <h2 className="mb-1 font-heading text-lg font-semibold">{tb('Shipping — Aramex', 'الشحن — Aramex')}</h2>
+        <p className="mb-4 text-sm text-muted-foreground">
+          {tb('Status', 'الحالة')}: {aramexOn ? tb('✓ configured', '✓ مُهيّأ') : tb('— not configured', '— غير مُهيّأ')}. {tb('From your Aramex account (Shipping Services API). Keep Environment on Test until you go live.', 'من حساب Aramex (واجهة خدمات الشحن). أبقِ البيئة على «اختبار» حتى الانتقال للتشغيل.')}
+        </p>
+        <form action={saveAramexConfigAction} className="space-y-4 rounded-lg border border-border p-4">
+          <input type="hidden" name="locale" value={locale} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="text-sm font-medium">{tb('Environment', 'البيئة')}
+              <select name="environment" defaultValue={aramex.environment} className={inputCls}>
+                <option value="test">{tb('Test', 'اختبار')}</option>
+                <option value="live">{tb('Live', 'مباشر')}</option>
+              </select>
+            </label>
+            <label className="text-sm font-medium">{tb('Username', 'اسم المستخدم')}
+              <input name="username" defaultValue={aramex.username} autoComplete="off" className={inputCls} />
+            </label>
+            <label className="text-sm font-medium">{tb('Password', 'كلمة المرور')}
+              <input name="password" type="password" autoComplete="new-password" placeholder={aramex.hasPassword ? '•••••••• ' + tb('(stored — blank keeps it)', '(مُخزَّنة — اتركها فارغة للإبقاء عليها)') : ''} className={inputCls} />
+            </label>
+            <label className="text-sm font-medium">{tb('Account number', 'رقم الحساب')}
+              <input name="accountNumber" defaultValue={aramex.accountNumber} autoComplete="off" className={inputCls} />
+            </label>
+            <label className="text-sm font-medium">{tb('Account PIN', 'رقم PIN للحساب')}
+              <input name="accountPin" type="password" autoComplete="new-password" placeholder={aramex.hasPin ? '•••• ' + tb('(stored — blank keeps it)', '(مُخزَّن — اتركه فارغًا للإبقاء عليه)') : ''} className={inputCls} />
+            </label>
+            <label className="text-sm font-medium">{tb('Account entity', 'كيان الحساب')}
+              <input name="accountEntity" defaultValue={aramex.accountEntity} placeholder="CAI" className={inputCls} />
+            </label>
+            <label className="text-sm font-medium">{tb('Account country code', 'رمز دولة الحساب')}
+              <input name="accountCountryCode" defaultValue={aramex.accountCountryCode} placeholder="EG" className={inputCls} />
+            </label>
+          </div>
+          <div className="flex items-center gap-3">
+            <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">{tb('Save Aramex settings', 'حفظ إعدادات Aramex')}</button>
+            <button formAction={clearAramexConfigAction} className="rounded-md border border-border px-3 py-2 text-sm text-destructive hover:bg-surface">{tb('Clear', 'مسح')}</button>
+          </div>
+        </form>
+        <p className="mt-2 text-xs text-muted-foreground">{tb('Create shipments + labels and track from an order in Orders. Saving keys here readies it.', 'أنشئ الشحنات والملصقات وتتبّعها من صفحة الطلب في «الطلبات». حفظ المفاتيح هنا يجهّزها.')}</p>
+      </section>
+
+      <section className="mt-10 max-w-2xl">
+        <h2 className="mb-1 font-heading text-lg font-semibold">{tb('Shipping — SMSA', 'الشحن — SMSA')}</h2>
+        <p className="mb-4 text-sm text-muted-foreground">
+          {tb('Status', 'الحالة')}: {smsaOn ? tb('✓ configured', '✓ مُهيّأ') : tb('— not configured', '— غير مُهيّأ')}. {tb('Store your credentials now; SMSA shipment creation is wired once you provide the REST API docs.', 'احفظ بياناتك الآن؛ يُفعَّل إنشاء شحنات SMSA بمجرد تزويدنا بوثائق واجهة REST.')}
+        </p>
+        <form action={saveSmsaConfigAction} className="space-y-4 rounded-lg border border-border p-4">
+          <input type="hidden" name="locale" value={locale} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="text-sm font-medium">{tb('Environment', 'البيئة')}
+              <select name="environment" defaultValue={smsa.environment} className={inputCls}>
+                <option value="test">{tb('Test', 'اختبار')}</option>
+                <option value="live">{tb('Live', 'مباشر')}</option>
+              </select>
+            </label>
+            <label className="text-sm font-medium">{tb('API key', 'مفتاح API')}
+              <input name="apiKey" type="password" autoComplete="new-password" placeholder={smsa.hasApiKey ? '•••••••• ' + tb('(stored — blank keeps it)', '(مُخزَّن — اتركه فارغًا للإبقاء عليه)') : ''} className={inputCls} />
+            </label>
+            <label className="text-sm font-medium">{tb('Pass key (SOAP)', 'مفتاح المرور (SOAP)')}
+              <input name="passKey" type="password" autoComplete="new-password" placeholder={smsa.hasPassKey ? '•••••••• ' + tb('(stored — blank keeps it)', '(مُخزَّن — اتركه فارغًا للإبقاء عليه)') : ''} className={inputCls} />
+            </label>
+          </div>
+          <div className="flex items-center gap-3">
+            <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">{tb('Save SMSA settings', 'حفظ إعدادات SMSA')}</button>
+            <button formAction={clearSmsaConfigAction} className="rounded-md border border-border px-3 py-2 text-sm text-destructive hover:bg-surface">{tb('Clear', 'مسح')}</button>
+          </div>
+        </form>
       </section>
     </div>
   );

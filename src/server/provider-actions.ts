@@ -2,7 +2,7 @@
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { saveSmtpConfig, clearSmtpConfig, saveAiConfig, clearAiConfig, saveSmsConfig, clearSmsConfig, saveWhatsappConfig, clearWhatsappConfig, saveOpayConfig, clearOpayConfig, saveKashierConfig, clearKashierConfig } from '@/lib/provider-config-service';
+import { saveSmtpConfig, clearSmtpConfig, saveAiConfig, clearAiConfig, saveSmsConfig, clearSmsConfig, saveWhatsappConfig, clearWhatsappConfig, saveOpayConfig, clearOpayConfig, saveKashierConfig, clearKashierConfig, saveAramexConfig, clearAramexConfig, saveSmsaConfig, clearSmsaConfig } from '@/lib/provider-config-service';
 import { requirePermission } from '@/lib/auth-guards';
 import { dispatchEmail, dispatchSms } from '@/lib/notification-dispatch';
 
@@ -173,6 +173,58 @@ export async function saveKashierConfigAction(fd: FormData): Promise<void> {
 export async function clearKashierConfigAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
   try { await clearKashierConfig(); } catch (e) { console.error('kashier clear failed', e); }
+  revalidatePath(`/${locale}/admin/providers`);
+  redirect(`/${locale}/admin/providers?cleared=1`);
+}
+
+// ---- Shipping carrier: Aramex ----------------------------------------------
+export async function saveAramexConfigAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  try {
+    await saveAramexConfig({
+      'aramex.username': str(fd, 'username'),
+      'aramex.password': str(fd, 'password'),
+      'aramex.accountNumber': str(fd, 'accountNumber'),
+      'aramex.accountPin': str(fd, 'accountPin'),
+      'aramex.accountEntity': str(fd, 'accountEntity') || 'CAI',
+      'aramex.accountCountryCode': str(fd, 'accountCountryCode') || 'EG',
+      'aramex.environment': str(fd, 'environment') || 'test',
+    });
+  } catch (e) {
+    console.error('aramex save failed', e);
+    revalidatePath(`/${locale}/admin/providers`);
+    redirect(`/${locale}/admin/providers?error=1`);
+  }
+  revalidatePath(`/${locale}/admin/providers`);
+  redirect(`/${locale}/admin/providers?saved=1`);
+}
+export async function clearAramexConfigAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  try { await clearAramexConfig(); } catch (e) { console.error('aramex clear failed', e); }
+  revalidatePath(`/${locale}/admin/providers`);
+  redirect(`/${locale}/admin/providers?cleared=1`);
+}
+
+// ---- Shipping carrier: SMSA ------------------------------------------------
+export async function saveSmsaConfigAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  try {
+    await saveSmsaConfig({
+      'smsa.apiKey': str(fd, 'apiKey'),
+      'smsa.passKey': str(fd, 'passKey'),
+      'smsa.environment': str(fd, 'environment') || 'test',
+    });
+  } catch (e) {
+    console.error('smsa save failed', e);
+    revalidatePath(`/${locale}/admin/providers`);
+    redirect(`/${locale}/admin/providers?error=1`);
+  }
+  revalidatePath(`/${locale}/admin/providers`);
+  redirect(`/${locale}/admin/providers?saved=1`);
+}
+export async function clearSmsaConfigAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  try { await clearSmsaConfig(); } catch (e) { console.error('smsa clear failed', e); }
   revalidatePath(`/${locale}/admin/providers`);
   redirect(`/${locale}/admin/providers?cleared=1`);
 }

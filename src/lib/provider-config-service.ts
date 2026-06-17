@@ -12,7 +12,7 @@ import { audit } from '@/lib/audit';
 export * from '@/lib/provider-config';
 
 const PERM = 'settings.manage';
-const SECRET_KEYS = new Set(['smtp.pass', 'ai.apiKey', 'sms.password', 'wa.token', 'opay.privateKey', 'kashier.apiKey', 'kashier.secretKey']);
+const SECRET_KEYS = new Set(['smtp.pass', 'ai.apiKey', 'sms.password', 'wa.token', 'opay.privateKey', 'kashier.apiKey', 'kashier.secretKey', 'aramex.password', 'aramex.accountPin', 'smsa.apiKey', 'smsa.passKey']);
 
 async function saveKeys(keys: string[], values: Record<string, string>, prefix: string, action: string) {
   const user = await requirePermission(PERM);
@@ -84,4 +84,24 @@ export async function clearKashierConfig() {
   const user = await requirePermission(PERM);
   await prisma.setting.deleteMany({ where: { key: { startsWith: 'kashier.' } } });
   await audit({ actorType: 'USER', actorId: user.id, action: 'provider.kashier.clear', entityType: 'Setting', entityId: 'kashier.*' });
+}
+
+// ---- Shipping carrier: Aramex ----------------------------------------------
+export function saveAramexConfig(values: Record<string, string>) {
+  return saveKeys(['aramex.username', 'aramex.accountNumber', 'aramex.accountEntity', 'aramex.accountCountryCode', 'aramex.environment', 'aramex.password', 'aramex.accountPin'], values, 'aramex.', 'provider.aramex.update');
+}
+export async function clearAramexConfig() {
+  const user = await requirePermission(PERM);
+  await prisma.setting.deleteMany({ where: { key: { startsWith: 'aramex.' } } });
+  await audit({ actorType: 'USER', actorId: user.id, action: 'provider.aramex.clear', entityType: 'Setting', entityId: 'aramex.*' });
+}
+
+// ---- Shipping carrier: SMSA ------------------------------------------------
+export function saveSmsaConfig(values: Record<string, string>) {
+  return saveKeys(['smsa.environment', 'smsa.apiKey', 'smsa.passKey'], values, 'smsa.', 'provider.smsa.update');
+}
+export async function clearSmsaConfig() {
+  const user = await requirePermission(PERM);
+  await prisma.setting.deleteMany({ where: { key: { startsWith: 'smsa.' } } });
+  await audit({ actorType: 'USER', actorId: user.id, action: 'provider.smsa.clear', entityType: 'Setting', entityId: 'smsa.*' });
 }

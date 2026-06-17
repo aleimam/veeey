@@ -147,3 +147,56 @@ export async function getKashierFormValues() {
     hasSecret: !!m['kashier.secretKey'],
   };
 }
+
+// ---- Shipping carrier: Aramex (Shipping Services API) ----------------------
+// password + accountPin are secret; ClientInfo also needs entity + country code.
+export type AramexConfig = { username: string; password: string; accountNumber: string; accountPin: string; accountEntity: string; accountCountryCode: string; environment: string };
+
+export async function getAramexConfig(): Promise<AramexConfig | null> {
+  const m = await rawMap('aramex.');
+  const username = m['aramex.username'] || process.env.ARAMEX_USERNAME;
+  const password = m['aramex.password'] || process.env.ARAMEX_PASSWORD;
+  const accountNumber = m['aramex.accountNumber'] || process.env.ARAMEX_ACCOUNT_NUMBER;
+  const accountPin = m['aramex.accountPin'] || process.env.ARAMEX_ACCOUNT_PIN;
+  if (!username || !password || !accountNumber || !accountPin) return null;
+  return {
+    username,
+    password,
+    accountNumber,
+    accountPin,
+    accountEntity: m['aramex.accountEntity'] || process.env.ARAMEX_ACCOUNT_ENTITY || 'CAI',
+    accountCountryCode: m['aramex.accountCountryCode'] || process.env.ARAMEX_ACCOUNT_COUNTRY || 'EG',
+    environment: m['aramex.environment'] || process.env.ARAMEX_ENVIRONMENT || 'test',
+  };
+}
+export const aramexConfigured = async () => !!(await getAramexConfig());
+
+export async function getAramexFormValues() {
+  const m = await rawMap('aramex.');
+  return {
+    username: m['aramex.username'] ?? '',
+    accountNumber: m['aramex.accountNumber'] ?? '',
+    accountEntity: m['aramex.accountEntity'] ?? 'CAI',
+    accountCountryCode: m['aramex.accountCountryCode'] ?? 'EG',
+    environment: m['aramex.environment'] ?? 'test',
+    hasPassword: !!m['aramex.password'],
+    hasPin: !!m['aramex.accountPin'],
+  };
+}
+
+// ---- Shipping carrier: SMSA (config-only until the REST eCommerce docs) -----
+export type SmsaConfig = { apiKey: string; passKey: string; environment: string };
+
+export async function getSmsaConfig(): Promise<SmsaConfig | null> {
+  const m = await rawMap('smsa.');
+  const apiKey = m['smsa.apiKey'] || process.env.SMSA_API_KEY || '';
+  const passKey = m['smsa.passKey'] || process.env.SMSA_PASS_KEY || '';
+  if (!apiKey && !passKey) return null;
+  return { apiKey, passKey, environment: m['smsa.environment'] || process.env.SMSA_ENVIRONMENT || 'test' };
+}
+export const smsaConfigured = async () => !!(await getSmsaConfig());
+
+export async function getSmsaFormValues() {
+  const m = await rawMap('smsa.');
+  return { environment: m['smsa.environment'] ?? 'test', hasApiKey: !!m['smsa.apiKey'], hasPassKey: !!m['smsa.passKey'] };
+}
