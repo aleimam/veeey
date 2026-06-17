@@ -2,6 +2,7 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { listCategories } from '@/lib/taxonomy-service';
 import { AdminList } from '@/components/admin/resource-list';
 import { RowActions, ArchivedToggle, InUseNotice } from '@/components/admin/row-actions';
+import { ExportBar, exportQs } from '@/components/admin/export-bar';
 
 type SP = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
@@ -21,7 +22,7 @@ export default async function CategoriesPage({ params, searchParams }: { params:
       title={showingArchived ? `${tl('categories')} ${tc('archivedSuffix')}` : tl('categories')}
       newHref="/admin/categories/edit"
       head={[tf('name'), tf('parent'), tf('slug')]}
-      toolbar={<ArchivedToggle path="categories" showingArchived={showingArchived} />}
+      toolbar={<div className="flex items-center gap-3"><ExportBar entity="categories" locale={locale} query={exportQs(sp)} /><ArchivedToggle path="categories" showingArchived={showingArchived} /></div>}
       notice={<InUseNotice show={one(sp.error) === 'in_use'} />}
       rows={categories.map((c) => ({
         key: c.id,

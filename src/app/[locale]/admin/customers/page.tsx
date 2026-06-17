@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { assignTierAction } from '@/server/loyalty-actions';
 import { formatEGP } from '@/lib/format';
 import { inputCls } from '@/components/admin/ui';
+import { ExportBar } from '@/components/admin/export-bar';
 import { pick } from '@/lib/admin-i18n';
 
 export default async function CustomersPage({ params }: { params: Promise<{ locale: string }> }) {
@@ -16,7 +17,10 @@ export default async function CustomersPage({ params }: { params: Promise<{ loca
 
   return (
     <div className="p-6">
-      <h1 className="mb-6 font-heading text-xl font-semibold">{tb('Customers', 'العملاء')} ({customers.length})</h1>
+      <header className="mb-6 flex items-center justify-between">
+        <h1 className="font-heading text-xl font-semibold">{tb('Customers', 'العملاء')} ({customers.length})</h1>
+        <ExportBar entity="customers" locale={locale} query="" />
+      </header>
       <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-sm">
           <thead className="bg-surface text-xs uppercase text-muted-foreground">

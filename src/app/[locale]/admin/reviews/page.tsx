@@ -3,6 +3,7 @@ import { listReviews } from '@/lib/review-service';
 import { moderateReviewAction, regenSummaryAction } from '@/server/admin-play-actions';
 import { aiConfigured } from '@/lib/provider-config';
 import { StatusBadge } from '@/components/admin/ui';
+import { ExportBar } from '@/components/admin/export-bar';
 import { pick } from '@/lib/admin-i18n';
 
 export default async function AdminReviewsPage({ params }: { params: Promise<{ locale: string }> }) {
@@ -14,7 +15,10 @@ export default async function AdminReviewsPage({ params }: { params: Promise<{ l
 
   return (
     <div className="p-6">
-      <h1 className="mb-6 font-heading text-xl font-semibold">{tb('Reviews', 'المراجعات')} ({reviews.length})</h1>
+      <header className="mb-6 flex items-center justify-between">
+        <h1 className="font-heading text-xl font-semibold">{tb('Reviews', 'المراجعات')} ({reviews.length})</h1>
+        <ExportBar entity="reviews" locale={locale} query="" />
+      </header>
       <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-sm">
           <thead className="bg-surface text-xs uppercase text-muted-foreground">

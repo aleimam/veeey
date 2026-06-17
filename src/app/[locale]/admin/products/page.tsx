@@ -5,6 +5,7 @@ import { formatEGP } from '@/lib/format';
 import { StatusBadge } from '@/components/admin/ui';
 import { InUseNotice } from '@/components/admin/row-actions';
 import { deleteEntityAction } from '@/server/admin-actions';
+import { ExportBar, exportQs } from '@/components/admin/export-bar';
 import { pick } from '@/lib/admin-i18n';
 
 type SP = Record<string, string | string[] | undefined>;
@@ -27,9 +28,12 @@ export default async function ProductsPage({
     <div className="p-6">
       <header className="mb-6 flex items-center justify-between">
         <h1 className="font-heading text-xl font-semibold">{tb('Products', 'المنتجات')} ({products.length})</h1>
-        <Link href="/admin/products/edit" className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">
-          {tb('New product', 'منتج جديد')}
-        </Link>
+        <div className="flex items-center gap-2">
+          <ExportBar entity="products" locale={locale} query={exportQs(sp)} />
+          <Link href="/admin/products/edit" className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">
+            {tb('New product', 'منتج جديد')}
+          </Link>
+        </div>
       </header>
 
       <InUseNotice show={one(sp.error) === 'in_use'} />

@@ -4,6 +4,7 @@ import { listOrders } from '@/lib/order-service';
 import { ORDER_STATUSES } from '@/lib/order-status';
 import { formatEGP } from '@/lib/format';
 import { StatusBadge, inputCls } from '@/components/admin/ui';
+import { ExportBar, exportQs } from '@/components/admin/export-bar';
 import { pick } from '@/lib/admin-i18n';
 
 type SP = Record<string, string | string[] | undefined>;
@@ -30,6 +31,7 @@ export default async function OrdersPage({
         <div className="flex items-center gap-3">
           <h1 className="font-heading text-xl font-semibold">{tb('Orders', 'الطلبات')} ({orders.length})</h1>
           <Link href="/admin/orders/new" className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">{tb('New order', 'طلب جديد')}</Link>
+          <ExportBar entity="orders" locale={locale} query={exportQs(sp)} />
         </div>
         <form className="flex flex-wrap items-end gap-2 text-sm">
           <select name="status" defaultValue={status ?? ''} className={`${inputCls} w-44`}>
