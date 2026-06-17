@@ -211,19 +211,24 @@
         "shipping": "Shipping & delivery",
         "returns": "Returns",
         "contact": "Contact us",
-        "faq": "FAQ"
+        "faq": "FAQ",
+        "howToOrder": "How to order",
+        "payment": "Payment methods"
       },
       "policies": {
         "authenticity": "Authenticity guarantee",
         "privacy": "Privacy policy",
         "terms": "Terms of service",
-        "compensation": "Compensation policy"
+        "compensation": "Compensation policy",
+        "cookies": "Cookie policy"
       },
       "about": {
         "story": "Our story",
         "pharmacists": "Our pharmacists",
         "careers": "Careers",
-        "blog": "Blog"
+        "blog": "Blog",
+        "rewards": "Veeey rewards",
+        "wholesale": "Wholesale"
       }
     },
     "hero": {

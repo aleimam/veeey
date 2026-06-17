@@ -9,9 +9,9 @@ import { getAllSettings } from "@/lib/settings-service"
 
 const columns = [
   { key: "shop", links: ["vitamins", "devices", "brands", "offers", "specialOrder"] },
-  { key: "help", links: ["track", "shipping", "returns", "contact", "faq"] },
-  { key: "policies", links: ["authenticity", "privacy", "terms", "compensation"] },
-  { key: "about", links: ["story", "pharmacists", "careers", "blog"] },
+  { key: "help", links: ["howToOrder", "track", "shipping", "payment", "returns", "contact", "faq"] },
+  { key: "policies", links: ["authenticity", "privacy", "terms", "compensation", "cookies"] },
+  { key: "about", links: ["story", "pharmacists", "rewards", "wholesale", "careers", "blog"] },
 ]
 
 // Footer link → destination. CMS info pages live at /p/<slug>; functional ones
@@ -22,8 +22,10 @@ const HREFS: Record<string, string> = {
   "shop.brands": "/products",
   "shop.offers": "/products?offers=1",
   "shop.specialOrder": "/special-order",
-  "help.track": "/account",
+  "help.howToOrder": "/p/how-to-order",
+  "help.track": "/p/track-order",
   "help.shipping": "/p/shipping-delivery",
+  "help.payment": "/p/payment-methods",
   "help.returns": "/p/returns",
   "help.contact": "/p/contact",
   "help.faq": "/p/faq",
@@ -31,8 +33,11 @@ const HREFS: Record<string, string> = {
   "policies.privacy": "/p/privacy-policy",
   "policies.terms": "/p/terms-of-service",
   "policies.compensation": "/p/compensation-policy",
+  "policies.cookies": "/p/cookie-policy",
   "about.story": "/p/about",
   "about.pharmacists": "/p/our-pharmacists",
+  "about.rewards": "/p/loyalty-rewards",
+  "about.wholesale": "/p/wholesale",
   "about.careers": "/p/careers",
   "about.blog": "/blog",
 }

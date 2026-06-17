@@ -211,19 +211,24 @@
         "shipping": "الشحن والتوصيل",
         "returns": "الإرجاع",
         "contact": "تواصل معنا",
-        "faq": "الأسئلة الشائعة"
+        "faq": "الأسئلة الشائعة",
+        "howToOrder": "كيفية الطلب",
+        "payment": "طرق الدفع"
       },
       "policies": {
         "authenticity": "ضمان الأصالة",
         "privacy": "سياسة الخصوصية",
         "terms": "شروط الخدمة",
-        "compensation": "سياسة التعويض"
+        "compensation": "سياسة التعويض",
+        "cookies": "سياسة ملفات تعريف الارتباط"
       },
       "about": {
         "story": "قصتنا",
         "pharmacists": "صيادلتنا",
         "careers": "الوظائف",
-        "blog": "المدوّنة"
+        "blog": "المدوّنة",
+        "rewards": "مكافآت Veeey",
+        "wholesale": "الجملة"
       }
     },
     "hero": {
