@@ -18,6 +18,7 @@ export function ExportBar({ entity, locale, query = '' }: { entity: string; loca
   return (
     <div className="flex flex-wrap items-center gap-2">
       <a href={`/api/admin/export/${entity}${query ? `?${query}` : ''}`} className={cls}>{t('Export CSV', 'تصدير CSV')}</a>
+      <a href={`/${locale}/admin/import/${entity}`} className={cls}>{t('Import CSV', 'استيراد CSV')}</a>
       <a href={`/api/admin/export/${entity}?template=1`} className={cls}>{t('Template', 'قالب')}</a>
     </div>
   );
