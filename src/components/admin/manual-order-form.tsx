@@ -6,6 +6,7 @@ import { Link } from '@/i18n/navigation';
 import { createManualOrderAction } from '@/server/order-actions';
 import type { AdminFormState } from '@/server/admin-actions';
 import { Field, FormError, SubmitButton, inputCls } from './ui';
+import { GOVERNORATES } from '@/lib/governorates';
 import { pick } from '@/lib/admin-i18n';
 
 type Opt = { value: string; label: string };
@@ -43,9 +44,13 @@ export function ManualOrderForm({
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label={tb('Full name', 'الاسم بالكامل')}><input name="name" required className={inputCls} /></Field>
           <Field label={tb('Phone', 'الهاتف')}><input name="phone" required className={inputCls} /></Field>
-          <Field label={tb('Governorate', 'المحافظة')}><input name="governorate" required className={inputCls} /></Field>
+          <Field label={tb('Governorate', 'المحافظة')}>
+            <select name="governorate" required defaultValue="" className={inputCls}>
+              <option value="" disabled>—</option>
+              {GOVERNORATES.map((g) => <option key={g.en} value={g.en}>{locale === 'ar' ? g.ar : g.en}</option>)}
+            </select>
+          </Field>
           <Field label={tb('City', 'المدينة')}><input name="city" required className={inputCls} /></Field>
-          <Field label={tb('Area / district', 'المنطقة / الحي')}><input name="area" required className={inputCls} /></Field>
           <Field label={tb('Street address', 'عنوان الشارع')}><input name="street" required className={inputCls} /></Field>
         </div>
       </section>

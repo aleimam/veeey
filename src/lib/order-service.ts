@@ -183,7 +183,7 @@ const manualOrderSchema = z.object({
   phone: z.string().trim().min(6),
   governorate: z.string().trim().min(1),
   city: z.string().trim().min(1),
-  area: z.string().trim().min(1),
+  area: z.string().trim().optional().default(''),
   street: z.string().trim().min(1),
   shippingType: z.enum(['FAST_FREE', 'ULTRAFAST', 'PICK_FROM_OFFICE']).default('FAST_FREE'),
   paymentMethod: z.enum(['COD', 'POS_ON_DELIVERY', 'BANK_TRANSFER', 'WALLET', 'OPAY', 'KASHIER']).default('COD'),
