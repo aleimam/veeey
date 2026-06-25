@@ -50,7 +50,8 @@
       "users": "Staff users",
       "roles": "Roles",
       "providers": "Providers",
-      "settings": "Settings"
+      "settings": "Settings",
+      "appearance": "Appearance"
     },
     "common": {
       "new": "New",

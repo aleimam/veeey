@@ -6,6 +6,7 @@ import { NextIntlClientProvider, hasLocale } from 'next-intl';
 import { getMessages, setRequestLocale } from 'next-intl/server';
 import { routing, localeDirection, type Locale } from '@/i18n/routing';
 import { ConsentBanner } from '@/components/consent-banner';
+import { ThemeStyle } from '@/components/storefront/theme-style';
 import { ServiceWorkerRegister } from '@/components/service-worker-register';
 import { AnalyticsProvider } from '@/components/analytics/analytics-provider';
 import { PostHogLoader } from '@/components/analytics/posthog-loader';
@@ -92,6 +93,7 @@ export default async function LocaleLayout({
       className={`${poppins.variable} ${cairo.variable} ${playfair.variable} ${montserrat.variable} ${geUnique.variable} ${geDinar.variable} h-full antialiased`}
     >
       <body className="min-h-dvh flex flex-col font-sans">
+        <ThemeStyle />
         <NextIntlClientProvider locale={locale} messages={messages}>
           <AnalyticsProvider>
             {children}

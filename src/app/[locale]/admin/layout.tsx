@@ -65,6 +65,7 @@ const NAV_SECTIONS: NavSection[] = [
   { title: ['Administration', 'الإدارة'], items: [
     { href: '/admin/settings', key: 'settings', permission: 'settings.manage' },
     { href: '/admin/providers', key: 'providers', permission: 'settings.manage' },
+    { href: '/admin/appearance', key: 'appearance', permission: 'settings.manage' },
   ] },
   { title: ['API', 'الواجهة البرمجية'], items: [
     { href: '/admin/integration', key: 'integration', permission: 'settings.manage' },
