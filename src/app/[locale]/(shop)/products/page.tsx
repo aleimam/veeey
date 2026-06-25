@@ -2,6 +2,8 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { prisma } from '@/lib/prisma';
 import { toCardProduct, cardProductInclude } from '@/lib/storefront';
 import { ProductCard } from '@/components/storefront/product-card';
+import { Select } from '@/components/storefront/ui/select';
+import { Checkbox } from '@/components/storefront/ui/checkbox';
 import { Link } from '@/i18n/navigation';
 
 type SP = Record<string, string | string[] | undefined>;
@@ -54,57 +56,54 @@ export default async function ProductsPage({
   const t = await getTranslations('storefront.listing');
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-      <h1 className="mb-6 font-heading text-2xl font-semibold text-foreground">
+    <div className="mx-auto max-w-[1280px] px-4 py-10 sm:px-6 lg:px-8">
+      <h1 className="mb-6 text-3xl font-bold text-green-dark">
         {q ? t('resultsFor', { q }) : t('allProducts')}
       </h1>
 
-      <div className="grid gap-8 lg:grid-cols-[230px_1fr]">
+      <div className="grid gap-8 lg:grid-cols-[240px_1fr]">
         <aside>
-          <form action={`/${locale}/products`} className="space-y-5 text-sm">
+          <form action={`/${locale}/products`} className="space-y-5">
             {q && <input type="hidden" name="q" value={q} />}
-            <div>
-              <label className="mb-1 block font-medium">{t('brand')}</label>
-              <select name="brand" defaultValue={brand ?? ''} className="w-full rounded-md border border-border bg-card px-2 py-1.5">
-                <option value="">{t('allBrands')}</option>
-                {brands.map((b) => <option key={b.id} value={b.id}>{(locale === 'ar' ? b.nameAr : b.nameEn) ?? b.nameEn}</option>)}
-              </select>
+            <Select name="brand" defaultValue={brand ?? ''} label={t('brand')}>
+              <option value="">{t('allBrands')}</option>
+              {brands.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {(locale === 'ar' ? b.nameAr : b.nameEn) ?? b.nameEn}
+                </option>
+              ))}
+            </Select>
+            <Select name="kind" defaultValue={kind ?? ''} label={t('type')}>
+              <option value="">{t('all')}</option>
+              <option value="SUPPLEMENT">{t('supplements')}</option>
+              <option value="DEVICE">{t('devices')}</option>
+            </Select>
+            <Select name="sort" defaultValue={sort} label={t('sort')}>
+              <option value="popular">{t('mostPopular')}</option>
+              <option value="price_asc">{t('priceLow')}</option>
+              <option value="price_desc">{t('priceHigh')}</option>
+              <option value="expiry">{t('nearestExpiry')}</option>
+            </Select>
+            <div className="flex flex-col gap-3 pt-1">
+              <Checkbox name="instock" value="1" defaultChecked={inStock} label={t('inStockOnly')} />
+              <Checkbox name="offers" value="1" defaultChecked={offers} label={t('onOffer')} />
             </div>
-            <div>
-              <label className="mb-1 block font-medium">{t('type')}</label>
-              <select name="kind" defaultValue={kind ?? ''} className="w-full rounded-md border border-border bg-card px-2 py-1.5">
-                <option value="">{t('all')}</option>
-                <option value="SUPPLEMENT">{t('supplements')}</option>
-                <option value="DEVICE">{t('devices')}</option>
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block font-medium">{t('sort')}</label>
-              <select name="sort" defaultValue={sort} className="w-full rounded-md border border-border bg-card px-2 py-1.5">
-                <option value="popular">{t('mostPopular')}</option>
-                <option value="price_asc">{t('priceLow')}</option>
-                <option value="price_desc">{t('priceHigh')}</option>
-                <option value="expiry">{t('nearestExpiry')}</option>
-              </select>
-            </div>
-            <label className="flex items-center gap-2"><input type="checkbox" name="instock" value="1" defaultChecked={inStock} /> {t('inStockOnly')}</label>
-            <label className="flex items-center gap-2"><input type="checkbox" name="offers" value="1" defaultChecked={offers} /> {t('onOffer')}</label>
-            <button className="w-full rounded-md bg-primary px-3 py-2 font-medium text-primary-foreground">{t('apply')}</button>
+            <button className="v-btn v-btn--primary v-btn--block">{t('apply')}</button>
           </form>
         </aside>
 
         <section>
           {products.length > 0 ? (
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 lg:gap-5">
-              {products.map((p) => <ProductCard key={p.slug} product={p} locale={locale} />)}
+              {products.map((p) => (
+                <ProductCard key={p.slug} product={p} locale={locale} />
+              ))}
             </div>
           ) : (
-            <div className="rounded-2xl border border-dashed border-border p-10 text-center">
-              <p className="font-medium text-foreground">{t('noMatch')}</p>
-              <p className="mt-2 text-sm text-muted-foreground">
-                {t('noMatchNote')}
-              </p>
-              <Link href="/products" className="mt-4 inline-block text-sm font-medium text-primary hover:underline">
+            <div className="rounded-[16px] border border-dashed border-[color:var(--slate-border)] p-10 text-center">
+              <p className="font-semibold text-ink">{t('noMatch')}</p>
+              <p className="mt-2 text-sm text-[color:var(--text-muted)]">{t('noMatchNote')}</p>
+              <Link href="/products" className="mt-4 inline-block text-sm font-semibold text-green-dark hover:text-lime-press">
                 {t('clearFilters')}
               </Link>
             </div>

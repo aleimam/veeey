@@ -354,6 +354,7 @@
     },
     "productCard": {
       "earnPoints": "Earn {points} pts",
+      "add": "Add to cart",
       "addToCart": "Add {name} to cart",
       "ratingLabel": "Rated {rating} out of 5 from {reviews} reviews"
     },

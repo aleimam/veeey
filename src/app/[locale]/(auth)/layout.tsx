@@ -17,7 +17,7 @@ export default async function AuthLayout({ children, params }: { children: React
   const session = await auth();
   const isStaff = canAccessAdmin(session?.user?.permissions ?? []);
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="veeey-shop flex min-h-screen flex-col bg-background">
       <SiteHeader locale={locale} cartCount={count} isStaff={isStaff} />
       {children}
       <SiteFooter />

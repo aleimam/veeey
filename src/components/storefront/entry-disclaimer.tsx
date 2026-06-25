@@ -35,16 +35,11 @@ export function EntryDisclaimer() {
   if (stored !== null || dismissed) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate/40 p-4" role="dialog" aria-modal="true">
-      <div className="max-w-md rounded-2xl bg-card p-6 shadow-xl">
-        <h2 className="font-heading text-lg font-semibold text-foreground">{t('title')}</h2>
-        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-          {t('body')}
-        </p>
-        <button
-          onClick={accept}
-          className="mt-5 w-full rounded-xl bg-primary px-4 py-2.5 font-medium text-primary-foreground hover:opacity-90"
-        >
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" style={{ background: 'var(--scrim)' }}>
+      <div className="max-w-md rounded-[16px] bg-white p-6 shadow-[var(--shadow-lg)]">
+        <h2 className="text-xl font-bold text-green-dark">{t('title')}</h2>
+        <p className="mt-3 text-sm leading-relaxed text-[color:var(--text-muted)]">{t('body')}</p>
+        <button onClick={accept} className="v-btn v-btn--primary v-btn--block mt-5">
           {t('accept')}
         </button>
       </div>

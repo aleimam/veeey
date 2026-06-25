@@ -1,73 +1,52 @@
-import { Check } from "lucide-react"
+import { Check, ArrowRight } from "lucide-react"
 import { useTranslations } from "next-intl"
-import { Button } from "@/components/storefront/ui/button"
-import { cn } from "@/lib/utils"
+import { TierBadge } from "@/components/storefront/ui/tier-badge"
+import { Link } from "@/i18n/navigation"
 
 const tiers = [
-  { key: "green", name: "Veeey Green", perks: ["greenPerk1", "greenPerk2", "greenPerk3"], rate: "greenRate", dark: false },
-  { key: "ip", name: "VeeeyIP", perks: ["ipPerk1", "ipPerk2", "ipPerk3"], rate: "ipRate", dark: false },
-  { key: "select", name: "Veeey Select", perks: ["selectPerk1", "selectPerk2", "selectPerk3"], rate: "selectRate", dark: true },
+  { tier: "green", name: "Veeey Green", perks: ["greenPerk1", "greenPerk2", "greenPerk3"], rate: "greenRate", dark: false },
+  { tier: "ip", name: "VeeeyIP", perks: ["ipPerk1", "ipPerk2", "ipPerk3"], rate: "ipRate", dark: false },
+  { tier: "select", name: "Veeey Select", perks: ["selectPerk1", "selectPerk2", "selectPerk3"], rate: "selectRate", dark: true },
 ] as const
 
 export function Membership() {
   const t = useTranslations("storefront.membership")
   return (
-    <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
-      <div className="max-w-2xl">
-        <h2 className="text-balance text-2xl font-medium tracking-tight text-foreground sm:text-3xl">
-          {t("title")}
-        </h2>
-        <p className="mt-3 text-pretty leading-relaxed text-muted-foreground">
-          {t("subtitle")}
-        </p>
+    <section className="mx-auto max-w-[1280px] px-4 py-14 sm:px-6 lg:px-8 lg:py-16">
+      <div className="mb-7 max-w-2xl">
+        <h2 className="text-3xl font-bold text-green-dark">{t("title")}</h2>
+        <p className="mt-3 leading-relaxed text-[color:var(--text-muted)]">{t("subtitle")}</p>
       </div>
 
-      <div className="mt-8 grid gap-5 md:grid-cols-3">
+      <div className="grid gap-5 md:grid-cols-3">
         {tiers.map((tier) => (
           <div
-            key={tier.key}
-            className={cn(
-              "flex flex-col rounded-2xl border p-6",
+            key={tier.tier}
+            className={`flex min-h-[210px] flex-col gap-4 rounded-[18px] border p-7 ${
+              tier.dark ? "border-transparent text-white" : "border-[color:var(--green-dark-05)]"
+            }`}
+            style={
               tier.dark
-                ? "border-slate bg-slate text-slate-foreground"
-                : "border-border bg-card text-foreground",
-            )}
+                ? { background: "linear-gradient(150deg, var(--green-emerald), #1c4a30)" }
+                : { background: "linear-gradient(150deg, #fff, var(--green-wash))" }
+            }
           >
-            <h3 className="text-lg font-medium">{tier.name}</h3>
-            <p
-              className={cn(
-                "mt-1 text-2xl font-semibold",
-                tier.dark ? "text-lime" : "text-primary",
-              )}
-            >
-              {t(tier.rate)}
-            </p>
-            <ul className="mt-5 flex flex-1 flex-col gap-3">
+            <TierBadge tier={tier.tier} label={tier.name} />
+            <span className={`text-2xl font-bold ${tier.dark ? "text-gold-wash" : "text-green-dark"}`}>{t(tier.rate)}</span>
+            <ul className="flex flex-1 flex-col gap-2.5">
               {tier.perks.map((perk) => (
-                <li key={perk} className="flex items-start gap-2.5 text-sm">
-                  <Check
-                    className={cn(
-                      "mt-0.5 size-4 shrink-0",
-                      tier.dark ? "text-lime" : "text-primary",
-                    )}
-                    aria-hidden="true"
-                  />
-                  <span className={tier.dark ? "text-slate-foreground/80" : "text-muted-foreground"}>
-                    {t(perk)}
-                  </span>
+                <li key={perk} className={`flex items-start gap-2 text-sm ${tier.dark ? "text-white/85" : "text-[color:var(--text-muted)]"}`}>
+                  <Check className={`mt-0.5 size-4 shrink-0 ${tier.dark ? "text-lime" : "text-green-dark"}`} aria-hidden="true" />
+                  <span>{t(perk)}</span>
                 </li>
               ))}
             </ul>
-            <Button
-              variant={tier.dark ? "default" : "outline"}
-              size="lg"
-              className={cn(
-                "mt-6 h-10",
-                tier.dark && "bg-lime text-lime-foreground hover:bg-lime/90",
-              )}
+            <Link
+              href="/p/loyalty-rewards"
+              className={`inline-flex items-center gap-1.5 text-[13px] font-semibold ${tier.dark ? "text-lime" : "text-green-dark"}`}
             >
-              {t("learnMore")}
-            </Button>
+              {t("learnMore")} <ArrowRight className="size-[15px]" aria-hidden="true" />
+            </Link>
           </div>
         ))}
       </div>

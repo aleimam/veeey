@@ -16,14 +16,20 @@ UltraFast 3–6h / loyalty tiers. Integrates with **YeldnIN** (internal ops app)
   components, tokens in `globals.css`, brand colors below). Do not redesign approved screens.
 - **PostgreSQL + Prisma** (single source of schema; migrations committed).
 - **Auth.js (NextAuth)** — email/password + social (Google, Meta, Apple, X) + guest; reCAPTCHA v3.
-- **next-intl** for i18n (AR + EN, full **RTL**), Poppins (Latin) + Cairo (Arabic).
+- **next-intl** for i18n (AR + EN, full **RTL**). Fonts: storefront Playfair Display + Montserrat
+  (Latin) / GE SS Unique + GE Dinar Two (Arabic); admin Poppins + Cairo.
 - **zod** validation; **vitest** (unit) + **Playwright** (e2e).
 - **pg-boss** (Postgres job queue) for async: notifications, wishlist/back-in-stock alerts, feeds.
 - Money is **EGP integers (piastres)** — never floats for currency.
 
 ## Brand tokens
-Greens `#48884D` / `#38764D`, lime `#D1D725`, gold `#FFC000` (ratings + short-expiry only),
-slate `#33424F`, surface `#F4F6F3`, border `#E6EAE6`. Poppins + Cairo. Withings-style restraint.
+**Storefront** follows the **Veeey Design System** handoff (`../veeey-design-system/`, mirrored in
+`src/app/globals.css` under the `.veeey-shop` scope): greens `#38764D` / `#48884D` + **emerald CTA
+`#235C3C`**, lime `#D1D725` (accent / links / selected), gold `#FFC000` (sale chips + stars, sparingly),
+slate `#33424F`, surface `#F4F6F3`, plus washes (`--green-wash`/`--lime-wash`/`--gold-wash`) and a full
+status palette. Fonts: **Playfair Display** (display) + **Montserrat** (body); Arabic **GE SS Unique** +
+**GE Dinar Two**. Pill motif, 8px radii, soft premium shadows, 150–300ms motion.
+**Admin** keeps the original shadcn tokens + Poppins/Cairo — unchanged. Withings-style restraint.
 
 ## Golden rules
 1. **Build to the PRD.** Every feature traces to an FR-ID; put the ID in PR/commit descriptions.

@@ -354,6 +354,7 @@
     },
     "productCard": {
       "earnPoints": "اكسب {points} نقطة",
+      "add": "أضف إلى السلة",
       "addToCart": "أضف {name} إلى السلة",
       "ratingLabel": "تقييم {rating} من 5 من {reviews} مراجعة"
     },

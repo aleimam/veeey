@@ -14,6 +14,9 @@ export const dynamic = 'force-dynamic';
 /** Module-level so the render body stays pure (react-hooks/purity). */
 const currentDate = () => new Date();
 
+const statCard = 'rounded-[12px] border border-[color:var(--green-dark-05)] bg-white p-4 shadow-[var(--shadow-card)]';
+const navLink = 'text-sm font-medium text-green-dark transition-colors hover:text-lime-press';
+
 export default async function AccountPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
@@ -34,47 +37,47 @@ export default async function AccountPage({ params }: { params: Promise<{ locale
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-12">
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="font-heading text-2xl font-semibold text-foreground">{t('title')}</h1>
-          <p className="text-sm text-muted-foreground">{user.email}</p>
+          <h1 className="text-3xl font-bold text-green-dark">{t('title')}</h1>
+          <p className="text-sm text-[color:var(--text-muted)]">{user.email}</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Link href="/account/addresses" className="text-sm text-primary hover:underline">{t('addresses.manage')}</Link>
-          <Link href="/account/notifications" className="text-sm text-primary hover:underline">{t('notifications')}</Link>
-          <Link href="/" className="text-sm text-primary hover:underline">{t('store')}</Link>
-          <form action={signOutAction}><button className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface">{t('signOut')}</button></form>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href="/account/addresses" className={navLink}>{t('addresses.manage')}</Link>
+          <Link href="/account/notifications" className={navLink}>{t('notifications')}</Link>
+          <Link href="/" className={navLink}>{t('store')}</Link>
+          <form action={signOutAction}><button className="v-btn v-btn--secondary v-btn--sm">{t('signOut')}</button></form>
         </div>
       </div>
 
       {customer && (
         <div className="mb-8 grid gap-4 sm:grid-cols-3">
-          <div className="rounded-lg border border-border p-4">
-            <div className="text-sm text-muted-foreground">{t('tier')}</div>
-            <div className="mt-1 text-lg font-semibold" style={{ color: customer.tier?.color ?? undefined }}>{(locale === 'ar' ? customer.tier?.nameAr : customer.tier?.nameEn) ?? '—'}</div>
+          <div className={statCard}>
+            <div className="text-sm text-[color:var(--text-muted)]">{t('tier')}</div>
+            <div className="mt-1 text-lg font-bold" style={{ color: customer.tier?.color ?? undefined }}>{(locale === 'ar' ? customer.tier?.nameAr : customer.tier?.nameEn) ?? '—'}</div>
           </div>
-          <div className="rounded-lg border border-border p-4">
-            <div className="text-sm text-muted-foreground">{t('points')}</div>
-            <div className="mt-1 text-lg font-semibold text-primary">{customer.pointsBalance.toLocaleString('en-US')}</div>
-            <div className="text-xs text-muted-foreground">{t('pointsNote')}</div>
+          <div className={statCard}>
+            <div className="text-sm text-[color:var(--text-muted)]">{t('points')}</div>
+            <div className="mt-1 text-lg font-bold text-green-dark">{customer.pointsBalance.toLocaleString('en-US')}</div>
+            <div className="text-xs text-[color:var(--text-muted)]">{t('pointsNote')}</div>
           </div>
-          <div className="rounded-lg border border-border p-4">
-            <div className="text-sm text-muted-foreground">{t('referralCode')}</div>
-            <div className="mt-1 font-mono text-lg font-semibold text-foreground">{customer.referralCode}</div>
-            <div className="text-xs text-muted-foreground">{t('referralNote')}</div>
-            <a href={`/${locale}/register?ref=${customer.referralCode}`} className="mt-1 block break-all text-xs text-primary hover:underline">{`/${locale}/register?ref=${customer.referralCode}`}</a>
+          <div className={statCard}>
+            <div className="text-sm text-[color:var(--text-muted)]">{t('referralCode')}</div>
+            <div className="mt-1 font-mono text-lg font-bold text-ink">{customer.referralCode}</div>
+            <div className="text-xs text-[color:var(--text-muted)]">{t('referralNote')}</div>
+            <a href={`/${locale}/register?ref=${customer.referralCode}`} className="mt-1 block break-all text-xs text-green-dark hover:text-lime-press">{`/${locale}/register?ref=${customer.referralCode}`}</a>
           </div>
         </div>
       )}
 
       {reorders.length > 0 && (
         <section className="mb-8">
-          <h2 className="mb-3 font-heading text-lg font-semibold">{t('reorderTitle')}</h2>
+          <h2 className="mb-3 text-xl font-bold text-green-dark">{t('reorderTitle')}</h2>
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {reorders.slice(0, 4).map((r) => (
               <div key={r.product.slug} className="space-y-1">
                 <ProductCard product={r.product} locale={locale} />
-                <p className={`text-xs ${r.daysLeft <= 0 ? 'font-medium text-destructive' : 'text-muted-foreground'}`}>
+                <p className={`text-xs ${r.daysLeft <= 0 ? 'font-semibold text-error' : 'text-[color:var(--text-muted)]'}`}>
                   {r.daysLeft <= 0 ? t('runOut') : t('daysLeft', { days: r.daysLeft })}
                 </p>
               </div>
@@ -83,28 +86,28 @@ export default async function AccountPage({ params }: { params: Promise<{ locale
         </section>
       )}
 
-      <h2 className="mb-3 font-heading text-lg font-semibold">{t('orderHistory')}</h2>
+      <h2 className="mb-3 text-xl font-bold text-green-dark">{t('orderHistory')}</h2>
       {orders.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t('noOrders')} <Link href="/products" className="text-primary hover:underline">{t('startShopping')}</Link>.</p>
+        <p className="text-sm text-[color:var(--text-muted)]">{t('noOrders')} <Link href="/products" className="font-semibold text-green-dark hover:text-lime-press">{t('startShopping')}</Link>.</p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border">
+        <div className="overflow-x-auto rounded-[12px] border border-[color:var(--slate-border)]">
           <table className="w-full text-sm">
-            <thead className="bg-surface text-xs uppercase text-muted-foreground">
+            <thead className="bg-surface text-xs uppercase text-[color:var(--text-muted)]">
               <tr><th className="p-3 text-start">{t('colOrder')}</th><th className="p-3 text-start">{t('colItems')}</th><th className="p-3 text-start">{t('colTotal')}</th><th className="p-3 text-start">{t('colStatus')}</th><th className="p-3" /></tr>
             </thead>
             <tbody>
               {orders.map((o) => (
-                <tr key={o.id} className="border-t border-border">
-                  <td className="p-3 font-medium">{o.number}</td>
-                  <td className="p-3">{o._count.items}</td>
-                  <td className="p-3">{formatEGP(Number(o.totalPiastres))}</td>
+                <tr key={o.id} className="border-t border-[color:var(--slate-border)]">
+                  <td className="p-3 font-semibold text-ink">{o.number}</td>
+                  <td className="p-3 text-ink">{o._count.items}</td>
+                  <td className="p-3 text-ink">{formatEGP(Number(o.totalPiastres))}</td>
                   <td className="p-3"><StatusBadge status={o.status} /></td>
                   <td className="p-3 text-end">
                     {(o.status === 'CASH_DELIVERED' || o.status === 'CARD_DELIVERED') && (
                       <form action={requestReturnAction}>
                         <input type="hidden" name="locale" value={locale} />
                         <input type="hidden" name="orderId" value={o.id} />
-                        <button className="text-xs text-primary hover:underline">{t('requestReturn')}</button>
+                        <button className="text-xs font-semibold text-green-dark hover:text-lime-press">{t('requestReturn')}</button>
                       </form>
                     )}
                   </td>

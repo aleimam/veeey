@@ -1,9 +1,11 @@
 import Image from 'next/image'
-import { Star, Plus } from 'lucide-react'
+import { ShoppingCart } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { formatEGP, formatPoints } from '@/lib/format'
 import { Link } from '@/i18n/navigation'
 import { addToCartAction } from '@/server/cart-actions'
+import { Chip } from '@/components/storefront/ui/chip'
+import { Rating } from '@/components/storefront/ui/rating'
 
 export type Product = {
   id: string
@@ -20,109 +22,69 @@ export type Product = {
   badge?: { type: 'short-expiry' | 'pre-order'; label: string }
 }
 
-function StarRating({ rating, reviews }: { rating: number; reviews: number }) {
-  const t = useTranslations('storefront.productCard')
-  return (
-    <div className="flex items-center gap-1.5">
-      <div className="flex items-center" aria-hidden="true">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Star
-            key={i}
-            className={
-              i < Math.round(rating)
-                ? 'size-3.5 fill-gold text-gold'
-                : 'size-3.5 fill-border text-border'
-            }
-          />
-        ))}
-      </div>
-      <span className="text-xs text-muted-foreground">
-        {rating.toFixed(1)} ({reviews})
-      </span>
-      <span className="sr-only">
-        {t('ratingLabel', { rating, reviews })}
-      </span>
-    </div>
-  )
-}
-
 export function ProductCard({ product, locale = 'en' }: { product: Product; locale?: string }) {
   const t = useTranslations('storefront.productCard')
   return (
-    <article className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all duration-300 hover:-translate-y-1">
-      <Link
-        href={`/products/${product.slug}`}
-        className="relative block aspect-square overflow-hidden bg-surface"
-      >
-        <Image
-          src={product.image || '/placeholder.svg'}
-          alt={`${product.brand} ${product.name}`}
-          fill
-          sizes="(max-width: 640px) 50vw, 25vw"
-          className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-        />
-        {product.badge && (
-          <span
-            className={
-              product.badge.type === 'short-expiry'
-                ? 'absolute start-3 top-3 rounded-full bg-gold px-2.5 py-1 text-xs font-medium text-slate'
-                : 'absolute start-3 top-3 rounded-full bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground'
-            }
-          >
-            {product.badge.label}
-          </span>
+    <article className="v-card v-card--hover v-product">
+      <Link href={`/products/${product.slug}`} className="v-product__media">
+        {product.image ? (
+          <Image
+            src={product.image}
+            alt={`${product.brand} ${product.name}`}
+            fill
+            sizes="(max-width: 640px) 50vw, 25vw"
+            className="object-cover"
+          />
+        ) : (
+          <span className="v-product__media-ph">{product.brand || 'Veeey'}</span>
         )}
+        <div className="v-product__chips">
+          {product.badge && (
+            <Chip variant={product.badge.type === 'short-expiry' ? 'sale' : 'base'}>{product.badge.label}</Chip>
+          )}
+          {product.expiry && <Chip variant="soft">{product.expiry}</Chip>}
+        </div>
       </Link>
 
-      <div className="flex flex-1 flex-col p-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {product.brand}
-        </p>
-        <h3 className="mt-1 text-pretty text-sm font-medium leading-snug text-foreground">
-          <Link href={`/products/${product.slug}`} className="hover:text-primary">
+      <div className="v-product__body">
+        {product.brand && <span className="v-product__brand">{product.brand}</span>}
+        <h3 className="v-product__name">
+          <Link href={`/products/${product.slug}`} className="hover:text-green-dark">
             {product.name}
           </Link>
         </h3>
 
-        <div className="mt-2">
-          <StarRating rating={product.rating} reviews={product.reviews} />
-        </div>
+        <Rating value={product.rating} count={product.reviews} />
 
-        <span className="mt-3 inline-flex w-fit items-center rounded-full bg-accent px-2 py-0.5 text-xs font-medium text-accent-foreground">
-          {product.expiry}
-        </span>
-
-        <div className="mt-auto pt-4">
-          <div className="flex items-end justify-between gap-2">
-            <div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-base font-semibold text-foreground">
-                  {formatEGP(product.pricePiastres)}
-                </span>
-                {product.oldPricePiastres && (
-                  <span className="text-xs text-muted-foreground line-through">
-                    {formatEGP(product.oldPricePiastres)}
-                  </span>
-                )}
-              </div>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {t('earnPoints', { points: formatPoints(product.points) })}
-              </p>
-            </div>
-            <form action={addToCartAction}>
-              <input type="hidden" name="productId" value={product.id} />
-              <input type="hidden" name="qty" value="1" />
-              <input type="hidden" name="locale" value={locale} />
-              <button
-                type="submit"
-                aria-label={t('addToCart', { name: product.name })}
-                className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-border text-primary transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground"
-              >
-                <Plus className="size-4" aria-hidden="true" />
-              </button>
-            </form>
+        <div className="v-product__meta">
+          <div>
+            <span className="v-product__price">{formatEGP(product.pricePiastres)}</span>
+            {product.oldPricePiastres ? (
+              <span className="v-product__price-was">{formatEGP(product.oldPricePiastres)}</span>
+            ) : null}
           </div>
+          {product.points > 0 && (
+            <span className="v-product__points">{t('earnPoints', { points: formatPoints(product.points) })}</span>
+          )}
         </div>
+      </div>
+
+      <div className="v-product__foot">
+        <form action={addToCartAction}>
+          <input type="hidden" name="productId" value={product.id} />
+          <input type="hidden" name="qty" value="1" />
+          <input type="hidden" name="locale" value={locale} />
+          <button
+            type="submit"
+            aria-label={t('addToCart', { name: product.name })}
+            className="v-btn v-btn--primary v-btn--sm v-btn--block"
+          >
+            <span className="v-btn__icon" aria-hidden="true">
+              <ShoppingCart className="size-full" />
+            </span>
+            {t('add')}
+          </button>
+        </form>
       </div>
     </article>
   )

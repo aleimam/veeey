@@ -16,6 +16,9 @@ import { submitReviewAction } from '@/server/play-actions';
 const monthYear = (d: Date) =>
   `${String(d.getUTCMonth() + 1).padStart(2, '0')}/${d.getUTCFullYear()}`;
 
+const inputCls =
+  'block w-full rounded-[8px] border border-[color:var(--slate-border)] bg-surface px-3 py-2 text-sm text-ink outline-none transition-colors placeholder:text-slate-45 focus:border-lime focus:bg-white';
+
 function loadProduct(slug: string) {
   return prisma.product.findFirst({
     where: { status: 'PUBLISHED', OR: [{ slugEn: slug }, { slugAr: slug }] },
@@ -97,7 +100,7 @@ export default async function ProductPage({
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-[1200px] px-4 py-10 sm:px-6 lg:px-8">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <TrackView name="product_view" props={{ sku: p.sku, slug, name }} />
       <RecentlyViewedTracker productId={p.id} />
@@ -105,14 +108,14 @@ export default async function ProductPage({
       <div className="grid gap-10 lg:grid-cols-2">
         {/* Gallery */}
         <div>
-          <div className="relative aspect-square overflow-hidden rounded-2xl border border-border bg-surface">
-            <Image src={images[0].url} alt={name} fill sizes="(max-width:1024px) 100vw, 50vw" className="object-cover" />
+          <div className="relative aspect-square overflow-hidden rounded-[16px] border border-[color:var(--green-dark-05)] bg-gradient-to-br from-white to-surface">
+            <Image src={images[0].url} alt={name} fill sizes="(max-width:1024px) 100vw, 50vw" className="object-contain p-6" />
           </div>
           {images.length > 1 && (
             <div className="mt-3 flex gap-3">
               {images.slice(0, 5).map((img) => (
-                <div key={img.id} className="relative size-16 overflow-hidden rounded-lg border border-border bg-surface">
-                  <Image src={img.url} alt="" fill sizes="64px" className="object-cover" />
+                <div key={img.id} className="relative size-16 overflow-hidden rounded-[10px] border border-[color:var(--slate-border)] bg-white">
+                  <Image src={img.url} alt="" fill sizes="64px" className="object-contain p-1.5" />
                 </div>
               ))}
             </div>
@@ -121,28 +124,34 @@ export default async function ProductPage({
 
         {/* Details */}
         <div>
-          {p.brand && <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{(locale === 'ar' ? p.brand.nameAr : p.brand.nameEn) ?? p.brand.nameEn}</p>}
-          <h1 className="mt-1 font-heading text-2xl font-semibold text-foreground sm:text-3xl">{name}</h1>
+          {p.brand && (
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-45">
+              {(locale === 'ar' ? p.brand.nameAr : p.brand.nameEn) ?? p.brand.nameEn}
+            </p>
+          )}
+          <h1 className="mt-1.5 text-3xl font-bold text-green-dark sm:text-4xl">{name}</h1>
           {p.ratingCount > 0 && (
-            <p className="mt-2 text-sm text-muted-foreground">★ {(p.ratingAvg ?? 0).toFixed(1)} {t('reviewsCount', { count: p.ratingCount })}</p>
+            <p className="mt-2 text-sm text-[color:var(--text-muted)]">
+              <span className="text-gold">★</span> {(p.ratingAvg ?? 0).toFixed(1)} {t('reviewsCount', { count: p.ratingCount })}
+            </p>
           )}
 
           <div className="mt-5">
             <BuyBox basePricePiastres={Number(p.basePricePiastres)} lots={buyLots} productId={p.id} locale={locale} />
           </div>
 
-          <div className="mt-3 flex gap-4 text-sm">
+          <div className="mt-4 flex gap-5 text-sm">
             <form action={toggleWishlistAction}>
               <input type="hidden" name="locale" value={locale} />
               <input type="hidden" name="productId" value={p.id} />
               <input type="hidden" name="back" value={`/products/${slug}`} />
-              <button className="text-muted-foreground hover:text-primary">{t('saveWishlist')}</button>
+              <button className="font-medium text-green-dark transition-colors hover:text-lime-press">{t('saveWishlist')}</button>
             </form>
             <form action={toggleCompareAction}>
               <input type="hidden" name="locale" value={locale} />
               <input type="hidden" name="productId" value={p.id} />
               <input type="hidden" name="back" value="/compare" />
-              <button className="text-muted-foreground hover:text-primary">{t('addCompare')}</button>
+              <button className="font-medium text-green-dark transition-colors hover:text-lime-press">{t('addCompare')}</button>
             </form>
           </div>
 
@@ -156,19 +165,19 @@ export default async function ProductPage({
 
       {longDesc && (
         <section className="mt-12 max-w-3xl">
-          <h2 className="mb-3 font-heading text-lg font-semibold">{t('about')}</h2>
-          <p className="whitespace-pre-line leading-relaxed text-foreground/80">{longDesc}</p>
+          <h2 className="mb-3 text-xl font-bold text-green-dark">{t('about')}</h2>
+          <p className="whitespace-pre-line leading-relaxed text-[color:var(--text-body)]">{longDesc}</p>
         </section>
       )}
 
       {specs.length > 0 && (
         <section className="mt-12 max-w-3xl">
-          <h2 className="mb-3 font-heading text-lg font-semibold">{t('specs')}</h2>
-          <dl className="overflow-hidden rounded-lg border border-border">
+          <h2 className="mb-3 text-xl font-bold text-green-dark">{t('specs')}</h2>
+          <dl className="overflow-hidden rounded-[12px] border border-[color:var(--slate-border)]">
             {specs.map((s, i) => (
-              <div key={i} className="flex border-t border-border first:border-t-0">
-                <dt className="w-1/3 bg-surface p-3 text-sm font-medium text-foreground">{s.name}</dt>
-                <dd className="p-3 text-sm text-muted-foreground">{s.value}</dd>
+              <div key={i} className="flex border-t border-[color:var(--slate-border)] first:border-t-0">
+                <dt className="w-1/3 bg-surface p-3 text-sm font-semibold text-ink">{s.name}</dt>
+                <dd className="p-3 text-sm text-[color:var(--text-muted)]">{s.value}</dd>
               </div>
             ))}
           </dl>
@@ -176,21 +185,24 @@ export default async function ProductPage({
       )}
 
       <section className="mt-12 max-w-3xl">
-        <h2 className="mb-3 font-heading text-lg font-semibold">{t('reviews')}</h2>
+        <h2 className="mb-3 text-xl font-bold text-green-dark">{t('reviews')}</h2>
 
         {p.aiReviewSummary && (
-          <div className="mb-5 rounded-xl border border-border bg-surface p-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-primary">{t('aiSummary')}</p>
-            <p className="mt-1 text-sm text-foreground">{p.aiReviewSummary}</p>
+          <div className="mb-5 rounded-[12px] border border-[color:var(--green-dark-12)] bg-green-wash p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-green-dark">{t('aiSummary')}</p>
+            <p className="mt-1 text-sm text-ink">{p.aiReviewSummary}</p>
           </div>
         )}
 
         {p.reviews.length > 0 ? (
           <ul className="space-y-4">
             {p.reviews.map((r) => (
-              <li key={r.id} className="rounded-lg border border-border p-4">
-                <p className="text-sm font-medium text-foreground">{'★'.repeat(r.rating)}{r.title ? ` · ${r.title}` : ''}</p>
-                {r.body && <p className="mt-1 text-sm text-muted-foreground">{r.body}</p>}
+              <li key={r.id} className="rounded-[12px] border border-[color:var(--green-dark-05)] p-4">
+                <p className="text-sm font-semibold text-ink">
+                  <span className="text-gold">{'★'.repeat(r.rating)}</span>
+                  {r.title ? ` · ${r.title}` : ''}
+                </p>
+                {r.body && <p className="mt-1 text-sm text-[color:var(--text-muted)]">{r.body}</p>}
                 {r.media.length > 0 && (
                   <div className="mt-2 flex gap-2">
                     {r.media.map((m) => (
@@ -199,29 +211,34 @@ export default async function ProductPage({
                     ))}
                   </div>
                 )}
-                {r.authorName && <p className="mt-2 text-xs text-muted-foreground">— {r.authorName}</p>}
+                {r.authorName && <p className="mt-2 text-xs text-slate-45">— {r.authorName}</p>}
               </li>
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-muted-foreground">{t('noReviews')}</p>
+          <p className="text-sm text-[color:var(--text-muted)]">{t('noReviews')}</p>
         )}
 
-        <form action={submitReviewAction} className="mt-6 space-y-3 rounded-xl border border-border p-4">
-          <p className="text-sm font-semibold">{t('writeReview')}</p>
+        <form action={submitReviewAction} className="mt-6 space-y-3 rounded-[12px] border border-[color:var(--slate-border)] p-4">
+          <p className="text-sm font-semibold text-ink">{t('writeReview')}</p>
           <input type="hidden" name="locale" value={locale} />
           <input type="hidden" name="productId" value={p.id} />
           <input type="hidden" name="slug" value={slug} />
-          <label className="block text-sm">{t('rating')}
-            <select name="rating" defaultValue="5" className="mt-1 block w-24 rounded-md border border-border bg-background px-2 py-1.5 text-sm">
-              {[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n} ★</option>)}
+          <label className="block text-sm text-ink">
+            {t('rating')}
+            <select name="rating" defaultValue="5" className={`${inputCls} mt-1 w-24`}>
+              {[5, 4, 3, 2, 1].map((n) => (
+                <option key={n} value={n}>
+                  {n} ★
+                </option>
+              ))}
             </select>
           </label>
-          <input name="title" placeholder={t('titlePlaceholder')} className="block w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-          <textarea name="body" rows={3} placeholder={t('bodyPlaceholder')} className="block w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-          <input name="media" placeholder={t('mediaPlaceholder')} className="block w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-          <p className="text-xs text-muted-foreground">{t('moderationNote')}</p>
-          <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">{t('submitReview')}</button>
+          <input name="title" placeholder={t('titlePlaceholder')} className={inputCls} />
+          <textarea name="body" rows={3} placeholder={t('bodyPlaceholder')} className={inputCls} />
+          <input name="media" placeholder={t('mediaPlaceholder')} className={inputCls} />
+          <p className="text-xs text-[color:var(--text-muted)]">{t('moderationNote')}</p>
+          <button className="v-btn v-btn--primary v-btn--sm">{t('submitReview')}</button>
         </form>
       </section>
 

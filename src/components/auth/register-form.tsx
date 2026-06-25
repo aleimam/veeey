@@ -6,23 +6,18 @@ import { Link } from '@/i18n/navigation';
 import { registerCustomer, type AuthFormState } from '@/server/auth-actions';
 
 const field =
-  'mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring';
+  'mt-1.5 w-full rounded-[8px] border border-[color:var(--slate-border)] bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition-colors placeholder:text-slate-45 focus:border-lime focus:bg-white';
 
 export function RegisterForm({ locale, referralCode }: { locale: string; referralCode?: string }) {
   const t = useTranslations('auth');
-  const [state, action, pending] = useActionState<AuthFormState, FormData>(
-    registerCustomer,
-    {},
-  );
+  const [state, action, pending] = useActionState<AuthFormState, FormData>(registerCustomer, {});
 
   return (
     <form action={action} className="w-full max-w-sm">
-      <h1 className="font-heading text-2xl font-semibold text-foreground">
-        {t('register.title')}
-      </h1>
+      <h1 className="text-3xl font-bold text-green-dark">{t('register.title')}</h1>
 
       {state.error && (
-        <p role="alert" className="mt-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <p role="alert" className="mt-4 rounded-[8px] bg-error-wash px-3 py-2 text-sm text-error">
           {t(`errors.${state.error}`)}
         </p>
       )}
@@ -31,38 +26,34 @@ export function RegisterForm({ locale, referralCode }: { locale: string; referra
       <input type="hidden" name="recaptchaToken" value="" />
       {referralCode && <input type="hidden" name="ref" value={referralCode} />}
 
-      <label className="mt-5 block text-sm font-medium">
+      <label className="mt-5 block text-sm font-semibold text-ink">
         {t('register.name')}
         <input name="name" type="text" required autoComplete="name" className={field} />
       </label>
-      <label className="mt-4 block text-sm font-medium">
+      <label className="mt-4 block text-sm font-semibold text-ink">
         {t('register.email')}
         <input name="email" type="email" required autoComplete="email" className={field} />
       </label>
-      <label className="mt-4 block text-sm font-medium">
+      <label className="mt-4 block text-sm font-semibold text-ink">
         {t('register.phone')}
         <input name="phone" type="tel" autoComplete="tel" placeholder="01XXXXXXXXX" className={field} />
       </label>
-      <label className="mt-4 block text-sm font-medium">
+      <label className="mt-4 block text-sm font-semibold text-ink">
         {t('register.username')}
         <input name="username" type="text" autoComplete="username" minLength={3} className={field} />
       </label>
-      <label className="mt-4 block text-sm font-medium">
+      <label className="mt-4 block text-sm font-semibold text-ink">
         {t('register.password')}
         <input name="password" type="password" required minLength={8} autoComplete="new-password" className={field} />
       </label>
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="mt-6 w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
-      >
+      <button type="submit" disabled={pending} className="v-btn v-btn--primary v-btn--block mt-6">
         {t('register.submit')}
       </button>
 
-      <p className="mt-6 text-sm text-muted-foreground">
+      <p className="mt-6 text-sm text-[color:var(--text-muted)]">
         {t('register.haveAccount')}{' '}
-        <Link href="/login" className="font-medium text-primary hover:underline">
+        <Link href="/login" className="font-semibold text-green-dark hover:text-lime-press">
           {t('register.loginLink')}
         </Link>
       </p>

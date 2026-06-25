@@ -27,21 +27,21 @@ export default async function NotificationsPage({ params }: { params: Promise<{ 
 
   return (
     <main className="mx-auto w-full max-w-2xl px-6 py-12">
-      <Link href="/account" className="text-sm text-primary hover:underline">{t('back')}</Link>
-      <h1 className="mt-2 font-heading text-2xl font-semibold text-foreground">{t('title')}</h1>
+      <Link href="/account" className="text-sm font-semibold text-green-dark hover:text-lime-press">{t('back')}</Link>
+      <h1 className="mt-2 text-3xl font-bold text-green-dark">{t('title')}</h1>
 
       <form action={saveNotificationPrefsAction} className="mt-6 space-y-2">
         <input type="hidden" name="locale" value={locale} />
         {rows.map((r) => (
-          <label key={r.name} className="flex items-center gap-3 rounded-lg border border-border p-3 text-sm">
-            <input type="checkbox" name={r.name} defaultChecked={r.checked} /> {r.label}
+          <label key={r.name} className="flex items-center gap-3 rounded-[10px] border border-[color:var(--slate-border)] p-3 text-sm text-ink">
+            <input type="checkbox" name={r.name} defaultChecked={r.checked} className="size-4 accent-[color:var(--green-dark)]" /> {r.label}
           </label>
         ))}
-        <button className="mt-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">{t('save')}</button>
+        <button className="v-btn v-btn--primary mt-2">{t('save')}</button>
       </form>
 
       <div className="mt-8">
-        <p className="mb-2 text-sm font-semibold">{t('pushOnDevice')}</p>
+        <p className="mb-2 text-sm font-semibold text-ink">{t('pushOnDevice')}</p>
         <PushOptIn vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY} />
       </div>
     </main>

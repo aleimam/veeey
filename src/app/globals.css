@@ -1,11 +1,20 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
+@import './veeey-components.css';
 
 /*
- * Veeey brand design tokens — ported verbatim from the LOCKED v0-export
- * (v0-export/extracted/app/globals.css). Do not redesign these values.
- * Greens #48884D/#38764D, lime #D1D725, gold #FFC000 (ratings + short-expiry only),
- * slate #33424F, surface #F4F6F3. Fonts: Poppins (Latin) + Cairo (Arabic).
+ * Veeey design tokens.
+ *  - ADMIN keeps the shadcn semantic tokens below (Poppins / Cairo) — unchanged.
+ *  - STOREFRONT re-skin (Veeey Design System handoff) adds the DS token set
+ *    (greens incl. emerald CTA, washes, status, type / space / shadow / motion)
+ *    and DS fonts (Playfair Display + Montserrat / GE SS Unique + GE Dinar Two).
+ *    DS colors live in :root (unique names — needed so the Tailwind DS color
+ *    utilities resolve). DS token names that COLLIDE with Tailwind / shadcn
+ *    (--radius-sm/md/lg/xl, --shadow-xs/sm/md/lg, --fw-*) are defined ONLY inside
+ *    `.veeey-shop`, so the admin panel renders exactly as before. Storefront
+ *    typography is scoped to `.veeey-shop` too.
+ *  Greens #38764D / #48884D + emerald #235C3C, lime #D1D725, gold #FFC000,
+ *  slate #33424F, surface #F4F6F3.
  */
 
 @custom-variant dark (&:is(.dark *));
@@ -15,6 +24,11 @@
   --font-sans: var(--font-poppins), 'Poppins Fallback', sans-serif;
   --font-arabic: var(--font-cairo), 'Cairo Fallback', sans-serif;
   --font-mono: ui-monospace, monospace;
+  /* Veeey DS storefront font stacks → utilities: font-display / font-body / font-arabic-display / font-arabic-body */
+  --font-display: var(--font-playfair), 'Playfair Display', Georgia, serif;
+  --font-body: var(--font-montserrat), 'Montserrat', system-ui, sans-serif;
+  --font-arabic-display: var(--font-ge-unique), 'GE SS Unique', 'Cairo', sans-serif;
+  --font-arabic-body: var(--font-ge-dinar), 'GE Dinar Two', 'Cairo', sans-serif;
   --color-slate: var(--slate);
   --color-slate-foreground: var(--slate-foreground);
   --color-surface: var(--surface);
@@ -22,6 +36,28 @@
   --color-lime-foreground: var(--lime-foreground);
   --color-gold: var(--gold);
   --color-deep-green: var(--deep-green);
+  /* Veeey DS storefront colors (additive) → utilities: bg-green-dark, text-green-emerald, bg-green-wash, … */
+  --color-green-dark: var(--green-dark);
+  --color-green-mid: var(--green-mid);
+  --color-green-emerald: var(--green-emerald);
+  --color-green-wash: var(--green-wash);
+  --color-lime-hover: var(--lime-hover);
+  --color-lime-press: var(--lime-press);
+  --color-lime-wash: var(--lime-wash);
+  --color-gold-deep: var(--gold-deep);
+  --color-gold-wash: var(--gold-wash);
+  --color-ink: var(--ink);
+  --color-slate-70: var(--slate-70);
+  --color-slate-45: var(--slate-45);
+  --color-surface-sunk: var(--surface-sunk);
+  --color-success: var(--success);
+  --color-success-wash: var(--success-wash);
+  --color-warning: var(--warning);
+  --color-warning-wash: var(--warning-wash);
+  --color-error: var(--error);
+  --color-error-wash: var(--error-wash);
+  --color-info: var(--info);
+  --color-info-wash: var(--info-wash);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -82,7 +118,7 @@
   --input: #e6eae6;
   --ring: #48884d;
 
-  /* Brand-specific tokens */
+  /* Brand-specific tokens (shared) */
   --deep-green: #38764d;
   --lime: #d1d725;
   --lime-foreground: #2a3640;
@@ -105,6 +141,95 @@
   --sidebar-accent-foreground: #38764d;
   --sidebar-border: #e6eae6;
   --sidebar-ring: #48884d;
+
+  /* ============================================================
+   * Veeey Design System tokens — storefront (additive, unique names).
+   * Source: veeey-design-system handoff (_ds_manifest.json).
+   * ============================================================ */
+  /* Greens */
+  --green-dark: #38764d;
+  --green-mid: #48884d;
+  --green-emerald: #235c3c;
+  --green-dark-90: #4b8460;
+  --green-dark-12: rgba(56, 118, 77, 0.12);
+  --green-dark-05: rgba(56, 118, 77, 0.05);
+  --green-wash: #e7f0ea;
+  /* Lime */
+  --lime-hover: #bcc121;
+  --lime-press: #a7ac1e;
+  --lime-wash: #f4f6d9;
+  /* Gold */
+  --gold-deep: #c99700;
+  --gold-wash: #fff4d6;
+  /* Slate / neutrals */
+  --slate-70: #5c6772;
+  --slate-45: #8b939c;
+  --slate-border: rgba(51, 66, 79, 0.22);
+  --surface-sunk: #ebefea;
+  --surface-card: #ffffff;
+  --surface-input: var(--surface);
+  --white: #ffffff;
+  --ink: #1c2530;
+  /* Status */
+  --error: #e74c3c;
+  --error-wash: #fbeae8;
+  --warning: #e9a800;
+  --warning-wash: #fcf3dd;
+  --success: #2f855a;
+  --success-wash: #e6f2eb;
+  --info: #4e7ac7;
+  --info-wash: #e9f0fa;
+  /* Semantic text / borders (storefront) */
+  --text-heading: var(--green-dark);
+  --text-body: var(--slate);
+  --text-muted: var(--slate-70);
+  --text-subtle: var(--slate-45);
+  --text-link: var(--green-dark);
+  --text-link-hover: var(--lime-press);
+  --border-subtle: var(--slate-border);
+  --border-focus: var(--lime);
+  /* Type scale */
+  --fs-display: 64px;
+  --fs-h1: 48px;
+  --fs-h2: 36px;
+  --fs-h3: 28px;
+  --fs-h4: 20px;
+  --fs-body: 16px;
+  --fs-caption: 14px;
+  --fs-button: 16px;
+  --fs-overline: 12px;
+  --lh-tight: 1.15;
+  --lh-heading: 1.25;
+  --lh-body: 1.5;
+  --lh-relaxed: 1.6;
+  --ls-display: -0.01em;
+  --ls-body: 0em;
+  --ls-overline: 0.12em;
+  /* Spacing scale (8px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 40px;
+  --space-8: 48px;
+  --space-9: 64px;
+  --space-10: 80px;
+  --space-12: 96px;
+  --container-max: 1280px;
+  /* Pill radius + DS-specific shadows (unique names; safe in :root) */
+  --radius-pill: 999px;
+  --shadow-card: 0 2px 10px rgba(28, 37, 48, 0.06);
+  --shadow-card-hover: 0 10px 28px rgba(28, 37, 48, 0.12);
+  --shadow-focus: 0 0 0 3px rgba(209, 215, 37, 0.35);
+  /* Motion */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --dur-fast: 150ms;
+  --dur-base: 200ms;
+  --dur-slow: 300ms;
+  --scrim: rgba(28, 37, 48, 0.45);
 }
 
 .dark {
@@ -151,8 +276,53 @@
   html {
     @apply font-sans;
   }
-  /* Arabic locale uses Cairo */
+  /* Arabic locale uses Cairo (admin default) */
   html[lang='ar'] {
     font-family: var(--font-arabic);
   }
+}
+
+/* ── Storefront scope (Veeey Design System) ──────────────────────────
+ * Defined OUTSIDE @layer so these win over the @layer base html[lang='ar']
+ * font rule within the storefront subtree. The colliding token names
+ * (--radius-sm/md/lg/xl, --shadow-xs/sm/md/lg, --fw-*) are defined here only,
+ * so admin keeps its shadcn radius/shadow scale. Latin: Montserrat body +
+ * Playfair headings; Arabic: GE Dinar Two body + GE SS Unique headings. */
+.veeey-shop {
+  /* font weights */
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+  --fw-extra: 800;
+  /* DS radii (override the shadcn scale within storefront only) */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  /* DS elevation (xs/sm/md/lg names collide with Tailwind → scoped here) */
+  --shadow-xs: 0 1px 2px rgba(28, 37, 48, 0.06);
+  --shadow-sm: 0 2px 8px rgba(28, 37, 48, 0.07);
+  --shadow-md: 0 6px 20px rgba(28, 37, 48, 0.09);
+  --shadow-lg: 0 16px 40px rgba(28, 37, 48, 0.12);
+  /* base typography */
+  font-family: var(--font-body);
+  color: var(--text-body);
+}
+.veeey-shop :is(h1, h2) {
+  font-family: var(--font-display);
+}
+html[lang='ar'] .veeey-shop {
+  font-family: var(--font-arabic-body);
+}
+html[lang='ar'] .veeey-shop :is(h1, h2) {
+  font-family: var(--font-arabic-display);
+}
+/* Storefront pages that explicitly use the `font-heading` utility get the DS
+ * display face too (admin keeps Poppins — it has no `.veeey-shop` ancestor). */
+.veeey-shop .font-heading {
+  font-family: var(--font-display);
+}
+html[lang='ar'] .veeey-shop .font-heading {
+  font-family: var(--font-arabic-display);
 }

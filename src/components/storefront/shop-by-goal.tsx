@@ -1,37 +1,32 @@
-import Image from "next/image"
+import { Shield, Zap, Brain, Moon, HeartPulse, Activity } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { Link } from "@/i18n/navigation"
 
 const goals = [
-  { key: "immunity", image: "/goals/immunity.png" },
-  { key: "energy", image: "/goals/energy.png" },
-  { key: "brain", image: "/goals/brain.png" },
-  { key: "sleep", image: "/goals/sleep.png" },
-  { key: "heart", image: "/goals/heart.png" },
-  { key: "devices", image: "/goals/devices.png" },
+  { key: "immunity", icon: Shield, href: "/products" },
+  { key: "energy", icon: Zap, href: "/products" },
+  { key: "brain", icon: Brain, href: "/products" },
+  { key: "sleep", icon: Moon, href: "/products" },
+  { key: "heart", icon: HeartPulse, href: "/products" },
+  { key: "devices", icon: Activity, href: "/products?kind=DEVICE" },
 ] as const
 
 export function ShopByGoal() {
   const t = useTranslations("storefront.goals")
   return (
-    <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
-      <h2 className="text-balance text-2xl font-medium tracking-tight text-foreground sm:text-3xl">
-        {t("title")}
-      </h2>
-      <ul className="mt-8 grid grid-cols-3 gap-x-4 gap-y-8 sm:grid-cols-6">
+    <section className="mx-auto max-w-[1280px] px-4 py-12 sm:px-6 lg:px-8 lg:py-14">
+      <h2 className="mb-7 text-3xl font-bold text-green-dark">{t("title")}</h2>
+      <ul className="grid grid-cols-3 gap-3.5 sm:grid-cols-6">
         {goals.map((goal) => (
           <li key={goal.key}>
-            <Link href="/products" className="group flex flex-col items-center gap-3 text-center">
-              <span className="relative aspect-square w-full overflow-hidden rounded-full border border-border bg-surface transition-all duration-300 group-hover:-translate-y-1 group-hover:border-primary/40">
-                <Image
-                  src={goal.image || "/placeholder.svg"}
-                  alt={t(goal.key)}
-                  fill
-                  sizes="(max-width: 640px) 30vw, 12vw"
-                  className="object-cover transition-transform duration-500 group-hover:scale-105"
-                />
+            <Link
+              href={goal.href}
+              className="group flex flex-col items-center gap-2.5 rounded-[14px] border border-[color:var(--slate-border)] bg-white px-2 py-5 text-center transition-all hover:border-green-dark hover:shadow-sm"
+            >
+              <span className="flex size-11 items-center justify-center rounded-full bg-green-wash">
+                <goal.icon className="size-[22px] text-green-dark" aria-hidden="true" />
               </span>
-              <span className="text-sm font-medium text-foreground">{t(goal.key)}</span>
+              <span className="text-[13px] font-semibold text-slate">{t(goal.key)}</span>
             </Link>
           </li>
         ))}

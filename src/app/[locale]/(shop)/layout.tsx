@@ -29,7 +29,7 @@ export default async function ShopLayout({
   const session = await auth();
   const isStaff = canAccessAdmin(session?.user?.permissions ?? []);
   return (
-    <div className="min-h-screen bg-background">
+    <div className="veeey-shop min-h-screen bg-background">
       <AnnouncementBar text={home.announcement} />
       <SiteHeader locale={locale} cartCount={count} isStaff={isStaff} />
       <main>{children}</main>

@@ -16,7 +16,7 @@ export default async function AccountLayout({ children, params }: { children: Re
   const session = await auth();
   const isStaff = canAccessAdmin(session?.user?.permissions ?? []);
   return (
-    <div className="min-h-screen bg-background">
+    <div className="veeey-shop min-h-screen bg-background">
       <SiteHeader locale={locale} cartCount={count} isStaff={isStaff} />
       {children}
       <SiteFooter />

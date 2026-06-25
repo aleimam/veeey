@@ -18,20 +18,20 @@ export default async function BlogIndex({
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
-      <h1 className="mb-8 font-heading text-2xl font-semibold text-foreground">{t('title')}</h1>
+      <h1 className="mb-8 text-3xl font-bold text-green-dark">{t('title')}</h1>
       {posts.length === 0 ? (
-        <p className="text-muted-foreground">{t('noPosts')}</p>
+        <p className="text-[color:var(--text-muted)]">{t('noPosts')}</p>
       ) : (
         <ul className="space-y-6">
           {posts.map((post) => {
             const title = (locale === 'ar' ? post.titleAr : post.titleEn) ?? post.titleEn;
             const excerpt = (locale === 'ar' ? post.excerptAr : post.excerptEn) ?? post.excerptEn;
             return (
-              <li key={post.id} className="border-b border-border pb-6">
-                <Link href={`/blog/${post.slug}`} className="font-heading text-lg font-medium text-foreground hover:text-primary">
+              <li key={post.id} className="border-b border-[color:var(--slate-border)] pb-6">
+                <Link href={`/blog/${post.slug}`} className="font-heading text-lg font-semibold text-ink transition-colors hover:text-green-dark">
                   {title}
                 </Link>
-                {excerpt && <p className="mt-2 text-sm text-muted-foreground">{excerpt}</p>}
+                {excerpt && <p className="mt-2 text-sm text-[color:var(--text-muted)]">{excerpt}</p>}
               </li>
             );
           })}

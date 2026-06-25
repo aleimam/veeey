@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { ShoppingCart } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { formatEGP, formatPoints } from '@/lib/format';
 import { addToCartAction } from '@/server/cart-actions';
+import { Chip } from '@/components/storefront/ui/chip';
 
 export type BuyLot = {
   id: string;
@@ -12,6 +14,8 @@ export type BuyLot = {
   sale: boolean;
   qty: number;
 };
+
+const priceFont = { fontFamily: 'var(--font-display)' } as const;
 
 /**
  * PDP purchase panel — price-per-expiry selector (FR-INV-04). Picking a
@@ -34,15 +38,13 @@ export function BuyBox({
 
   if (lots.length === 0) {
     return (
-      <div className="rounded-2xl border border-border bg-card p-5">
-        <p className="text-2xl font-semibold text-foreground">{formatEGP(basePricePiastres)}</p>
-        <span className="mt-2 inline-flex rounded-full bg-gold/15 px-2.5 py-1 text-xs font-medium text-slate">
-          {t('preorderBadge')}
-        </span>
-        <p className="mt-3 text-sm text-muted-foreground">
-          {t('preorderNote')}
-        </p>
-        <button className="mt-4 w-full rounded-xl bg-primary px-4 py-2.5 font-medium text-primary-foreground hover:opacity-90">
+      <div className="rounded-[12px] border border-[color:var(--green-dark-05)] bg-white p-5 shadow-[var(--shadow-card)]">
+        <p className="text-[28px] font-bold text-green-dark" style={priceFont}>{formatEGP(basePricePiastres)}</p>
+        <div className="mt-2">
+          <Chip variant="sale">{t('preorderBadge')}</Chip>
+        </div>
+        <p className="mt-3 text-sm text-[color:var(--text-muted)]">{t('preorderNote')}</p>
+        <button type="button" className="v-btn v-btn--primary v-btn--block mt-4">
           {t('preorder')}
         </button>
       </div>
@@ -53,48 +55,44 @@ export function BuyBox({
   const points = Math.round(lot.pricePiastres / 100);
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
+    <div className="rounded-[12px] border border-[color:var(--green-dark-05)] bg-white p-5 shadow-[var(--shadow-card)]">
       <div className="flex items-baseline gap-2">
-        <span className="text-2xl font-semibold text-foreground">{formatEGP(lot.pricePiastres)}</span>
-        {lot.sale && (
-          <span className="text-sm text-muted-foreground line-through">{formatEGP(basePricePiastres)}</span>
-        )}
+        <span className="text-[28px] font-bold text-green-dark" style={priceFont}>{formatEGP(lot.pricePiastres)}</span>
+        {lot.sale && <span className="text-sm text-[color:var(--text-subtle)] line-through">{formatEGP(basePricePiastres)}</span>}
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">{t('earnPoints', { points: formatPoints(points) })}</p>
+      <p className="mt-1 text-xs font-semibold text-gold-deep">{t('earnPoints', { points: formatPoints(points) })}</p>
 
       {lots.length > 1 && (
         <div className="mt-4">
-          <p className="mb-2 text-sm font-medium text-foreground">{t('chooseExpiry')}</p>
+          <p className="mb-2 text-sm font-semibold text-ink">{t('chooseExpiry')}</p>
           <div className="flex flex-wrap gap-2">
             {lots.map((l, i) => (
-              <button
-                key={l.id}
-                onClick={() => setSelected(i)}
-                className={
-                  i === selected
-                    ? 'rounded-lg border-2 border-primary px-3 py-2 text-sm'
-                    : 'rounded-lg border border-border px-3 py-2 text-sm hover:border-primary/50'
-                }
-              >
-                <span className="block font-medium">{formatEGP(l.pricePiastres)}</span>
-                <span className="block text-xs text-muted-foreground">
-                  {l.expiry ? t('exp', { date: l.expiry }) : t('noExpiry')}{l.sale ? ` · ${t('sale')}` : ''}
+              <button key={l.id} type="button" className="v-lot" aria-pressed={i === selected} onClick={() => setSelected(i)}>
+                <span className="v-lot__exp">
+                  {l.expiry ? t('exp', { date: l.expiry }) : t('noExpiry')}
+                  {l.sale ? ` · ${t('sale')}` : ''}
                 </span>
+                <span className="v-lot__price">{formatEGP(l.pricePiastres)}</span>
               </button>
             ))}
           </div>
         </div>
       )}
 
-      <span className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
-        <span className="size-1.5 rounded-full bg-primary" /> {t('inStock')}
-      </span>
+      <div className="mt-4">
+        <Chip variant="soft" dot>
+          {t('inStock')}
+        </Chip>
+      </div>
 
       <form action={addToCartAction} className="mt-4">
         <input type="hidden" name="productId" value={productId} />
         <input type="hidden" name="qty" value="1" />
         <input type="hidden" name="locale" value={locale} />
-        <button type="submit" className="w-full rounded-xl bg-primary px-4 py-2.5 font-medium text-primary-foreground hover:opacity-90">
+        <button type="submit" className="v-btn v-btn--primary v-btn--block">
+          <span className="v-btn__icon" aria-hidden="true">
+            <ShoppingCart className="size-full" />
+          </span>
           {t('addToCart')}
         </button>
       </form>

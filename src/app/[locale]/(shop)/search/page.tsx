@@ -28,21 +28,15 @@ export default async function SearchPage({
   const t = await getTranslations('storefront.search');
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-[1280px] px-4 py-10 sm:px-6 lg:px-8">
       {q && <TrackView name="search" props={{ q, results: products.length }} />}
-      <h1 className="mb-6 font-heading text-2xl font-semibold text-foreground">
-        {q ? t('withQuery', { q }) : t('title')}
-      </h1>
+      <h1 className="mb-6 text-3xl font-bold text-green-dark">{q ? t('withQuery', { q }) : t('title')}</h1>
 
       {q && products.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border p-10 text-center">
-          <p className="font-medium text-foreground">{t('noResults', { q })}</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {t('noResultsNote')}
-          </p>
-          <Link href="/products" className="mt-4 inline-block text-sm font-medium text-primary hover:underline">
-            {t('browseAll')}
-          </Link>
+        <div className="rounded-[16px] border border-dashed border-[color:var(--slate-border)] p-10 text-center">
+          <p className="font-semibold text-ink">{t('noResults', { q })}</p>
+          <p className="mt-2 text-sm text-[color:var(--text-muted)]">{t('noResultsNote')}</p>
+          <Link href="/products" className="mt-4 inline-block text-sm font-semibold text-green-dark hover:text-lime-press">{t('browseAll')}</Link>
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-5">

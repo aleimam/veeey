@@ -27,8 +27,8 @@ export default async function CmsPageView({ params }: { params: Promise<{ locale
 
   return (
     <article className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
-      <h1 className="font-heading text-3xl font-semibold text-foreground">{title}</h1>
-      {body && <div className="mt-6 whitespace-pre-line leading-relaxed text-foreground/80">{body}</div>}
+      <h1 className="text-3xl font-bold text-green-dark sm:text-4xl">{title}</h1>
+      {body && <div className="mt-6 whitespace-pre-line leading-relaxed text-[color:var(--text-body)]">{body}</div>}
     </article>
   );
 }

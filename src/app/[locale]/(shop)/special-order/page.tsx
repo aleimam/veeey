@@ -20,14 +20,14 @@ export default async function SpecialOrderPage({ params, searchParams }: { param
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
-      <h1 className="font-heading text-2xl font-semibold text-foreground sm:text-3xl">{t('title')}</h1>
-      <p className="mt-3 text-pretty leading-relaxed text-muted-foreground">{t('intro')}</p>
-      <p className="mt-2 text-sm text-muted-foreground">{t('terms', { percent: deposit, days: leadDays })}</p>
+      <h1 className="text-3xl font-bold text-green-dark sm:text-4xl">{t('title')}</h1>
+      <p className="mt-3 leading-relaxed text-[color:var(--text-muted)]">{t('intro')}</p>
+      <p className="mt-2 text-sm text-[color:var(--text-muted)]">{t('terms', { percent: deposit, days: leadDays })}</p>
 
       {submitted ? (
-        <div className="mt-8 rounded-2xl border border-border bg-surface p-6">
-          <p className="text-lg font-medium text-foreground">{t('submittedTitle')}</p>
-          <p className="mt-1 text-sm text-muted-foreground">{t('submittedNote')}</p>
+        <div className="mt-8 rounded-[16px] border border-[color:var(--green-dark-12)] bg-green-wash p-6">
+          <p className="text-lg font-bold text-green-dark">{t('submittedTitle')}</p>
+          <p className="mt-1 text-sm text-ink">{t('submittedNote')}</p>
         </div>
       ) : (
         <SpecialOrderForm locale={locale} defaultName={user?.name ?? undefined} defaultEmail={user?.email ?? undefined} />

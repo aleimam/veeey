@@ -1,28 +1,34 @@
-import { cn } from "@/lib/utils"
+import Image from 'next/image';
+import { cn } from '@/lib/utils';
 
+/**
+ * Veeey brand lockup (pill + leaf icon + "veeey" wordmark). The source artwork
+ * is transparent — never on a white box. `light` uses the white knockout for
+ * green / dark backgrounds. Intrinsic art is 2172×724 (~3:1).
+ */
 export function VeeeyLogo({
   className,
-  variant = "default",
+  variant = 'default',
+  size = 30,
+  priority = false,
 }: {
-  className?: string
-  variant?: "default" | "light"
+  className?: string;
+  variant?: 'default' | 'light';
+  size?: number;
+  priority?: boolean;
 }) {
+  const src = variant === 'light' ? '/brand/veeey-logo-white.png' : '/brand/veeey-logo-mark.png';
+  const width = Math.round((size * 2172) / 724);
   return (
-    <div className={cn("flex items-center gap-2", className)}>
-      <span
-        className="flex size-8 items-center justify-center rounded-[10px] bg-primary text-base font-semibold text-primary-foreground"
-        aria-hidden="true"
-      >
-        v
-      </span>
-      <span
-        className={cn(
-          "text-xl font-semibold lowercase tracking-tight",
-          variant === "light" ? "text-slate-foreground" : "text-foreground",
-        )}
-      >
-        veeey
-      </span>
-    </div>
-  )
+    <Image
+      src={src}
+      alt="Veeey — You Deserve More"
+      width={width}
+      height={size}
+      priority={priority}
+      sizes={`${width}px`}
+      className={cn('block w-auto', className)}
+      style={{ height: size, width: 'auto' }}
+    />
+  );
 }
