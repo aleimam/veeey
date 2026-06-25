@@ -51,7 +51,7 @@ export default async function LearnPage({ params }: { params: Promise<{ locale: 
     { icon: 'stethoscope', t: ['Health Conditions', 'الحالات الصحية'], s: ['Evidence-based guides on common concerns — immunity, gut, sleep, heart and more.', 'أدلّة قائمة على الأدلّة حول الشواغل الشائعة — المناعة والأمعاء والنوم والقلب وغيرها.'], count: ['32 guides', '٣٢ دليلًا'], tint: 'var(--green-wash)' },
     { icon: 'flask-conical', t: ['Ingredients Encyclopedia', 'موسوعة المكوّنات'], s: ["What each active does, the research behind it, dosing and who it's for.", 'ما يفعله كل مكوّن نشط والبحث وراءه والجرعة ولمن.'], count: ['120+ entries', '+١٢٠ مدخلًا'], tint: 'var(--lime-wash)' },
     { icon: 'book-open', t: ['Supplement Guides', 'أدلّة المكمّلات'], s: ['How to choose, stack and time supplements for your specific goal.', 'كيف تختار وتجمع وتوقّت المكمّلات لهدفك المحدّد.'], count: ['24 guides', '٢٤ دليلًا'], tint: 'var(--green-wash)' },
-    { icon: 'heart-pulse', t: ['Medical Device Guides', 'أدلّة الأجهزة الطبية'], s: ['Set-up, accuracy and care for home monitors and recovery devices.', 'الإعداد والدقّة والعناية لأجهزة المراقبة المنزلية وأجهزة التعافي.'], count: ['18 guides', '١٨ دليلًا'], tint: '#E9EEF4' },
+    { icon: 'heart-pulse', t: ['Medical Device Guides', 'أدلّة الأجهزة الطبية'], s: ['Set-up, accuracy and care for home monitors and recovery devices.', 'الإعداد والدقّة والعناية لأجهزة المراقبة المنزلية وأجهزة التعافي.'], count: ['18 guides', '١٨ دليلًا'], tint: 'var(--wash-cool)' },
   ] as const;
 
   const featured = posts.length

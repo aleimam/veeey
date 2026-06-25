@@ -438,9 +438,27 @@ model Tier {
   earnRatePerEgp Int               @default(1) // points per EGP (configurable)
   color          String?
   badge          String?
+  // Optional storefront theme for this tier (Appearance). Null = use the active theme.
+  themeId        String?
+  theme          Theme?            @relation(fields: [themeId], references: [id], onDelete: SetNull)
   customers      Customer[]
   rules          TierProductRule[]
   createdAt      DateTime          @default(now())
+}
+
+// Storefront theme — a named set of design-token overrides (Appearance editor).
+// Exactly one theme is `isActive` (the global default for guests / untiered
+// viewers); tiers may point to their own theme. `isDefault` marks the built-in
+// Veeey theme (cannot be deleted). `tokens` is a sparse cssVar -> value map.
+model Theme {
+  id        String   @id @default(cuid())
+  name      String
+  tokens    Json     @default("{}")
+  isActive  Boolean  @default(false)
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tiers     Tier[]
 }
 
 // Per-tier product behavior keyed by category/tag/attribute (FR-PRC-03).

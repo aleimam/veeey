@@ -189,7 +189,7 @@ function SpecialOrder({ t }: { t: T }) {
     { n: 4, icon: 'badge-check', en: 'Late? Automatic compensation', ar: 'تأخّر؟ تعويض تلقائي' },
   ];
   return (
-    <section className="mt-10" style={{ background: '#2A3340' }}>
+    <section className="mt-10" style={{ background: 'var(--panel-dark)' }}>
       <div className="mx-auto max-w-[1000px] px-4 py-16 text-center sm:px-6 sm:py-20">
         <div className="text-[13px] font-bold uppercase tracking-[0.16em] text-lime">{t('Special Order', 'طلب خاص')}</div>
         <h2 className="mt-4 text-[clamp(34px,4.6vw,52px)] font-bold leading-tight text-white">{t("Can't find it? We'll bring it.", 'لا تجده؟ سنحضره لك.')}</h2>
@@ -198,7 +198,7 @@ function SpecialOrder({ t }: { t: T }) {
           {steps.map((st, idx) => (
             <div key={st.n} className="relative flex flex-col items-center px-2.5">
               {idx < steps.length - 1 && <div className="absolute start-1/2 top-8 hidden h-px w-full bg-white/15 sm:block" aria-hidden="true" />}
-              <div className="relative z-[2] flex size-[66px] items-center justify-center rounded-full border-2 border-lime text-[22px] font-bold text-lime" style={{ background: '#2A3340', boxShadow: '0 0 18px rgba(209,215,37,.4)', fontFamily: 'var(--font-display)' }}>{st.n}</div>
+              <div className="relative z-[2] flex size-[66px] items-center justify-center rounded-full border-2 border-lime text-[22px] font-bold text-lime" style={{ background: 'var(--panel-dark)', boxShadow: '0 0 18px rgba(209,215,37,.4)', fontFamily: 'var(--font-display)' }}>{st.n}</div>
               <span className="mt-5"><Icon name={st.icon} size={26} color="rgba(255,255,255,.78)" /></span>
               <div className="mt-4 max-w-[170px] text-base font-semibold leading-snug text-white">{t(st.en, st.ar)}</div>
               {st.note && <div className="mt-2 text-sm font-semibold text-lime">{st.note}</div>}

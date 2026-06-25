@@ -39,6 +39,7 @@ export const THEME_TOKENS: ThemeToken[] = [
   { v: '--green-mid', label: 'Mid green', group: 'Colors', sub: 'Greens', control: 'color', def: '#48884d' },
   { v: '--green-emerald', label: 'Emerald (CTA)', group: 'Colors', sub: 'Greens', control: 'color', def: '#235c3c' },
   { v: '--green-wash', label: 'Green wash', group: 'Colors', sub: 'Greens', control: 'color', def: '#e7f0ea' },
+  { v: '--green-deepest', label: 'Deepest green (hero gradient)', group: 'Colors', sub: 'Greens', control: 'color', def: '#1c4a30' },
   // ── Colors · Lime ──
   { v: '--lime', label: 'Lime (accent)', group: 'Colors', sub: 'Lime', control: 'color', def: '#d1d725' },
   { v: '--lime-hover', label: 'Lime hover', group: 'Colors', sub: 'Lime', control: 'color', def: '#bcc121' },
@@ -48,6 +49,8 @@ export const THEME_TOKENS: ThemeToken[] = [
   { v: '--gold', label: 'Gold', group: 'Colors', sub: 'Gold', control: 'color', def: '#ffc000' },
   { v: '--gold-deep', label: 'Gold deep', group: 'Colors', sub: 'Gold', control: 'color', def: '#c99700' },
   { v: '--gold-wash', label: 'Gold wash', group: 'Colors', sub: 'Gold', control: 'color', def: '#fff4d6' },
+  { v: '--gold-select', label: 'Select gold (Veeey Select)', group: 'Colors', sub: 'Gold', control: 'color', def: '#c9a227' },
+  { v: '--gold-on', label: 'Text on gold', group: 'Colors', sub: 'Gold', control: 'color', def: '#1c2f24' },
   // ── Colors · Neutrals ──
   { v: '--slate', label: 'Slate (body text)', group: 'Colors', sub: 'Neutrals', control: 'color', def: '#33424f' },
   { v: '--slate-70', label: 'Slate 70 (muted)', group: 'Colors', sub: 'Neutrals', control: 'color', def: '#5c6772' },
@@ -55,6 +58,8 @@ export const THEME_TOKENS: ThemeToken[] = [
   { v: '--ink', label: 'Ink (headings)', group: 'Colors', sub: 'Neutrals', control: 'color', def: '#1c2530' },
   { v: '--surface', label: 'Surface (page/card bg)', group: 'Colors', sub: 'Neutrals', control: 'color', def: '#f4f6f3' },
   { v: '--surface-sunk', label: 'Surface sunk', group: 'Colors', sub: 'Neutrals', control: 'color', def: '#ebefea' },
+  { v: '--panel-dark', label: 'Dark panel (special order)', group: 'Colors', sub: 'Neutrals', control: 'color', def: '#2a3340' },
+  { v: '--wash-cool', label: 'Cool wash (device tint)', group: 'Colors', sub: 'Neutrals', control: 'color', def: '#e9eef4' },
   // ── Colors · Status ──
   { v: '--success', label: 'Success', group: 'Colors', sub: 'Status', control: 'color', def: '#2f855a' },
   { v: '--warning', label: 'Warning', group: 'Colors', sub: 'Status', control: 'color', def: '#e9a800' },

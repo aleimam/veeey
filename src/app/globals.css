@@ -154,6 +154,7 @@
   --green-dark-12: rgba(56, 118, 77, 0.12);
   --green-dark-05: rgba(56, 118, 77, 0.05);
   --green-wash: #e7f0ea;
+  --green-deepest: #1c4a30;
   /* Lime */
   --lime-hover: #bcc121;
   --lime-press: #a7ac1e;
@@ -161,11 +162,15 @@
   /* Gold */
   --gold-deep: #c99700;
   --gold-wash: #fff4d6;
+  --gold-select: #c9a227;
+  --gold-on: #1c2f24;
   /* Slate / neutrals */
   --slate-70: #5c6772;
   --slate-45: #8b939c;
   --slate-border: rgba(51, 66, 79, 0.22);
   --surface-sunk: #ebefea;
+  --panel-dark: #2a3340;
+  --wash-cool: #e9eef4;
   --surface-card: #ffffff;
   --surface-input: var(--surface);
   --white: #ffffff;

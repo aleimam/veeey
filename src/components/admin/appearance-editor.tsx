@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useLocale } from 'next-intl';
 import { pick } from '@/lib/admin-i18n';
 import { THEME_TOKENS, THEME_GROUPS, LOCAL_FONTS, evaluateContrast, type ThemeGroup, type ThemeToken, type ThemeOverrides } from '@/lib/theme';
-import { saveThemeAction, resetThemeAction } from '@/server/theme-actions';
+import { saveThemeAction, resetThemeTokensAction } from '@/server/theme-actions';
 
 const GROUP_AR: Record<ThemeGroup, string> = {
   Colors: 'الألوان',
@@ -22,7 +22,7 @@ const sizeNum = (v: string) => {
 
 const inputCls = 'rounded-md border border-border bg-card px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-ring';
 
-export function AppearanceEditor({ initial }: { initial: ThemeOverrides }) {
+export function AppearanceEditor({ themeId, initial }: { themeId: string; initial: ThemeOverrides }) {
   const locale = useLocale();
   const tb = pick(locale);
   const [vals, setVals] = useState<ThemeOverrides>(initial);
@@ -71,10 +71,10 @@ export function AppearanceEditor({ initial }: { initial: ThemeOverrides }) {
     return () => links.forEach((l) => l.remove());
   }, [fontKey]);
 
-  const save = () => start(async () => setMsg(await saveThemeAction(vals)));
+  const save = () => start(async () => setMsg(await saveThemeAction(themeId, vals)));
   const reset = () =>
     start(async () => {
-      const r = await resetThemeAction();
+      const r = await resetThemeTokensAction(themeId);
       if (r.ok) setVals({});
       setMsg(r);
     });

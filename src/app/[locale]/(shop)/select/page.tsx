@@ -6,7 +6,7 @@ import { Link } from '@/i18n/navigation';
 
 export const dynamic = 'force-dynamic';
 
-const GOLD = '#C9A227';
+const GOLD = 'var(--gold-select)';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
@@ -53,7 +53,7 @@ export default async function SelectPage({ params }: { params: Promise<{ locale:
   return (
     <div>
       {/* hero */}
-      <section className="relative overflow-hidden text-white" style={{ background: 'radial-gradient(120% 120% at 80% 0%, #1c4a30, var(--green-dark) 60%)' }}>
+      <section className="relative overflow-hidden text-white" style={{ background: 'radial-gradient(120% 120% at 80% 0%, var(--green-deepest), var(--green-dark) 60%)' }}>
         <div className="relative z-[1] mx-auto max-w-[1440px] px-4 pb-[84px] pt-[76px] text-center sm:px-6 lg:px-8">
           <div className="inline-flex items-center gap-2.5 rounded-full px-[18px] py-2 text-[12.5px] font-bold uppercase tracking-[0.18em]" style={{ border: `1.5px solid ${GOLD}`, color: GOLD }}>
             <Icon name="crown" size={15} color={GOLD} /> {t('Veeey Select', 'فيي سيلكت')}
@@ -70,7 +70,7 @@ export default async function SelectPage({ params }: { params: Promise<{ locale:
             {t('We search globally, filter rigorously, verify authenticity, and present only the products worth selecting.', 'نبحث عالميًا، ونصفّي بصرامة، ونتحقّق من الأصالة، ونقدّم فقط ما يستحق الاختيار.')}
           </p>
           <div className="mt-9 flex flex-wrap justify-center gap-3">
-            <a href="#select-cats" className="inline-flex h-[54px] items-center rounded-full px-[30px] text-[15.5px] font-bold" style={{ background: GOLD, color: '#1c2f24', boxShadow: '0 8px 24px rgba(201,162,39,.35)' }}>
+            <a href="#select-cats" className="inline-flex h-[54px] items-center rounded-full px-[30px] text-[15.5px] font-bold" style={{ background: GOLD, color: 'var(--gold-on)', boxShadow: '0 8px 24px rgba(201,162,39,.35)' }}>
               {t('Explore the Collection', 'استكشف التشكيلة')}
             </a>
             <Link href="/special-order" className="inline-flex h-[54px] items-center rounded-full border border-white/35 bg-white/10 px-[26px] text-[15px] font-semibold text-white">
@@ -109,7 +109,7 @@ export default async function SelectPage({ params }: { params: Promise<{ locale:
                 style={{ border: `1px solid ${c.special ? GOLD : 'var(--green-dark-12)'}` }}
               >
                 {c.special && (
-                  <span className="absolute end-4 top-4 rounded-full px-[11px] py-1 text-[10.5px] font-bold uppercase tracking-[0.08em]" style={{ background: GOLD, color: '#1c2f24' }}>
+                  <span className="absolute end-4 top-4 rounded-full px-[11px] py-1 text-[10.5px] font-bold uppercase tracking-[0.08em]" style={{ background: GOLD, color: 'var(--gold-on)' }}>
                     {t('Concierge', 'كونسيرج')}
                   </span>
                 )}
@@ -180,7 +180,7 @@ export default async function SelectPage({ params }: { params: Promise<{ locale:
               </p>
             </div>
           </div>
-          <Link href="/special-order" className="inline-flex h-[54px] shrink-0 items-center rounded-full px-[30px] text-[15.5px] font-bold" style={{ background: GOLD, color: '#1c2f24', boxShadow: '0 8px 24px rgba(201,162,39,.3)' }}>
+          <Link href="/special-order" className="inline-flex h-[54px] shrink-0 items-center rounded-full px-[30px] text-[15.5px] font-bold" style={{ background: GOLD, color: 'var(--gold-on)', boxShadow: '0 8px 24px rgba(201,162,39,.3)' }}>
             {t('Request a Special Product', 'اطلب منتجًا خاصًا')}
           </Link>
         </div>

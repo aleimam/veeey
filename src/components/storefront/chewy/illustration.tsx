@@ -1,9 +1,10 @@
 // Veeey × Chewy flat illustration set — friendly category/goal glyphs in the
 // brand palette (deep green + lime + gold). Ported from the design-system kit.
-const GREEN = '#38764D';
-const EMER = '#235C3C';
-const LIME = '#D1D725';
-const GOLD = '#FFC000';
+// Tie illustration fills to theme tokens so they re-skin with the active theme.
+const GREEN = 'var(--green-dark)';
+const EMER = 'var(--green-emerald)';
+const LIME = 'var(--lime)';
+const GOLD = 'var(--gold)';
 
 export function Illo({ name, size = 96 }: { name: string; size?: number }) {
   const common = { width: size, height: size, viewBox: '0 0 96 96', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' } as const;
