@@ -1,14 +1,16 @@
-import { useTranslations } from 'next-intl';
-import { LanguageSwitcher } from '@/components/storefront/language-switcher';
+import { getLocale } from 'next-intl/server';
+import { pick } from '@/lib/admin-i18n';
 
-export function AnnouncementBar({ text }: { text?: string }) {
-  const t = useTranslations('storefront.announcement');
+/** Chewy-pattern promo pill — sits above the header. `text` (admin home
+ *  announcement) overrides the default welcome offer. */
+export async function AnnouncementBar({ text }: { text?: string }) {
+  const locale = await getLocale();
+  const t = pick(locale);
   return (
-    <div className="bg-green-dark text-white">
-      <div className="mx-auto flex max-w-[1280px] items-center gap-4 px-4 py-2 text-xs sm:px-6 lg:px-8">
-        <span className="hidden w-24 shrink-0 sm:block" aria-hidden="true" />
-        <p className="flex-1 text-center font-medium tracking-[0.01em] text-white/90">{text || t('promo')}</p>
-        <LanguageSwitcher className="flex w-24 shrink-0 items-center justify-end gap-2" />
+    <div className="mx-auto max-w-[1440px] px-4 pt-3 sm:px-6">
+      <div className="rounded-full border border-[color:var(--slate-border)] bg-white px-5 py-2.5 text-center text-[13.5px] font-semibold text-green-dark">
+        {text || t('Free EGP 100 gift card with your first EGP 1,500+ order', 'بطاقة هدية بقيمة ١٠٠ ج.م مع أول طلب فوق ١٥٠٠ ج.م')}{' '}
+        · <span className="text-gold-deep">{t('Use code WELCOME100', 'استخدم الكود WELCOME100')}</span>
       </div>
     </div>
   );

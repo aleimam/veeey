@@ -205,7 +205,9 @@
         "devices": "Devices",
         "brands": "Brands",
         "offers": "Offers",
-        "specialOrder": "Special order"
+        "specialOrder": "Special order",
+        "refill": "Veeey Refill",
+        "select": "Veeey Select"
       },
       "help": {
         "track": "Track my order",
@@ -229,7 +231,8 @@
         "careers": "Careers",
         "blog": "Blog",
         "rewards": "Veeey rewards",
-        "wholesale": "Wholesale"
+        "wholesale": "Wholesale",
+        "learn": "Learn"
       }
     },
     "hero": {

@@ -1,9 +1,11 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
+import { pick } from '@/lib/admin-i18n';
 import { prisma } from '@/lib/prisma';
 import { toCardProduct, cardProductInclude } from '@/lib/storefront';
-import { ProductCard } from '@/components/storefront/product-card';
+import { ChewyProductCard } from '@/components/storefront/chewy/chewy-product-card';
 import { Select } from '@/components/storefront/ui/select';
 import { Checkbox } from '@/components/storefront/ui/checkbox';
+import { Icon } from '@/components/storefront/ui/icon';
 import { Link } from '@/i18n/navigation';
 
 type SP = Record<string, string | string[] | undefined>;
@@ -54,17 +56,33 @@ export default async function ProductsPage({
   }
 
   const t = await getTranslations('storefront.listing');
+  const tb = pick(locale);
+  const heading = q ? t('resultsFor', { q }) : t('allProducts');
 
   return (
-    <div className="mx-auto max-w-[1280px] px-4 py-10 sm:px-6 lg:px-8">
-      <h1 className="mb-6 text-3xl font-bold text-green-dark">
-        {q ? t('resultsFor', { q }) : t('allProducts')}
-      </h1>
+    <div className="mx-auto max-w-[1440px] px-4 pb-12 pt-5 sm:px-6 lg:px-8">
+      <div className="mb-3.5 flex items-center gap-2 text-[13px] text-[color:var(--text-muted)]">
+        <Link href="/">{tb('Home', 'الرئيسية')}</Link>
+        <Icon name="chevron-right" size={14} color="var(--slate-45)" />
+        <span className="font-semibold text-slate">{heading}</span>
+      </div>
 
-      <div className="grid gap-8 lg:grid-cols-[240px_1fr]">
-        <aside>
-          <form action={`/${locale}/products`} className="space-y-5">
-            {q && <input type="hidden" name="q" value={q} />}
+      <div className="mb-5">
+        <h1 className="text-[clamp(28px,3.4vw,38px)] font-bold text-green-dark">{heading}</h1>
+        <div className="mt-1 text-sm text-[color:var(--text-muted)]">
+          {tb(`${products.length} products · genuine imports, every lot dated`, `${products.length} منتجًا · واردات أصلية، وكل تشغيلة مؤرّخة`)}
+        </div>
+      </div>
+
+      <form action={`/${locale}/products`} className="grid items-start gap-7 lg:grid-cols-[240px_1fr]">
+        {q && <input type="hidden" name="q" value={q} />}
+        <aside className="rounded-[16px] border border-[color:var(--green-dark-05)] bg-white p-5 lg:sticky lg:top-[130px]">
+          <div className="space-y-4">
+            <Select name="kind" defaultValue={kind ?? ''} label={t('type')}>
+              <option value="">{t('all')}</option>
+              <option value="SUPPLEMENT">{t('supplements')}</option>
+              <option value="DEVICE">{t('devices')}</option>
+            </Select>
             <Select name="brand" defaultValue={brand ?? ''} label={t('brand')}>
               <option value="">{t('allBrands')}</option>
               {brands.map((b) => (
@@ -72,11 +90,6 @@ export default async function ProductsPage({
                   {(locale === 'ar' ? b.nameAr : b.nameEn) ?? b.nameEn}
                 </option>
               ))}
-            </Select>
-            <Select name="kind" defaultValue={kind ?? ''} label={t('type')}>
-              <option value="">{t('all')}</option>
-              <option value="SUPPLEMENT">{t('supplements')}</option>
-              <option value="DEVICE">{t('devices')}</option>
             </Select>
             <Select name="sort" defaultValue={sort} label={t('sort')}>
               <option value="popular">{t('mostPopular')}</option>
@@ -89,27 +102,25 @@ export default async function ProductsPage({
               <Checkbox name="offers" value="1" defaultChecked={offers} label={t('onOffer')} />
             </div>
             <button className="v-btn v-btn--primary v-btn--block">{t('apply')}</button>
-          </form>
+          </div>
         </aside>
 
         <section>
           {products.length > 0 ? (
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 lg:gap-5">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 lg:gap-[18px]">
               {products.map((p) => (
-                <ProductCard key={p.slug} product={p} locale={locale} />
+                <ChewyProductCard key={p.slug} product={p} locale={locale} />
               ))}
             </div>
           ) : (
             <div className="rounded-[16px] border border-dashed border-[color:var(--slate-border)] p-10 text-center">
               <p className="font-semibold text-ink">{t('noMatch')}</p>
               <p className="mt-2 text-sm text-[color:var(--text-muted)]">{t('noMatchNote')}</p>
-              <Link href="/products" className="mt-4 inline-block text-sm font-semibold text-green-dark hover:text-lime-press">
-                {t('clearFilters')}
-              </Link>
+              <Link href="/products" className="mt-4 inline-block text-sm font-semibold text-green-dark hover:text-lime-press">{t('clearFilters')}</Link>
             </div>
           )}
         </section>
-      </div>
+      </form>
     </div>
   );
 }

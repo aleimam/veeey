@@ -205,7 +205,9 @@
         "devices": "الأجهزة",
         "brands": "العلامات التجارية",
         "offers": "العروض",
-        "specialOrder": "طلب خاص"
+        "specialOrder": "طلب خاص",
+        "refill": "فيي ريفيل",
+        "select": "فيي سيلكت"
       },
       "help": {
         "track": "تتبّع طلبي",
@@ -229,7 +231,8 @@
         "careers": "الوظائف",
         "blog": "المدوّنة",
         "rewards": "مكافآت Veeey",
-        "wholesale": "الجملة"
+        "wholesale": "الجملة",
+        "learn": "تعلّم"
       }
     },
     "hero": {
