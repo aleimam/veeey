@@ -34,6 +34,18 @@ const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 const obj = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' ? (v as Record<string, unknown>) : {});
 const DETACH_MS = 3000;
 
+// Per-run soft time budget — the loop saves progress after every page, so even if
+// a run is cut short (budget, upstream timeout, or a proxy 504) no work is lost
+// and the next "Sync now" resumes from the saved cursor. This is what makes a
+// full backfill of ~20k customers safe across repeated clicks / scheduled runs.
+const BUDGET_MS = 120_000;
+const FETCH_MS = 45_000;
+// `_fields` slims the WooCommerce payload to only what we map — critical for the
+// heavy products endpoint, which otherwise times out on full responses.
+const PRODUCT_FIELDS = 'id,name,sku,regular_price,price,description,short_description,weight,global_unique_id,status,categories,brands,attributes,images,date_modified,date_modified_gmt';
+const ORDER_FIELDS = 'id,number,status,total,discount_total,shipping_total,payment_method,customer_id,billing,shipping,line_items,date_created,date_created_gmt,date_modified,date_modified_gmt';
+const CUSTOMER_FIELDS = 'id,email,first_name,last_name,username,billing,date_created';
+
 function egpToPiastres(v: unknown): number | null {
   if (v == null || v === '') return null;
   const n = Number(v);
@@ -89,20 +101,28 @@ function imagesData(productId: string, p: Record<string, unknown>) {
   return arr(p.images).slice(0, 12).map((im, i) => ({ productId, url: str(obj(im).src), alt: str(obj(im).alt) || null, sortOrder: i, isPrimary: i === 0 })).filter((x) => x.url);
 }
 
-export async function syncProducts(opts: { maxPages?: number; perPage?: number } = {}): Promise<SyncSummary> {
-  const maxPages = Math.min(opts.maxPages ?? 5, 50);
-  const perPage = opts.perPage ?? 50;
+export async function syncProducts(opts: { maxPages?: number; perPage?: number; budgetMs?: number } = {}): Promise<SyncSummary> {
+  const maxPages = Math.min(opts.maxPages ?? 5, 200);
+  const perPage = opts.perPage ?? 100;
+  const deadline = Date.now() + (opts.budgetMs ?? BUDGET_MS);
   const state = await prisma.wooSyncState.findUnique({ where: { entity: 'products' } });
   const cursor = state?.cursor ?? null;
   const s = newSummary('products', cursor);
   let newCursor = cursor;
-  const baseParams: Record<string, string | number> = { per_page: perPage, orderby: 'modified', order: 'asc' };
+  const baseParams: Record<string, string | number> = { per_page: perPage, orderby: 'modified', order: 'asc', _fields: PRODUCT_FIELDS };
   if (cursor) baseParams.modified_after = cursor;
 
   let page = 1;
   let totalPages = 1;
   while (page <= Math.min(maxPages, totalPages)) {
-    const res = await wooFetch('products', { ...baseParams, page });
+    if (Date.now() > deadline) break;
+    let res: Awaited<ReturnType<typeof wooFetch>>;
+    try {
+      res = await wooFetch('products', { ...baseParams, page }, FETCH_MS);
+    } catch (e) {
+      pushErr(s, `page ${page}`, e instanceof Error ? e.message.slice(0, 140) : 'fetch failed');
+      break; // keep progress saved from prior pages; next run resumes from the cursor
+    }
     totalPages = res.totalPages;
     const items = res.data as Record<string, unknown>[];
     if (items.length === 0) break;
@@ -155,6 +175,8 @@ export async function syncProducts(opts: { maxPages?: number; perPage?: number }
         pushErr(s, str(p.id), e instanceof Error ? e.message.slice(0, 140) : 'error');
       }
     }
+    s.cursor = newCursor;
+    await saveState('products', newCursor, s); // persist progress per page — survives timeout/504
     page++;
   }
   s.cursor = newCursor;
@@ -163,18 +185,34 @@ export async function syncProducts(opts: { maxPages?: number; perPage?: number }
 }
 
 // ── Customers ─────────────────────────────────────────────────────────────
-export async function syncCustomers(opts: { maxPages?: number; perPage?: number } = {}): Promise<SyncSummary> {
-  const maxPages = Math.min(opts.maxPages ?? 5, 80);
-  const perPage = opts.perPage ?? 50;
-  const s = newSummary('customers', null);
+export async function syncCustomers(opts: { maxPages?: number; perPage?: number; budgetMs?: number } = {}): Promise<SyncSummary> {
+  const maxPages = Math.min(opts.maxPages ?? 5, 400);
+  const perPage = opts.perPage ?? 100;
+  const deadline = Date.now() + (opts.budgetMs ?? BUDGET_MS);
+  // WooCommerce has no "modified since" filter for customers, so we paginate by a
+  // stable id-ascending order and store the last completed page as the cursor —
+  // this lets repeated runs (or the scheduler) drain all customers instead of
+  // re-scanning the first N forever. On reaching the end we reset to null so the
+  // next run re-scans from the top to pick up newly-registered customers.
+  const state = await prisma.wooSyncState.findUnique({ where: { entity: 'customers' } });
+  const startPage = state?.cursor ? Math.max(1, Number(state.cursor) + 1) : 1;
+  const s = newSummary('customers', state?.cursor ?? null);
+  let lastCompleted: number | null = state?.cursor ? Number(state.cursor) : null;
 
-  let page = 1;
-  let totalPages = 1;
-  while (page <= Math.min(maxPages, totalPages)) {
-    const res = await wooFetch('customers', { per_page: perPage, orderby: 'registered_date', order: 'desc', page });
-    totalPages = res.totalPages;
+  let page = startPage;
+  let pagesThisRun = 0;
+  while (pagesThisRun < maxPages) {
+    if (Date.now() > deadline) break;
+    let res: Awaited<ReturnType<typeof wooFetch>>;
+    try {
+      res = await wooFetch('customers', { per_page: perPage, orderby: 'id', order: 'asc', _fields: CUSTOMER_FIELDS, page }, FETCH_MS);
+    } catch (e) {
+      pushErr(s, `page ${page}`, e instanceof Error ? e.message.slice(0, 140) : 'fetch failed');
+      break;
+    }
+    const totalPages = res.totalPages;
     const items = res.data as Record<string, unknown>[];
-    if (items.length === 0) break;
+    if (items.length === 0) { lastCompleted = null; break; } // past the end → reset for next full re-scan
     for (const c of items) {
       s.scanned++;
       const wpId = Number(c.id);
@@ -206,9 +244,14 @@ export async function syncCustomers(opts: { maxPages?: number; perPage?: number 
         pushErr(s, str(c.id), e instanceof Error ? e.message.slice(0, 140) : 'error');
       }
     }
+    lastCompleted = page;
+    pagesThisRun++;
+    await saveState('customers', String(lastCompleted), s); // persist page cursor per page
+    if (page >= totalPages || items.length < perPage) { lastCompleted = null; break; } // reached the end → reset
     page++;
   }
-  await saveState('customers', null, s);
+  s.cursor = lastCompleted == null ? null : String(lastCompleted);
+  await saveState('customers', s.cursor, s);
   return s;
 }
 
@@ -228,20 +271,28 @@ async function uniqueOrderNumber(base: string, wpId: number): Promise<string> {
   return clash ? `${num}-WC${wpId}` : num;
 }
 
-export async function syncOrders(opts: { maxPages?: number; perPage?: number } = {}): Promise<SyncSummary> {
-  const maxPages = Math.min(opts.maxPages ?? 5, 50);
+export async function syncOrders(opts: { maxPages?: number; perPage?: number; budgetMs?: number } = {}): Promise<SyncSummary> {
+  const maxPages = Math.min(opts.maxPages ?? 5, 200);
   const perPage = opts.perPage ?? 50;
+  const deadline = Date.now() + (opts.budgetMs ?? BUDGET_MS);
   const state = await prisma.wooSyncState.findUnique({ where: { entity: 'orders' } });
   const cursor = state?.cursor ?? null;
   const s = newSummary('orders', cursor);
   let newCursor = cursor;
-  const baseParams: Record<string, string | number> = { per_page: perPage, orderby: 'modified', order: 'asc' };
+  const baseParams: Record<string, string | number> = { per_page: perPage, orderby: 'modified', order: 'asc', _fields: ORDER_FIELDS };
   if (cursor) baseParams.modified_after = cursor;
 
   let page = 1;
   let totalPages = 1;
   while (page <= Math.min(maxPages, totalPages)) {
-    const res = await wooFetch('orders', { ...baseParams, page });
+    if (Date.now() > deadline) break;
+    let res: Awaited<ReturnType<typeof wooFetch>>;
+    try {
+      res = await wooFetch('orders', { ...baseParams, page }, FETCH_MS);
+    } catch (e) {
+      pushErr(s, `page ${page}`, e instanceof Error ? e.message.slice(0, 140) : 'fetch failed');
+      break;
+    }
     totalPages = res.totalPages;
     const items = res.data as Record<string, unknown>[];
     if (items.length === 0) break;
@@ -293,6 +344,8 @@ export async function syncOrders(opts: { maxPages?: number; perPage?: number } =
         pushErr(s, str(o.id), e instanceof Error ? e.message.slice(0, 140) : 'error');
       }
     }
+    s.cursor = newCursor;
+    await saveState('orders', newCursor, s); // persist progress per page
     page++;
   }
   s.cursor = newCursor;
@@ -317,12 +370,15 @@ async function flag(key: string, def: boolean): Promise<boolean> {
   return r ? r.value !== 'false' : def;
 }
 
-/** Scheduler entry: runs the enabled entities (small bounded chunk). Off by default. */
-export async function runScheduledSync(maxPages = 3): Promise<SyncSummary[]> {
+/** Scheduler entry: runs the enabled entities (bounded chunk + per-entity time
+ * budget). Off by default. With per-page state saves this steadily drains a large
+ * backlog hands-off across the recurring runs. */
+export async function runScheduledSync(maxPages = 20): Promise<SyncSummary[]> {
   if (!(await flag('woo.sync.enabled', false))) return [];
+  const budgetMs = 45_000;
   const out: SyncSummary[] = [];
-  if (await flag('woo.sync.products', true)) out.push(await syncProducts({ maxPages }));
-  if (await flag('woo.sync.customers', true)) out.push(await syncCustomers({ maxPages }));
-  if (await flag('woo.sync.orders', true)) out.push(await syncOrders({ maxPages }));
+  if (await flag('woo.sync.products', true)) out.push(await syncProducts({ maxPages, budgetMs }));
+  if (await flag('woo.sync.customers', true)) out.push(await syncCustomers({ maxPages, budgetMs }));
+  if (await flag('woo.sync.orders', true)) out.push(await syncOrders({ maxPages, budgetMs }));
   return out;
 }

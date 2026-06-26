@@ -40,7 +40,7 @@ async function main() {
       const r = await syncEntity(d.entity, { maxPages: 1 });
       console.log(`[worker] woo webhook sync ${r.entity}: +${r.created}/~${r.updated}`);
     } else {
-      const runs = await runScheduledSync(3);
+      const runs = await runScheduledSync(20);
       if (runs.length) console.log(`[worker] woo sync: ${runs.map((r) => `${r.entity}(+${r.created}/~${r.updated})`).join(', ')}`);
     }
   });

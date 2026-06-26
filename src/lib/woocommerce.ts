@@ -70,7 +70,7 @@ export type WooPage = { data: unknown[]; total: number; totalPages: number };
  * Returns the parsed list plus the X-WP-Total / X-WP-TotalPages headers.
  * Throws on missing config or non-2xx. Read-only — never mutates the source.
  */
-export async function wooFetch(path: WooEntity | string, params: Record<string, string | number> = {}): Promise<WooPage> {
+export async function wooFetch(path: WooEntity | string, params: Record<string, string | number> = {}, timeoutMs = 20_000): Promise<WooPage> {
   const cfg = await getWooConfig();
   if (!cfg) throw new Error('WOO_NOT_CONFIGURED');
   const url = new URL(`${cfg.url}/wp-json/wc/v3/${path}`);
@@ -79,7 +79,7 @@ export async function wooFetch(path: WooEntity | string, params: Record<string, 
   const res = await fetch(url, {
     headers: { Authorization: `Basic ${auth}`, Accept: 'application/json' },
     cache: 'no-store',
-    signal: AbortSignal.timeout(20_000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   if (!res.ok) {
     let detail = '';

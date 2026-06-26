@@ -16,7 +16,7 @@ const PATH = (l: string) => `/${l}/admin/woocommerce/sync`;
 
 async function run(entity: string, fn: (o: { maxPages: number }) => Promise<SyncSummary>, fd: FormData) {
   const locale = localeOf(fd);
-  const pages = Math.min(80, Math.max(1, Number(fd.get('pages')) || 5));
+  const pages = Math.min(400, Math.max(1, Number(fd.get('pages')) || 5));
   const user = await requirePermission('settings.manage');
   let summary: SyncSummary | null = null;
   try {

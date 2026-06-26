@@ -53,7 +53,10 @@ export default async function WooSyncPage({ params, searchParams }: { params: Pr
         )}
       </p>
       <div className="mb-5 max-w-2xl rounded-lg border border-gold/40 bg-gold/10 p-3 text-xs text-foreground">
-        {tb('⚠ This writes to Veeey’s database. Start small and review imported drafts before a full sync. Run order: products → orders use the changed-since cursor; customers do a bulk re-scan.', '⚠ هذا يكتب في قاعدة بيانات Veeey. ابدأ صغيرًا وراجع المسودات قبل المزامنة الكاملة.')}
+        {tb(
+          '⚠ Writes to Veeey’s database. To import EVERYTHING: each run pulls pages for up to ~2 min and saves progress after every page — so even if it times out, nothing is lost. Just keep clicking “Sync now” until “created” reaches 0. Products & orders resume via a changed-since cursor; customers advance through the full list page by page.',
+          '⚠ يكتب في قاعدة بيانات Veeey. لاستيراد كل شيء: كل تشغيل يسحب صفحات حتى ~دقيقتين ويحفظ التقدّم بعد كل صفحة — حتى لو انتهت المهلة لا يضيع شيء. استمر بالضغط على «زامن الآن» حتى يصل «مُنشأ» إلى 0. المنتجات والطلبات تستأنف عبر مؤشر التغيير؛ والعملاء يتقدّمون عبر القائمة كاملةً صفحةً صفحة.',
+        )}
       </div>
 
       {one(sp.error) && <div className="mb-5 max-w-2xl rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{tb('Action failed.', 'فشل الإجراء.')}</div>}
@@ -84,9 +87,9 @@ export default async function WooSyncPage({ params, searchParams }: { params: Pr
                 <form action={e.action} className="flex flex-wrap items-end gap-3">
                   <input type="hidden" name="locale" value={locale} />
                   <label className="text-sm text-foreground">
-                    {tb('Pages this run', 'الصفحات لكل تشغيل')}
-                    <select name="pages" defaultValue="5" className={`${inputCls} mt-1 w-auto`}>
-                      {[1, 5, 10, 20, 50].map((n) => <option key={n} value={n}>{n} ({n * 50})</option>)}
+                    {tb('Max pages this run', 'أقصى صفحات لكل تشغيل')}
+                    <select name="pages" defaultValue="25" className={`${inputCls} mt-1 w-auto`}>
+                      {[5, 10, 25, 50, 100, 200, 400].map((n) => <option key={n} value={n}>{n}</option>)}
                     </select>
                   </label>
                   <SubmitButton>{tb('Sync now', 'زامن الآن')}</SubmitButton>
