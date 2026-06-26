@@ -75,6 +75,7 @@ const NAV_SECTIONS: RawSection[] = [
     { href: '/admin/woocommerce/orders', key: 'wooOrders', permission: 'settings.manage' },
     { href: '/admin/woocommerce/import', key: 'wooImport', permission: 'settings.manage' },
     { href: '/admin/woocommerce/sync', key: 'wooSync', permission: 'settings.manage' },
+    { href: '/admin/woocommerce/cleanup', key: 'wooCleanup', permission: 'settings.manage' },
   ] },
   { title: ['API', 'الواجهة البرمجية'], items: [
     { href: '/admin/integration', key: 'integration', permission: 'settings.manage' },

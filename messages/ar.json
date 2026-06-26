@@ -58,7 +58,8 @@
       "wooCustomers": "العملاء",
       "wooOrders": "الطلبات",
       "wooImport": "الاستيراد (تجربة)",
-      "wooSync": "المزامنة الحية"
+      "wooSync": "المزامنة الحية",
+      "wooCleanup": "تنظيف غير المرغوب"
     },
     "common": {
       "new": "جديد",
