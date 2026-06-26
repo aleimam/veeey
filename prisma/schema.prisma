@@ -381,6 +381,7 @@ model Customer {
   // Link to YeldnIN for special-order dedupe (INTEGRATION_CONTRACT).
   veeeyCustomerId       String?    @unique
   legacyWpId            Int?       @unique
+  syncedAt              DateTime?  // last WooCommerce sync write (detach detection)
   createdAt             DateTime   @default(now())
   updatedAt             DateTime   @updatedAt
 
@@ -459,6 +460,16 @@ model Theme {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   tiers     Tier[]
+}
+
+// WooCommerce live-sync cursor + last-run state, one row per entity
+// ('products' | 'customers' | 'orders'). Powers incremental `modified_after` pulls.
+model WooSyncState {
+  entity     String    @id
+  cursor     String? // ISO timestamp of the newest record synced so far
+  lastRunAt  DateTime?
+  lastResult Json?
+  updatedAt  DateTime  @updatedAt
 }
 
 // Per-tier product behavior keyed by category/tag/attribute (FR-PRC-03).
@@ -622,6 +633,7 @@ model Product {
   sku               String            @unique
   legacyWpId        Int?              @unique
   legacySku         String?
+  syncedAt          DateTime?         // last WooCommerce sync write; sync detaches when updatedAt drifts past this
   gtin              String?
   kind              ProductKind       @default(SUPPLEMENT)
   nameEn            String
@@ -883,6 +895,7 @@ model Order {
   isSpecialOrder      Boolean       @default(false)
 
   legacyWpId Int?     @unique
+  syncedAt   DateTime? // last WooCommerce sync write (detach detection)
   placedAt   DateTime @default(now())
   updatedAt  DateTime @updatedAt
 

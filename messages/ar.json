@@ -57,7 +57,8 @@
       "wooProducts": "المنتجات",
       "wooCustomers": "العملاء",
       "wooOrders": "الطلبات",
-      "wooImport": "الاستيراد (تجربة)"
+      "wooImport": "الاستيراد (تجربة)",
+      "wooSync": "المزامنة الحية"
     },
     "common": {
       "new": "جديد",
