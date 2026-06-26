@@ -144,8 +144,8 @@ export async function syncProducts(opts: { maxPages?: number; perPage?: number; 
           const id = await findOrCreateCategory(str(obj(c).name), str(obj(c).slug));
           if (id) catIds.push(id);
         }
-        const wKg = Number(p.weight);
-        const weightG = str(p.weight) !== '' && Number.isFinite(wKg) ? Math.round(wKg * 1000) : null;
+        const wG = Number(p.weight); // egyptvitamins.com stores weight in grams already
+        const weightG = str(p.weight) !== '' && Number.isFinite(wG) ? Math.round(wG) : null;
         const common = {
           nameEn: str(p.name) || `Product ${wpId}`,
           longDescEn: str(p.description) || null,
