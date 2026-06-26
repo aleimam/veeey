@@ -52,7 +52,11 @@
       "providers": "المزوّدون",
       "settings": "الإعدادات",
       "appearance": "المظهر",
-      "loginProviders": "تسجيل الدخول الاجتماعي"
+      "loginProviders": "تسجيل الدخول الاجتماعي",
+      "wooConnection": "الاتصال",
+      "wooProducts": "المنتجات",
+      "wooCustomers": "العملاء",
+      "wooOrders": "الطلبات"
     },
     "common": {
       "new": "جديد",

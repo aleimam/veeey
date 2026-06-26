@@ -52,7 +52,11 @@
       "providers": "Providers",
       "settings": "Settings",
       "appearance": "Appearance",
-      "loginProviders": "Social login"
+      "loginProviders": "Social login",
+      "wooConnection": "Connection",
+      "wooProducts": "Products",
+      "wooCustomers": "Customers",
+      "wooOrders": "Orders"
     },
     "common": {
       "new": "New",

@@ -68,6 +68,12 @@ const NAV_SECTIONS: RawSection[] = [
     { href: '/admin/appearance', key: 'appearance', permission: 'settings.manage' },
     { href: '/admin/login-providers', key: 'loginProviders', permission: 'settings.manage' },
   ] },
+  { title: ['Egypt Vitamins', 'إيجيبت فيتامينز'], items: [
+    { href: '/admin/woocommerce', key: 'wooConnection', permission: 'settings.manage' },
+    { href: '/admin/woocommerce/products', key: 'wooProducts', permission: 'settings.manage' },
+    { href: '/admin/woocommerce/customers', key: 'wooCustomers', permission: 'settings.manage' },
+    { href: '/admin/woocommerce/orders', key: 'wooOrders', permission: 'settings.manage' },
+  ] },
   { title: ['API', 'الواجهة البرمجية'], items: [
     { href: '/admin/integration', key: 'integration', permission: 'settings.manage' },
   ] },
