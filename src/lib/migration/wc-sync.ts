@@ -108,35 +108,37 @@ function imagesData(productId: string, p: Record<string, unknown>) {
 }
 
 export async function syncProducts(opts: { maxPages?: number; perPage?: number; budgetMs?: number } = {}): Promise<SyncSummary> {
-  const maxPages = Math.min(opts.maxPages ?? 5, 200);
+  const maxPages = Math.min(opts.maxPages ?? 5, 400);
   const perPage = opts.perPage ?? 100;
   const deadline = Date.now() + (opts.budgetMs ?? BUDGET_MS);
+  // Stable id-ascending paging with a per-page page cursor (NOT modified_after):
+  // the source has many products sharing one "modified" timestamp, which stalls a
+  // date cursor (it keeps re-reading the same batch and never advances). id order
+  // is immutable, so every product is visited exactly once; on reaching the end
+  // the cursor resets to null so a later run re-scans for new/changed products.
   const state = await prisma.wooSyncState.findUnique({ where: { entity: 'products' } });
-  const cursor = state?.cursor ?? null;
-  const s = newSummary('products', cursor);
-  let newCursor = cursor;
-  const baseParams: Record<string, string | number> = { per_page: perPage, orderby: 'modified', order: 'asc', _fields: PRODUCT_FIELDS };
-  if (cursor) baseParams.modified_after = cursor;
+  const startNum = Number(state?.cursor);
+  const startPage = Number.isFinite(startNum) && startNum >= 1 ? startNum + 1 : 1;
+  const s = newSummary('products', state?.cursor ?? null);
+  let lastCompleted: number | null = Number.isFinite(startNum) && startNum >= 1 ? startNum : null;
 
-  let page = 1;
-  let totalPages = 1;
-  while (page <= Math.min(maxPages, totalPages)) {
+  let page = startPage;
+  let pagesThisRun = 0;
+  while (pagesThisRun < maxPages) {
     if (Date.now() > deadline) break;
     let res: Awaited<ReturnType<typeof wooFetch>>;
     try {
-      res = await wooFetch('products', { ...baseParams, page }, FETCH_MS);
+      res = await wooFetch('products', { per_page: perPage, orderby: 'id', order: 'asc', _fields: PRODUCT_FIELDS, page }, FETCH_MS);
     } catch (e) {
       pushErr(s, `page ${page}`, e instanceof Error ? e.message.slice(0, 140) : 'fetch failed');
-      break; // keep progress saved from prior pages; next run resumes from the cursor
+      break;
     }
-    totalPages = res.totalPages;
+    const totalPages = res.totalPages;
     const items = res.data as Record<string, unknown>[];
-    if (items.length === 0) break;
+    if (items.length === 0) { lastCompleted = null; break; }
     for (const p of items) {
       s.scanned++;
       const wpId = Number(p.id);
-      const modified = str(p.date_modified_gmt) || str(p.date_modified);
-      if (modified && (!newCursor || modified > newCursor)) newCursor = modified;
       try {
         // Quality gate: skip Arabic-only names, open/damaged/broken items, and
         // junk/placeholder names. Checked before any DB write so they're never
@@ -187,12 +189,14 @@ export async function syncProducts(opts: { maxPages?: number; perPage?: number; 
         pushErr(s, str(p.id), e instanceof Error ? e.message.slice(0, 140) : 'error');
       }
     }
-    s.cursor = newCursor;
-    await saveState('products', newCursor, s); // persist progress per page — survives timeout/504
+    lastCompleted = page;
+    pagesThisRun++;
+    await saveState('products', String(lastCompleted), s); // persist page cursor per page
+    if (page >= totalPages || items.length < perPage) { lastCompleted = null; break; } // reached the end
     page++;
   }
-  s.cursor = newCursor;
-  await saveState('products', newCursor, s);
+  s.cursor = lastCompleted == null ? null : String(lastCompleted);
+  await saveState('products', s.cursor, s);
   return s;
 }
 
@@ -284,35 +288,34 @@ async function uniqueOrderNumber(base: string, wpId: number): Promise<string> {
 }
 
 export async function syncOrders(opts: { maxPages?: number; perPage?: number; budgetMs?: number } = {}): Promise<SyncSummary> {
-  const maxPages = Math.min(opts.maxPages ?? 5, 200);
+  const maxPages = Math.min(opts.maxPages ?? 5, 400);
   const perPage = opts.perPage ?? 50;
   const deadline = Date.now() + (opts.budgetMs ?? BUDGET_MS);
+  // Stable id-ascending paging with a per-page page cursor (see syncProducts) —
+  // immune to the shared-"modified"-timestamp stall.
   const state = await prisma.wooSyncState.findUnique({ where: { entity: 'orders' } });
-  const cursor = state?.cursor ?? null;
-  const s = newSummary('orders', cursor);
-  let newCursor = cursor;
-  const baseParams: Record<string, string | number> = { per_page: perPage, orderby: 'modified', order: 'asc', _fields: ORDER_FIELDS };
-  if (cursor) baseParams.modified_after = cursor;
+  const startNum = Number(state?.cursor);
+  const startPage = Number.isFinite(startNum) && startNum >= 1 ? startNum + 1 : 1;
+  const s = newSummary('orders', state?.cursor ?? null);
+  let lastCompleted: number | null = Number.isFinite(startNum) && startNum >= 1 ? startNum : null;
 
-  let page = 1;
-  let totalPages = 1;
-  while (page <= Math.min(maxPages, totalPages)) {
+  let page = startPage;
+  let pagesThisRun = 0;
+  while (pagesThisRun < maxPages) {
     if (Date.now() > deadline) break;
     let res: Awaited<ReturnType<typeof wooFetch>>;
     try {
-      res = await wooFetch('orders', { ...baseParams, page }, FETCH_MS);
+      res = await wooFetch('orders', { per_page: perPage, orderby: 'id', order: 'asc', _fields: ORDER_FIELDS, page }, FETCH_MS);
     } catch (e) {
       pushErr(s, `page ${page}`, e instanceof Error ? e.message.slice(0, 140) : 'fetch failed');
       break;
     }
-    totalPages = res.totalPages;
+    const totalPages = res.totalPages;
     const items = res.data as Record<string, unknown>[];
-    if (items.length === 0) break;
+    if (items.length === 0) { lastCompleted = null; break; }
     for (const o of items) {
       s.scanned++;
       const wpId = Number(o.id);
-      const modified = str(o.date_modified_gmt) || str(o.date_modified);
-      if (modified && (!newCursor || modified > newCursor)) newCursor = modified;
       try {
         const total = egpToPiastres(o.total);
         if (!Number.isFinite(wpId) || total == null) { pushErr(s, str(o.id), 'invalid id / total'); continue; }
@@ -356,12 +359,14 @@ export async function syncOrders(opts: { maxPages?: number; perPage?: number; bu
         pushErr(s, str(o.id), e instanceof Error ? e.message.slice(0, 140) : 'error');
       }
     }
-    s.cursor = newCursor;
-    await saveState('orders', newCursor, s); // persist progress per page
+    lastCompleted = page;
+    pagesThisRun++;
+    await saveState('orders', String(lastCompleted), s); // persist page cursor per page
+    if (page >= totalPages || items.length < perPage) { lastCompleted = null; break; } // reached the end
     page++;
   }
-  s.cursor = newCursor;
-  await saveState('orders', newCursor, s);
+  s.cursor = lastCompleted == null ? null : String(lastCompleted);
+  await saveState('orders', s.cursor, s);
   return s;
 }
 
@@ -396,9 +401,9 @@ export async function runFullSync(opts: { budgetMs?: number } = {}): Promise<{ s
       const r = await syncEntity(entity, { maxPages: 50, budgetMs: 90_000 });
       agg.scanned += r.scanned; agg.created += r.created; agg.updated += r.updated;
       agg.detached += r.detached; agg.skipped += r.skipped; agg.errors += r.errors;
-      // products/orders catch up when the advanced cursor scans nothing new;
-      // customers (id-asc re-scan) catch up when a full pass resets the cursor to null.
-      if (entity === 'customers' ? r.cursor === null : r.scanned === 0) { caughtUp = true; break; }
+      // All three now use id-asc page cursors → a full pass resets the cursor to
+      // null, which is the unambiguous "caught up" signal (no timestamp stall).
+      if (r.cursor === null) { caughtUp = true; break; }
     }
     agg.cursor = null;
     summaries.push(agg);
