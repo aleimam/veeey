@@ -1,25 +1,25 @@
 import { setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { listProducts } from '@/lib/catalog-service';
-import { listBrands } from '@/lib/taxonomy-service';
+import { listProducts, countProducts } from '@/lib/catalog-service';
+import { listBrands, listCategories } from '@/lib/taxonomy-service';
 import { formatEGP } from '@/lib/format';
 import { StatusBadge } from '@/components/admin/ui';
 import { InUseNotice } from '@/components/admin/row-actions';
 import { deleteEntityAction } from '@/server/admin-actions';
+import { bulkProductsAction } from '@/server/bulk-actions';
 import { ExportBar, exportQs } from '@/components/admin/export-bar';
 import { FilterBar } from '@/components/admin/filter-bar';
+import { SortableTh } from '@/components/admin/sortable-th';
+import { ListPagination } from '@/components/admin/list-pagination';
+import { BulkBar, type BulkOp } from '@/components/admin/bulk-bar';
+import { parseListParams, listQs, type SP } from '@/lib/admin-list';
 import { pick } from '@/lib/admin-i18n';
 
-type SP = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
-export default async function ProductsPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ locale: string }>;
-  searchParams: Promise<SP>;
-}) {
+const SORTABLE = ['name', 'sku', 'price', 'status', 'updated', 'created'] as const;
+
+export default async function ProductsPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<SP> }) {
   const { locale } = await params;
   const sp = await searchParams;
   setRequestLocale(locale);
@@ -29,26 +29,55 @@ export default async function ProductsPage({
   const kind = one(sp.kind);
   const status = one(sp.status);
   const brand = one(sp.brand);
+  const { sort, dir, page, perPage } = parseListParams(sp, { sortable: SORTABLE, defaultSort: 'updated' });
+  const filters = { search: q, status, kind, brand };
 
-  const [products, brands] = await Promise.all([
-    listProducts({ search: q, status, kind, brand }),
+  const [products, total, brands, categories] = await Promise.all([
+    listProducts({ ...filters, sort, dir, page, perPage }),
+    countProducts(filters),
     listBrands(),
+    listCategories(),
   ]);
   const brandOptions = brands.map((b) => ({ value: b.id, label: b.nameEn }));
+
+  const basePath = `/${locale}/admin/products`;
+  const back = `${basePath}${listQs(sp, { done: undefined, skip: undefined, error: undefined })}`;
+  const done = one(sp.done);
+
+  const ops: BulkOp[] = [
+    { value: 'status', label: tb('Set status', 'تعيين الحالة'), values: [
+      { value: 'PUBLISHED', label: tb('Published', 'منشور') },
+      { value: 'PRIVATE', label: tb('Private', 'خاص') },
+      { value: 'DRAFT', label: tb('Draft', 'مسودة') },
+      { value: 'ARCHIVED', label: tb('Archived', 'مؤرشف') },
+    ] },
+    { value: 'kind', label: tb('Set kind', 'تعيين النوع'), values: [
+      { value: 'SUPPLEMENT', label: tb('Supplement', 'مكمل غذائي') },
+      { value: 'DEVICE', label: tb('Device', 'جهاز') },
+      { value: 'INJECTION', label: tb('Injection', 'حقن') },
+    ] },
+    { value: 'brand', label: tb('Set brand', 'تعيين العلامة'), values: [{ value: '__none__', label: tb('— None —', '— بدون —') }, ...brandOptions] },
+    { value: 'category', label: tb('Add category', 'إضافة فئة'), values: categories.map((c) => ({ value: c.id, label: c.nameEn })) },
+    { value: 'delete', label: tb('Delete', 'حذف'), danger: true },
+  ];
 
   return (
     <div className="p-6">
       <header className="mb-6 flex items-center justify-between">
-        <h1 className="font-heading text-xl font-semibold">{tb('Products', 'المنتجات')} ({products.length})</h1>
+        <h1 className="font-heading text-xl font-semibold">{tb('Products', 'المنتجات')} ({total})</h1>
         <div className="flex items-center gap-2">
           <ExportBar entity="products" locale={locale} query={exportQs(sp)} />
-          <Link href="/admin/products/edit" className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">
-            {tb('New product', 'منتج جديد')}
-          </Link>
+          <Link href="/admin/products/edit" className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">{tb('New product', 'منتج جديد')}</Link>
         </div>
       </header>
 
       <InUseNotice show={one(sp.error) === 'in_use'} />
+      {done != null && (
+        <p className="mb-4 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">
+          {tb(`Updated ${done} product(s).`, `تم تحديث ${done} منتج.`)}{Number(one(sp.skip)) > 0 ? tb(` ${one(sp.skip)} skipped (in use / not allowed).`, ` تم تخطّي ${one(sp.skip)} (قيد الاستخدام / غير مسموح).`) : ''}
+        </p>
+      )}
+      {one(sp.error) === 'bulk' && <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{tb('Bulk action failed.', 'فشل الإجراء الجماعي.')}</p>}
 
       <FilterBar
         locale={locale}
@@ -56,46 +85,48 @@ export default async function ProductsPage({
         values={{ q, kind, status, brand }}
         fields={[
           { name: 'q', label: tb('Search', 'بحث'), type: 'text', placeholder: tb('Name / SKU', 'الاسم / رمز المنتج') },
-          {
-            name: 'kind',
-            label: tb('Kind', 'النوع'),
-            type: 'select',
-            options: [
-              { value: 'SUPPLEMENT', label: tb('Supplement', 'مكمل غذائي') },
-              { value: 'DEVICE', label: tb('Device', 'جهاز') },
-              { value: 'INJECTION', label: tb('Injection', 'حقن') },
-            ],
-          },
-          {
-            name: 'status',
-            label: tb('Status', 'الحالة'),
-            type: 'select',
-            options: [
-              { value: 'PUBLISHED', label: tb('Published', 'منشور') },
-              { value: 'PRIVATE', label: tb('Private', 'خاص') },
-              { value: 'DRAFT', label: tb('Draft', 'مسودة') },
-              { value: 'ARCHIVED', label: tb('Archived', 'مؤرشف') },
-            ],
-          },
+          { name: 'kind', label: tb('Kind', 'النوع'), type: 'select', options: [
+            { value: 'SUPPLEMENT', label: tb('Supplement', 'مكمل غذائي') },
+            { value: 'DEVICE', label: tb('Device', 'جهاز') },
+            { value: 'INJECTION', label: tb('Injection', 'حقن') },
+          ] },
+          { name: 'status', label: tb('Status', 'الحالة'), type: 'select', options: [
+            { value: 'PUBLISHED', label: tb('Published', 'منشور') },
+            { value: 'PRIVATE', label: tb('Private', 'خاص') },
+            { value: 'DRAFT', label: tb('Draft', 'مسودة') },
+            { value: 'ARCHIVED', label: tb('Archived', 'مؤرشف') },
+          ] },
           { name: 'brand', label: tb('Brand', 'العلامة التجارية'), type: 'select', options: brandOptions },
         ]}
+      />
+
+      <BulkBar
+        formId="bulk-products"
+        action={bulkProductsAction}
+        locale={locale}
+        back={back}
+        ops={ops}
+        exportHref="/api/admin/export/products"
+        labels={{ selectAllPage: tb('Select page', 'تحديد الصفحة'), selected: tb('selected', 'محدد'), apply: tb('Apply', 'تطبيق'), exportSel: tb('Export selected', 'تصدير المحدد'), confirmDanger: tb('Delete the selected products? In-use products are skipped.', 'حذف المنتجات المحددة؟ يتم تخطّي المستخدمة.'), needValue: tb('Choose a value first.', 'اختر قيمة أولًا.') }}
       />
 
       <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-sm">
           <thead className="bg-surface text-start text-xs uppercase text-muted-foreground">
             <tr>
-              <th className="p-3 text-start">{tb('Name', 'الاسم')}</th>
-              <th className="p-3 text-start">{tb('SKU', 'رمز المنتج (SKU)')}</th>
+              <th className="w-8 p-3" />
+              <SortableTh col="name" label={tb('Name', 'الاسم')} sort={sort} dir={dir} sp={sp} basePath={basePath} />
+              <SortableTh col="sku" label={tb('SKU', 'رمز المنتج (SKU)')} sort={sort} dir={dir} sp={sp} basePath={basePath} />
               <th className="p-3 text-start">{tb('Brand', 'العلامة التجارية')}</th>
-              <th className="p-3 text-start">{tb('Price', 'السعر')}</th>
-              <th className="p-3 text-start">{tb('Status', 'الحالة')}</th>
+              <SortableTh col="price" label={tb('Price', 'السعر')} sort={sort} dir={dir} sp={sp} basePath={basePath} />
+              <SortableTh col="status" label={tb('Status', 'الحالة')} sort={sort} dir={dir} sp={sp} basePath={basePath} />
               <th className="p-3" />
             </tr>
           </thead>
           <tbody>
             {products.map((p) => (
               <tr key={p.id} className="border-t border-border">
+                <td className="p-3"><input type="checkbox" name="ids" value={p.id} form="bulk-products" className="size-4" aria-label={p.nameEn} /></td>
                 <td className="p-3 font-medium">{p.nameEn}</td>
                 <td className="p-3 text-muted-foreground">{p.sku}</td>
                 <td className="p-3 text-muted-foreground">{p.brand?.nameEn ?? '—'}</td>
@@ -116,11 +147,13 @@ export default async function ProductsPage({
               </tr>
             ))}
             {products.length === 0 && (
-              <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">{tb('No products yet.', 'لا توجد منتجات بعد.')}</td></tr>
+              <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">{tb('No products match.', 'لا توجد منتجات مطابقة.')}</td></tr>
             )}
           </tbody>
         </table>
       </div>
+
+      <ListPagination page={page} perPage={perPage} total={total} sp={sp} basePath={basePath} locale={locale} />
     </div>
   );
 }

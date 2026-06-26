@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
@@ -100,22 +101,50 @@ function scalarFields(data: z.infer<typeof productWriteSchema>) {
   };
 }
 
-export async function listProducts(
-  opts: { search?: string; status?: string; kind?: string; brand?: string } = {},
-) {
+export type ProductListOpts = {
+  search?: string; status?: string; kind?: string; brand?: string;
+  sort?: string; dir?: 'asc' | 'desc'; page?: number; perPage?: number;
+};
+
+function productWhere(opts: ProductListOpts): Prisma.ProductWhereInput {
+  return {
+    ...(opts.search ? { OR: [{ nameEn: { contains: opts.search, mode: 'insensitive' } }, { sku: { contains: opts.search, mode: 'insensitive' } }] } : {}),
+    ...(opts.status ? { status: opts.status as 'DRAFT' | 'PUBLISHED' | 'PRIVATE' | 'ARCHIVED' } : {}),
+    ...(opts.kind ? { kind: opts.kind as 'SUPPLEMENT' | 'DEVICE' | 'INJECTION' } : {}),
+    ...(opts.brand ? { brandId: opts.brand } : {}),
+  };
+}
+
+function productOrderBy(sort?: string, dir: 'asc' | 'desc' = 'desc'): Prisma.ProductOrderByWithRelationInput {
+  switch (sort) {
+    case 'name': return { nameEn: dir };
+    case 'sku': return { sku: dir };
+    case 'price': return { basePricePiastres: dir };
+    case 'status': return { status: dir };
+    case 'created': return { createdAt: dir };
+    default: return { updatedAt: dir };
+  }
+}
+
+/**
+ * List products for the admin. Without `page` it returns up to 200 (used by
+ * pickers); with `page` it paginates by `perPage` and applies the sort column.
+ */
+export async function listProducts(opts: ProductListOpts = {}) {
+  const perPage = opts.perPage ?? 50;
+  const take = opts.page != null ? perPage : 200;
+  const skip = opts.page != null ? (Math.max(1, opts.page) - 1) * perPage : 0;
   return prisma.product.findMany({
-    where: {
-      ...(opts.search
-        ? { OR: [{ nameEn: { contains: opts.search, mode: 'insensitive' } }, { sku: { contains: opts.search, mode: 'insensitive' } }] }
-        : {}),
-      ...(opts.status ? { status: opts.status as 'DRAFT' | 'PUBLISHED' | 'PRIVATE' | 'ARCHIVED' } : {}),
-      ...(opts.kind ? { kind: opts.kind as 'SUPPLEMENT' | 'DEVICE' | 'INJECTION' } : {}),
-      ...(opts.brand ? { brandId: opts.brand } : {}),
-    },
+    where: productWhere(opts),
     include: { brand: true, images: { take: 1, orderBy: { sortOrder: 'asc' } } },
-    orderBy: { updatedAt: 'desc' },
-    take: 200,
+    orderBy: productOrderBy(opts.sort, opts.dir),
+    skip,
+    take,
   });
+}
+
+export function countProducts(opts: ProductListOpts = {}) {
+  return prisma.product.count({ where: productWhere(opts) });
 }
 
 export function getProduct(id: string) {

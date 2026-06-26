@@ -44,27 +44,48 @@ async function notifyOrder(orderId: string, templateKey: string) {
 /** Order management & fulfillment (FR-ORD-*). Status changes are guarded by the
  *  transition map; edit-in-Hold keeps stock correct via the movement ledger. */
 
-export function listOrders(opts: { status?: string; payment?: string; payCheck?: string; search?: string; q?: string; from?: string; to?: string } = {}) {
+export type OrderListOpts = {
+  status?: string; payment?: string; payCheck?: string; search?: string; q?: string; from?: string; to?: string;
+  sort?: string; dir?: 'asc' | 'desc'; page?: number; perPage?: number;
+};
+
+function orderWhere(opts: OrderListOpts): Prisma.OrderWhereInput {
+  return {
+    ...(opts.status ? { status: opts.status as OrderStatus } : {}),
+    ...(opts.payment ? { paymentMethod: opts.payment as Prisma.OrderWhereInput['paymentMethod'] } : {}),
+    ...(opts.payCheck ? { payCheck: opts.payCheck as 'NO' | 'YES' | 'PROBLEM' } : {}),
+    ...(opts.q ? { number: { contains: opts.q, mode: 'insensitive' } } : {}),
+    ...(opts.search ? { OR: [{ number: { contains: opts.search, mode: 'insensitive' } }, { guestEmail: { contains: opts.search, mode: 'insensitive' } }] } : {}),
+    ...(opts.from || opts.to
+      ? { placedAt: { ...(opts.from ? { gte: new Date(opts.from) } : {}), ...(opts.to ? { lte: new Date(`${opts.to}T23:59:59`) } : {}) } }
+      : {}),
+  };
+}
+
+function orderOrderBy(sort?: string, dir: 'asc' | 'desc' = 'desc'): Prisma.OrderOrderByWithRelationInput {
+  switch (sort) {
+    case 'number': return { number: dir };
+    case 'total': return { totalPiastres: dir };
+    case 'status': return { status: dir };
+    default: return { placedAt: dir };
+  }
+}
+
+export function listOrders(opts: OrderListOpts = {}) {
+  const perPage = opts.perPage ?? 50;
+  const take = opts.page != null ? perPage : 200;
+  const skip = opts.page != null ? (Math.max(1, opts.page) - 1) * perPage : 0;
   return prisma.order.findMany({
-    where: {
-      ...(opts.status ? { status: opts.status as OrderStatus } : {}),
-      ...(opts.payment ? { paymentMethod: opts.payment as Prisma.OrderWhereInput['paymentMethod'] } : {}),
-      ...(opts.payCheck ? { payCheck: opts.payCheck as 'NO' | 'YES' | 'PROBLEM' } : {}),
-      ...(opts.q ? { number: { contains: opts.q, mode: 'insensitive' } } : {}),
-      ...(opts.search ? { OR: [{ number: { contains: opts.search, mode: 'insensitive' } }, { guestEmail: { contains: opts.search, mode: 'insensitive' } }] } : {}),
-      ...(opts.from || opts.to
-        ? {
-            placedAt: {
-              ...(opts.from ? { gte: new Date(opts.from) } : {}),
-              ...(opts.to ? { lte: new Date(`${opts.to}T23:59:59`) } : {}),
-            },
-          }
-        : {}),
-    },
+    where: orderWhere(opts),
     include: { pharmacist: { select: { name: true } }, customer: { include: { user: { select: { email: true } } } }, _count: { select: { items: true } } },
-    orderBy: { placedAt: 'desc' },
-    take: 200,
+    orderBy: orderOrderBy(opts.sort, opts.dir),
+    skip,
+    take,
   });
+}
+
+export function countOrders(opts: OrderListOpts = {}) {
+  return prisma.order.count({ where: orderWhere(opts) });
 }
 
 export function getOrder(id: string) {

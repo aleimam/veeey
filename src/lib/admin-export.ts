@@ -30,6 +30,7 @@ type Built = { headers: string[]; rows: unknown[][] };
 
 async function products(sp: SP): Promise<Built> {
   const where: Prisma.ProductWhereInput = {
+    ...(sp.ids ? { id: { in: sp.ids.split('~') } } : {}),
     ...(sp.q ? { OR: [{ nameEn: ci(sp.q) }, { sku: ci(sp.q) }] } : {}),
     ...(sp.kind ? { kind: sp.kind as 'SUPPLEMENT' | 'DEVICE' | 'INJECTION' } : {}),
     ...(sp.status ? { status: sp.status as 'DRAFT' | 'PUBLISHED' | 'PRIVATE' | 'ARCHIVED' } : {}),
@@ -68,6 +69,7 @@ async function categories(sp: SP): Promise<Built> {
 
 async function customers(sp: SP): Promise<Built> {
   const where: Prisma.CustomerWhereInput = {
+    ...(sp.ids ? { id: { in: sp.ids.split('~') } } : {}),
     ...(sp.tier ? { tierId: sp.tier } : {}),
     ...(sp.q ? { OR: [{ firstName: ci(sp.q) }, { lastName: ci(sp.q) }, { user: { email: ci(sp.q) } }, { user: { phone: ci(sp.q) } }] } : {}),
   };
@@ -80,6 +82,7 @@ async function customers(sp: SP): Promise<Built> {
 
 async function orders(sp: SP): Promise<Built> {
   const where: Prisma.OrderWhereInput = {
+    ...(sp.ids ? { id: { in: sp.ids.split('~') } } : {}),
     ...(sp.status ? { status: sp.status as Prisma.OrderWhereInput['status'] } : {}),
     ...(sp.payment ? { paymentMethod: sp.payment as Prisma.OrderWhereInput['paymentMethod'] } : {}),
     ...(sp.payCheck ? { payCheck: sp.payCheck as Prisma.OrderWhereInput['payCheck'] } : {}),
