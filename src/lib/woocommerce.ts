@@ -45,6 +45,24 @@ export async function getWooFormValues() {
   return { url: m['woo.url'] ?? '', consumerKey: m['woo.consumerKey'] ?? '', hasSecret: !!m['woo.consumerSecret'] };
 }
 
+/** Scheduler + webhook settings for the admin sync page. */
+export async function getSyncSettings() {
+  const m = await rawMap();
+  return {
+    enabled: m['woo.sync.enabled'] === 'true',
+    products: m['woo.sync.products'] !== 'false',
+    customers: m['woo.sync.customers'] !== 'false',
+    orders: m['woo.sync.orders'] !== 'false',
+    hasWebhookSecret: !!m['woo.webhookSecret'],
+  };
+}
+
+/** Shared secret for verifying inbound WooCommerce webhooks (DB → env fallback). */
+export async function getWebhookSecret(): Promise<string> {
+  const r = await prisma.setting.findUnique({ where: { key: 'woo.webhookSecret' } });
+  return r?.value || process.env.WOO_WEBHOOK_SECRET || '';
+}
+
 export type WooPage = { data: unknown[]; total: number; totalPages: number };
 
 /**

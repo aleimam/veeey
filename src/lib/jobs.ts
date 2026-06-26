@@ -7,7 +7,7 @@ import { PgBoss } from 'pg-boss';
  * with or without a separate worker process. The dedicated worker (src/worker.ts)
  * registers handlers + schedules recurring jobs.
  */
-export const QUEUES = { alerts: 'alerts', notify: 'notify' } as const;
+export const QUEUES = { alerts: 'alerts', notify: 'notify', wooSync: 'woo-sync' } as const;
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
 
 let bossPromise: Promise<PgBoss | null> | null = null;
