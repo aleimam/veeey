@@ -4,8 +4,9 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
-import { syncProducts, syncCustomers, syncOrders, type SyncSummary } from '@/lib/migration/wc-sync';
+import { syncProducts, syncCustomers, syncOrders, runFullSync, type SyncSummary } from '@/lib/migration/wc-sync';
 import { saveSyncSettings } from '@/lib/woocommerce-service';
+import { enqueue, QUEUES } from '@/lib/jobs';
 
 const localeOf = (fd: FormData) => (fd.get('locale') === 'ar' ? 'ar' : 'en');
 const str = (fd: FormData, k: string) => {
@@ -41,6 +42,17 @@ export async function syncCustomersAction(fd: FormData): Promise<void> {
 }
 export async function syncOrdersAction(fd: FormData): Promise<void> {
   return run('orders', syncOrders, fd);
+}
+
+export async function syncEverythingAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const user = await requirePermission('settings.manage');
+  await audit({ actorType: 'USER', actorId: user.id, action: 'woo.sync.full', entityType: 'WooSyncState', entityId: 'all' });
+  // Run on the worker (no request timeout); it self-chains until every entity is
+  // drained. Falls back to a bounded inline run only if no worker is available.
+  await enqueue(QUEUES.wooSync, { full: true }, async () => { await runFullSync({ budgetMs: 60_000 }); });
+  revalidatePath(PATH(locale));
+  redirect(`${PATH(locale)}?full=queued`);
 }
 
 export async function saveSyncSettingsAction(fd: FormData): Promise<void> {

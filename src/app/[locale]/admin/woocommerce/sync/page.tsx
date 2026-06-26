@@ -7,7 +7,7 @@ import { pick } from '@/lib/admin-i18n';
 import { wooConfigured, getSyncSettings } from '@/lib/woocommerce';
 import { getSyncState } from '@/lib/migration/wc-sync';
 import { SubmitButton, inputCls } from '@/components/admin/ui';
-import { syncProductsAction, syncCustomersAction, syncOrdersAction, saveSyncSettingsAction } from '@/server/woocommerce-sync-actions';
+import { syncProductsAction, syncCustomersAction, syncOrdersAction, saveSyncSettingsAction, syncEverythingAction } from '@/server/woocommerce-sync-actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,6 +66,7 @@ export default async function WooSyncPage({ params, searchParams }: { params: Pr
 
       {one(sp.error) && <div className="mb-5 max-w-2xl rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{tb('Action failed.', 'فشل الإجراء.')}</div>}
       {one(sp.settings) && <div className="mb-5 max-w-2xl rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary">{tb('Settings saved.', 'تم حفظ الإعدادات.')}</div>}
+      {one(sp.full) && <div className="mb-5 max-w-2xl rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary">{tb('Full sync started in the background. Refresh this page to watch the counts below climb; it stops automatically when everything is drained.', 'بدأت المزامنة الكاملة في الخلفية. حدّث الصفحة لمتابعة الأعداد؛ تتوقف تلقائيًا عند اكتمال كل شيء.')}</div>}
       {ran && (
         <div className="mb-5 max-w-2xl rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary">
           {tb(
@@ -82,6 +83,13 @@ export default async function WooSyncPage({ params, searchParams }: { params: Pr
         </div>
       ) : (
         <div className="grid max-w-2xl gap-5">
+          <form action={syncEverythingAction} className="rounded-xl border border-primary/40 bg-primary/5 p-5">
+            <input type="hidden" name="locale" value={locale} />
+            <h2 className="mb-1 text-base font-semibold text-foreground">{tb('Sync everything', 'مزامنة كل شيء')}</h2>
+            <p className="mb-3 text-sm text-muted-foreground">{tb('One click — drains products, orders and customers to completion in the background (on the worker), then stops by itself. Best for a full catch-up. Refresh this page to watch the per-entity counts below.', 'بنقرة واحدة — يسحب المنتجات والطلبات والعملاء بالكامل في الخلفية (على العامل) ثم يتوقف تلقائيًا. حدّث الصفحة لمتابعة الأعداد بالأسفل.')}</p>
+            <SubmitButton>{tb('Sync everything now', 'مزامنة كل شيء الآن')}</SubmitButton>
+            <p className="mt-2 text-xs text-muted-foreground">{tb('Requires the background worker to be running.', 'يتطلب تشغيل عامل الخلفية.')}</p>
+          </form>
           {ENTITIES.map((e, i) => {
             const st = states[i];
             const last = res(st?.lastResult);

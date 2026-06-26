@@ -369,11 +369,42 @@ export async function getSyncState(entity: string) {
   return prisma.wooSyncState.findUnique({ where: { entity } });
 }
 
-/** Run enabled entities — used by the scheduler/webhook. Products → customers → orders. */
-export async function syncEntity(entity: 'products' | 'customers' | 'orders', opts: { maxPages?: number } = {}): Promise<SyncSummary> {
+/** Run a single entity — used by the scheduler/webhook/full-sync. */
+export async function syncEntity(entity: 'products' | 'customers' | 'orders', opts: { maxPages?: number; budgetMs?: number } = {}): Promise<SyncSummary> {
   if (entity === 'products') return syncProducts(opts);
   if (entity === 'customers') return syncCustomers(opts);
   return syncOrders(opts);
+}
+
+/**
+ * "Sync everything" — drain all three entities to completion. Loops bounded
+ * sub-runs per entity until caught up, within an overall time budget; if the
+ * budget is hit mid-drain it returns done=false so the caller can continue on
+ * the next pass (the per-page cursors make that resume exactly where it stopped).
+ * Ignores the woo.sync.enabled flag — this is an explicit manual trigger.
+ */
+export async function runFullSync(opts: { budgetMs?: number } = {}): Promise<{ summaries: SyncSummary[]; done: boolean }> {
+  const deadline = Date.now() + (opts.budgetMs ?? 600_000);
+  const summaries: SyncSummary[] = [];
+  let done = true;
+  for (const entity of ['products', 'orders', 'customers'] as const) {
+    const agg = newSummary(entity, null);
+    let caughtUp = false;
+    let guard = 0;
+    while (Date.now() < deadline && guard < 1000) {
+      guard++;
+      const r = await syncEntity(entity, { maxPages: 50, budgetMs: 90_000 });
+      agg.scanned += r.scanned; agg.created += r.created; agg.updated += r.updated;
+      agg.detached += r.detached; agg.skipped += r.skipped; agg.errors += r.errors;
+      // products/orders catch up when the advanced cursor scans nothing new;
+      // customers (id-asc re-scan) catch up when a full pass resets the cursor to null.
+      if (entity === 'customers' ? r.cursor === null : r.scanned === 0) { caughtUp = true; break; }
+    }
+    agg.cursor = null;
+    summaries.push(agg);
+    if (!caughtUp) { done = false; break; } // budget hit mid-drain — resume next pass
+  }
+  return { summaries, done };
 }
 
 /** Read a `woo.sync.*` flag directly (no auth chain — safe for the worker). */
