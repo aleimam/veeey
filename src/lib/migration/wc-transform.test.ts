@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { egpToPiastres, analyzeProduct, analyzeCustomer, analyzeOrder } from './wc-transform';
+import { egpToPiastres, analyzeProduct, analyzeCustomer, analyzeOrder, nameImportable } from './wc-transform';
 
 describe('egpToPiastres', () => {
   it('converts float EGP to integer piastres', () => {
@@ -29,6 +29,41 @@ describe('analyzeProduct', () => {
     expect(r.flags).toContain('validation_error');
     expect(r.flags).toContain('missing_ar');
     expect(r.flags).toContain('missing_weight');
+  });
+});
+
+describe('nameImportable', () => {
+  it('keeps normal English and bilingual names', () => {
+    expect(nameImportable('Vitamin D3 5000 IU').ok).toBe(true);
+    expect(nameImportable('Omega 3 فيتامين').ok).toBe(true);
+    // supplement acronyms must NOT be filtered as gibberish
+    expect(nameImportable('NMN').ok).toBe(true);
+    expect(nameImportable('B12').ok).toBe(true);
+    expect(nameImportable('CoQ10 100mg').ok).toBe(true);
+  });
+
+  it('rejects Arabic-only names (no English)', () => {
+    expect(nameImportable('فيتامين د3')).toEqual({ ok: false, reason: 'arabic_only' });
+    expect(nameImportable('مكمل غذائي')).toEqual({ ok: false, reason: 'arabic_only' });
+  });
+
+  it('rejects open / damaged / broken — leading or bracketed, any case', () => {
+    for (const n of ['Open Box Vitamin C', '(Open) Vitamin C', '[DAMAGED] Whey', 'damaged - Protein', 'Broken seal Omega', 'Whey Protein (open box)', 'منتج مفتوح']) {
+      expect(nameImportable(n).ok, n).toBe(false);
+      if (!nameImportable(n).ok) expect((nameImportable(n) as { reason: string }).reason).toBe('condition_tag');
+    }
+  });
+
+  it('rejects names with no real letters / placeholders', () => {
+    expect(nameImportable('').ok).toBe(false);
+    expect(nameImportable('   ').ok).toBe(false);
+    expect(nameImportable('123').ok).toBe(false);
+    expect(nameImportable('###').ok).toBe(false);
+    expect(nameImportable('-').ok).toBe(false);
+  });
+
+  it('does not mistake a hyphen inside a real name for a condition tag', () => {
+    expect(nameImportable('Vitamin-C 1000').ok).toBe(true);
   });
 });
 

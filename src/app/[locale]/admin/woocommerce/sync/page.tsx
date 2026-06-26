@@ -14,6 +14,11 @@ export const dynamic = 'force-dynamic';
 type SP = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 const res = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' ? (v as Record<string, unknown>) : {});
+const SKIP_REASON: Record<string, [string, string]> = {
+  arabic_only: ['Arabic-only name (no English)', 'اسم عربي فقط (بدون إنجليزي)'],
+  condition_tag: ['Open / damaged / broken', 'مفتوح / تالف / مكسور'],
+  no_real_name: ['No real name / junk', 'بلا اسم حقيقي / غير صالح'],
+};
 
 const ENTITIES = [
   { slug: 'products', en: 'Products', ar: 'المنتجات', action: syncProductsAction, note: ['Incremental — only products changed since the last run.', 'تزايدي — فقط ما تغيّر منذ آخر تشغيل.'] as const },
@@ -96,8 +101,23 @@ export default async function WooSyncPage({ params, searchParams }: { params: Pr
                 </form>
                 <p className="mt-3 text-xs text-muted-foreground">
                   {tb('Last run', 'آخر تشغيل')}: {st?.lastRunAt ? new Date(st.lastRunAt).toISOString().replace('T', ' ').slice(0, 16) : '—'}
-                  {' · '}{tb('created', 'مُنشأ')} {String(last.created ?? '—')} · {tb('updated', 'محدَّث')} {String(last.updated ?? '—')} · {tb('errors', 'أخطاء')} {String(last.errors ?? '—')}
+                  {' · '}{tb('created', 'مُنشأ')} {String(last.created ?? '—')} · {tb('updated', 'محدَّث')} {String(last.updated ?? '—')} · {tb('skipped', 'متخطّى')} {String(last.skipped ?? '—')} · {tb('errors', 'أخطاء')} {String(last.errors ?? '—')}
                 </p>
+                {e.slug === 'products' && (
+                  <p className="mt-1 text-xs text-muted-foreground">{tb('Skipping: Arabic-only names, open/damaged/broken items, and junk names.', 'يتم تخطّي: الأسماء العربية فقط، والمنتجات المفتوحة/التالفة/المكسورة، والأسماء غير الصالحة.')}</p>
+                )}
+                {Array.isArray(last.skips) && last.skips.length > 0 && (
+                  <details className="mt-2 text-xs">
+                    <summary className="cursor-pointer text-muted-foreground">{tb('Recently skipped (sample)', 'أمثلة على ما تم تخطّيه')}</summary>
+                    <ul className="mt-1 space-y-0.5 ps-4">
+                      {(last.skips as { name?: string; reason?: string }[]).map((sk, j) => (
+                        <li key={j} className="text-muted-foreground">
+                          <span className="text-foreground">{sk.name || '—'}</span> — {tb(...(SKIP_REASON[sk.reason ?? ''] ?? [sk.reason ?? '', sk.reason ?? '']))}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
               </section>
             );
           })}

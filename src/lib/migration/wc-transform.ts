@@ -42,6 +42,37 @@ export function egpToPiastres(v: unknown): number | null {
 }
 
 const hasArabic = (s: string) => /[؀-ۿ]/.test(s);
+const hasLatin = (s: string) => /[A-Za-z]/.test(s);
+
+/**
+ * Should this product be imported, based on its name? Returns a skip reason when
+ * not. Used by the live sync to keep junk out of the catalog. Three rules:
+ *  1. `arabic_only` — name is Arabic with no English/Latin letters (no English name).
+ *  2. `condition_tag` — name starts with / is tagged open · damaged · broken
+ *     (any bracketing or punctuation; Arabic مفتوح · تالف · مكسور too).
+ *  3. `no_real_name` — no letters at all (digits/symbols only) or a single char,
+ *     i.e. random/placeholder names. (Conservative — gibberish like real-word
+ *     mashes can't be detected reliably without false-positiving supplement
+ *     acronyms such as NMN/MSM/DHA, so we only catch the clear-cut cases.)
+ */
+export type NameVerdict = { ok: true } | { ok: false; reason: 'arabic_only' | 'condition_tag' | 'no_real_name' };
+
+// open / opened / open box · damage / damaged · broke / broken — as a leading or
+// bracketed token, plus the common Arabic equivalents.
+const CONDITION_RE =
+  /(?:^|[\s([{«"'’\-–—_\/\\.,:|])(?:open(?:ed|\s*box)?|damaged?|broke(?:n)?|مفتوح|تالف|مكسور)(?=$|[\s)\]}»"'’\-–—_\/\\.,:|])/iu;
+
+export function nameImportable(rawName: unknown): NameVerdict {
+  const name = str(rawName).trim();
+  const letters = name.replace(/[^A-Za-z؀-ۿ]/g, '');
+  // 3. no usable name
+  if (letters.length === 0 || name.length < 2) return { ok: false, reason: 'no_real_name' };
+  // 2. open / damaged / broken condition tag
+  if (CONDITION_RE.test(name)) return { ok: false, reason: 'condition_tag' };
+  // 1. Arabic-only (no English name)
+  if (hasArabic(name) && !hasLatin(name)) return { ok: false, reason: 'arabic_only' };
+  return { ok: true };
+}
 
 /** WooCommerce core order statuses (without the `wc-` prefix). Anything else = custom → decision. */
 export const KNOWN_WC_ORDER_STATUSES = new Set(['pending', 'processing', 'on-hold', 'completed', 'cancelled', 'refunded', 'failed', 'checkout-draft', 'trash']);

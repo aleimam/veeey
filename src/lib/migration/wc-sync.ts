@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { wooFetch } from '@/lib/woocommerce';
+import { nameImportable } from './wc-transform';
 import { slugify, brandCode, skuFromParts } from '@/lib/sku';
 import { ensureCustomerProfile } from '@/lib/customer';
 import { normalizeMobile } from '@/lib/provider-config';
@@ -26,6 +27,7 @@ export type SyncSummary = {
   skipped: number;
   errors: number;
   sampleErrors: { key: string; detail: string }[];
+  sampleSkips: { name: string; reason: string }[];
   cursor: string | null;
 };
 
@@ -51,13 +53,17 @@ function egpToPiastres(v: unknown): number | null {
   const n = Number(v);
   return Number.isFinite(n) ? Math.round(n * 100) : null;
 }
-const newSummary = (entity: string, cursor: string | null): SyncSummary => ({ entity, scanned: 0, created: 0, updated: 0, detached: 0, skipped: 0, errors: 0, sampleErrors: [], cursor });
+const newSummary = (entity: string, cursor: string | null): SyncSummary => ({ entity, scanned: 0, created: 0, updated: 0, detached: 0, skipped: 0, errors: 0, sampleErrors: [], sampleSkips: [], cursor });
 function pushErr(s: SyncSummary, key: string, detail: string) {
   s.errors++;
   if (s.sampleErrors.length < 10) s.sampleErrors.push({ key, detail });
 }
+function pushSkip(s: SyncSummary, name: string, reason: string) {
+  s.skipped++;
+  if (s.sampleSkips.length < 12) s.sampleSkips.push({ name: name.slice(0, 80), reason });
+}
 async function saveState(entity: string, cursor: string | null, s: SyncSummary) {
-  const result = { scanned: s.scanned, created: s.created, updated: s.updated, detached: s.detached, skipped: s.skipped, errors: s.errors, at: new Date().toISOString() };
+  const result = { scanned: s.scanned, created: s.created, updated: s.updated, detached: s.detached, skipped: s.skipped, errors: s.errors, skips: s.sampleSkips.slice(0, 10), at: new Date().toISOString() };
   await prisma.wooSyncState.upsert({
     where: { entity },
     update: { cursor, lastRunAt: new Date(), lastResult: result },
@@ -132,6 +138,12 @@ export async function syncProducts(opts: { maxPages?: number; perPage?: number; 
       const modified = str(p.date_modified_gmt) || str(p.date_modified);
       if (modified && (!newCursor || modified > newCursor)) newCursor = modified;
       try {
+        // Quality gate: skip Arabic-only names, open/damaged/broken items, and
+        // junk/placeholder names. Checked before any DB write so they're never
+        // created or updated.
+        const pname = str(p.name);
+        const verdict = nameImportable(pname);
+        if (!verdict.ok) { pushSkip(s, pname || str(p.id), verdict.reason); continue; }
         const price = egpToPiastres(p.regular_price ?? p.price);
         if (!Number.isFinite(wpId) || price == null) { pushErr(s, str(p.id), 'invalid id / price'); continue; }
         const existing = await prisma.product.findUnique({ where: { legacyWpId: wpId }, select: { id: true, syncedAt: true, updatedAt: true } });
