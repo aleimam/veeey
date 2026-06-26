@@ -81,6 +81,32 @@ export async function wooFetch(path: WooEntity | string, params: Record<string, 
   };
 }
 
+/** Entity slug → WooCommerce REST endpoint (shared by browse + detail pages). */
+export const WOO_ENTITY_ENDPOINT: Record<string, WooEntity> = {
+  products: 'products',
+  customers: 'customers',
+  orders: 'orders',
+  categories: 'products/categories',
+  coupons: 'coupons',
+  reviews: 'products/reviews',
+};
+
+/** Fetch a single record by id (e.g. products/123). Null on 404; throws otherwise. */
+export async function wooFetchOne(path: WooEntity | string, id: string): Promise<Record<string, unknown> | null> {
+  const cfg = await getWooConfig();
+  if (!cfg) throw new Error('WOO_NOT_CONFIGURED');
+  const url = `${cfg.url}/wp-json/wc/v3/${path}/${encodeURIComponent(id)}`;
+  const auth = Buffer.from(`${cfg.consumerKey}:${cfg.consumerSecret}`).toString('base64');
+  const res = await fetch(url, {
+    headers: { Authorization: `Basic ${auth}`, Accept: 'application/json' },
+    cache: 'no-store',
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`WOO_HTTP_${res.status}`);
+  return (await res.json()) as Record<string, unknown>;
+}
+
 /** Total row count for an entity (per_page=1, reads X-WP-Total). 0 on error. */
 export async function wooCount(path: WooEntity): Promise<number | null> {
   try {

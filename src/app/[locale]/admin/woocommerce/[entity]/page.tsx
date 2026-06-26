@@ -14,6 +14,7 @@ type Item = Record<string, unknown>;
 const s = (v: unknown): string => (v == null ? '' : typeof v === 'object' ? '' : String(v));
 const obj = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' ? (v as Record<string, unknown>) : {});
 const d10 = (v: unknown): string => s(v).slice(0, 10);
+const names = (v: unknown): string => (Array.isArray(v) ? v.map((x) => s(obj(x).name)).filter(Boolean).join(', ') : '');
 
 type EntityConfig = { endpoint: WooEntity; title: [string, string]; headers: [string, string][]; row: (i: Item) => string[] };
 
@@ -21,8 +22,8 @@ const CONFIG: Record<string, EntityConfig> = {
   products: {
     endpoint: 'products',
     title: ['Products', 'المنتجات'],
-    headers: [['ID', 'المعرّف'], ['Name', 'الاسم'], ['SKU', 'SKU'], ['Price', 'السعر'], ['Stock', 'المخزون'], ['Status', 'الحالة']],
-    row: (i) => [s(i.id), s(i.name), s(i.sku), s(i.price), s(i.stock_quantity), s(i.status)],
+    headers: [['ID', 'المعرّف'], ['Name', 'الاسم'], ['SKU', 'SKU'], ['Price', 'السعر'], ['Stock', 'المخزون'], ['Weight', 'الوزن'], ['Categories', 'الفئات'], ['Tags', 'الوسوم'], ['Status', 'الحالة']],
+    row: (i) => [s(i.id), s(i.name), s(i.sku), s(i.price), s(i.stock_quantity), s(i.weight), names(i.categories), names(i.tags), s(i.status)],
   },
   customers: {
     endpoint: 'customers',
@@ -73,13 +74,13 @@ export default async function WooEntityPage({ params, searchParams }: { params: 
   const page = Math.max(1, Number(Array.isArray(sp.page) ? sp.page[0] : sp.page) || 1);
   const perPage = 20;
 
-  let rows: string[][] = [];
+  let items: Item[] = [];
   let total = 0;
   let totalPages = 1;
   let error: string | null = null;
   try {
     const res = await wooFetch(cfg.endpoint, { page, per_page: perPage });
-    rows = (res.data as Item[]).map(cfg.row);
+    items = res.data as Item[];
     total = res.total;
     totalPages = res.totalPages;
   } catch (e) {
@@ -110,15 +111,20 @@ export default async function WooEntityPage({ params, searchParams }: { params: 
           <div className="overflow-x-auto rounded-xl border border-border bg-card">
             <table className="w-full text-sm">
               <thead className="border-b border-border bg-muted/40 text-xs uppercase text-muted-foreground">
-                <tr>{cfg.headers.map((h) => <th key={h[0]} className="p-3 text-start font-medium">{tb(h[0], h[1])}</th>)}</tr>
+                <tr>{cfg.headers.map((h) => <th key={h[0]} className="p-3 text-start font-medium">{tb(h[0], h[1])}</th>)}<th className="p-3" /></tr>
               </thead>
               <tbody>
-                {rows.length === 0 && <tr><td colSpan={cfg.headers.length} className="p-6 text-center text-muted-foreground">{tb('No rows.', 'لا توجد صفوف.')}</td></tr>}
-                {rows.map((cells, r) => (
-                  <tr key={r} className="border-t border-border">
-                    {cells.map((c, ci) => <td key={ci} className={`p-3 ${ci === 0 ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>{c || '—'}</td>)}
-                  </tr>
-                ))}
+                {items.length === 0 && <tr><td colSpan={cfg.headers.length + 1} className="p-6 text-center text-muted-foreground">{tb('No rows.', 'لا توجد صفوف.')}</td></tr>}
+                {items.map((item, r) => {
+                  const id = s(item.id);
+                  const cells = cfg.row(item);
+                  return (
+                    <tr key={r} className="border-t border-border hover:bg-muted/30">
+                      {cells.map((c, ci) => <td key={ci} className={`p-3 ${ci === 0 ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>{c || '—'}</td>)}
+                      <td className="p-3 text-end"><Link href={`/admin/woocommerce/${entity}/${id}`} className="whitespace-nowrap text-xs font-medium text-primary hover:underline">{tb('View', 'عرض')}</Link></td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
