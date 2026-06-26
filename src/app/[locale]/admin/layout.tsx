@@ -1,22 +1,22 @@
+import { cookies } from 'next/headers';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
-import { redirect, Link } from '@/i18n/navigation';
+import { redirect } from '@/i18n/navigation';
 import { getCurrentUser } from '@/lib/auth-guards';
 import { canAccessAdmin } from '@/lib/rbac';
 import type { PermissionKey } from '@/lib/permissions';
-import { signOutAction } from '@/server/auth-actions';
-import { LanguageSwitcher } from '@/components/storefront/language-switcher';
 import { pick } from '@/lib/admin-i18n';
+import { AdminShell, type NavSection } from '@/components/admin/admin-shell';
 
-// Admin is always dynamic (reads the session).
+// Admin is always dynamic (reads the session + theme cookies).
 export const dynamic = 'force-dynamic';
 
 type NavItem = { href: string; key: string; permission?: PermissionKey };
-type NavSection = { title: [string, string]; items: NavItem[] };
+type RawSection = { title: [string, string]; items: NavItem[] };
 
 // Grouped sidebar (FR-ADMIN). Section titles are bilingual [en, ar]; item labels
-// come from the admin.nav message keys. Empty sections (all items gated out by
-// RBAC) are hidden.
-const NAV_SECTIONS: NavSection[] = [
+// come from the admin.nav message keys; icon = the item key (mapped in AdminShell).
+// Empty sections (all items gated out by RBAC) are hidden.
+const NAV_SECTIONS: RawSection[] = [
   { title: ['Dashboard', 'الرئيسية'], items: [
     { href: '/admin', key: 'dashboard' },
     { href: '/admin/analytics', key: 'analytics', permission: 'finance.read' },
@@ -84,65 +84,31 @@ export default async function AdminLayout({
 
   const user = await getCurrentUser();
   if (!user) redirect({ href: '/login', locale });
-  // `redirect` returns never, but narrow for the type-checker.
   if (!user) return null;
   if (!canAccessAdmin(user.permissions)) redirect({ href: '/', locale });
 
   const t = await getTranslations('admin');
   const tb = pick(locale);
-  const sections = NAV_SECTIONS
-    .map((s) => ({ ...s, items: s.items.filter((item) => !item.permission || user.permissions.includes(item.permission)) }))
-    .filter((s) => s.items.length > 0);
+  const cookieStore = await cookies();
+  const dark = cookieStore.get('admin-theme')?.value === 'dark';
+  const collapsed = cookieStore.get('admin-sidebar')?.value === 'collapsed';
+
+  const sections: NavSection[] = NAV_SECTIONS.map((s) => ({
+    title: tb(s.title[0], s.title[1]),
+    items: s.items
+      .filter((item) => !item.permission || user.permissions.includes(item.permission))
+      .map((item) => ({ href: item.href, label: t(`nav.${item.key}`), icon: item.key })),
+  })).filter((s) => s.items.length > 0);
 
   return (
-    <div className="flex min-h-dvh">
-      <aside className="hidden w-60 shrink-0 border-e border-border bg-surface p-4 sm:block">
-        <div className="mb-6 font-heading text-lg font-semibold text-primary">
-          {t('shell.title')}
-        </div>
-        <nav className="flex flex-col gap-4">
-          {sections.map((section) => (
-            <div key={section.title[0]}>
-              <div className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                {tb(section.title[0], section.title[1])}
-              </div>
-              <div className="flex flex-col gap-0.5">
-                {section.items.map((item, i) => (
-                  <Link
-                    key={`${item.key}-${i}`}
-                    href={item.href}
-                    className="rounded-md px-3 py-2 text-sm text-secondary-foreground hover:bg-card"
-                  >
-                    {t(`nav.${item.key}`)}
-                  </Link>
-                ))}
-              </div>
-            </div>
-          ))}
-        </nav>
-      </aside>
-      <div className="flex flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-border px-6 py-3">
-          <Link href="/admin/profile" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-            <span className="flex size-7 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-              {(user.email ?? '?').slice(0, 1).toUpperCase()}
-            </span>
-            {user.email} · {user.roleKey ?? t('shell.noRole')}
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link href="/" className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface">
-              {t('shell.viewStore')}
-            </Link>
-            <LanguageSwitcher />
-            <form action={signOutAction}>
-              <button className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface">
-                {t('shell.signOut')}
-              </button>
-            </form>
-          </div>
-        </header>
-        <div className="flex-1">{children}</div>
-      </div>
-    </div>
+    <AdminShell
+      locale={locale}
+      sections={sections}
+      user={{ email: user.email ?? '—', role: user.roleKey ?? t('shell.noRole'), initial: (user.email ?? '?').slice(0, 1).toUpperCase() }}
+      dark={dark}
+      collapsed={collapsed}
+    >
+      {children}
+    </AdminShell>
   );
 }

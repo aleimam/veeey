@@ -56,12 +56,20 @@ export function FormError({ error }: { error?: string }) {
   );
 }
 
+const SUCCESS = new Set(['PUBLISHED', 'CONFIRMED', 'CASH_DELIVERED', 'CARD_DELIVERED', 'DELIVERED', 'COMPLETED', 'ACTIVE', 'APPROVED', 'PAID', 'FULFILLED']);
+const WARN = new Set(['PENDING_CONFIRMATION', 'PENDING', 'PROCESSING', 'HOLD', 'ON_HOLD', 'REQUESTED', 'DRAFT', 'AWAITING_PAYMENT']);
+const DANGER = new Set(['CANCELLED', 'CANCELED', 'FAILED', 'REJECTED', 'REFUNDED', 'RETURNED', 'EXPIRED']);
+const INFO = new Set(['SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'PRIVATE', 'SUBMITTED', 'SOURCING']);
+
 export function StatusBadge({ status }: { status: string }) {
-  const tone =
-    status === 'PUBLISHED'
-      ? 'bg-primary/10 text-primary'
-      : status === 'ARCHIVED'
-        ? 'bg-muted text-muted-foreground'
-        : 'bg-gold/15 text-slate';
-  return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${tone}`}>{status}</span>;
+  const tone = SUCCESS.has(status)
+    ? 'bg-primary/10 text-primary'
+    : DANGER.has(status)
+      ? 'bg-destructive/10 text-destructive'
+      : WARN.has(status)
+        ? 'bg-gold/15 text-slate'
+        : INFO.has(status)
+          ? 'bg-[color:var(--info-wash)] text-[color:var(--info)]'
+          : 'bg-muted text-muted-foreground';
+  return <span className={`inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium capitalize ${tone}`}>{status.replaceAll('_', ' ').toLowerCase()}</span>;
 }
