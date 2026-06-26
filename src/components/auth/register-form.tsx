@@ -8,12 +8,12 @@ import { registerCustomer, type AuthFormState } from '@/server/auth-actions';
 const field =
   'mt-1.5 w-full rounded-[8px] border border-[color:var(--slate-border)] bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition-colors placeholder:text-slate-45 focus:border-lime focus:bg-white';
 
-export function RegisterForm({ locale, referralCode }: { locale: string; referralCode?: string }) {
+export function RegisterForm({ locale, referralCode, social }: { locale: string; referralCode?: string; social?: React.ReactNode }) {
   const t = useTranslations('auth');
   const [state, action, pending] = useActionState<AuthFormState, FormData>(registerCustomer, {});
 
   return (
-    <form action={action} className="w-full max-w-sm">
+    <div className="w-full max-w-sm">
       <h1 className="text-3xl font-bold text-green-dark">{t('register.title')}</h1>
 
       {state.error && (
@@ -22,34 +22,38 @@ export function RegisterForm({ locale, referralCode }: { locale: string; referra
         </p>
       )}
 
-      <input type="hidden" name="locale" value={locale} />
-      <input type="hidden" name="recaptchaToken" value="" />
-      {referralCode && <input type="hidden" name="ref" value={referralCode} />}
+      <form action={action} className="mt-5">
+        <input type="hidden" name="locale" value={locale} />
+        <input type="hidden" name="recaptchaToken" value="" />
+        {referralCode && <input type="hidden" name="ref" value={referralCode} />}
 
-      <label className="mt-5 block text-sm font-semibold text-ink">
-        {t('register.name')}
-        <input name="name" type="text" required autoComplete="name" className={field} />
-      </label>
-      <label className="mt-4 block text-sm font-semibold text-ink">
-        {t('register.email')}
-        <input name="email" type="email" required autoComplete="email" className={field} />
-      </label>
-      <label className="mt-4 block text-sm font-semibold text-ink">
-        {t('register.phone')}
-        <input name="phone" type="tel" autoComplete="tel" placeholder="01XXXXXXXXX" className={field} />
-      </label>
-      <label className="mt-4 block text-sm font-semibold text-ink">
-        {t('register.username')}
-        <input name="username" type="text" autoComplete="username" minLength={3} className={field} />
-      </label>
-      <label className="mt-4 block text-sm font-semibold text-ink">
-        {t('register.password')}
-        <input name="password" type="password" required minLength={8} autoComplete="new-password" className={field} />
-      </label>
+        <label className="block text-sm font-semibold text-ink">
+          {t('register.name')}
+          <input name="name" type="text" required autoComplete="name" className={field} />
+        </label>
+        <label className="mt-4 block text-sm font-semibold text-ink">
+          {t('register.email')}
+          <input name="email" type="email" required autoComplete="email" className={field} />
+        </label>
+        <label className="mt-4 block text-sm font-semibold text-ink">
+          {t('register.phone')}
+          <input name="phone" type="tel" autoComplete="tel" placeholder="01XXXXXXXXX" className={field} />
+        </label>
+        <label className="mt-4 block text-sm font-semibold text-ink">
+          {t('register.username')}
+          <input name="username" type="text" autoComplete="username" minLength={3} className={field} />
+        </label>
+        <label className="mt-4 block text-sm font-semibold text-ink">
+          {t('register.password')}
+          <input name="password" type="password" required minLength={8} autoComplete="new-password" className={field} />
+        </label>
 
-      <button type="submit" disabled={pending} className="v-btn v-btn--primary v-btn--block mt-6">
-        {t('register.submit')}
-      </button>
+        <button type="submit" disabled={pending} className="v-btn v-btn--primary v-btn--block mt-6">
+          {t('register.submit')}
+        </button>
+      </form>
+
+      {social}
 
       <p className="mt-6 text-sm text-[color:var(--text-muted)]">
         {t('register.haveAccount')}{' '}
@@ -57,6 +61,6 @@ export function RegisterForm({ locale, referralCode }: { locale: string; referra
           {t('register.loginLink')}
         </Link>
       </p>
-    </form>
+    </div>
   );
 }

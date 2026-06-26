@@ -12,7 +12,7 @@ import {
   FolderTree, Tags, SlidersHorizontal, LayoutGrid, Boxes, ClipboardCheck, Truck, Users,
   Crown, Ticket, Star, Home, FileText, Newspaper, Share2, HelpCircle, Bell, UserCog,
   ShieldCheck, Settings, Plug, Palette, Webhook, Menu, X, Search, PanelLeftClose,
-  PanelLeftOpen, Sun, Moon, LogOut, ExternalLink, ChevronRight,
+  PanelLeftOpen, Sun, Moon, LogOut, ExternalLink, ChevronRight, KeyRound,
 } from 'lucide-react';
 
 export type NavItem = { href: string; label: string; icon: string };
@@ -25,7 +25,7 @@ const ICONS: Record<string, LucideIcon> = {
   stocktake: ClipboardCheck, shipping: Truck, customers: Users, tiers: Crown, coupons: Ticket,
   reviews: Star, homepage: Home, cmsPages: FileText, blog: Newspaper, social: Share2,
   quizzes: HelpCircle, notifications: Bell, users: UserCog, roles: ShieldCheck, settings: Settings,
-  providers: Plug, appearance: Palette, integration: Webhook,
+  providers: Plug, appearance: Palette, loginProviders: KeyRound, integration: Webhook,
 };
 
 function setCookie(k: string, v: string) {

@@ -5,13 +5,13 @@ import Credentials from 'next-auth/providers/credentials';
 import Google from 'next-auth/providers/google';
 import Facebook from 'next-auth/providers/facebook';
 import Apple from 'next-auth/providers/apple';
-import Twitter from 'next-auth/providers/twitter';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { verifyPassword } from '@/lib/password';
 import { normalizeMobile } from '@/lib/provider-config';
 import { verifyOtp } from '@/lib/otp-service';
 import { ensureCustomerProfile } from '@/lib/customer';
+import { getSocialAuthConfig, appleClientSecret } from '@/lib/social-auth';
 
 // Login by email OR phone OR username + password (FR-ACC-01).
 const credentialsSchema = z.object({
@@ -35,9 +35,9 @@ async function findByIdentifier(identifier: string) {
   });
 }
 
-// Social providers self-configure from AUTH_<PROVIDER>_ID/SECRET env vars. They
-// are only added when configured, so the app builds & runs without them (FR-ACC-01).
-const providers: Provider[] = [
+// Credentials (password) + phone-OTP. Social providers are added dynamically at
+// runtime from the admin-configured DB credentials (see buildProviders()).
+const baseProviders: Provider[] = [
   Credentials({
     credentials: { identifier: {}, password: {} },
     authorize: async (raw) => {
@@ -70,19 +70,28 @@ const providers: Provider[] = [
   }),
 ];
 
-if (process.env.AUTH_GOOGLE_ID) providers.push(Google);
-if (process.env.AUTH_FACEBOOK_ID) providers.push(Facebook);
-if (process.env.AUTH_APPLE_ID) providers.push(Apple);
-if (process.env.AUTH_TWITTER_ID) providers.push(Twitter);
+// Google/Facebook/Apple are built per request from the admin-configured DB
+// credentials (Settings `auth.<provider>.*`, env fallback). Apple's client secret
+// is a generated ES256 JWT. Disabled/unconfigured providers are simply omitted.
+async function buildProviders(): Promise<Provider[]> {
+  const cfg = await getSocialAuthConfig();
+  const social: Provider[] = [];
+  if (cfg.google) social.push(Google({ clientId: cfg.google.clientId, clientSecret: cfg.google.clientSecret }));
+  if (cfg.facebook) social.push(Facebook({ clientId: cfg.facebook.clientId, clientSecret: cfg.facebook.clientSecret }));
+  if (cfg.apple) {
+    const secret = await appleClientSecret(cfg.apple);
+    if (secret) social.push(Apple({ clientId: cfg.apple.servicesId, clientSecret: secret }));
+  }
+  return [...baseProviders, ...social];
+}
 
-export const authConfig: NextAuthConfig = {
+const baseConfig: Omit<NextAuthConfig, 'providers'> = {
   adapter: PrismaAdapter(prisma),
   trustHost: true,
   // JWT strategy is required for the Credentials provider; OAuth still persists
   // users/accounts via the adapter.
   session: { strategy: 'jwt' },
   pages: { signIn: '/en/login' },
-  providers,
   callbacks: {
     async jwt({ token, user }) {
       // Only hit the DB at sign-in (when `user` is present); cache RBAC in the token.
@@ -116,4 +125,7 @@ export const authConfig: NextAuthConfig = {
   },
 };
 
-export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);
+export const { handlers, auth, signIn, signOut } = NextAuth(async () => ({
+  ...baseConfig,
+  providers: await buildProviders(),
+}));

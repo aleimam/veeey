@@ -11,7 +11,7 @@ const errBox = 'rounded-[8px] bg-error-wash px-3 py-2 text-sm text-error';
 const tabCls = (active: boolean) =>
   `flex-1 rounded-full px-3 py-2 text-sm font-semibold transition-colors ${active ? 'bg-green-dark text-white' : 'text-slate-70 hover:bg-surface'}`;
 
-export function LoginForm({ locale }: { locale: string }) {
+export function LoginForm({ locale, social }: { locale: string; social?: React.ReactNode }) {
   const t = useTranslations('auth');
   const [mode, setMode] = useState<'password' | 'otp'>('password');
 
@@ -25,6 +25,8 @@ export function LoginForm({ locale }: { locale: string }) {
       </div>
 
       {mode === 'password' ? <PasswordLogin locale={locale} /> : <OtpLogin locale={locale} />}
+
+      {social}
 
       <p className="mt-6 text-sm text-[color:var(--text-muted)]">
         {t('login.noAccount')}{' '}

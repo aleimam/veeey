@@ -51,7 +51,8 @@
       "roles": "الأدوار",
       "providers": "المزوّدون",
       "settings": "الإعدادات",
-      "appearance": "المظهر"
+      "appearance": "المظهر",
+      "loginProviders": "تسجيل الدخول الاجتماعي"
     },
     "common": {
       "new": "جديد",

@@ -17,6 +17,15 @@ export type AuthFormState = {
 
 const localeOf = (fd: FormData) => (fd.get('locale') === 'ar' ? 'ar' : 'en');
 
+const SOCIAL = new Set(['google', 'facebook', 'apple']);
+/** Start an OAuth sign-in flow (Google / Facebook / Apple) — redirects to the provider. */
+export async function socialSignInAction(fd: FormData): Promise<void> {
+  const provider = String(fd.get('provider') ?? '');
+  if (!SOCIAL.has(provider)) return;
+  const locale = localeOf(fd);
+  await signIn(provider, { redirectTo: `/${locale}` });
+}
+
 const registerSchema = z.object({
   name: z.string().min(1).max(120),
   email: z.string().email(),

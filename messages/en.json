@@ -51,7 +51,8 @@
       "roles": "Roles",
       "providers": "Providers",
       "settings": "Settings",
-      "appearance": "Appearance"
+      "appearance": "Appearance",
+      "loginProviders": "Social login"
     },
     "common": {
       "new": "New",
