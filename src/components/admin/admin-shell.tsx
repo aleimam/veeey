@@ -12,7 +12,7 @@ import {
   FolderTree, Tags, SlidersHorizontal, LayoutGrid, Boxes, ClipboardCheck, Truck, Users,
   Crown, Ticket, Star, Home, FileText, Newspaper, Share2, HelpCircle, Bell, UserCog,
   ShieldCheck, Settings, Plug, Palette, Webhook, Menu, X, Search, PanelLeftClose,
-  PanelLeftOpen, Sun, Moon, LogOut, ExternalLink, ChevronRight, KeyRound, Cable,
+  PanelLeftOpen, Sun, Moon, LogOut, ExternalLink, ChevronRight, KeyRound, Cable, DatabaseZap,
 } from 'lucide-react';
 
 export type NavItem = { href: string; label: string; icon: string };
@@ -26,7 +26,7 @@ const ICONS: Record<string, LucideIcon> = {
   reviews: Star, homepage: Home, cmsPages: FileText, blog: Newspaper, social: Share2,
   quizzes: HelpCircle, notifications: Bell, users: UserCog, roles: ShieldCheck, settings: Settings,
   providers: Plug, appearance: Palette, loginProviders: KeyRound, integration: Webhook,
-  wooConnection: Cable, wooProducts: Package, wooCustomers: Users, wooOrders: ShoppingCart,
+  wooConnection: Cable, wooProducts: Package, wooCustomers: Users, wooOrders: ShoppingCart, wooImport: DatabaseZap,
 };
 
 function setCookie(k: string, v: string) {

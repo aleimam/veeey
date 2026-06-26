@@ -56,7 +56,8 @@
       "wooConnection": "Connection",
       "wooProducts": "Products",
       "wooCustomers": "Customers",
-      "wooOrders": "Orders"
+      "wooOrders": "Orders",
+      "wooImport": "Import (dry-run)"
     },
     "common": {
       "new": "New",

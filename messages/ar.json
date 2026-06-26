@@ -56,7 +56,8 @@
       "wooConnection": "الاتصال",
       "wooProducts": "المنتجات",
       "wooCustomers": "العملاء",
-      "wooOrders": "الطلبات"
+      "wooOrders": "الطلبات",
+      "wooImport": "الاستيراد (تجربة)"
     },
     "common": {
       "new": "جديد",
