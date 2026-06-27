@@ -14,8 +14,11 @@ export async function GET() {
     return new Response('forbidden', { status: 403 });
   }
   const products = await notStockedProducts();
-  const headers = ['sku', 'name', 'qty', 'expiry', 'price', 'location', 'batch', 'sale'];
-  const rows = products.map((p) => [p.sku, p.nameEn, '', '', '', '', '', '']);
+  // `sku` is what the importer matches on (any of Veeey SKU / EV SKU / EV id work).
+  // `ev_id` + `ev_sku` are reference columns the importer ignores — use them to
+  // VLOOKUP your existing Egypt Vitamins stock sheet and fill qty/expiry.
+  const headers = ['sku', 'ev_id', 'ev_sku', 'name', 'qty', 'expiry', 'price', 'location', 'batch', 'sale'];
+  const rows = products.map((p) => [p.sku, p.legacyWpId ?? '', p.legacySku ?? '', p.nameEn, '', '', '', '', '', '']);
   const csv = '﻿' + buildCsv(headers, rows);
   return new Response(csv, {
     headers: {

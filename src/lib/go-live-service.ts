@@ -76,15 +76,33 @@ export function countGoLiveProducts(opts: { q?: string; only?: string } = {}) {
 }
 
 /** Not-live products with no live stock — rows for the stock-import CSV template. */
-export async function notStockedProducts(): Promise<{ sku: string; nameEn: string }[]> {
+export async function notStockedProducts(): Promise<{ sku: string; legacySku: string | null; legacyWpId: number | null; nameEn: string }[]> {
   return prisma.product.findMany({
     where: { status: { in: [...PRELIVE] }, lots: { none: inStockLot } },
-    select: { sku: true, nameEn: true },
+    select: { sku: true, legacySku: true, legacyWpId: true, nameEn: true },
     orderBy: { nameEn: 'asc' },
   });
 }
 
 // ---- Stock loading (creates LIVE lots) -------------------------------------
+/** Resolve a product by ANY identifier: Veeey SKU, Egypt Vitamins SKU (legacySku),
+ *  or the EV/WordPress product id (legacyWpId, numeric). Lets a stock sheet keyed
+ *  by the old EV SKU/ID match the re-keyed Veeey catalog. */
+async function resolveProductId(key: string): Promise<string | null> {
+  const k = key.trim();
+  if (!k) return null;
+  const bySku = await prisma.product.findUnique({ where: { sku: k }, select: { id: true } });
+  if (bySku) return bySku.id;
+  const byLegacy = await prisma.product.findFirst({ where: { legacySku: k }, select: { id: true } });
+  if (byLegacy) return byLegacy.id;
+  const n = Number(k);
+  if (Number.isInteger(n) && n > 0) {
+    const byWp = await prisma.product.findUnique({ where: { legacyWpId: n }, select: { id: true } });
+    if (byWp) return byWp.id;
+  }
+  return null;
+}
+
 async function defaultLocationId(): Promise<string | null> {
   const main = await prisma.location.findUnique({ where: { id: 'loc_main' } }).catch(() => null);
   if (main) return main.id;
@@ -134,8 +152,8 @@ export async function importStock(rows: Record<string, string>[]): Promise<Stock
     let expiryDate: Date | null;
     try { expiryDate = parseExpiryCell(r.expiry); } catch { report.invalid.push({ row: line, reason: `bad expiry "${r.expiry}"` }); continue; }
 
-    const product = await prisma.product.findUnique({ where: { sku }, select: { id: true } });
-    if (!product) { report.invalid.push({ row: line, reason: `product not found for SKU "${sku}"` }); continue; }
+    const productId = await resolveProductId(sku);
+    if (!productId) { report.invalid.push({ row: line, reason: `no product matches SKU/ID "${sku}"` }); continue; }
 
     // Resolve location: explicit id (validated + cached) or the default.
     let locationId = (r.location ?? '').trim();
@@ -153,7 +171,7 @@ export async function importStock(rows: Record<string, string>[]): Promise<Stock
     const saleFlag = /^(1|true|yes|y)$/i.test((r.sale ?? '').trim());
 
     try {
-      await createStockLot({ productId: product.id, qty, expiryDate, priceEgp, locationId, saleFlag, batch: (r.batch ?? '').trim() });
+      await createStockLot({ productId, qty, expiryDate, priceEgp, locationId, saleFlag, batch: (r.batch ?? '').trim() });
       report.created++;
     } catch {
       report.invalid.push({ row: line, reason: 'failed to create lot' });

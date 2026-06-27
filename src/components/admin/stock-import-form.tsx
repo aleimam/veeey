@@ -14,7 +14,7 @@ export function StockImportForm({ locale }: { locale: string }) {
     <form action={action} className="space-y-3">
       <input type="hidden" name="locale" value={locale} />
       <p className="text-xs text-muted-foreground">
-        {tb('CSV columns: sku (required), qty (required), expiry (blank or NA = non-perishable), price (optional EGP per-lot), location (optional id), batch (optional), sale (optional). Each row adds a LIVE lot.', 'أعمدة CSV: sku (مطلوب)، qty (مطلوب)، expiry (فارغ أو NA = بدون صلاحية)، price (اختياري بالجنيه لكل دفعة)، location (اختياري)، batch (اختياري)، sale (اختياري). كل صف يضيف دفعة حية.')}
+        {tb('CSV columns: sku (required — accepts the Veeey SKU, the Egypt Vitamins SKU, or the EV product ID), qty (required), expiry (blank or NA = non-perishable), price (optional EGP per-lot), location (optional id), batch (optional), sale (optional). Each row adds a LIVE lot.', 'أعمدة CSV: sku (مطلوب — يقبل SKU الخاص بـVeeey أو SKU إيجيبت فيتامينز أو معرّف المنتج EV)، qty (مطلوب)، expiry (فارغ أو NA = بدون صلاحية)، price (اختياري بالجنيه لكل دفعة)، location (اختياري)، batch (اختياري)، sale (اختياري). كل صف يضيف دفعة حية.')}
       </p>
       <input name="file" type="file" accept=".csv,text/csv" required className={`${inputCls} block`} />
       <SubmitButton>{tb('Import stock', 'استيراد المخزون')}</SubmitButton>
