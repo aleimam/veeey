@@ -2,7 +2,7 @@
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { bulkProducts, bulkOrders, bulkCustomers, type BulkResult } from '@/lib/admin-bulk-service';
+import { bulkProducts, bulkOrders, bulkCustomers, bulkReviews, bulkSpecialOrders, type BulkResult } from '@/lib/admin-bulk-service';
 import { bulkSoftDelete } from '@/lib/soft-delete-service';
 
 const localeOf = (fd: FormData) => (fd.get('locale') === 'ar' ? 'ar' : 'en');
@@ -55,6 +55,38 @@ export async function bulkOrdersAction(fd: FormData): Promise<void> {
   }
   if (!r) return;
   revalidatePath(`/${locale}/admin/orders`);
+  finish(target, r);
+}
+
+export async function bulkReviewsAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const target = backTo(fd, locale, 'reviews');
+  let r: BulkResult | null = null;
+  try {
+    r = await bulkReviews(str(fd, 'op'), idsOf(fd));
+  } catch (e) {
+    console.error('bulk reviews failed', e);
+    revalidatePath(`/${locale}/admin/reviews`);
+    fail(target);
+  }
+  if (!r) return;
+  revalidatePath(`/${locale}/admin/reviews`);
+  finish(target, r);
+}
+
+export async function bulkSpecialOrdersAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const target = backTo(fd, locale, 'special-orders');
+  let r: BulkResult | null = null;
+  try {
+    r = await bulkSpecialOrders(str(fd, 'op'), idsOf(fd), str(fd, 'value'));
+  } catch (e) {
+    console.error('bulk special-orders failed', e);
+    revalidatePath(`/${locale}/admin/special-orders`);
+    fail(target);
+  }
+  if (!r) return;
+  revalidatePath(`/${locale}/admin/special-orders`);
   finish(target, r);
 }
 

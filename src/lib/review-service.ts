@@ -50,7 +50,7 @@ export const listReviews = ({ status, rating, q }: { status?: string; rating?: s
 
 export const getReview = (id: string) => prisma.review.findUnique({ where: { id }, include: { product: true, media: true } });
 
-async function recomputeRating(productId: string) {
+export async function recomputeRating(productId: string) {
   const agg = await prisma.review.aggregate({ where: { productId, status: 'APPROVED' }, _avg: { rating: true }, _count: true });
   await prisma.product.update({ where: { id: productId }, data: { ratingAvg: agg._avg.rating ?? 0, ratingCount: agg._count } });
 }

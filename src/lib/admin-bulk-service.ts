@@ -3,7 +3,9 @@ import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
 import { deleteProduct, InUseError } from '@/lib/soft-delete-service';
 import { transitionOrder } from '@/lib/order-service';
+import { recomputeRating } from '@/lib/review-service';
 import type { OrderStatus } from '@/lib/order-status';
+import type { SpecialOrderStatus } from '@/generated/prisma/client';
 
 /**
  * Bulk operations for admin lists (apply one change to many selected rows). Each
@@ -82,6 +84,40 @@ export async function bulkOrders(op: string, ids: string[], value: string): Prom
       throw new Error('BAD_OP');
   }
   await audit({ actorType: 'USER', actorId: user.id, action: `bulk.orders.${op}`, entityType: 'Order', entityId: `${ids.length} selected` });
+  return r;
+}
+
+const REVIEW_STATUS: Record<string, 'APPROVED' | 'REJECTED'> = { approve: 'APPROVED', reject: 'REJECTED' };
+export async function bulkReviews(op: string, ids: string[]): Promise<BulkResult> {
+  const user = await requirePermission('reviews.moderate');
+  if (ids.length === 0) return empty();
+  const r = empty();
+  const affected = await prisma.review.findMany({ where: { id: { in: ids } }, select: { productId: true } });
+  const productIds = [...new Set(affected.map((a) => a.productId))];
+  if (op === 'delete') {
+    r.affected = (await prisma.review.deleteMany({ where: { id: { in: ids } } })).count; // ReviewMedia cascades
+  } else if (REVIEW_STATUS[op]) {
+    r.affected = (await prisma.review.updateMany({ where: { id: { in: ids } }, data: { status: REVIEW_STATUS[op], moderatorId: user.id } })).count;
+  } else {
+    throw new Error('BAD_OP');
+  }
+  for (const pid of productIds) await recomputeRating(pid); // keep product rating aggregates correct
+  await audit({ actorType: 'USER', actorId: user.id, action: `bulk.reviews.${op}`, entityType: 'Review', entityId: `${ids.length} selected` });
+  return r;
+}
+
+const SPECIAL_ORDER_STATUSES = new Set<SpecialOrderStatus>(['REQUESTED', 'DEPOSIT_PAID', 'SOURCING', 'PURCHASED', 'IN_TRANSIT', 'RECEIVED', 'FULFILLED', 'CANCELLED']);
+export async function bulkSpecialOrders(op: string, ids: string[], value: string): Promise<BulkResult> {
+  const user = await requirePermission('orders.write');
+  if (ids.length === 0) return empty();
+  const r = empty();
+  if (op === 'status') {
+    if (!SPECIAL_ORDER_STATUSES.has(value as SpecialOrderStatus)) throw new Error('BAD_VALUE');
+    r.affected = (await prisma.specialOrder.updateMany({ where: { id: { in: ids } }, data: { status: value as SpecialOrderStatus } })).count;
+  } else {
+    throw new Error('BAD_OP');
+  }
+  await audit({ actorType: 'USER', actorId: user.id, action: `bulk.specialOrders.${op}`, entityType: 'SpecialOrder', entityId: `${ids.length} selected` });
   return r;
 }
 
