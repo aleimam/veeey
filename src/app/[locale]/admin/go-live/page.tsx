@@ -136,7 +136,16 @@ export default async function GoLivePage({ params, searchParams }: { params: Pro
         {/* Bulk stock import */}
         <aside className={`${card} h-fit`}>
           <h2 className="mb-2 text-base font-semibold text-foreground">{tb('Bulk stock import', 'استيراد المخزون بالجملة')}</h2>
-          {canStock ? <StockImportForm locale={locale} /> : <p className="text-sm text-muted-foreground">{tb('Requires inventory permission.', 'يتطلب صلاحية المخزون.')}</p>}
+          {canStock ? (
+            <>
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- API file download, not a page nav */}
+              <a href="/api/admin/go-live/stock-template" className="mb-3 inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface">
+                ⬇ {tb('Download CSV template', 'تنزيل قالب CSV')}
+              </a>
+              <p className="mb-3 text-xs text-muted-foreground">{tb('The template lists every product that still needs stock (SKU + name). Fill in qty + expiry and upload it below.', 'يحتوي القالب على كل منتج ما زال يحتاج مخزونًا (SKU + الاسم). أدخل الكمية والصلاحية وارفعه أدناه.')}</p>
+              <StockImportForm locale={locale} />
+            </>
+          ) : <p className="text-sm text-muted-foreground">{tb('Requires inventory permission.', 'يتطلب صلاحية المخزون.')}</p>}
         </aside>
       </div>
     </div>

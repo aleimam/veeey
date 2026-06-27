@@ -75,6 +75,15 @@ export function countGoLiveProducts(opts: { q?: string; only?: string } = {}) {
   });
 }
 
+/** Not-live products with no live stock — rows for the stock-import CSV template. */
+export async function notStockedProducts(): Promise<{ sku: string; nameEn: string }[]> {
+  return prisma.product.findMany({
+    where: { status: { in: [...PRELIVE] }, lots: { none: inStockLot } },
+    select: { sku: true, nameEn: true },
+    orderBy: { nameEn: 'asc' },
+  });
+}
+
 // ---- Stock loading (creates LIVE lots) -------------------------------------
 async function defaultLocationId(): Promise<string | null> {
   const main = await prisma.location.findUnique({ where: { id: 'loc_main' } }).catch(() => null);
