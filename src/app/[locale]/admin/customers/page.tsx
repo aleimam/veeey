@@ -59,6 +59,7 @@ export default async function CustomersPage({ params, searchParams }: { params: 
 
   const ops: BulkOp[] = [
     { value: 'tier', label: tb('Assign tier', 'تعيين الفئة'), values: [{ value: '__none__', label: tb('— None —', '— بدون —') }, ...tiers.map((t) => ({ value: t.id, label: t.nameEn }))] },
+    { value: 'delete', label: tb('Delete (no orders only)', 'حذف (بلا طلبات فقط)'), danger: true },
   ];
 
   return (
@@ -68,7 +69,7 @@ export default async function CustomersPage({ params, searchParams }: { params: 
         <ExportBar entity="customers" locale={locale} query={exportQs(sp)} />
       </header>
 
-      {done != null && <p className="mb-4 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">{tb(`Updated ${done} customer(s).`, `تم تحديث ${done} عميل.`)}</p>}
+      {done != null && <p className="mb-4 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">{tb(`Done — ${done} customer(s).`, `تم — ${done} عميل.`)}{Number(one(sp.skip)) > 0 ? tb(` ${one(sp.skip)} kept (had orders / linked data).`, ` تم الإبقاء على ${one(sp.skip)} (لديهم طلبات/بيانات مرتبطة).`) : ''}</p>}
       {one(sp.error) === 'bulk' && <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{tb('Bulk action failed.', 'فشل الإجراء الجماعي.')}</p>}
 
       <FilterBar

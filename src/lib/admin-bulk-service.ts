@@ -86,13 +86,24 @@ export async function bulkOrders(op: string, ids: string[], value: string): Prom
 }
 
 export async function bulkCustomers(op: string, ids: string[], value: string): Promise<BulkResult> {
-  const user = await requirePermission('pricing.manage');
+  // Tier assignment is a pricing op; deletion is a stronger customer-write op.
+  const user = await requirePermission(op === 'delete' ? 'customers.write' : 'pricing.manage');
   if (ids.length === 0) return empty();
   const r = empty();
   switch (op) {
     case 'tier': {
       const tierId = value && value !== '__none__' ? value : null;
       r.affected = (await prisma.customer.updateMany({ where: { id: { in: ids } }, data: { tierId } })).count;
+      break;
+    }
+    case 'delete': {
+      // Guarded: only customers with ZERO orders. Deleting the User cascades the
+      // Customer + its addresses/wishlists/etc.; any FK-linked record is skipped.
+      for (const id of ids) {
+        const c = await prisma.customer.findUnique({ where: { id }, select: { userId: true, _count: { select: { orders: true } } } });
+        if (!c || c._count.orders > 0) { r.skipped++; continue; }
+        try { await prisma.user.delete({ where: { id: c.userId } }); r.affected++; } catch { r.skipped++; }
+      }
       break;
     }
     default:
