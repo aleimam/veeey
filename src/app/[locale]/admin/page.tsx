@@ -29,7 +29,7 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
       prisma.order.aggregate({ where: { placedAt: { gte: startOfYesterday, lt: startOfDay } }, _sum: { totalPiastres: true }, _count: true }),
       prisma.customer.count({ where: { createdAt: { gte: startOfMonth } } }),
       prisma.lot.count({ where: { status: 'LIVE', qtyOnHand: { lte: 5 } } }),
-      prisma.order.count({ where: { status: { in: ['PENDING_CONFIRMATION', 'PROCESSING', 'HOLD'] } } }),
+      prisma.order.count({ where: { status: { in: ['PENDING', 'CONFIRMED', 'HOLD'] } } }),
       prisma.order.findMany({ where: { placedAt: { gte: weekAgo } }, select: { placedAt: true, totalPiastres: true } }),
       prisma.order.findMany({ orderBy: { placedAt: 'desc' }, take: 6, include: { customer: { select: { firstName: true, lastName: true } }, _count: { select: { items: true } } } }),
       prisma.lot.findMany({ where: { status: 'LIVE', qtyOnHand: { gt: 0 }, expiryDate: { not: null } }, orderBy: { expiryDate: 'asc' }, take: 6, include: { product: { select: { nameEn: true, nameAr: true } } } }),

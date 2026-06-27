@@ -11,6 +11,7 @@ import {
   setTracking,
   addOrderItem,
   removeOrderItem,
+  markOrderItemLost,
   addGiftToOrder,
   createManualOrder,
 } from '@/lib/order-service';
@@ -134,6 +135,16 @@ export async function removeOrderItemAction(fd: FormData): Promise<void> {
   const id = str(fd, 'id');
   const orderItemId = str(fd, 'orderItemId');
   if (orderItemId) { try { await removeOrderItem(orderItemId); } catch (e) { console.error(e); } }
+  if (id) backToOrder(locale, id);
+  redirect(`/${locale}/admin/orders`);
+}
+
+export async function markOrderItemLostAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const id = str(fd, 'id');
+  const orderItemId = str(fd, 'orderItemId');
+  const lost = fd.get('lost') === '1';
+  if (orderItemId) { try { await markOrderItemLost(orderItemId, lost, str(fd, 'reason')); } catch (e) { console.error(e); } }
   if (id) backToOrder(locale, id);
   redirect(`/${locale}/admin/orders`);
 }

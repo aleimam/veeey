@@ -182,9 +182,9 @@ export default async function AccountPage({ params }: { params: Promise<{ locale
                         <td className="p-3 font-semibold text-ink">{o.number}</td>
                         <td className="p-3 text-ink">{o._count.items}</td>
                         <td className="p-3 text-ink">{formatEGP(Number(o.totalPiastres))}</td>
-                        <td className="p-3"><StatusBadge status={o.status} /></td>
+                        <td className="p-3"><StatusBadge status={o.customerStatus ?? o.status} /></td>
                         <td className="p-3 text-end">
-                          {(o.status === 'CASH_DELIVERED' || o.status === 'CARD_DELIVERED') && (
+                          {o.status === 'DELIVERED' && (
                             <form action={requestReturnAction}>
                               <input type="hidden" name="locale" value={locale} />
                               <input type="hidden" name="orderId" value={o.id} />

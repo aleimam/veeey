@@ -52,6 +52,7 @@
       "providers": "المزوّدون",
       "settings": "الإعدادات",
       "payments": "طرق الدفع",
+      "orderStatuses": "حالات الطلب",
       "appearance": "المظهر",
       "loginProviders": "تسجيل الدخول الاجتماعي",
       "wooConnection": "الاتصال",

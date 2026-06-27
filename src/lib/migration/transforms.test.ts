@@ -3,10 +3,11 @@ import { mapOrderStatus, mapPaymentMethod, normalizePharmacist, clampDate, norma
 import { dryRun } from './etl';
 
 describe('migration transforms', () => {
-  it('maps Woo order statuses (incl. spacing/casing) to the 11 Veeey statuses', () => {
-    expect(mapOrderStatus('Card Delivered')).toEqual({ status: 'CARD_DELIVERED', matched: true });
-    expect(mapOrderStatus('wc-pending confirmation')).toEqual({ status: 'PENDING_CONFIRMATION', matched: true });
-    expect(mapOrderStatus('completed')).toEqual({ status: 'CARD_DELIVERED', matched: true });
+  it('maps Woo order statuses (incl. spacing/casing) to the Veeey statuses', () => {
+    expect(mapOrderStatus('Card Delivered')).toEqual({ status: 'DELIVERED', matched: true });
+    expect(mapOrderStatus('wc-pending confirmation')).toEqual({ status: 'PENDING', matched: true });
+    expect(mapOrderStatus('completed')).toEqual({ status: 'DELIVERED', matched: true });
+    expect(mapOrderStatus('processing')).toEqual({ status: 'CONFIRMED', matched: true });
     expect(mapOrderStatus('weird')).toEqual({ status: null, matched: false });
   });
 

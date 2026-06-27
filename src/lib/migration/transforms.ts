@@ -8,15 +8,17 @@
  */
 
 // Mirrors src/lib/order-status.ts ORDER_STATUSES (kept inline to stay app-free).
-export const VEEEY_ORDER_STATUSES = ['DRAFT', 'PENDING_CONFIRMATION', 'PROCESSING', 'HOLD', 'EDIT', 'SHIPPED', 'CASH_DELIVERED', 'CARD_DELIVERED', 'CANCELLED', 'REFUNDED', 'FAILED'] as const;
+export const VEEEY_ORDER_STATUSES = ['PENDING', 'EDIT', 'HOLD', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED'] as const;
 export type VeeeyOrderStatus = (typeof VEEEY_ORDER_STATUSES)[number];
 
 const ORDER_STATUS_MAP: Record<string, VeeeyOrderStatus> = {
-  'pending confirmation': 'PENDING_CONFIRMATION', pending: 'PENDING_CONFIRMATION',
-  processing: 'PROCESSING', hold: 'HOLD', 'on-hold': 'HOLD', 'on hold': 'HOLD',
-  shipped: 'SHIPPED', 'cash delivered': 'CASH_DELIVERED', 'card delivered': 'CARD_DELIVERED',
-  completed: 'CARD_DELIVERED', cancelled: 'CANCELLED', canceled: 'CANCELLED',
-  refunded: 'REFUNDED', failed: 'FAILED', draft: 'DRAFT', edit: 'EDIT',
+  'pending confirmation': 'PENDING', pending: 'PENDING', draft: 'PENDING',
+  processing: 'CONFIRMED', confirmed: 'CONFIRMED',
+  hold: 'HOLD', 'on-hold': 'HOLD', 'on hold': 'HOLD',
+  shipped: 'SHIPPED',
+  'cash delivered': 'DELIVERED', 'card delivered': 'DELIVERED', delivered: 'DELIVERED', completed: 'DELIVERED',
+  cancelled: 'CANCELLED', canceled: 'CANCELLED', failed: 'CANCELLED',
+  refunded: 'REFUNDED', edit: 'EDIT',
 };
 
 export function mapOrderStatus(woo: string): { status: VeeeyOrderStatus | null; matched: boolean } {

@@ -3,11 +3,10 @@ import { prisma } from '@/lib/prisma';
 import { egpToPiastres } from '@/lib/format';
 import { generateReferralCode } from '@/lib/customer';
 import { createProduct } from '@/lib/catalog-service';
-import { ORDER_STATUSES } from '@/lib/order-status';
 import { resolveImportPayment } from '@/lib/payment-method-service';
+import { resolveImportStatus, customerStatusOf } from '@/lib/order-status-service';
 import type { PermissionKey } from '@/lib/permissions';
 import type { ExportEntity } from '@/lib/admin-export';
-import type { Prisma } from '@/generated/prisma/client';
 
 /**
  * Admin CSV import (FR-ADM). Create-only: a row whose key already exists is
@@ -147,12 +146,16 @@ const importOrders = (rows: Row[]) => run(rows, async (r) => {
   const total = egpToPiastres(num(r.totalEgp) ?? 0);
   const rawPay = (r.paymentMethod ?? '').trim();
   const pay = await resolveImportPayment(rawPay); // map raw value → {customer, system} via aliases
+  const rawStatus = (r.status ?? '').trim();
+  const statusCode = (await resolveImportStatus(rawStatus)) ?? 'PENDING';
   await prisma.order.create({
     data: {
       number,
       customerId,
       guestEmail: customerId ? null : (r.customerEmail || null),
-      status: oneOf(r.status, ORDER_STATUSES, 'PENDING_CONFIRMATION') as Prisma.OrderCreateInput['status'],
+      status: statusCode,
+      customerStatus: await customerStatusOf(statusCode),
+      legacyStatus: rawStatus || null,
       paymentMethod: pay.customerCode,
       systemPaymentMethod: pay.systemCode,
       legacyPaymentMethod: rawPay || null,

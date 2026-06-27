@@ -53,6 +53,43 @@ export async function creditReferralReward(orderId: string): Promise<number> {
   return reward;
 }
 
+/**
+ * Reverse the loyalty + referral points an order earned (Cancelled / Refunded).
+ * Idempotent: only reverses an EARN/REFERRAL that hasn't already been reversed
+ * (guarded by a matching ADJUST note). Also rolls back lifetime spend. Returns
+ * the total points clawed back.
+ */
+export async function reverseOrderPoints(orderId: string): Promise<number> {
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order) return 0;
+  let reversed = 0;
+
+  const earn = await prisma.loyaltyTransaction.findFirst({ where: { orderId, type: 'EARN' } });
+  if (earn && earn.customerId) {
+    const already = await prisma.loyaltyTransaction.findFirst({ where: { orderId, type: 'ADJUST', note: 'reverse:order' } });
+    if (!already && earn.points > 0) {
+      await prisma.$transaction([
+        prisma.loyaltyTransaction.create({ data: { customerId: earn.customerId, points: -earn.points, type: 'ADJUST', orderId, note: 'reverse:order' } }),
+        prisma.customer.update({ where: { id: earn.customerId }, data: { pointsBalance: { decrement: earn.points }, lifetimeSpendPiastres: { decrement: order.totalPiastres } } }),
+      ]);
+      reversed += earn.points;
+    }
+  }
+
+  const ref = await prisma.loyaltyTransaction.findFirst({ where: { orderId, type: 'REFERRAL' } });
+  if (ref && ref.customerId) {
+    const already = await prisma.loyaltyTransaction.findFirst({ where: { orderId, type: 'ADJUST', note: 'reverse:referral' } });
+    if (!already && ref.points > 0) {
+      await prisma.$transaction([
+        prisma.loyaltyTransaction.create({ data: { customerId: ref.customerId, points: -ref.points, type: 'ADJUST', orderId, note: 'reverse:referral' } }),
+        prisma.customer.update({ where: { id: ref.customerId }, data: { pointsBalance: { decrement: ref.points } } }),
+      ]);
+      reversed += ref.points;
+    }
+  }
+  return reversed;
+}
+
 /** Redeem points at checkout; returns the EGP value (piastres) applied. */
 export async function redeemPoints(customerId: string, points: number, orderId?: string): Promise<bigint> {
   if (points <= 0) return 0n;

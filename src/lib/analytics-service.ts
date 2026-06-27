@@ -45,7 +45,7 @@ export async function topViewedProducts(limit = 10, days = 30) {
 export async function kpis(days = 30) {
   const since = sinceDate(days);
   const [delivered, orders, customers] = await Promise.all([
-    prisma.order.aggregate({ where: { status: { in: ['CASH_DELIVERED', 'CARD_DELIVERED'] }, placedAt: { gte: since } }, _sum: { totalPiastres: true }, _count: true }),
+    prisma.order.aggregate({ where: { status: 'DELIVERED', placedAt: { gte: since } }, _sum: { totalPiastres: true }, _count: true }),
     prisma.order.count({ where: { placedAt: { gte: since } } }),
     prisma.customer.count(),
   ]);
@@ -53,7 +53,7 @@ export async function kpis(days = 30) {
   return { revenue, deliveredOrders: delivered._count, orders, customers, aov: delivered._count > 0 ? Math.round(revenue / delivered._count) : 0 };
 }
 
-const DELIVERED = ['CASH_DELIVERED', 'CARD_DELIVERED'] as const;
+const DELIVERED = ['DELIVERED'] as const;
 
 /**
  * Extended commerce metrics for the analytics page (FR-ANL-*).

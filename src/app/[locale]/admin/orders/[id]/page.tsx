@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { getOrder } from '@/lib/order-service';
 import { listGifts } from '@/lib/gift-service';
 import { listProducts } from '@/lib/catalog-service';
-import { ALLOWED_TRANSITIONS, type OrderStatus } from '@/lib/order-status';
+import { listStatusConfigs } from '@/lib/order-status-service';
 import { formatEGP } from '@/lib/format';
 import { StatusBadge, inputCls } from '@/components/admin/ui';
 import { aramexConfigured, smsaConfigured } from '@/lib/provider-config';
@@ -12,7 +12,7 @@ import { listSystemMethods, customerLabel } from '@/lib/payment-method-service';
 import { pick } from '@/lib/admin-i18n';
 import {
   transitionOrderAction, assignPharmacistAction, setPayCheckAction, setSystemPaymentMethodAction, setOrderMetaAction,
-  setTrackingAction, addOrderItemAction, removeOrderItemAction, addGiftToOrderAction,
+  setTrackingAction, addOrderItemAction, removeOrderItemAction, addGiftToOrderAction, markOrderItemLostAction,
 } from '@/server/order-actions';
 import { createAramexShipmentAction, trackAramexAction, createSmsaShipmentAction, trackSmsaAction } from '@/server/carrier-actions';
 
@@ -29,20 +29,23 @@ export default async function OrderDetailPage({ params, searchParams }: { params
   const order = await getOrder(id);
   if (!order) notFound();
 
-  const [staff, gifts, products, aramexOn, smsaOn, systemMethods] = await Promise.all([
+  const [staff, gifts, products, aramexOn, smsaOn, systemMethods, statusCfgs] = await Promise.all([
     prisma.user.findMany({ where: { roleId: { not: null } }, select: { id: true, name: true, email: true } }),
     listGifts(),
     listProducts(),
     aramexConfigured(),
     smsaConfigured(),
     listSystemMethods(),
+    listStatusConfigs(),
   ]);
   const shipErr = one(sp.shiperr);
   const shipOk = one(sp.shipok) === '1';
   const labelUrl = one(sp.label);
   const trackMsg = one(sp.track);
-  const editable = (['HOLD', 'EDIT', 'PROCESSING', 'PENDING_CONFIRMATION'] as string[]).includes(order.status);
-  const transitions = ALLOWED_TRANSITIONS[order.status as OrderStatus] ?? [];
+  const editable = (['HOLD', 'EDIT', 'CONFIRMED', 'PENDING'] as string[]).includes(order.status);
+  const statusByCode = new Map<string, (typeof statusCfgs)[number]>(statusCfgs.map((c) => [c.code, c]));
+  const statusLabelOf = (code: string) => { const c = statusByCode.get(code); return c ? (locale === 'ar' ? c.labelAr : c.labelEn) : code.replaceAll('_', ' '); };
+  const transitions = (statusByCode.get(order.status)?.allowedNext ?? []) as string[];
   const hidden = (extra: Record<string, string>) =>
     Object.entries({ locale, id, ...extra }).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />);
 
@@ -69,16 +72,19 @@ export default async function OrderDetailPage({ params, searchParams }: { params
               </thead>
               <tbody>
                 {order.items.map((it) => (
-                  <tr key={it.id} className="border-t border-border">
-                    <td className="p-2">{it.product.nameEn} <span className="text-muted-foreground">({it.product.sku})</span></td>
+                  <tr key={it.id} className={`border-t border-border ${it.lost ? 'opacity-60' : ''}`}>
+                    <td className={`p-2 ${it.lost ? 'line-through' : ''}`}>{it.product.nameEn} <span className="text-muted-foreground">({it.product.sku})</span>{it.lost && <span className="ms-2 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-medium text-destructive no-underline">{tb('Lost', 'مفقود')}</span>}</td>
                     <td className="p-2 text-center">{monthYear(it.lineExpiry)}</td>
                     <td className="p-2 text-center">{it.product.weightG != null ? `${it.product.weightG}g` : '—'}</td>
                     <td className="p-2 text-center">{it.qty}</td>
-                    <td className="p-2 text-center">{formatEGP(Number(it.unitPricePiastres) * it.qty)}</td>
+                    <td className={`p-2 text-center ${it.lost ? 'line-through' : ''}`}>{formatEGP(Number(it.unitPricePiastres) * it.qty)}</td>
                     <td className="p-2 text-end">
-                      {editable && (
-                        <form action={removeOrderItemAction}>{hidden({ orderItemId: it.id })}<button className="text-xs text-destructive hover:underline">{tb('Remove', 'إزالة')}</button></form>
-                      )}
+                      <div className="flex items-center justify-end gap-3">
+                        <form action={markOrderItemLostAction}>{hidden({ orderItemId: it.id, lost: it.lost ? '0' : '1' })}<button className="text-xs text-muted-foreground hover:underline">{it.lost ? tb('Restore', 'استرجاع') : tb('Mark lost', 'تحديد كمفقود')}</button></form>
+                        {editable && !it.lost && (
+                          <form action={removeOrderItemAction}>{hidden({ orderItemId: it.id })}<button className="text-xs text-destructive hover:underline">{tb('Remove', 'إزالة')}</button></form>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -113,7 +119,7 @@ export default async function OrderDetailPage({ params, searchParams }: { params
             <div className="flex flex-wrap gap-2">
               {transitions.length === 0 && <span className="text-xs text-muted-foreground">{tb('Final status.', 'حالة نهائية.')}</span>}
               {transitions.map((t) => (
-                <form key={t} action={transitionOrderAction}>{hidden({ status: t })}<button className="rounded-md border border-border px-2.5 py-1 text-xs hover:bg-surface">{t}</button></form>
+                <form key={t} action={transitionOrderAction}>{hidden({ status: t })}<button className="rounded-md border border-border px-2.5 py-1 text-xs hover:bg-surface">{statusLabelOf(t)}</button></form>
               ))}
             </div>
           </div>

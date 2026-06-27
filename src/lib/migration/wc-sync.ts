@@ -4,8 +4,9 @@ import { nameImportable } from './wc-transform';
 import { slugify, brandCode, skuFromParts } from '@/lib/sku';
 import { ensureCustomerProfile } from '@/lib/customer';
 import { normalizeMobile } from '@/lib/provider-config';
-import type { OrderStatus, Prisma } from '@/generated/prisma/client';
+import type { Prisma } from '@/generated/prisma/client';
 import { resolveImportPayment } from '@/lib/payment-method-service';
+import { resolveImportStatus, customerStatusOf } from '@/lib/order-status-service';
 
 /**
  * WooCommerce → Veeey live sync (egyptvitamins.com). Incremental, idempotent
@@ -285,9 +286,8 @@ export async function syncCustomers(opts: { maxPages?: number; perPage?: number;
 }
 
 // ── Orders ────────────────────────────────────────────────────────────────
-const ORDER_STATUS: Record<string, OrderStatus> = {
-  pending: 'PENDING_CONFIRMATION', processing: 'PROCESSING', 'on-hold': 'HOLD', completed: 'CASH_DELIVERED', cancelled: 'CANCELLED', refunded: 'REFUNDED', failed: 'FAILED',
-};
+// WooCommerce status strings are classified into Veeey codes via OrderStatusConfig
+// sourceAliases (resolveImportStatus); the raw value is kept on Order.legacyStatus.
 async function uniqueOrderNumber(base: string, wpId: number): Promise<string> {
   const num = base || String(wpId);
   const clash = await prisma.order.findFirst({ where: { number: num, legacyWpId: { not: wpId } }, select: { id: true } });
@@ -341,8 +341,12 @@ export async function syncOrders(opts: { maxPages?: number; perPage?: number; bu
         const shipping = egpToPiastres(o.shipping_total) ?? 0;
         const discount = egpToPiastres(o.discount_total) ?? 0;
         const pay = await resolveImportPayment(str(o.payment_method)); // raw WC method → {customer, system} via aliases
+        const rawStatus = str(o.status);
+        const statusCode = (await resolveImportStatus(rawStatus)) ?? 'CONFIRMED'; // unknown WC status → Confirmed
         const data = {
-          status: ORDER_STATUS[str(o.status)] ?? ('PROCESSING' as OrderStatus),
+          status: statusCode,
+          customerStatus: await customerStatusOf(statusCode),
+          legacyStatus: rawStatus || null,
           paymentMethod: pay.customerCode,
           systemPaymentMethod: pay.systemCode,
           legacyPaymentMethod: str(o.payment_method) || null,

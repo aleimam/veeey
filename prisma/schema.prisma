@@ -65,19 +65,10 @@ enum MovementType {
 }
 
 // Full live-data status vocabulary (MIGRATION_FINDINGS §5) — 11 values.
-enum OrderStatus {
-  DRAFT
-  PENDING_CONFIRMATION
-  PROCESSING
-  HOLD
-  SHIPPED
-  CASH_DELIVERED
-  CARD_DELIVERED
-  CANCELLED
-  REFUNDED
-  FAILED
-  EDIT
-}
+// Order status is now a TEXT code backed by the editable `OrderStatusConfig`
+// table (fixed 8 codes: PENDING, EDIT, HOLD, CONFIRMED, SHIPPED, DELIVERED,
+// CANCELLED, REFUNDED). Behavior/effects/transitions/icons/aliases are editable.
+// The OrderStatus enum was removed; codes + defaults live in src/lib/order-status.ts.
 
 enum PaymentState {
   PENDING
@@ -482,6 +473,32 @@ model SystemPaymentMethod {
   updatedAt     DateTime @updatedAt
 }
 
+// Editable behavior for the fixed 8 order-status codes (STAT). `customerCode` is
+// what the shopper sees (null = invisible, e.g. EDIT keeps the previous status).
+// Effects are applied idempotently on transition; `allowedNext` drives the
+// quick-action buttons; `sourceAliases` classify imported WC/EV statuses.
+model OrderStatusConfig {
+  id                String   @id @default(cuid())
+  code              String   @unique // PENDING | EDIT | HOLD | CONFIRMED | SHIPPED | DELIVERED | CANCELLED | REFUNDED
+  labelEn           String
+  labelAr           String?
+  customerCode      String? // customer-facing code; null = no change (EDIT)
+  icon              String   @default("circle") // Lucide icon name
+  stockEffect       String   @default("none") // none | restock
+  paymentEffect     String   @default("none") // none | paid | refunded
+  revenueEffect     String   @default("none") // none | realize | reverse
+  loyaltyEffect     String   @default("none") // none | credit | reverse
+  notifyAudience    String   @default("none") // none | customer | staff | both
+  notifyTemplateKey String?
+  allowedNext       String[] // codes reachable from this status
+  sourceAliases     String[] // raw WC/EV status strings → this code
+  sortOrder         Int      @default(0)
+  active            Boolean  @default(true)
+  isDefault         Boolean  @default(false) // status new orders start in
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
 // Per-tier product behavior keyed by category/tag/attribute (FR-PRC-03).
 model TierProductRule {
   id                 String         @id @default(cuid())
@@ -874,7 +891,9 @@ model Order {
   customerId    String?
   customer      Customer?      @relation(fields: [customerId], references: [id])
   guestEmail    String?
-  status        OrderStatus    @default(PENDING_CONFIRMATION)
+  status         String        @default("PENDING") // OrderStatusConfig.code (system/internal)
+  customerStatus String?       // customer-facing code (derived; EDIT keeps previous)
+  legacyStatus   String?       // raw source status (WooCommerce/EV) for re-mapping
   paymentMethod String?        // customer-facing method code (checkout) — CUSTOMER_METHODS
   systemPaymentMethod String?  // SystemPaymentMethod.code (granular; invoice/packing)
   legacyPaymentMethod String?  // raw source payment_method (WooCommerce) for re-mapping
@@ -937,6 +956,9 @@ model OrderItem {
   weightG           Int?
   pointsEarned      Int          @default(0)
   isGift            Boolean      @default(false)
+  lost              Boolean      @default(false) // marked LOST: excluded from totals/revenue, no restock
+  lostAt            DateTime?
+  lostReason        String?
   returnItems       ReturnItem[]
 
   @@index([orderId])

@@ -4,11 +4,12 @@ import type { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
-import { canTransition, isDelivered, type OrderStatus } from '@/lib/order-status';
+import { type OrderStatus, type StatusConfig } from '@/lib/order-status';
+import { canTransition, statusConfig } from '@/lib/order-status-service';
 import { deriveSystemMethod } from '@/lib/payment-method-service';
 import { availableQty } from '@/lib/inventory';
 import { getShippingFee, type ShippingTypeKey } from '@/lib/shipping-service';
-import { creditOrderPoints, creditReferralReward } from '@/lib/loyalty-service';
+import { creditOrderPoints, creditReferralReward, reverseOrderPoints } from '@/lib/loyalty-service';
 import { enqueue, QUEUES } from '@/lib/jobs';
 import { notify, type NotifyInput } from '@/lib/notification-service';
 import { smsConfigured } from '@/lib/provider-config';
@@ -103,27 +104,67 @@ export function getOrder(id: string) {
 }
 
 async function recomputeTotals(tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0], orderId: string) {
-  const items = await tx.orderItem.findMany({ where: { orderId } });
+  const items = await tx.orderItem.findMany({ where: { orderId, lost: false } }); // LOST lines excluded from totals/revenue
   const subtotal = items.reduce((s, i) => s + i.unitPricePiastres * BigInt(i.qty), 0n);
   const order = await tx.order.findUniqueOrThrow({ where: { id: orderId } });
   await tx.order.update({ where: { id: orderId }, data: { subtotalPiastres: subtotal, totalPiastres: subtotal + order.shippingPiastres - order.discountPiastres } });
 }
 
+/** Restock every non-lost, lot-bound line of an order (Cancelled/Refunded effect).
+ *  Idempotent via a `status_restock` ledger marker so re-entry never double-counts. */
+async function restockOrder(orderId: string) {
+  const marker = await prisma.movementLedger.findFirst({ where: { refType: 'status_restock', refId: orderId } });
+  if (marker) return; // already restocked by a prior status effect
+  const items = await prisma.order.findUnique({ where: { id: orderId }, select: { items: { where: { lost: false, lotId: { not: null } }, include: { lot: { select: { locationId: true } } } } } });
+  for (const it of items?.items ?? []) {
+    if (!it.lotId || !it.lot) continue;
+    await prisma.lot.update({ where: { id: it.lotId }, data: { qtyOnHand: { increment: it.qty } } });
+    await prisma.movementLedger.create({ data: { lotId: it.lotId, locationId: it.lot.locationId, type: 'RETURN', qtyDelta: it.qty, refType: 'status_restock', refId: orderId } });
+  }
+}
+
+/** Customer + (best-effort) staff notification for a status, per its config. */
+async function runStatusNotify(orderId: string, cfg: StatusConfig | undefined) {
+  if (!cfg || cfg.notifyAudience === 'none') return;
+  const template = cfg.notifyTemplateKey || `order.${cfg.code.toLowerCase()}`;
+  if (cfg.notifyAudience === 'customer' || cfg.notifyAudience === 'both') await notifyOrder(orderId, template);
+  // Staff-channel dispatch is wired in Phase 2 (needs a staff/ops target); the
+  // config knob is honored for the customer side today.
+}
+
+/** Apply a status's configured effects (stock/payment/revenue/loyalty), idempotently. */
+async function applyStatusEffects(order: { id: string; number: string; totalPiastres: bigint; status: string }, from: string, cfg: StatusConfig | undefined) {
+  if (!cfg) return;
+  if (cfg.stockEffect === 'restock') await restockOrder(order.id);
+  if (cfg.paymentEffect === 'paid') await prisma.order.update({ where: { id: order.id }, data: { paymentState: 'PAID' } });
+  else if (cfg.paymentEffect === 'refunded') await prisma.order.update({ where: { id: order.id }, data: { paymentState: 'REFUNDED' } });
+  if (cfg.revenueEffect === 'realize') {
+    await recordOutbox('revenue.event', order.number, { veeeyOrderId: order.number, amountEgp: Number(order.totalPiastres) / 100, occurredAt: new Date().toISOString() });
+  } else if (cfg.revenueEffect === 'reverse' && from === 'DELIVERED') {
+    // Only reverse revenue that was actually realized (i.e. the order was Delivered).
+    await recordOutbox('revenue.event', `${order.number}-reversal`, { veeeyOrderId: order.number, amountEgp: -Number(order.totalPiastres) / 100, occurredAt: new Date().toISOString() });
+  }
+  if (cfg.loyaltyEffect === 'credit') {
+    await creditOrderPoints(order.id);
+    await creditReferralReward(order.id); // referrer earns a configured share of the referee's order points
+  } else if (cfg.loyaltyEffect === 'reverse') {
+    await reverseOrderPoints(order.id); // idempotent; no-op if nothing was credited
+  }
+}
+
 export async function transitionOrder(id: string, to: OrderStatus, reason?: string) {
   const user = await requirePermission('orders.write');
   const order = await prisma.order.findUniqueOrThrow({ where: { id } });
-  if (!canTransition(order.status as OrderStatus, to)) throw new Error('INVALID_TRANSITION');
-  const updated = await prisma.order.update({ where: { id }, data: { status: to } });
-  // Loyalty points are earned once the order is delivered (revenue realized).
-  if (isDelivered(to)) {
-    await creditOrderPoints(id);
-    await creditReferralReward(id); // referrer earns a configured share of the referee's order points
-    // Push revenue to YeldnIN for reconciliation (no-op while the flag is off).
-    await recordOutbox('revenue.event', updated.number, { veeeyOrderId: updated.number, amountEgp: Number(updated.totalPiastres) / 100, occurredAt: new Date().toISOString() });
-  }
+  const from = order.status;
+  if (!(await canTransition(from, to))) throw new Error('INVALID_TRANSITION');
+  const cfg = await statusConfig(to);
+  await applyStatusEffects(order, from, cfg);
+  const updated = await prisma.order.update({
+    where: { id },
+    data: { status: to, ...(cfg?.customerCode ? { customerStatus: cfg.customerCode } : {}) },
+  });
   await audit({ actorType: 'USER', actorId: user.id, action: `order.${to.toLowerCase()}`, entityType: 'Order', entityId: id, data: { reason } });
-  if (to === 'SHIPPED') await notifyOrder(id, 'order.shipped');
-  else if (isDelivered(to)) await notifyOrder(id, 'order.delivered');
+  await runStatusNotify(id, cfg);
   return updated;
 }
 
@@ -163,16 +204,36 @@ export async function setOrderMeta(id: string, meta: { customerOrderType?: strin
 export async function setTracking(id: string, trackingNumber: string, courier?: string) {
   const user = await requirePermission('orders.fulfill');
   const order = await prisma.order.findUniqueOrThrow({ where: { id } });
-  const nextStatus = canTransition(order.status as OrderStatus, 'SHIPPED') ? 'SHIPPED' : (order.status as OrderStatus);
+  const toShipped = await canTransition(order.status, 'SHIPPED');
+  const nextStatus = toShipped ? 'SHIPPED' : order.status;
   // Courier now known → derive the granular system method (e.g. COD → COD+SMSA).
   // Only set when derivable so a staff-chosen POS/bank method isn't wiped.
   const sys = await deriveSystemMethod(order.paymentMethod, courier || null);
   await prisma.order.update({
     where: { id },
-    data: { trackingNumber, courier: (courier || null) as 'ARAMEX' | 'SMSA' | 'OWN' | null, status: nextStatus, ...(sys ? { systemPaymentMethod: sys } : {}) },
+    data: {
+      trackingNumber,
+      courier: (courier || null) as 'ARAMEX' | 'SMSA' | 'OWN' | null,
+      status: nextStatus,
+      ...(toShipped ? { customerStatus: 'SHIPPED' } : {}),
+      ...(sys ? { systemPaymentMethod: sys } : {}),
+    },
   });
   await audit({ actorType: 'USER', actorId: user.id, action: 'order.tracking', entityType: 'Order', entityId: id, data: { trackingNumber, notifyCustomer: true } });
-  if (nextStatus === 'SHIPPED') await notifyOrder(id, 'order.shipped');
+  if (toShipped) await notifyOrder(id, 'order.shipped');
+}
+
+/** Edit / clear tracking (Quick Edit). Editing courier/number alone keeps status;
+ *  clearing tracking on a Shipped order reverts it to Confirmed (per spec). */
+export async function clearTracking(id: string) {
+  const user = await requirePermission('orders.fulfill');
+  const order = await prisma.order.findUniqueOrThrow({ where: { id } });
+  const revert = order.status === 'SHIPPED'; // only un-ship from Shipped, never from Delivered+
+  await prisma.order.update({
+    where: { id },
+    data: { trackingNumber: null, courier: null, ...(revert ? { status: 'CONFIRMED', customerStatus: 'CONFIRMED' } : {}) },
+  });
+  await audit({ actorType: 'USER', actorId: user.id, action: 'order.tracking.clear', entityType: 'Order', entityId: id });
 }
 
 /** Edit-in-Hold: add a product to the order, FEFO-binding lot(s) + decrementing stock. */
@@ -180,7 +241,7 @@ export async function addOrderItem(orderId: string, productId: string, qty: numb
   const user = await requirePermission('orders.write');
   await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUniqueOrThrow({ where: { id: orderId } });
-    if (!(['HOLD', 'EDIT', 'PROCESSING', 'PENDING_CONFIRMATION'] as string[]).includes(order.status)) throw new Error('NOT_EDITABLE');
+    if (!(['HOLD', 'EDIT', 'CONFIRMED', 'PENDING'] as string[]).includes(order.status)) throw new Error('NOT_EDITABLE');
     const lots = await tx.lot.findMany({ where: { productId, status: 'LIVE' }, orderBy: { expiryDate: 'asc' }, include: { product: true } });
     let remaining = qty;
     for (const lot of lots) {
@@ -215,10 +276,37 @@ export async function removeOrderItem(orderItemId: string) {
   await audit({ actorType: 'USER', actorId: user.id, action: 'order.item.remove', entityType: 'Order', entityId: orderId });
 }
 
+/**
+ * Mark / unmark an order line as LOST (FR-ORD shrinkage). A LOST line is kept for
+ * audit but excluded from order totals (→ drops out of revenue); stock is NOT
+ * returned (the goods are gone). If loyalty points were already credited for the
+ * order, that line's points are clawed back (restored on un-mark). Idempotent.
+ */
+export async function markOrderItemLost(orderItemId: string, lost: boolean, reason?: string) {
+  const user = await requirePermission('orders.write');
+  const orderId = await prisma.$transaction(async (tx) => {
+    const item = await tx.orderItem.findUniqueOrThrow({ where: { id: orderItemId }, include: { order: { select: { customerId: true } } } });
+    if (item.lost === lost) return item.orderId; // no-op
+    await tx.orderItem.update({ where: { id: orderItemId }, data: { lost, lostAt: lost ? new Date() : null, lostReason: lost ? (reason || null) : null } });
+    // Adjust loyalty only if the order already earned points and this line carried some.
+    if (item.order.customerId && item.pointsEarned > 0) {
+      const earned = await tx.loyaltyTransaction.findFirst({ where: { orderId: item.orderId, type: 'EARN' } });
+      if (earned) {
+        const delta = lost ? -item.pointsEarned : item.pointsEarned;
+        await tx.loyaltyTransaction.create({ data: { customerId: item.order.customerId, points: delta, type: 'ADJUST', orderId: item.orderId, note: lost ? 'lost item' : 'restore lost item' } });
+        await tx.customer.update({ where: { id: item.order.customerId }, data: { pointsBalance: { increment: delta } } });
+      }
+    }
+    await recomputeTotals(tx, item.orderId);
+    return item.orderId;
+  });
+  await audit({ actorType: 'USER', actorId: user.id, action: lost ? 'order.item.lost' : 'order.item.restore', entityType: 'Order', entityId: orderId, data: { orderItemId, reason } });
+}
+
 /** Manual / phone order creation (FR-ORD-05). Staff build an order on a
  *  customer's behalf: resolve the customer by email (or treat as guest), FEFO-
  *  allocate each line across nearest-expiry lots, decrement stock + ledger, and
- *  snapshot the address. Created in PENDING_CONFIRMATION, attributed to the staff
+ *  snapshot the address. Created in PENDING, attributed to the staff
  *  member (pharmacist) with source = "manual". */
 const manualOrderSchema = z.object({
   customerEmail: z.string().trim().email().optional().or(z.literal('')),
@@ -261,7 +349,7 @@ export async function createManualOrder(raw: ManualOrderInput) {
     const ord = await tx.order.create({
       data: {
         number, customerId, guestEmail,
-        status: 'PENDING_CONFIRMATION', paymentMethod: d.paymentMethod, systemPaymentMethod: await deriveSystemMethod(d.paymentMethod, null), paymentState: 'PENDING', payCheck: 'NO',
+        status: 'PENDING', customerStatus: 'PENDING', paymentMethod: d.paymentMethod, systemPaymentMethod: await deriveSystemMethod(d.paymentMethod, null), paymentState: 'PENDING', payCheck: 'NO',
         subtotalPiastres: 0n, shippingPiastres: shipping, discountPiastres: 0n, totalPiastres: shipping,
         shippingType: d.shippingType, discreetPackaging: d.discreetPackaging,
         shippingAddressId, shippingAddressJson: addressSnapshot,

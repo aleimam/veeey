@@ -9,7 +9,7 @@ export type ReorderSuggestion = { product: CardProduct; supplyDays: number; days
 
 export async function reorderSuggestions(customerId: string, locale: string, now: Date): Promise<ReorderSuggestion[]> {
   const items = await prisma.orderItem.findMany({
-    where: { order: { customerId, status: { in: ['CASH_DELIVERED', 'CARD_DELIVERED'] } } },
+    where: { order: { customerId, status: 'DELIVERED' } },
     include: { product: { include: cardProductInclude }, order: { select: { placedAt: true } } },
     orderBy: { id: 'desc' },
     take: 100,

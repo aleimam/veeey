@@ -14,7 +14,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!order) return new Response('not found', { status: 404 });
 
   const paymentLabel = await invoicePaymentLabel(order.systemPaymentMethod, order.paymentMethod, 'en'); // invoice is EN-only for now
-  const pdf = await generateInvoicePdf({ ...order, paymentLabel });
+  const pdf = await generateInvoicePdf({ ...order, items: order.items.filter((i) => !i.lost), paymentLabel }); // LOST lines excluded
   return new Response(new Uint8Array(pdf), {
     headers: {
       'content-type': 'application/pdf',

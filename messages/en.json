@@ -52,6 +52,7 @@
       "providers": "Providers",
       "settings": "Settings",
       "payments": "Payment methods",
+      "orderStatuses": "Order statuses",
       "appearance": "Appearance",
       "loginProviders": "Social login",
       "wooConnection": "Connection",
