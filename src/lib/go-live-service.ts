@@ -131,15 +131,16 @@ async function createStockLot(it: StockLot) {
 export type StockImportReport = { created: number; skipped: number; invalid: { row: number; reason: string }[] };
 
 /**
- * Bulk stock import. Columns: sku (req), qty (req >0), expiry (blank/NA = none),
- * price (optional per-lot EGP override), location (optional id; blank = default),
- * batch (optional), sale (optional truthy). Additive: each row creates a lot.
+ * Bulk stock import. Columns: sku (req — Veeey SKU / EV SKU / EV id), qty (req >0),
+ * expiry (blank/NA = none; accepts ISO or day-first DD-MM-YYYY), price (optional
+ * per-lot EGP override), location (optional id OR name — created if new; blank =
+ * default), batch (optional), sale (optional truthy). Additive: each row = a lot.
  */
 export async function importStock(rows: Record<string, string>[]): Promise<StockImportReport> {
   const user = await requirePermission('inventory.manage');
   const report: StockImportReport = { created: 0, skipped: 0, invalid: [] };
   const fallbackLoc = await defaultLocationId();
-  const locCache = new Map<string, boolean>();
+  const locCache = new Map<string, string>(); // rawLocation(lowercased) → resolved id
 
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i];
@@ -155,14 +156,25 @@ export async function importStock(rows: Record<string, string>[]): Promise<Stock
     const productId = await resolveProductId(sku);
     if (!productId) { report.invalid.push({ row: line, reason: `no product matches SKU/ID "${sku}"` }); continue; }
 
-    // Resolve location: explicit id (validated + cached) or the default.
-    let locationId = (r.location ?? '').trim();
-    if (locationId) {
-      if (!locCache.has(locationId)) locCache.set(locationId, !!(await prisma.location.findUnique({ where: { id: locationId }, select: { id: true } })));
-      if (!locCache.get(locationId)) { report.invalid.push({ row: line, reason: `location not found "${locationId}"` }); continue; }
-    } else {
+    // Resolve location by id OR name (case-insensitive); create it if the name is
+    // new. Blank → the default location.
+    const rawLoc = (r.location ?? '').trim();
+    let locationId: string;
+    if (!rawLoc) {
       if (!fallbackLoc) { report.invalid.push({ row: line, reason: 'no default location configured' }); continue; }
       locationId = fallbackLoc;
+    } else {
+      const key = rawLoc.toLowerCase();
+      const cached = locCache.get(key);
+      if (cached) {
+        locationId = cached;
+      } else {
+        let loc = await prisma.location.findUnique({ where: { id: rawLoc }, select: { id: true } });
+        if (!loc) loc = await prisma.location.findFirst({ where: { name: { equals: rawLoc, mode: 'insensitive' } }, select: { id: true } });
+        if (!loc) loc = await prisma.location.create({ data: { name: rawLoc }, select: { id: true } });
+        locationId = loc.id;
+        locCache.set(key, locationId);
+      }
     }
 
     const priceRaw = (r.price ?? r.priceEgp ?? '').trim();
