@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
@@ -24,15 +25,62 @@ export const lotInputSchema = z.object({
 });
 export type LotInput = z.input<typeof lotInputSchema>;
 
-export function listLots(opts: { status?: string; productId?: string } = {}) {
+export type LotListOpts = {
+  search?: string; status?: string; locationId?: string; productId?: string;
+  sale?: string; stock?: string;
+  sort?: string; dir?: 'asc' | 'desc'; page?: number; perPage?: number;
+};
+
+function lotWhere(o: LotListOpts): Prisma.LotWhereInput {
+  return {
+    ...(o.status ? { status: o.status as 'LIVE' | 'QUARANTINE' | 'EXPIRED' | 'WRITTEN_OFF' } : {}),
+    ...(o.locationId ? { locationId: o.locationId } : {}),
+    ...(o.productId ? { productId: o.productId } : {}),
+    ...(o.sale === '1' ? { saleFlag: true } : {}),
+    ...(o.stock === 'in' ? { qtyOnHand: { gt: 0 } } : o.stock === 'zero' ? { qtyOnHand: { lte: 0 } } : {}),
+    ...(o.search
+      ? { product: { OR: [{ nameEn: { contains: o.search, mode: 'insensitive' } }, { sku: { contains: o.search, mode: 'insensitive' } }] } }
+      : {}),
+  };
+}
+
+function lotOrderBy(sort?: string, dir: 'asc' | 'desc' = 'asc'): Prisma.LotOrderByWithRelationInput {
+  switch (sort) {
+    case 'product': return { product: { nameEn: dir } };
+    case 'location': return { location: { name: dir } };
+    case 'onhand': return { qtyOnHand: dir };
+    case 'price': return { priceOverridePiastres: dir };
+    case 'status': return { status: dir };
+    case 'expiry':
+    default: return { expiryDate: dir };
+  }
+}
+
+/** List lots for the admin. Without `page` it returns up to 300; with `page` it
+ *  paginates by `perPage` and applies the chosen sort/filters. */
+export function listLots(opts: LotListOpts = {}) {
+  const perPage = opts.perPage ?? 50;
+  const take = opts.page != null ? perPage : 300;
+  const skip = opts.page != null ? (Math.max(1, opts.page) - 1) * perPage : 0;
   return prisma.lot.findMany({
-    where: {
-      ...(opts.status ? { status: opts.status as 'LIVE' | 'QUARANTINE' | 'EXPIRED' | 'WRITTEN_OFF' } : {}),
-      ...(opts.productId ? { productId: opts.productId } : {}),
-    },
+    where: lotWhere(opts),
     include: { product: { select: { nameEn: true, sku: true, basePricePiastres: true } }, location: true },
+    orderBy: lotOrderBy(opts.sort, opts.dir),
+    skip,
+    take,
+  });
+}
+
+export function countLots(opts: LotListOpts = {}) {
+  return prisma.lot.count({ where: lotWhere(opts) });
+}
+
+/** All lots for one product (for the product-edit stock section), nearest expiry first. */
+export function listProductLots(productId: string) {
+  return prisma.lot.findMany({
+    where: { productId },
+    include: { location: true },
     orderBy: [{ status: 'asc' }, { expiryDate: 'asc' }],
-    take: 300,
   });
 }
 

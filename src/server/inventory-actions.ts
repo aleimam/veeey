@@ -52,6 +52,32 @@ export async function saveLotAction(_p: AdminFormState, fd: FormData): Promise<A
   done(locale, 'inventory/lots');
 }
 
+/** Create/update a lot from the product edit page; returns there (not /lots). */
+export async function saveProductLotAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const productId = str(fd, 'productId') ?? '';
+  if (!productId) done(locale, 'products');
+  let ok = true;
+  try {
+    await saveLot(str(fd, 'id') ?? null, {
+      productId,
+      locationId: str(fd, 'locationId') ?? '',
+      expiryDate: str(fd, 'expiryDate') ?? '',
+      noExpiry: bool(fd, 'noExpiry'),
+      qtyOnHand: str(fd, 'qtyOnHand') ?? '0',
+      costEgp: str(fd, 'costEgp'),
+      priceOverrideEgp: str(fd, 'priceOverrideEgp'),
+      saleFlag: bool(fd, 'saleFlag'),
+      status: (str(fd, 'status') ?? 'LIVE') as 'LIVE' | 'QUARANTINE' | 'EXPIRED' | 'WRITTEN_OFF',
+    });
+  } catch (e) {
+    ok = false;
+    fail(e);
+  }
+  revalidatePath(`/${locale}/admin/products/edit/${productId}`);
+  redirect(`/${locale}/admin/products/edit/${productId}?${ok ? 'lot=saved' : 'lot=error'}#stock`);
+}
+
 export async function setLotPriceAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
   const id = str(fd, 'lotId');

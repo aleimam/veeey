@@ -1,28 +1,43 @@
 import { setRequestLocale } from 'next-intl/server';
 import { getProduct } from '@/lib/catalog-service';
 import { listBrands, listCategories, listTags, listAttributes } from '@/lib/taxonomy-service';
+import { listProductLots } from '@/lib/inventory-service';
+import { listLocations } from '@/lib/location-service';
+import { getCurrentUser } from '@/lib/auth-guards';
+import { hasPermission } from '@/lib/rbac';
 import { piastresToEgp } from '@/lib/format';
 import { ProductForm, type ProductDefaults } from '@/components/admin/product-form';
+import { ProductStock } from '@/components/admin/product-stock';
 import { Link } from '@/i18n/navigation';
 import { pick } from '@/lib/admin-i18n';
 
 export default async function ProductEditPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string; id?: string[] }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { locale, id } = await params;
+  const sp = await searchParams;
   setRequestLocale(locale);
   const tb = pick(locale);
   const productId = id?.[0];
 
-  const [brands, categories, tags, attributes, product] = await Promise.all([
+  const [brands, categories, tags, attributes, product, user] = await Promise.all([
     listBrands(),
     listCategories(),
     listTags(),
     listAttributes(),
     productId ? getProduct(productId) : Promise.resolve(null),
+    getCurrentUser(),
   ]);
+
+  const [lots, locations] = product
+    ? await Promise.all([listProductLots(product.id), listLocations()])
+    : [[], []];
+  const canStock = hasPermission(user?.permissions ?? [], 'inventory.manage');
+  const lotMsg = Array.isArray(sp.lot) ? sp.lot[0] : sp.lot;
 
   const attributeOpts = attributes.map((a) => ({
     id: a.id,
@@ -81,6 +96,9 @@ export default async function ProductEditPage({
           </Link>
         )}
       </div>
+      {lotMsg === 'saved' && <p className="mb-4 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">{tb('Stock saved.', 'تم حفظ المخزون.')}</p>}
+      {lotMsg === 'error' && <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{tb('Could not save the lot.', 'تعذّر حفظ الدفعة.')}</p>}
+
       <ProductForm
         locale={locale}
         defaults={defaults}
@@ -89,6 +107,17 @@ export default async function ProductEditPage({
         tags={tags.map((t) => ({ value: t.id, label: t.nameEn }))}
         attributes={attributeOpts}
       />
+
+      {product && (
+        <ProductStock
+          locale={locale}
+          productId={product.id}
+          basePricePiastres={product.basePricePiastres}
+          lots={lots}
+          locations={locations.map((l) => ({ value: l.id, label: l.name }))}
+          canEdit={canStock}
+        />
+      )}
     </div>
   );
 }
