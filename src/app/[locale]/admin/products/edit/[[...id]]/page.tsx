@@ -3,6 +3,7 @@ import { getProduct } from '@/lib/catalog-service';
 import { listBrands, listCategories, listTags, listAttributes } from '@/lib/taxonomy-service';
 import { piastresToEgp } from '@/lib/format';
 import { ProductForm, type ProductDefaults } from '@/components/admin/product-form';
+import { Link } from '@/i18n/navigation';
 import { pick } from '@/lib/admin-i18n';
 
 export default async function ProductEditPage({
@@ -69,9 +70,16 @@ export default async function ProductEditPage({
 
   return (
     <div className="p-6">
-      <h1 className="mb-6 font-heading text-xl font-semibold">
-        {productId ? tb('Edit product', 'تعديل منتج') : tb('New product', 'منتج جديد')}
-      </h1>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="font-heading text-xl font-semibold">
+          {productId ? tb('Edit product', 'تعديل منتج') : tb('New product', 'منتج جديد')}
+        </h1>
+        {product?.status === 'PUBLISHED' && product.slugEn && (
+          <Link href={`/products/${product.slugEn}`} target="_blank" className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface">
+            ↗ {tb('View on site', 'عرض في المتجر')}
+          </Link>
+        )}
+      </div>
       <ProductForm
         locale={locale}
         defaults={defaults}

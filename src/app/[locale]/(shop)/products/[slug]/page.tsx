@@ -7,6 +7,7 @@ import { prisma } from '@/lib/prisma';
 import { piastresToEgp } from '@/lib/format';
 import { sanitizeRichHtml, hasRichContent } from '@/lib/rich-text';
 import { getSetting } from '@/lib/settings-service';
+import { AdminEditLink } from '@/components/storefront/admin-edit-link';
 import { ChewyBuyBox } from '@/components/storefront/chewy/chewy-buy-box';
 import type { BuyLot } from '@/components/storefront/buy-box';
 import { TrackView } from '@/components/analytics/track-view';
@@ -129,6 +130,7 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
         </div>
 
         <div className="lg:sticky lg:top-[130px]">
+          <div className="mb-3"><AdminEditLink href={`/admin/products/edit/${p.id}`} locale={locale} /></div>
           <ChewyBuyBox brand={brandName} name={name} rating={p.ratingAvg ?? 0} reviews={p.ratingCount} basePricePiastres={basePrice} lots={buyLots} productId={p.id} points={points} locale={locale} refillEnabled={refillEnabled} />
           <div className="mt-4 flex gap-5 text-sm">
             <form action={toggleWishlistAction}>

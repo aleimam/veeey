@@ -82,7 +82,10 @@ export function ProductForm({
   const [newBrand, setNewBrand] = useState('');
   const [tagOpts, setTagOpts] = useState<Opt[]>(tags);
   const [newTag, setNewTag] = useState('');
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set(d.tagIds ?? []));
+  const [tagQuery, setTagQuery] = useState('');
   const [busy, setBusy] = useState(false);
+  const toggleTag = (id: string) => setSelectedTags((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
   async function addBrand() {
     if (!newBrand.trim()) return;
@@ -100,6 +103,7 @@ export function ProductForm({
     try {
       const t = await quickCreateTag(newTag.trim());
       setTagOpts((o) => [...o, { value: t.id, label: t.label }]);
+      setSelectedTags((s) => new Set(s).add(t.id));
       setNewTag('');
     } finally { setBusy(false); }
   }
@@ -174,10 +178,29 @@ export function ProductForm({
         <Field label={tb('Categories', 'الفئات')} hint={tb('Pick up to 4 (sub)categories.', 'اختر حتى 4 فئات أو فئات فرعية.')}>
           <CategoryPicker categories={categories} initial={d.categoryIds ?? []} max={4} />
         </Field>
-        <Field label={tb('Tags', 'الوسوم')} hint={tb('Use Ctrl/Cmd for multi-select.', 'استخدم Ctrl/Cmd للتحديد المتعدد.')}>
-          <select name="tagIds" multiple defaultValue={d.tagIds ?? []} className={`${inputCls} h-24`}>
-            {tagOpts.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-          </select>
+        <Field label={tb('Tags', 'الوسوم')} hint={tb('Search and tick tags.', 'ابحث وحدد الوسوم.')}>
+          <input
+            value={tagQuery}
+            onChange={(e) => setTagQuery(e.target.value)}
+            placeholder={tb('Search tags…', 'ابحث في الوسوم…')}
+            className={inputCls}
+          />
+          <div className="mt-1 max-h-40 overflow-auto rounded-md border border-border">
+            {tagOpts
+              .filter((t) => t.label.toLowerCase().includes(tagQuery.trim().toLowerCase()))
+              .map((t) => (
+                <label key={t.value} className="flex cursor-pointer items-center gap-2 px-2 py-1 text-sm hover:bg-surface">
+                  <input type="checkbox" checked={selectedTags.has(t.value)} onChange={() => toggleTag(t.value)} className="size-4" />
+                  {t.label}
+                </label>
+              ))}
+            {tagOpts.filter((t) => t.label.toLowerCase().includes(tagQuery.trim().toLowerCase())).length === 0 && (
+              <p className="px-2 py-1.5 text-xs text-muted-foreground">{tb('No tags match.', 'لا توجد وسوم مطابقة.')}</p>
+            )}
+          </div>
+          {/* Selected tags submit regardless of the current filter. */}
+          {[...selectedTags].map((id) => <input key={id} type="hidden" name="tagIds" value={id} />)}
+          <p className="mt-1 text-xs text-muted-foreground">{tb(`${selectedTags.size} selected`, `${selectedTags.size} محدد`)}</p>
           <div className="mt-1 flex items-center gap-2 text-xs">
             <input value={newTag} onChange={(e) => setNewTag(e.target.value)} placeholder={tb('New tag', 'وسم جديد')} className={`${inputCls} py-1`} />
             <button type="button" onClick={addTag} disabled={busy || !newTag.trim()} className="whitespace-nowrap text-primary hover:underline disabled:opacity-50">{tb('+ Add', '+ إضافة')}</button>
