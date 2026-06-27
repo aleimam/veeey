@@ -3,6 +3,7 @@ import { Link } from '@/i18n/navigation';
 import { prisma } from '@/lib/prisma';
 import { listShippingTypes } from '@/lib/shipping-service';
 import { enabledCustomerMethods } from '@/lib/payment-method-service';
+import { BACKEND_CHANNELS } from '@/lib/channels';
 import { ManualOrderForm } from '@/components/admin/manual-order-form';
 import { pick } from '@/lib/admin-i18n';
 
@@ -26,6 +27,7 @@ export default async function NewOrderPage({ params }: { params: Promise<{ local
         products={products.map((p) => ({ value: p.id, label: `${p.nameEn} (${p.sku})` }))}
         shippingTypes={shippingTypes.map((s) => ({ value: s.type, label: s.labelEn }))}
         paymentMethods={methods.map((m) => ({ value: m.code, label: m.label }))}
+        channels={BACKEND_CHANNELS.map((c) => ({ value: c.code, label: locale === 'ar' ? c.ar : c.en }))}
       />
     </div>
   );

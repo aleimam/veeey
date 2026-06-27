@@ -124,6 +124,7 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
         balanceDuePiastres: requiresDeposit ? balancePiastres : null,
         shippingType: data.shippingType,
         discreetPackaging: data.discreetPackaging,
+        source: 'DIRECT', // placed directly from the storefront
         shippingAddressId,
         shippingAddressJson: addressSnapshot,
       },

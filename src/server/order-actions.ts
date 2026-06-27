@@ -7,8 +7,10 @@ import {
   assignPharmacist,
   setPayCheck,
   setSystemPaymentMethod,
+  setOrderChannel,
   setOrderMeta,
   setTracking,
+  clearTracking,
   addOrderItem,
   removeOrderItem,
   markOrderItemLost,
@@ -57,6 +59,7 @@ export async function createManualOrderAction(_p: AdminFormState, fd: FormData):
       street: str(fd, 'street') ?? '',
       shippingType: (str(fd, 'shippingType') ?? 'FAST_FREE') as 'FAST_FREE' | 'ULTRAFAST' | 'PICK_FROM_OFFICE',
       paymentMethod: str(fd, 'paymentMethod') ?? 'COD', // customer-facing method code
+      channel: str(fd, 'channel') ?? '', // backend channel (required; no Direct)
       discreetPackaging: fd.get('discreetPackaging') != null,
       items,
     });
@@ -118,6 +121,20 @@ export async function setTrackingAction(fd: FormData): Promise<void> {
   const id = str(fd, 'id');
   const tracking = str(fd, 'trackingNumber');
   if (id && tracking) { try { await setTracking(id, tracking, str(fd, 'courier')); } catch (e) { console.error(e); } backToOrder(locale, id); }
+  redirect(`/${locale}/admin/orders`);
+}
+
+export async function clearTrackingAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const id = str(fd, 'id');
+  if (id) { try { await clearTracking(id); } catch (e) { console.error(e); } backToOrder(locale, id); }
+  redirect(`/${locale}/admin/orders`);
+}
+
+export async function setChannelAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const id = str(fd, 'id');
+  if (id) { try { await setOrderChannel(id, str(fd, 'channel') ?? ''); } catch (e) { console.error(e); } backToOrder(locale, id); }
   redirect(`/${locale}/admin/orders`);
 }
 

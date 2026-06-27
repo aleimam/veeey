@@ -80,6 +80,23 @@ export async function bulkOrders(op: string, ids: string[], value: string): Prom
       r.affected = (await prisma.order.updateMany({ where: { id: { in: ids } }, data: { payCheck: value as PayCheck } })).count;
       break;
     }
+    case 'delete': {
+      // Guarded hard delete: only non-financial statuses (Pending / Cancelled).
+      // To return stock, staff Cancel first (restock effect) then delete.
+      const deletable = await prisma.order.findMany({ where: { id: { in: ids }, status: { in: ['PENDING', 'CANCELLED'] } }, select: { id: true } });
+      const delIds = deletable.map((o) => o.id);
+      r.skipped = ids.length - delIds.length;
+      if (delIds.length) {
+        await prisma.$transaction([
+          // Detach loyalty ledger (orderId is optional) to preserve points history.
+          prisma.loyaltyTransaction.updateMany({ where: { orderId: { in: delIds } }, data: { orderId: null } }),
+          // Items / gifts / coupon redemptions / returns cascade on Order delete.
+          prisma.order.deleteMany({ where: { id: { in: delIds } } }),
+        ]);
+        r.affected = delIds.length;
+      }
+      break;
+    }
     default:
       throw new Error('BAD_OP');
   }

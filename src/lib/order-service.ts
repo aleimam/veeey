@@ -187,6 +187,13 @@ export async function setSystemPaymentMethod(id: string, systemCode: string | nu
   await audit({ actorType: 'USER', actorId: user.id, action: 'order.system_payment', entityType: 'Order', entityId: id, data: { systemCode } });
 }
 
+/** Set the order channel (Order.source). */
+export async function setOrderChannel(id: string, channel: string) {
+  const user = await requirePermission('orders.write');
+  await prisma.order.update({ where: { id }, data: { source: channel || null } });
+  await audit({ actorType: 'USER', actorId: user.id, action: 'order.channel', entityType: 'Order', entityId: id, data: { channel } });
+}
+
 export async function setOrderMeta(id: string, meta: { customerOrderType?: string | null; orderProductType?: string | null; source?: string | null }) {
   const user = await requirePermission('orders.write');
   await prisma.order.update({
@@ -318,6 +325,7 @@ const manualOrderSchema = z.object({
   street: z.string().trim().min(1),
   shippingType: z.enum(['FAST_FREE', 'ULTRAFAST', 'PICK_FROM_OFFICE']).default('FAST_FREE'),
   paymentMethod: z.string().trim().min(1).default('COD'), // customer-facing method code (CUSTOMER_METHODS)
+  channel: z.string().trim().min(1), // backend channel (Channel code); staff must choose (no Direct)
   discreetPackaging: z.boolean().default(false),
   items: z.array(z.object({ productId: z.string().min(1), qty: z.coerce.number().int().positive() })).min(1),
 });
@@ -353,7 +361,7 @@ export async function createManualOrder(raw: ManualOrderInput) {
         subtotalPiastres: 0n, shippingPiastres: shipping, discountPiastres: 0n, totalPiastres: shipping,
         shippingType: d.shippingType, discreetPackaging: d.discreetPackaging,
         shippingAddressId, shippingAddressJson: addressSnapshot,
-        pharmacistId: user.id, source: 'manual',
+        pharmacistId: user.id, source: d.channel,
       },
     });
 

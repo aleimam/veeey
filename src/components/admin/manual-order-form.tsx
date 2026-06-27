@@ -16,11 +16,13 @@ export function ManualOrderForm({
   products,
   shippingTypes,
   paymentMethods,
+  channels,
 }: {
   locale: string;
   products: Opt[];
   shippingTypes: Opt[];
   paymentMethods: Opt[];
+  channels: Opt[];
 }) {
   const tb = pick(useLocale());
   const [state, action] = useActionState<AdminFormState, FormData>(createManualOrderAction, {});
@@ -101,6 +103,12 @@ export function ManualOrderForm({
           <Field label={tb('Payment method', 'طريقة الدفع')}>
             <select name="paymentMethod" className={inputCls} defaultValue={paymentMethods[0]?.value}>
               {paymentMethods.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+            </select>
+          </Field>
+          <Field label={tb('Channel', 'القناة')} hint={tb('How the customer reached you (staff orders cannot be Direct).', 'كيف وصل إليك العميل (طلبات الموظفين لا يمكن أن تكون «مباشر»).')}>
+            <select name="channel" required defaultValue="" className={inputCls}>
+              <option value="" disabled>{tb('— select channel —', '— اختر القناة —')}</option>
+              {channels.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
             </select>
           </Field>
         </div>

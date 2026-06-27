@@ -9,6 +9,7 @@ import { formatEGP } from '@/lib/format';
 import { StatusBadge, inputCls } from '@/components/admin/ui';
 import { aramexConfigured, smsaConfigured } from '@/lib/provider-config';
 import { listSystemMethods, customerLabel } from '@/lib/payment-method-service';
+import { CHANNELS } from '@/lib/channels';
 import { pick } from '@/lib/admin-i18n';
 import {
   transitionOrderAction, assignPharmacistAction, setPayCheckAction, setSystemPaymentMethodAction, setOrderMetaAction,
@@ -223,7 +224,10 @@ export default async function OrderDetailPage({ params, searchParams }: { params
               <option value="">{tb('Product type…', 'نوع المنتج…')}</option>
               {['MISCELLANEOUS', 'MALE_SUPPORT', 'PREMIUM', 'NEW', 'TREND'].map((v) => <option key={v} value={v}>{v}</option>)}
             </select>
-            <input name="source" placeholder={tb('Order source', 'مصدر الطلب')} defaultValue={order.source ?? ''} className={`${inputCls} mt-2`} />
+            <select name="source" defaultValue={order.source ?? ''} className={`${inputCls} mt-2`}>
+              <option value="">{tb('Channel…', 'القناة…')}</option>
+              {CHANNELS.map((c) => <option key={c.code} value={c.code}>{locale === 'ar' ? c.ar : c.en}</option>)}
+            </select>
             <button className="mt-2 w-full rounded-md border border-border px-3 py-1.5 hover:bg-surface">{tb('Save', 'حفظ')}</button>
           </form>
 
