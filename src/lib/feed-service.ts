@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { visibleProductWhere } from '@/lib/storefront';
+import { richToText } from '@/lib/rich-text';
 import type { FeedProduct } from '@/lib/feed-xml';
 
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://veeey.com';
@@ -23,7 +24,7 @@ export async function feedProducts(locale = 'en'): Promise<FeedProduct[]> {
     sku: p.sku,
     gtin: p.gtin,
     title: p.nameEn,
-    description: p.shortDescEn ?? p.nameEn,
+    description: richToText(p.shortDescEn) || p.nameEn,
     link: `${SITE_URL}/${locale}/products/${p.slugEn}`,
     imageLink: abs(p.images[0]?.url),
     pricePiastres: Number(p.basePricePiastres),

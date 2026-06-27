@@ -6,6 +6,7 @@ import { Link } from '@/i18n/navigation';
 import { saveProductAction, type AdminFormState } from '@/server/admin-actions';
 import { Field, FormError, SubmitButton, inputCls } from './ui';
 import { ImageUploader } from './image-uploader';
+import { RichTextField } from './rich-text/field';
 import { CategoryPicker, type CategoryOpt } from './category-picker';
 import { AttributePicker, type AttrOpt } from './attribute-picker';
 import { quickCreateBrand, quickCreateTag } from '@/server/quick-actions';
@@ -175,10 +176,12 @@ export function ProductForm({
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2">
-        <Field label={tb('Short description (English)', 'وصف مختصر (بالإنجليزية)')}><textarea name="shortDescEn" rows={2} defaultValue={d.shortDescEn ?? ''} className={inputCls} /></Field>
-        <Field label={tb('Short description (Arabic)', 'وصف مختصر (بالعربية)')}><textarea name="shortDescAr" rows={2} dir="rtl" defaultValue={d.shortDescAr ?? ''} className={inputCls} /></Field>
-        <Field label={tb('Detailed description (English)', 'وصف تفصيلي (بالإنجليزية)')}><textarea name="longDescEn" rows={4} defaultValue={d.longDescEn ?? ''} className={inputCls} /></Field>
-        <Field label={tb('Detailed description (Arabic)', 'وصف تفصيلي (بالعربية)')}><textarea name="longDescAr" rows={4} dir="rtl" defaultValue={d.longDescAr ?? ''} className={inputCls} /></Field>
+        <Field label={tb('Short description (English)', 'وصف مختصر (بالإنجليزية)')}><RichTextField name="shortDescEn" initial={d.shortDescEn ?? ''} compact /></Field>
+        <Field label={tb('Short description (Arabic)', 'وصف مختصر (بالعربية)')}><RichTextField name="shortDescAr" initial={d.shortDescAr ?? ''} compact /></Field>
+      </section>
+      <section className="grid gap-4">
+        <Field label={tb('Detailed description (English)', 'وصف تفصيلي (بالإنجليزية)')}><RichTextField name="longDescEn" initial={d.longDescEn ?? ''} /></Field>
+        <Field label={tb('Detailed description (Arabic)', 'وصف تفصيلي (بالعربية)')}><RichTextField name="longDescAr" initial={d.longDescAr ?? ''} /></Field>
       </section>
 
       <section className="grid gap-4 sm:grid-cols-3">

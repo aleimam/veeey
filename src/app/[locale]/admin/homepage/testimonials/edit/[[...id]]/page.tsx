@@ -11,8 +11,8 @@ export default async function TestimonialEditPage({ params }: { params: Promise<
   const FIELDS: FieldSpec[] = [
     { name: 'name', label: tb('Name', 'الاسم'), type: 'text', required: true },
     { name: 'location', label: tb('Location', 'الموقع'), type: 'text' },
-    { name: 'quoteEn', label: tb('Quote (English)', 'الاقتباس (إنجليزي)'), type: 'textarea', required: true },
-    { name: 'quoteAr', label: tb('Quote (Arabic)', 'الاقتباس (عربي)'), type: 'textarea' },
+    { name: 'quoteEn', label: tb('Quote (English)', 'الاقتباس (إنجليزي)'), type: 'rich', compact: true },
+    { name: 'quoteAr', label: tb('Quote (Arabic)', 'الاقتباس (عربي)'), type: 'rich', compact: true },
     { name: 'sortOrder', label: tb('Order', 'الترتيب'), type: 'text' },
     { name: 'active', label: tb('Active', 'نشط'), type: 'checkbox' },
   ];

@@ -1,5 +1,6 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { prisma } from '@/lib/prisma';
+import { richToText } from '@/lib/rich-text';
 import { Link } from '@/i18n/navigation';
 
 export default async function BlogIndex({
@@ -25,7 +26,7 @@ export default async function BlogIndex({
         <ul className="space-y-6">
           {posts.map((post) => {
             const title = (locale === 'ar' ? post.titleAr : post.titleEn) ?? post.titleEn;
-            const excerpt = (locale === 'ar' ? post.excerptAr : post.excerptEn) ?? post.excerptEn;
+            const excerpt = richToText((locale === 'ar' ? post.excerptAr : post.excerptEn) ?? post.excerptEn);
             return (
               <li key={post.id} className="border-b border-[color:var(--slate-border)] pb-6">
                 <Link href={`/blog/${post.slug}`} className="font-heading text-lg font-semibold text-ink transition-colors hover:text-green-dark">

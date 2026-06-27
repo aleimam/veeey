@@ -26,7 +26,7 @@ export default async function CollectionEditPage({ params }: { params: Promise<{
     { name: 'titleEn', label: tb('Title (English)', 'العنوان (إنجليزي)'), type: 'text', required: true },
     { name: 'titleAr', label: tb('Title (Arabic)', 'العنوان (عربي)'), type: 'text' },
     { name: 'slug', label: tb('Slug', 'المُعرّف'), type: 'slug' },
-    { name: 'descriptionEn', label: tb('Description (English)', 'الوصف (إنجليزي)'), type: 'textarea' },
+    { name: 'descriptionEn', label: tb('Description (English)', 'الوصف (إنجليزي)'), type: 'rich', compact: true },
     { name: 'type', label: tb('Type', 'النوع'), type: 'select', options: [{ value: 'MANUAL', label: tb('Manual selection', 'اختيار يدوي') }, { value: 'AUTO', label: tb('Automatic (rule)', 'تلقائي (قاعدة)') }] },
     { name: 'status', label: tb('Status', 'الحالة'), type: 'select', options: STATUS },
     { name: 'ruleCategoryId', label: tb('Auto rule: category', 'قاعدة تلقائية: الفئة'), type: 'select', options: [{ value: '', label: tb('— None —', '— بدون —') }, ...categories.map((c) => ({ value: c.id, label: c.nameEn }))] },

@@ -23,7 +23,7 @@ export default async function CategoryEditPage({ params }: { params: Promise<{ l
     { name: 'nameAr', label: tb('Name (Arabic)', 'الاسم (بالعربية)'), type: 'text' },
     { name: 'slug', label: tb('Slug', 'المُعرّف'), type: 'slug' },
     { name: 'parentId', label: tb('Parent category', 'الفئة الأم'), type: 'select', options: parentOptions },
-    { name: 'descriptionEn', label: tb('Description (English)', 'الوصف (بالإنجليزية)'), type: 'textarea' },
+    { name: 'descriptionEn', label: tb('Description (English)', 'الوصف (بالإنجليزية)'), type: 'rich', compact: true },
     { name: 'imageUrl', label: tb('Image URL', 'رابط الصورة'), type: 'text' },
     { name: 'metaTitleEn', label: tb('SEO title (English)', 'عنوان SEO (بالإنجليزية)'), type: 'text' },
     { name: 'metaDescEn', label: tb('SEO description (English)', 'وصف SEO (بالإنجليزية)'), type: 'text' },

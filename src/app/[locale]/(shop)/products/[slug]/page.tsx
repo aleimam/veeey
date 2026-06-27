@@ -5,7 +5,7 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { pick } from '@/lib/admin-i18n';
 import { prisma } from '@/lib/prisma';
 import { piastresToEgp } from '@/lib/format';
-import { sanitizeRichHtml, hasRichContent } from '@/lib/rich-text';
+import { sanitizeRichHtml, hasRichContent, richToText } from '@/lib/rich-text';
 import { getSetting } from '@/lib/settings-service';
 import { AdminEditLink } from '@/components/storefront/admin-edit-link';
 import { ChewyBuyBox } from '@/components/storefront/chewy/chewy-buy-box';
@@ -42,7 +42,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   const p = await loadProduct(slug);
   if (!p) return {};
   const name = (locale === 'ar' ? p.nameAr : p.nameEn) ?? p.nameEn;
-  const desc = (locale === 'ar' ? p.metaDescAr : p.metaDescEn) ?? p.shortDescEn ?? undefined;
+  const desc = (locale === 'ar' ? p.metaDescAr : p.metaDescEn) ?? richToText((locale === 'ar' ? p.shortDescAr : p.shortDescEn) ?? p.shortDescEn) ?? undefined;
   return { title: `${name} — Veeey`, description: desc ?? undefined };
 }
 

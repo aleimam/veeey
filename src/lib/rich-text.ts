@@ -32,3 +32,13 @@ export function sanitizeRichHtml(html: string | null | undefined): string {
 export function hasRichContent(html: string): boolean {
   return html.replace(/<[^>]*>/g, '').trim().length > 0 || /<img\b/i.test(html);
 }
+
+/**
+ * Flatten rich HTML to a single plain-text line — for contexts that must NOT
+ * contain markup: meta descriptions, product/feed descriptions, list-card
+ * excerpts. Strips every tag and collapses whitespace.
+ */
+export function richToText(html: string | null | undefined): string {
+  if (!html) return '';
+  return sanitizeHtml(html, { allowedTags: [], allowedAttributes: {} }).replace(/\s+/g, ' ').trim();
+}

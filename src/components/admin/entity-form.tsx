@@ -6,9 +6,11 @@ import { Link } from '@/i18n/navigation';
 import type { AdminFormState } from '@/server/admin-actions';
 import { Field, FormError, SubmitButton, inputCls } from './ui';
 import { SingleImageUploader } from './image-uploader';
+import { RichTextField } from './rich-text/field';
 
 export type FieldSpec =
   | { name: string; label: string; type: 'text' | 'textarea' | 'slug'; required?: boolean; hint?: string }
+  | { name: string; label: string; type: 'rich'; compact?: boolean; hint?: string }
   | { name: string; label: string; type: 'select'; options: { value: string; label: string }[]; required?: boolean }
   | { name: string; label: string; type: 'checkbox' }
   | { name: string; label: string; type: 'image'; hint?: string }
@@ -35,9 +37,10 @@ export function EntityForm({
 }) {
   const [state, formAction] = useActionState<AdminFormState, FormData>(action, {});
   const tc = useTranslations('admin.common');
+  const hasFullRich = fields.some((f) => f.type === 'rich' && !f.compact);
 
   return (
-    <form action={formAction} className="max-w-2xl space-y-5">
+    <form action={formAction} className={`${hasFullRich ? 'max-w-4xl' : 'max-w-2xl'} space-y-5`}>
       <FormError error={state.error} />
       <input type="hidden" name="locale" value={locale} />
       {id && <input type="hidden" name="id" value={id} />}
@@ -48,6 +51,13 @@ export function EntityForm({
           return (
             <Field key={f.name} label={f.label}>
               <textarea name={f.name} defaultValue={(def as string) ?? ''} rows={4} className={inputCls} />
+            </Field>
+          );
+        }
+        if (f.type === 'rich') {
+          return (
+            <Field key={f.name} label={f.label} hint={f.hint}>
+              <RichTextField name={f.name} initial={(def as string) ?? ''} compact={f.compact} />
             </Field>
           );
         }

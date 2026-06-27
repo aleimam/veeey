@@ -40,8 +40,12 @@ export function TranslateButton({ pairs }: { pairs: { en: string; ar: string }[]
       let filled = 0;
       for (const p of pairs) {
         const v = out[p.en];
+        if (!v) continue;
         const el = field(p.ar);
-        if (v && el) { el.value = v; filled++; }
+        if (el) el.value = v; // plain inputs / textareas
+        // Rich-text fields are controlled — push via event (no-op for plain fields).
+        window.dispatchEvent(new CustomEvent('veeey:rich-set', { detail: { name: p.ar, html: v } }));
+        filled++;
       }
       setMsg(tb(`Filled ${filled} field(s) — review & edit.`, `تم ملء ${filled} حقلًا — راجع وعدّل.`));
     } catch {

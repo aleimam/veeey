@@ -12,9 +12,9 @@ export default async function PostEditPage({ params }: { params: Promise<{ local
     { name: 'titleEn', label: tb('Title (English)', 'العنوان (إنجليزي)'), type: 'text', required: true },
     { name: 'titleAr', label: tb('Title (Arabic)', 'العنوان (عربي)'), type: 'text' },
     { name: 'slug', label: tb('Slug', 'المُعرّف'), type: 'slug' },
-    { name: 'excerptEn', label: tb('Excerpt (English)', 'المقتطف (إنجليزي)'), type: 'textarea' },
-    { name: 'bodyEn', label: tb('Body (English)', 'النص (إنجليزي)'), type: 'textarea' },
-    { name: 'bodyAr', label: tb('Body (Arabic)', 'النص (عربي)'), type: 'textarea' },
+    { name: 'excerptEn', label: tb('Excerpt (English)', 'المقتطف (إنجليزي)'), type: 'rich', compact: true },
+    { name: 'bodyEn', label: tb('Body (English)', 'النص (إنجليزي)'), type: 'rich' },
+    { name: 'bodyAr', label: tb('Body (Arabic)', 'النص (عربي)'), type: 'rich' },
     { name: 'status', label: tb('Status', 'الحالة'), type: 'select', options: [{ value: 'DRAFT', label: tb('Draft', 'مسودة') }, { value: 'PUBLISHED', label: tb('Published', 'منشور') }, { value: 'ARCHIVED', label: tb('Archived', 'مؤرشف') }] },
   ];
   const postId = id?.[0];

@@ -361,4 +361,17 @@ html[lang='ar'] .veeey-shop .font-heading {
 .veeey-rich img { max-width: 100%; height: auto; border-radius: 8px; margin: 0.5em 0; }
 .veeey-rich strong, .veeey-rich b { font-weight: 700; }
 .veeey-rich table { width: 100%; border-collapse: collapse; margin: 0.85em 0; }
-.veeey-rich th, .veeey-rich td { border: 1px solid var(--slate-border); padding: 0.5em 0.75em; text-align: start; }
+.veeey-rich th, .veeey-rich td { border: 1px solid var(--slate-border); padding: 0.5em 0.75em; text-align: start; position: relative; }
+.veeey-rich th { background: var(--green-wash, #eef4ef); font-weight: 600; }
+.veeey-rich blockquote { border-inline-start: 3px solid var(--slate-border); padding-inline-start: 0.85em; margin: 0.85em 0; color: var(--text-muted, #5b6b63); }
+.veeey-rich hr { border: 0; border-top: 1px solid var(--slate-border); margin: 1.25em 0; }
+.veeey-rich mark { color: inherit; padding: 0 0.1em; border-radius: 0.15rem; }
+.veeey-rich u { text-decoration: underline; }
+.veeey-rich s { text-decoration: line-through; }
+
+/* Editor-only chrome (Tiptap ProseMirror surface also carries .veeey-rich). */
+.veeey-rich p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: #9ca3af; float: inline-start; height: 0; pointer-events: none; }
+.veeey-rich .selectedCell::after { content: ''; position: absolute; inset: 0; background: rgba(35, 92, 60, 0.12); pointer-events: none; }
+.veeey-rich .column-resize-handle { position: absolute; inset-inline-end: -1px; top: 0; bottom: -1px; width: 2px; background: var(--green-dark); pointer-events: none; }
+.veeey-rich .tableWrapper { overflow-x: auto; }
+.veeey-rich img.ProseMirror-selectednode { outline: 2px solid var(--green-dark); outline-offset: 1px; }
