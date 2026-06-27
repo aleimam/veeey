@@ -79,13 +79,12 @@ enum OrderStatus {
   EDIT
 }
 
-enum PaymentMethod {
-  COD
-  POS_ON_DELIVERY
-  BANK_TRANSFER
-  WALLET
-  OPAY
-  KASHIER
+// Payment methods are an admin-editable list (PaymentMethodConfig model below);
+// Order.paymentMethod stores the method's `code`. OFFLINE settle on delivery /
+// manual; CARD_GATEWAY is the built-in online card (Kashier).
+enum PaymentMethodKind {
+  OFFLINE
+  CARD_GATEWAY
 }
 
 enum PaymentState {
@@ -470,6 +469,25 @@ model WooSyncState {
   lastRunAt  DateTime?
   lastResult Json?
   updatedAt  DateTime  @updatedAt
+}
+
+// Admin-editable payment methods (replaces the old PaymentMethod enum). `code` is
+// the stable key stored on Order.paymentMethod. In-use methods (referenced by an
+// order) can be deactivated/edited but not deleted. New methods are OFFLINE;
+// CARD_GATEWAY (online card via `gateway`) is the seeded built-in.
+model PaymentMethodConfig {
+  id             String            @id @default(cuid())
+  code           String            @unique
+  labelEn        String
+  labelAr        String?
+  kind           PaymentMethodKind @default(OFFLINE)
+  gateway        String? // 'KASHIER' for the online card method; null for offline
+  active         Boolean           @default(true)
+  sortOrder      Int               @default(0)
+  instructionsEn String?
+  instructionsAr String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 }
 
 // Per-tier product behavior keyed by category/tag/attribute (FR-PRC-03).
@@ -864,7 +882,8 @@ model Order {
   customer      Customer?      @relation(fields: [customerId], references: [id])
   guestEmail    String?
   status        OrderStatus    @default(PENDING_CONFIRMATION)
-  paymentMethod PaymentMethod?
+  paymentMethod String?        // PaymentMethodConfig.code (was the PaymentMethod enum)
+  legacyPaymentMethod String?  // raw source payment_method (WooCommerce) for re-mapping
   paymentState  PaymentState   @default(PENDING)
   payCheck      PayCheck       @default(NO)
 

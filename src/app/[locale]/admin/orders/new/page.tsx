@@ -11,9 +11,10 @@ export default async function NewOrderPage({ params }: { params: Promise<{ local
   setRequestLocale(locale);
   const tb = pick(locale);
 
-  const [products, shippingTypes] = await Promise.all([
+  const [products, shippingTypes, methods] = await Promise.all([
     prisma.product.findMany({ where: { status: 'PUBLISHED' }, select: { id: true, nameEn: true, sku: true }, orderBy: { nameEn: 'asc' } }),
     listShippingTypes(),
+    enabledPaymentMethods(locale),
   ]);
 
   return (
@@ -24,7 +25,7 @@ export default async function NewOrderPage({ params }: { params: Promise<{ local
         locale={locale}
         products={products.map((p) => ({ value: p.id, label: `${p.nameEn} (${p.sku})` }))}
         shippingTypes={shippingTypes.map((s) => ({ value: s.type, label: s.labelEn }))}
-        paymentMethods={enabledPaymentMethods().map((m) => ({ value: m.key, label: m.label }))}
+        paymentMethods={methods.map((m) => ({ value: m.code, label: m.label }))}
       />
     </div>
   );

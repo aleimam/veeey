@@ -218,7 +218,7 @@ const manualOrderSchema = z.object({
   area: z.string().trim().optional().default(''),
   street: z.string().trim().min(1),
   shippingType: z.enum(['FAST_FREE', 'ULTRAFAST', 'PICK_FROM_OFFICE']).default('FAST_FREE'),
-  paymentMethod: z.enum(['COD', 'POS_ON_DELIVERY', 'BANK_TRANSFER', 'WALLET', 'OPAY', 'KASHIER']).default('COD'),
+  paymentMethod: z.string().trim().min(1).default('COD'), // PaymentMethodConfig.code
   discreetPackaging: z.boolean().default(false),
   items: z.array(z.object({ productId: z.string().min(1), qty: z.coerce.number().int().positive() })).min(1),
 });

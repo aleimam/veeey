@@ -64,6 +64,7 @@ const NAV_SECTIONS: RawSection[] = [
   ] },
   { title: ['Administration', 'الإدارة'], items: [
     { href: '/admin/settings', key: 'settings', permission: 'settings.manage' },
+    { href: '/admin/payments', key: 'payments', permission: 'settings.manage' },
     { href: '/admin/providers', key: 'providers', permission: 'settings.manage' },
     { href: '/admin/appearance', key: 'appearance', permission: 'settings.manage' },
     { href: '/admin/login-providers', key: 'loginProviders', permission: 'settings.manage' },

@@ -4,7 +4,8 @@ import { nameImportable } from './wc-transform';
 import { slugify, brandCode, skuFromParts } from '@/lib/sku';
 import { ensureCustomerProfile } from '@/lib/customer';
 import { normalizeMobile } from '@/lib/provider-config';
-import type { OrderStatus, PaymentMethod, Prisma } from '@/generated/prisma/client';
+import type { OrderStatus, Prisma } from '@/generated/prisma/client';
+import { getPaymentMap, mapWooPayment } from '@/lib/payment-method-service';
 
 /**
  * WooCommerce → Veeey live sync (egyptvitamins.com). Incremental, idempotent
@@ -287,12 +288,6 @@ export async function syncCustomers(opts: { maxPages?: number; perPage?: number;
 const ORDER_STATUS: Record<string, OrderStatus> = {
   pending: 'PENDING_CONFIRMATION', processing: 'PROCESSING', 'on-hold': 'HOLD', completed: 'CASH_DELIVERED', cancelled: 'CANCELLED', refunded: 'REFUNDED', failed: 'FAILED',
 };
-function mapPayment(method: string): PaymentMethod | null {
-  const m = method.toLowerCase();
-  if (m.includes('cod') || m.includes('cash')) return 'COD';
-  if (m.includes('bacs') || m.includes('bank')) return 'BANK_TRANSFER';
-  return null;
-}
 async function uniqueOrderNumber(base: string, wpId: number): Promise<string> {
   const num = base || String(wpId);
   const clash = await prisma.order.findFirst({ where: { number: num, legacyWpId: { not: wpId } }, select: { id: true } });
@@ -310,6 +305,7 @@ export async function syncOrders(opts: { maxPages?: number; perPage?: number; bu
   const startPage = Number.isFinite(startNum) && startNum >= 1 ? startNum + 1 : 1;
   const s = newSummary('orders', state?.cursor ?? null);
   let lastCompleted: number | null = Number.isFinite(startNum) && startNum >= 1 ? startNum : null;
+  const payMap = await getPaymentMap(); // WooCommerce → Veeey method code (admin-editable)
 
   let page = startPage;
   let pagesThisRun = 0;
@@ -347,7 +343,8 @@ export async function syncOrders(opts: { maxPages?: number; perPage?: number; bu
         const discount = egpToPiastres(o.discount_total) ?? 0;
         const data = {
           status: ORDER_STATUS[str(o.status)] ?? ('PROCESSING' as OrderStatus),
-          paymentMethod: mapPayment(str(o.payment_method)),
+          paymentMethod: mapWooPayment(str(o.payment_method), payMap),
+          legacyPaymentMethod: str(o.payment_method) || null,
           subtotalPiastres: BigInt(Math.max(0, total + discount - shipping)),
           discountPiastres: BigInt(discount),
           shippingPiastres: BigInt(shipping),

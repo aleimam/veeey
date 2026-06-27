@@ -26,6 +26,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ local
 
   const tp = await getTranslations('storefront.checkout');
   const pointsPerEgp = await getNumberSetting('loyalty.redeemPointsPerEgp');
+  const methods = await enabledPaymentMethods(locale);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
@@ -36,7 +37,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ local
         defaultName={user?.name ?? undefined}
         subtotalPiastres={subtotal}
         shippingOptions={types.map((s) => ({ type: s.type, label: (locale === 'ar' ? s.labelAr : s.labelEn) ?? s.labelEn, feePiastres: Number(s.feePiastres) }))}
-        paymentMethods={enabledPaymentMethods().map((m) => ({ key: m.key, label: m.label }))}
+        paymentMethods={methods.map((m) => ({ key: m.code, label: m.label }))}
         pointsBalance={customer?.pointsBalance ?? 0}
         pointsPerEgp={pointsPerEgp}
         savedAddresses={savedAddresses}
