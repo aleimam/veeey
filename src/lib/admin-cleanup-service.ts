@@ -86,3 +86,58 @@ export async function deleteCyrillicJunk(opts: { budgetMs?: number } = {}): Prom
   await audit({ actorType: 'USER', actorId: user.id, action: 'cleanup.cyrillic', entityType: 'Maintenance', entityId: `rev:${r.reviews} cust:${r.customers} prod:${r.products}` });
   return r;
 }
+
+/**
+ * Pre-translation cleanup: drop taxonomy (brands / categories / tags / attributes)
+ * whose English name is actually Arabic script — the owner re-translates later.
+ * Unlike the guarded taxonomy deletes, this DETACHES in-use items first (brand →
+ * null on products; category/tag join rows auto-removed; attribute cascades its
+ * values), then deletes. Preview first, then delete on a confirmed click.
+ */
+const ARABIC = '[؀-ۿ]'; // Arabic Unicode block, as a Postgres POSIX regex class
+
+type TaxRow = { id: string; nameEn: string };
+const arabicBrands = () => prisma.$queryRaw<TaxRow[]>`SELECT id, "nameEn" FROM "Brand" WHERE "nameEn" ~ ${ARABIC}`;
+const arabicCategories = () => prisma.$queryRaw<TaxRow[]>`SELECT id, "nameEn" FROM "Category" WHERE "nameEn" ~ ${ARABIC}`;
+const arabicTags = () => prisma.$queryRaw<TaxRow[]>`SELECT id, "nameEn" FROM "Tag" WHERE "nameEn" ~ ${ARABIC}`;
+const arabicAttributes = () => prisma.$queryRaw<TaxRow[]>`SELECT id, "nameEn" FROM "Attribute" WHERE "nameEn" ~ ${ARABIC}`;
+
+export type ArabicTaxPreview = {
+  brands: { total: number; samples: string[] };
+  categories: { total: number; samples: string[] };
+  tags: { total: number; samples: string[] };
+  attributes: { total: number; samples: string[] };
+};
+
+export async function findArabicTaxonomy(): Promise<ArabicTaxPreview> {
+  const [b, c, t, a] = await Promise.all([arabicBrands(), arabicCategories(), arabicTags(), arabicAttributes()]);
+  const pack = (rows: TaxRow[]) => ({ total: rows.length, samples: rows.slice(0, 8).map((x) => x.nameEn) });
+  return { brands: pack(b), categories: pack(c), tags: pack(t), attributes: pack(a) };
+}
+
+export type ArabicTaxDeleteResult = { brands: number; categories: number; tags: number; attributes: number; skipped: number };
+
+export async function deleteArabicTaxonomy(): Promise<ArabicTaxDeleteResult> {
+  const user = await requirePermission('catalog.write');
+  const r: ArabicTaxDeleteResult = { brands: 0, categories: 0, tags: 0, attributes: 0, skipped: 0 };
+
+  for (const x of await arabicBrands()) {
+    try { await prisma.product.updateMany({ where: { brandId: x.id }, data: { brandId: null } }); await prisma.brand.delete({ where: { id: x.id } }); r.brands++; }
+    catch { r.skipped++; }
+  }
+  for (const x of await arabicCategories()) {
+    try { await prisma.category.updateMany({ where: { parentId: x.id }, data: { parentId: null } }); await prisma.category.delete({ where: { id: x.id } }); r.categories++; } // implicit M2M join rows auto-removed
+    catch { r.skipped++; }
+  }
+  for (const x of await arabicTags()) {
+    try { await prisma.tag.delete({ where: { id: x.id } }); r.tags++; } // implicit M2M join rows auto-removed
+    catch { r.skipped++; }
+  }
+  for (const x of await arabicAttributes()) {
+    try { await prisma.attribute.delete({ where: { id: x.id } }); r.attributes++; } // values + product links cascade
+    catch { r.skipped++; }
+  }
+
+  await audit({ actorType: 'USER', actorId: user.id, action: 'cleanup.arabic-taxonomy', entityType: 'Maintenance', entityId: `b:${r.brands} c:${r.categories} t:${r.tags} a:${r.attributes} skip:${r.skipped}` });
+  return r;
+}

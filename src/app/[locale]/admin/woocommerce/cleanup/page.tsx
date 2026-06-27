@@ -3,8 +3,8 @@ import { redirect } from '@/i18n/navigation';
 import { getCurrentUser } from '@/lib/auth-guards';
 import { hasPermission } from '@/lib/rbac';
 import { pick } from '@/lib/admin-i18n';
-import { findCyrillicJunk } from '@/lib/admin-cleanup-service';
-import { deleteCyrillicJunkAction } from '@/server/cleanup-actions';
+import { findCyrillicJunk, findArabicTaxonomy } from '@/lib/admin-cleanup-service';
+import { deleteCyrillicJunkAction, deleteArabicTaxonomyAction } from '@/server/cleanup-actions';
 import { SubmitButton } from '@/components/admin/ui';
 
 export const dynamic = 'force-dynamic';
@@ -23,11 +23,13 @@ export default async function CleanupPage({ params, searchParams }: { params: Pr
   if (!user) return null;
   if (!hasPermission(user.permissions, 'settings.manage')) redirect({ href: '/admin', locale });
 
-  const junk = await findCyrillicJunk();
+  const [junk, arabic] = await Promise.all([findCyrillicJunk(), findArabicTaxonomy()]);
   const totalDeletable = junk.customers.deletable + junk.products.total + junk.reviews.total;
+  const arabicTotal = arabic.brands.total + arabic.categories.total + arabic.tags.total + arabic.attributes.total;
 
   const card = 'rounded-xl border border-border bg-card p-5';
   const ran = one(sp.rev) != null;
+  const arRan = one(sp.ar) != null;
 
   return (
     <div className="p-4 sm:p-6">
@@ -76,6 +78,34 @@ export default async function CleanupPage({ params, searchParams }: { params: Pr
         ) : (
           <p className="rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary">{tb('No Cyrillic junk found — nothing to delete. 🎉', 'لا يوجد محتوى سيريلي غير مرغوب — لا شيء للحذف. 🎉')}</p>
         )}
+
+        {/* Arabic taxonomy cleanup (pre-translation) */}
+        <section className={card}>
+          <h2 className="mb-2 text-base font-semibold text-foreground">{tb('Drop Arabic-named taxonomy', 'حذف التصنيفات المسماة بالعربية')}</h2>
+          <p className="mb-3 text-sm text-muted-foreground">{tb('Removes brands, categories, tags and attributes whose English name is actually Arabic text (left by the import). In-use items are detached from their products first, then deleted — re-translate later.', 'يحذف العلامات والتصنيفات والوسوم والخصائص التي يكون اسمها الإنجليزي عربيًا فعليًا (من بقايا الاستيراد). تُفصل العناصر المستخدمة عن منتجاتها أولًا ثم تُحذف — يُعاد ترجمتها لاحقًا.')}</p>
+          {arRan && <div className="mb-3 rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary">{tb(`Deleted ${one(sp.b)} brands, ${one(sp.c)} categories, ${one(sp.t)} tags, ${one(sp.a)} attributes.`, `تم حذف ${one(sp.b)} علامة و${one(sp.c)} تصنيف و${one(sp.t)} وسم و${one(sp.a)} خاصية.`)}{Number(one(sp.skip)) > 0 ? tb(` ${one(sp.skip)} skipped.`, ` تم تخطّي ${one(sp.skip)}.`) : ''}</div>}
+          <div className="mb-3 grid gap-3 sm:grid-cols-4">
+            <Stat label={tb('Brands', 'العلامات')} value={arabic.brands.total} sub="" />
+            <Stat label={tb('Categories', 'التصنيفات')} value={arabic.categories.total} sub="" />
+            <Stat label={tb('Tags', 'الوسوم')} value={arabic.tags.total} sub="" />
+            <Stat label={tb('Attributes', 'الخصائص')} value={arabic.attributes.total} sub="" />
+          </div>
+          <Samples title={tb('Sample brands', 'أمثلة علامات')} items={arabic.brands.samples} />
+          <Samples title={tb('Sample categories', 'أمثلة تصنيفات')} items={arabic.categories.samples} />
+          <Samples title={tb('Sample tags', 'أمثلة وسوم')} items={arabic.tags.samples} />
+          {arabicTotal > 0 ? (
+            <form action={deleteArabicTaxonomyAction} className="mt-4 rounded-lg border border-destructive/40 bg-destructive/5 p-3">
+              <input type="hidden" name="locale" value={locale} />
+              <label className="mb-3 flex items-center gap-2 text-sm text-foreground">
+                <input type="checkbox" required className="size-4" />
+                {tb(`I understand this permanently deletes ${arabicTotal} Arabic-named taxonomy items (detaching them from products).`, `أفهم أن هذا يحذف ${arabicTotal} تصنيفًا مسمّى بالعربية نهائيًا (مع فصله عن المنتجات).`)}
+              </label>
+              <SubmitButton>{tb('Delete Arabic taxonomy now', 'احذف التصنيفات العربية الآن')}</SubmitButton>
+            </form>
+          ) : (
+            <p className="mt-2 rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary">{tb('No Arabic-named taxonomy found. 🎉', 'لا توجد تصنيفات مسماة بالعربية. 🎉')}</p>
+          )}
+        </section>
       </div>
     </div>
   );
