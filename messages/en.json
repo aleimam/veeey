@@ -27,6 +27,7 @@
       "returns": "Returns",
       "specialOrders": "Special orders",
       "products": "Products",
+      "goLive": "Go-live",
       "inventory": "Inventory",
       "stocktake": "Stocktake",
       "shipping": "Shipping",

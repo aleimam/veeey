@@ -29,6 +29,7 @@ const NAV_SECTIONS: RawSection[] = [
   ] },
   { title: ['Catalog', 'الكتالوج'], items: [
     { href: '/admin/products', key: 'products', permission: 'catalog.read' },
+    { href: '/admin/go-live', key: 'goLive', permission: 'catalog.write' },
     { href: '/admin/brands', key: 'brands', permission: 'catalog.write' },
     { href: '/admin/categories', key: 'categories', permission: 'catalog.write' },
     { href: '/admin/tags', key: 'tags', permission: 'catalog.write' },
