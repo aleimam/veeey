@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseListParams, listQs, totalPages, pageRange, one } from './admin-list';
+import { parseListParams, listQs, totalPages, pageRange, one, clientPage } from './admin-list';
 
 describe('parseListParams', () => {
   const opts = { sortable: ['name', 'price', 'createdAt'], defaultSort: 'createdAt' } as const;
@@ -43,6 +43,25 @@ describe('totalPages / pageRange', () => {
     expect(pageRange(1, 50, 2739)).toEqual({ from: 1, to: 50 });
     expect(pageRange(55, 50, 2739)).toEqual({ from: 2701, to: 2739 });
     expect(pageRange(1, 50, 0)).toEqual({ from: 0, to: 0 });
+  });
+});
+
+describe('clientPage', () => {
+  const data = [{ n: 'Cee', v: 3 }, { n: 'Aay', v: 1 }, { n: 'Bee', v: 2 }];
+  const keys = { name: (r: { n: string }) => r.n, val: (r: { v: number }) => r.v };
+  it('sorts by a string key asc/desc and reports total', () => {
+    const asc = clientPage(data, { sort: 'name', dir: 'asc', page: 1, perPage: 10 }, keys);
+    expect(asc.rows.map((r) => r.n)).toEqual(['Aay', 'Bee', 'Cee']);
+    expect(asc.total).toBe(3);
+    expect(clientPage(data, { sort: 'name', dir: 'desc', page: 1, perPage: 10 }, keys).rows.map((r) => r.n)).toEqual(['Cee', 'Bee', 'Aay']);
+  });
+  it('sorts numerically and slices to the page', () => {
+    const p2 = clientPage(data, { sort: 'val', dir: 'asc', page: 2, perPage: 2 }, keys);
+    expect(p2.rows.map((r) => r.v)).toEqual([3]);
+    expect(p2.total).toBe(3);
+  });
+  it('leaves order untouched for an unknown sort column', () => {
+    expect(clientPage(data, { sort: 'nope', dir: 'asc', page: 1, perPage: 10 }, keys).rows).toEqual(data);
   });
 });
 

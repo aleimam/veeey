@@ -52,6 +52,28 @@ export function totalPages(total: number, perPage: number): number {
   return Math.max(1, Math.ceil(total / Math.max(1, perPage)));
 }
 
+/**
+ * In-memory sort + paginate for small admin lists (config tables not bloated by
+ * the import) — avoids a per-service DB-pagination refactor. `keys` maps a sort
+ * column to a value getter; an unknown column leaves the given order.
+ */
+export function clientPage<T>(
+  rows: T[],
+  p: { sort: string; dir: SortDir; page: number; perPage: number },
+  keys: Record<string, (r: T) => string | number>,
+): { rows: T[]; total: number } {
+  const key = keys[p.sort];
+  const sorted = key
+    ? [...rows].sort((a, b) => {
+        const av = key(a), bv = key(b);
+        const cmp = typeof av === 'number' && typeof bv === 'number' ? av - bv : String(av).localeCompare(String(bv));
+        return p.dir === 'asc' ? cmp : -cmp;
+      })
+    : rows;
+  const start = (p.page - 1) * p.perPage;
+  return { rows: sorted.slice(start, start + p.perPage), total: sorted.length };
+}
+
 /** 1-based inclusive row range shown on the current page, e.g. "51–100 of 2739". */
 export function pageRange(page: number, perPage: number, total: number): { from: number; to: number } {
   if (total === 0) return { from: 0, to: 0 };
