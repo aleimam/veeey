@@ -66,6 +66,7 @@ export async function saveAreaAction(fd: FormData): Promise<void> {
       name: str(fd, 'name') ?? '',
       etaText: str(fd, 'etaText') ?? null,
       allowsUltraFast: fd.get('allowsUltraFast') != null,
+      allowsPos: fd.get('allowsPos') != null,
     });
   } catch (e) { console.error('area save failed', e); }
   revalidatePath(`/${locale}/admin/shipping/zones/${zoneId}`);

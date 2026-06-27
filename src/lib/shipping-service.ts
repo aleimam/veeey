@@ -66,11 +66,12 @@ const areaSchema = z.object({
   name: z.string().trim().min(1),
   etaText: z.string().trim().optional().nullable(),
   allowsUltraFast: z.boolean().default(false),
+  allowsPos: z.boolean().default(false),
 });
 export async function saveArea(id: string | null, raw: z.input<typeof areaSchema>) {
   const user = await requirePermission(PERM);
   const d = areaSchema.parse(raw);
-  const data = { zoneId: d.zoneId, name: d.name, etaText: d.etaText ?? null, allowsUltraFast: d.allowsUltraFast };
+  const data = { zoneId: d.zoneId, name: d.name, etaText: d.etaText ?? null, allowsUltraFast: d.allowsUltraFast, allowsPos: d.allowsPos };
   const area = id
     ? await prisma.shippingArea.update({ where: { id }, data })
     : await prisma.shippingArea.create({ data });

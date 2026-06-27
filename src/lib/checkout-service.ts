@@ -13,6 +13,7 @@ import { getNumberSetting } from '@/lib/settings-service';
 import { enqueue, QUEUES } from '@/lib/jobs';
 import { notify, type NotifyInput } from '@/lib/notification-service';
 import { smsConfigured } from '@/lib/provider-config';
+import { deriveSystemMethod } from '@/lib/payment-method-service';
 
 /** Checkout → Order (FR-CHK-*, FR-ORD-01). Converts cart soft-holds into a real
  *  order: each reservation becomes an OrderItem bound to its lot (exact expiry
@@ -27,7 +28,7 @@ export const checkoutSchema = z.object({
   area: z.string().optional().default(''),
   street: z.string().min(1),
   shippingType: z.enum(['FAST_FREE', 'ULTRAFAST', 'PICK_FROM_OFFICE']).default('FAST_FREE'),
-  paymentMethod: z.string().trim().min(1).default('COD'), // PaymentMethodConfig.code
+  paymentMethod: z.string().trim().min(1).default('COD'), // customer-facing method code (CUSTOMER_METHODS)
   discreetPackaging: z.boolean().default(false),
   couponCode: z.string().trim().optional(),
   redeemPoints: z.coerce.number().int().nonnegative().default(0),
@@ -91,6 +92,8 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
   });
 
   const number = `VY-${Date.now().toString(36).toUpperCase()}-${randomInt(100, 999)}`;
+  // Granular system method (courier not yet known → null for COD; gateway for cards).
+  const systemPaymentMethod = await deriveSystemMethod(data.paymentMethod, null);
   const addressSnapshot = {
     name: data.name, phone: data.phone, governorate: data.governorate,
     city: data.city, area: data.area, street: data.street,
@@ -109,6 +112,7 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
         guestEmail: data.guestEmail,
         status: 'PENDING_CONFIRMATION',
         paymentMethod: data.paymentMethod,
+        systemPaymentMethod,
         paymentState: 'PENDING',
         payCheck: risk.level === 'high' ? 'PROBLEM' : 'NO',
         riskScore: risk.score,

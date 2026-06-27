@@ -79,14 +79,6 @@ enum OrderStatus {
   EDIT
 }
 
-// Payment methods are an admin-editable list (PaymentMethodConfig model below);
-// Order.paymentMethod stores the method's `code`. OFFLINE settle on delivery /
-// manual; CARD_GATEWAY is the built-in online card (Kashier).
-enum PaymentMethodKind {
-  OFFLINE
-  CARD_GATEWAY
-}
-
 enum PaymentState {
   PENDING
   DEPOSIT_PAID
@@ -471,23 +463,23 @@ model WooSyncState {
   updatedAt  DateTime  @updatedAt
 }
 
-// Admin-editable payment methods (replaces the old PaymentMethod enum). `code` is
-// the stable key stored on Order.paymentMethod. In-use methods (referenced by an
-// order) can be deactivated/edited but not deleted. New methods are OFFLINE;
-// CARD_GATEWAY (online card via `gateway`) is the seeded built-in.
-model PaymentMethodConfig {
-  id             String            @id @default(cuid())
-  code           String            @unique
-  labelEn        String
-  labelAr        String?
-  kind           PaymentMethodKind @default(OFFLINE)
-  gateway        String? // 'KASHIER' for the online card method; null for offline
-  active         Boolean           @default(true)
-  sortOrder      Int               @default(0)
-  instructionsEn String?
-  instructionsAr String?
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+// Granular, admin-editable INTERNAL payment methods (shown on invoice/packing).
+// Each maps to a fixed customer-facing method (`customerCode`, see CUSTOMER_METHODS
+// in payment-method-service.ts). `courier` qualifies the COD variants (auto-derive).
+// `sourceAliases` are raw WooCommerce payment_method strings used to classify
+// imported orders. Order.systemPaymentMethod stores this `code`.
+model SystemPaymentMethod {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  labelEn       String
+  labelAr       String?
+  customerCode  String // → a customer-facing method code
+  courier       String? // OWN | SMSA | ARAMEX (COD variants), else null
+  sourceAliases String[] // raw Woo payment_method strings → this method
+  active        Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 // Per-tier product behavior keyed by category/tag/attribute (FR-PRC-03).
@@ -853,6 +845,7 @@ model ShippingArea {
   zone               ShippingZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
   name               String
   allowsUltraFast    Boolean      @default(false)
+  allowsPos          Boolean      @default(false) // POS-on-Delivery eligible (Greater Cairo)
   etaText            String?
   shippingTypesJson  Json? // available types for this area
   courierMappingJson Json? // type -> courier suggestion for Ops
@@ -882,7 +875,8 @@ model Order {
   customer      Customer?      @relation(fields: [customerId], references: [id])
   guestEmail    String?
   status        OrderStatus    @default(PENDING_CONFIRMATION)
-  paymentMethod String?        // PaymentMethodConfig.code (was the PaymentMethod enum)
+  paymentMethod String?        // customer-facing method code (checkout) — CUSTOMER_METHODS
+  systemPaymentMethod String?  // SystemPaymentMethod.code (granular; invoice/packing)
   legacyPaymentMethod String?  // raw source payment_method (WooCommerce) for re-mapping
   paymentState  PaymentState   @default(PENDING)
   payCheck      PayCheck       @default(NO)

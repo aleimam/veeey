@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { ensureCartId, readCartId, addToCart, setCartQty, removeFromCart } from '@/lib/cart-service';
 import { placeOrder, type CheckoutInput } from '@/lib/checkout-service';
 import { buildCardRedirect } from '@/lib/payment-gateways';
+import { isOnlineMethod, gatewayFor } from '@/lib/payment-method-service';
 
 const localeOf = (fd: FormData) => (fd.get('locale') === 'ar' ? 'ar' : 'en');
 const str = (fd: FormData, k: string) => {
@@ -80,18 +81,23 @@ export async function placeOrderAction(_p: CheckoutState, fd: FormData): Promise
   try {
     const result = await placeOrder(cartId, input);
     number = result.number;
-    // Online card method → hand off to the hosted gateway (Kashier/OPay). If no
-    // gateway is configured, buildCardRedirect returns null and we fall through
-    // to the local confirmation (order stays pending payment).
-    if (result.paymentMethod === 'KASHIER' || result.paymentMethod === 'OPAY') {
-      gatewayUrl = await buildCardRedirect({
-        number: result.number,
-        totalPiastres: result.totalPiastres,
-        locale,
-        name: result.name,
-        email: result.email,
-        phone: result.phone,
-      });
+    // Online card method → hand off to the hosted gateway. The customer's choice
+    // (CARD_OPAY / CARD_KASHIER) selects the gateway; if it isn't configured,
+    // buildCardRedirect falls back to the admin default, else returns null and we
+    // fall through to the local confirmation (order stays pending payment).
+    if (isOnlineMethod(result.paymentMethod)) {
+      const g = gatewayFor(result.paymentMethod);
+      gatewayUrl = await buildCardRedirect(
+        {
+          number: result.number,
+          totalPiastres: result.totalPiastres,
+          locale,
+          name: result.name,
+          email: result.email,
+          phone: result.phone,
+        },
+        g === 'KASHIER' ? 'kashier' : g === 'OPAY' ? 'opay' : null,
+      );
     }
   } catch (e) {
     if (e instanceof Error && e.message === 'EMPTY_CART') return { error: 'empty' };

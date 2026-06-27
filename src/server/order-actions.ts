@@ -6,6 +6,7 @@ import {
   transitionOrder,
   assignPharmacist,
   setPayCheck,
+  setSystemPaymentMethod,
   setOrderMeta,
   setTracking,
   addOrderItem,
@@ -54,7 +55,7 @@ export async function createManualOrderAction(_p: AdminFormState, fd: FormData):
       area: str(fd, 'area') ?? '',
       street: str(fd, 'street') ?? '',
       shippingType: (str(fd, 'shippingType') ?? 'FAST_FREE') as 'FAST_FREE' | 'ULTRAFAST' | 'PICK_FROM_OFFICE',
-      paymentMethod: (str(fd, 'paymentMethod') ?? 'COD') as 'COD' | 'POS_ON_DELIVERY' | 'BANK_TRANSFER' | 'WALLET' | 'OPAY' | 'KASHIER',
+      paymentMethod: str(fd, 'paymentMethod') ?? 'COD', // customer-facing method code
       discreetPackaging: fd.get('discreetPackaging') != null,
       items,
     });
@@ -91,6 +92,13 @@ export async function setPayCheckAction(fd: FormData): Promise<void> {
   const id = str(fd, 'id');
   const pc = str(fd, 'payCheck') as 'NO' | 'YES' | 'PROBLEM' | undefined;
   if (id && pc) { try { await setPayCheck(id, pc); } catch (e) { console.error(e); } backToOrder(locale, id); }
+  redirect(`/${locale}/admin/orders`);
+}
+
+export async function setSystemPaymentMethodAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const id = str(fd, 'id');
+  if (id) { try { await setSystemPaymentMethod(id, str(fd, 'systemPaymentMethod') ?? null); } catch (e) { console.error(e); } backToOrder(locale, id); }
   redirect(`/${locale}/admin/orders`);
 }
 

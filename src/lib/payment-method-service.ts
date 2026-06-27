@@ -4,151 +4,152 @@ import { audit } from '@/lib/audit';
 import { InUseError } from '@/lib/soft-delete-service';
 
 /**
- * Admin-editable payment methods (replaces the old PaymentMethod enum). Orders
- * store the method `code`. In-use methods (referenced by an order) can be
- * deactivated/edited but not deleted. New methods are OFFLINE (settle on delivery
- * / manual); the online card method (CARD_GATEWAY via Kashier) is seeded and its
- * gateway isn't admin-editable. Also holds the WooCommerce → method mapping used
- * by the importer. 60s cache; invalidated on writes.
+ * Two-level payment methods.
+ *  • CUSTOMER_METHODS — fixed list shown at checkout (what the shopper pays with).
+ *  • SystemPaymentMethod — admin-editable granular list shown on invoice/packing,
+ *    each mapping to a customer-facing code. `courier` qualifies COD variants for
+ *    auto-derive; `sourceAliases` classify imported WooCommerce orders.
+ * Order.paymentMethod = customer-facing code; Order.systemPaymentMethod = granular.
  */
-export type PaymentKind = 'OFFLINE' | 'CARD_GATEWAY';
-export type PaymentMethodRow = {
-  id: string; code: string; labelEn: string; labelAr: string | null; kind: PaymentKind;
-  gateway: string | null; active: boolean; sortOrder: number; instructionsEn: string | null; instructionsAr: string | null;
-};
 
-const SEED: Array<Omit<PaymentMethodRow, 'id'>> = [
-  { code: 'COD', labelEn: 'Cash on Delivery', labelAr: 'الدفع عند الاستلام', kind: 'OFFLINE', gateway: null, active: true, sortOrder: 1, instructionsEn: null, instructionsAr: null },
-  { code: 'POS_ON_DELIVERY', labelEn: 'Card machine on delivery', labelAr: 'ماكينة الدفع عند الاستلام', kind: 'OFFLINE', gateway: null, active: true, sortOrder: 2, instructionsEn: null, instructionsAr: null },
-  { code: 'KASHIER', labelEn: 'Visa / MasterCard', labelAr: 'فيزا / ماستركارد', kind: 'CARD_GATEWAY', gateway: 'KASHIER', active: true, sortOrder: 3, instructionsEn: null, instructionsAr: null },
-  { code: 'BANK_TRANSFER', labelEn: 'Bank transfer', labelAr: 'تحويل بنكي', kind: 'OFFLINE', gateway: null, active: true, sortOrder: 5, instructionsEn: null, instructionsAr: null },
-  { code: 'WALLET', labelEn: 'Mobile wallet', labelAr: 'محفظة إلكترونية', kind: 'OFFLINE', gateway: null, active: true, sortOrder: 6, instructionsEn: null, instructionsAr: null },
+// ---- Customer-facing (fixed) ----------------------------------------------
+export type CustomerMethod = { code: string; labelEn: string; labelAr: string; online: boolean; gateway?: 'OPAY' | 'KASHIER'; requiresPosArea?: boolean };
+export const CUSTOMER_METHODS: CustomerMethod[] = [
+  { code: 'COD', labelEn: 'Cash on Delivery', labelAr: 'الدفع عند الاستلام', online: false },
+  { code: 'BANK_TRANSFER', labelEn: 'Bank Transfer / InstaPay / Wallet', labelAr: 'تحويل بنكي / إنستاباي / محفظة', online: false },
+  { code: 'CARD_OPAY', labelEn: 'Credit/Debit Card (OPay)', labelAr: 'بطاقة ائتمان/خصم (OPay)', online: true, gateway: 'OPAY' },
+  { code: 'CARD_KASHIER', labelEn: 'Credit/Debit Card (Kashier)', labelAr: 'بطاقة ائتمان/خصم (Kashier)', online: true, gateway: 'KASHIER' },
+  { code: 'POS_ON_DELIVERY', labelEn: 'POS on Delivery', labelAr: 'دفع بالبطاقة عند الاستلام', online: false, requiresPosArea: true },
+];
+const CUSTOMER_BY_CODE = new Map(CUSTOMER_METHODS.map((m) => [m.code, m]));
+export const customerMethod = (code: string | null | undefined) => (code ? CUSTOMER_BY_CODE.get(code) ?? null : null);
+export const customerLabel = (code: string | null | undefined, locale = 'en') => { const m = customerMethod(code); return m ? (locale === 'ar' ? m.labelAr : m.labelEn) : (code ?? '—'); };
+export const isOnlineMethod = (code: string | null | undefined) => !!customerMethod(code)?.online;
+export const gatewayFor = (code: string | null | undefined) => customerMethod(code)?.gateway ?? null;
+
+/** Methods offered at checkout. POS-on-Delivery is hidden unless the area allows it. */
+export function enabledCustomerMethods(locale = 'en', opts: { posAllowed?: boolean } = {}) {
+  return CUSTOMER_METHODS.filter((m) => !m.requiresPosArea || opts.posAllowed).map((m) => ({ code: m.code, label: locale === 'ar' ? m.labelAr : m.labelEn, online: m.online }));
+}
+
+// ---- System (editable, DB) -------------------------------------------------
+export type SystemMethodRow = { id: string; code: string; labelEn: string; labelAr: string | null; customerCode: string; courier: string | null; sourceAliases: string[]; active: boolean; sortOrder: number };
+
+const SYSTEM_SEED: Array<Omit<SystemMethodRow, 'id'>> = [
+  { code: 'COD_OWN', labelEn: 'Cash on Delivery (Our Staff)', labelAr: 'الدفع عند الاستلام (مندوبنا)', customerCode: 'COD', courier: 'OWN', sourceAliases: ['cod', 'cash', 'cod_own'], active: true, sortOrder: 1 },
+  { code: 'COD_SMSA', labelEn: 'Cash on Delivery (SMSA)', labelAr: 'الدفع عند الاستلام (سمسا)', customerCode: 'COD', courier: 'SMSA', sourceAliases: ['cod_smsa'], active: true, sortOrder: 2 },
+  { code: 'COD_ARAMEX', labelEn: 'Cash on Delivery (Aramex)', labelAr: 'الدفع عند الاستلام (أرامكس)', customerCode: 'COD', courier: 'ARAMEX', sourceAliases: ['cod_aramex'], active: true, sortOrder: 3 },
+  { code: 'OPAY', labelEn: 'OPay', labelAr: 'OPay', customerCode: 'CARD_OPAY', courier: null, sourceAliases: ['opay'], active: true, sortOrder: 4 },
+  { code: 'KASHIER', labelEn: 'Kashier', labelAr: 'Kashier', customerCode: 'CARD_KASHIER', courier: null, sourceAliases: ['kashier', 'kashier_card'], active: true, sortOrder: 5 },
+  { code: 'POS_GEDIEA', labelEn: 'Gediea POS', labelAr: 'جديعة POS', customerCode: 'POS_ON_DELIVERY', courier: null, sourceAliases: ['gediea', 'gediea_pos'], active: true, sortOrder: 6 },
+  { code: 'POS_AMAN', labelEn: 'Aman POS', labelAr: 'أمان POS', customerCode: 'POS_ON_DELIVERY', courier: null, sourceAliases: ['aman', 'aman_pos'], active: true, sortOrder: 7 },
+  { code: 'POS_KASHIER', labelEn: 'Kashier POS', labelAr: 'Kashier POS', customerCode: 'POS_ON_DELIVERY', courier: null, sourceAliases: ['kashier_pos'], active: true, sortOrder: 8 },
+  { code: 'BANK_ALEX', labelEn: 'Bank Transfer / InstaPay (Alex Bank)', labelAr: 'تحويل بنكي / إنستاباي (بنك الإسكندرية)', customerCode: 'BANK_TRANSFER', courier: null, sourceAliases: ['alexbank', 'bank_alex', 'instapay_alex'], active: true, sortOrder: 9 },
+  { code: 'BANK_OTHER', labelEn: 'Bank Transfer / InstaPay (Other Banks)', labelAr: 'تحويل بنكي / إنستاباي (بنوك أخرى)', customerCode: 'BANK_TRANSFER', courier: null, sourceAliases: ['bacs', 'bank', 'bank_transfer', 'instapay'], active: true, sortOrder: 10 },
+  { code: 'WALLET', labelEn: 'Mobile Wallet', labelAr: 'محفظة إلكترونية', customerCode: 'BANK_TRANSFER', courier: null, sourceAliases: ['wallet', 'vodafone_cash', 'fawry', 'mobile_wallet'], active: true, sortOrder: 11 },
 ];
 
-let cache: { at: number; rows: PaymentMethodRow[] } | null = null;
+let cache: { at: number; rows: SystemMethodRow[] } | null = null;
 const TTL = 60_000;
 export function invalidatePaymentCache() { cache = null; }
 
 async function ensureSeeded() {
-  if ((await prisma.paymentMethodConfig.count()) === 0) {
-    await prisma.paymentMethodConfig.createMany({ data: SEED, skipDuplicates: true });
-  }
+  if ((await prisma.systemPaymentMethod.count()) === 0) await prisma.systemPaymentMethod.createMany({ data: SYSTEM_SEED, skipDuplicates: true });
 }
 
-/** All methods (active + inactive), ordered — for the admin list. Cached. */
-export async function listPaymentMethods(): Promise<PaymentMethodRow[]> {
+export async function listSystemMethods(): Promise<SystemMethodRow[]> {
   const now = Date.now();
   if (cache && now - cache.at < TTL) return cache.rows;
   await ensureSeeded();
-  const rows = (await prisma.paymentMethodConfig.findMany({ orderBy: [{ sortOrder: 'asc' }, { labelEn: 'asc' }] })) as PaymentMethodRow[];
+  const rows = (await prisma.systemPaymentMethod.findMany({ orderBy: [{ sortOrder: 'asc' }, { labelEn: 'asc' }] })) as SystemMethodRow[];
   cache = { at: now, rows };
   return rows;
 }
 
-const pickLabel = (m: PaymentMethodRow, locale: string) => (locale === 'ar' ? m.labelAr || m.labelEn : m.labelEn);
+const sysLabel = (m: SystemMethodRow, locale: string) => (locale === 'ar' ? m.labelAr || m.labelEn : m.labelEn);
 
-/** Active methods offered at checkout / admin order creation. */
-export async function enabledPaymentMethods(locale = 'en'): Promise<{ code: string; label: string; online: boolean; instructions: string | null }[]> {
-  const rows = await listPaymentMethods();
-  return rows.filter((m) => m.active).map((m) => ({ code: m.code, label: pickLabel(m, locale), online: m.kind === 'CARD_GATEWAY', instructions: locale === 'ar' ? m.instructionsAr : m.instructionsEn }));
+export async function systemMethodLabel(code: string | null | undefined, locale = 'en'): Promise<string | null> {
+  if (!code) return null;
+  const m = (await listSystemMethods()).find((x) => x.code === code);
+  return m ? sysLabel(m, locale) : code;
 }
 
-/** Human label for any (incl. inactive / legacy) method code. */
-export async function paymentMethodLabel(code: string | null | undefined, locale = 'en'): Promise<string> {
-  if (!code) return '—';
-  const m = (await listPaymentMethods()).find((x) => x.code === code);
-  return m ? pickLabel(m, locale) : code;
+/** Label for invoice/packing: the system (granular) label if set, else the customer-facing label. */
+export async function invoicePaymentLabel(systemCode: string | null | undefined, customerCode: string | null | undefined, locale = 'en'): Promise<string> {
+  return (await systemMethodLabel(systemCode, locale)) ?? customerLabel(customerCode, locale);
 }
 
-export async function isOnlineMethod(code: string | null | undefined): Promise<boolean> {
-  if (!code) return false;
-  return (await listPaymentMethods()).find((x) => x.code === code)?.kind === 'CARD_GATEWAY';
+/** Derive the granular system method from the customer choice + courier (new orders).
+ *  COD → COD_<courier> once a courier is known; cards → their gateway method;
+ *  POS / bank transfer → null (staff pick the exact one). */
+export async function deriveSystemMethod(customerCode: string | null | undefined, courier: string | null | undefined): Promise<string | null> {
+  if (!customerCode) return null;
+  const rows = await listSystemMethods();
+  if (customerCode === 'COD') return courier ? rows.find((r) => r.customerCode === 'COD' && r.courier === courier && r.active)?.code ?? null : null;
+  if (customerCode === 'CARD_OPAY' || customerCode === 'CARD_KASHIER') return rows.find((r) => r.customerCode === customerCode && r.active)?.code ?? null;
+  return null; // POS_ON_DELIVERY / BANK_TRANSFER → staff choose
+}
+
+/** Resolve a raw WooCommerce payment_method to { system, customer } codes via aliases. */
+export async function resolveImportPayment(wcRaw: string): Promise<{ systemCode: string | null; customerCode: string | null }> {
+  const key = wcRaw.trim().toLowerCase();
+  if (!key) return { systemCode: null, customerCode: null };
+  const rows = await listSystemMethods();
+  const exact = rows.find((r) => r.sourceAliases.some((a) => a.toLowerCase() === key));
+  const hit = exact ?? rows.find((r) => r.sourceAliases.some((a) => a && key.includes(a.toLowerCase())));
+  return hit ? { systemCode: hit.code, customerCode: hit.customerCode } : { systemCode: null, customerCode: null };
 }
 
 // ---- CRUD (settings.manage) ------------------------------------------------
-export type PaymentMethodInput = { code: string; labelEn: string; labelAr?: string | null; active?: boolean; sortOrder?: number; instructionsEn?: string | null; instructionsAr?: string | null };
+export type SystemMethodInput = { code: string; labelEn: string; labelAr?: string | null; customerCode: string; courier?: string | null; sourceAliases?: string[]; active?: boolean; sortOrder?: number };
 
-export async function savePaymentMethod(id: string | null, input: PaymentMethodInput) {
+export async function saveSystemMethod(id: string | null, input: SystemMethodInput) {
   const user = await requirePermission('settings.manage');
-  const code = input.code.trim().toUpperCase().replace(/[^A-Z0-9_]/g, '_');
+  if (!CUSTOMER_BY_CODE.has(input.customerCode)) throw new Error('BAD_CUSTOMER_CODE');
+  const courier = input.courier && ['OWN', 'SMSA', 'ARAMEX'].includes(input.courier) ? input.courier : null;
   const data = {
     labelEn: input.labelEn.trim(),
     labelAr: input.labelAr?.trim() || null,
+    customerCode: input.customerCode,
+    courier,
+    sourceAliases: (input.sourceAliases ?? []).map((a) => a.trim().toLowerCase()).filter(Boolean),
     active: input.active ?? true,
     sortOrder: input.sortOrder ?? 0,
-    instructionsEn: input.instructionsEn?.trim() || null,
-    instructionsAr: input.instructionsAr?.trim() || null,
   };
   const row = id
-    ? await prisma.paymentMethodConfig.update({ where: { id }, data }) // code + kind are immutable after create
-    : await prisma.paymentMethodConfig.create({ data: { ...data, code, kind: 'OFFLINE', gateway: null } }); // new = offline
+    ? await prisma.systemPaymentMethod.update({ where: { id }, data })
+    : await prisma.systemPaymentMethod.create({ data: { ...data, code: input.code.trim().toUpperCase().replace(/[^A-Z0-9_]/g, '_') } });
   invalidatePaymentCache();
-  await audit({ actorType: 'USER', actorId: user.id, action: id ? 'payment_method.update' : 'payment_method.create', entityType: 'PaymentMethodConfig', entityId: row.id });
+  await audit({ actorType: 'USER', actorId: user.id, action: id ? 'system_payment.update' : 'system_payment.create', entityType: 'SystemPaymentMethod', entityId: row.id });
   return row;
 }
 
-export async function setPaymentMethodActive(id: string, active: boolean) {
+export async function setSystemMethodActive(id: string, active: boolean) {
   const user = await requirePermission('settings.manage');
-  await prisma.paymentMethodConfig.update({ where: { id }, data: { active } });
+  await prisma.systemPaymentMethod.update({ where: { id }, data: { active } });
   invalidatePaymentCache();
-  await audit({ actorType: 'USER', actorId: user.id, action: active ? 'payment_method.activate' : 'payment_method.deactivate', entityType: 'PaymentMethodConfig', entityId: id });
+  await audit({ actorType: 'USER', actorId: user.id, action: active ? 'system_payment.activate' : 'system_payment.deactivate', entityType: 'SystemPaymentMethod', entityId: id });
 }
 
-export async function deletePaymentMethod(id: string) {
+export async function deleteSystemMethod(id: string) {
   const user = await requirePermission('settings.manage');
-  const m = await prisma.paymentMethodConfig.findUnique({ where: { id }, select: { code: true } });
+  const m = await prisma.systemPaymentMethod.findUnique({ where: { id }, select: { code: true } });
   if (!m) return;
-  const inUse = await prisma.order.count({ where: { paymentMethod: m.code } });
-  if (inUse > 0) throw new InUseError(); // used by orders → deactivate instead
-  await prisma.paymentMethodConfig.delete({ where: { id } });
+  if ((await prisma.order.count({ where: { systemPaymentMethod: m.code } })) > 0) throw new InUseError();
+  await prisma.systemPaymentMethod.delete({ where: { id } });
   invalidatePaymentCache();
-  await audit({ actorType: 'USER', actorId: user.id, action: 'payment_method.delete', entityType: 'PaymentMethodConfig', entityId: id });
+  await audit({ actorType: 'USER', actorId: user.id, action: 'system_payment.delete', entityType: 'SystemPaymentMethod', entityId: id });
 }
 
-// ---- WooCommerce → method mapping (importer) -------------------------------
-let mapCache: { at: number; map: Record<string, string> } | null = null;
-
-export async function getPaymentMap(): Promise<Record<string, string>> {
-  const now = Date.now();
-  if (mapCache && now - mapCache.at < TTL) return mapCache.map;
-  const row = await prisma.setting.findUnique({ where: { key: 'woo.paymentMap' } });
-  let map: Record<string, string> = {};
-  try { map = row?.value ? (JSON.parse(row.value) as Record<string, string>) : {}; } catch { map = {}; }
-  mapCache = { at: now, map };
-  return map;
-}
-
-export async function savePaymentMap(map: Record<string, string>) {
-  const user = await requirePermission('settings.manage');
-  const clean = Object.fromEntries(Object.entries(map).filter(([k, v]) => k && v));
-  await prisma.setting.upsert({ where: { key: 'woo.paymentMap' }, update: { value: JSON.stringify(clean) }, create: { key: 'woo.paymentMap', value: JSON.stringify(clean) } });
-  mapCache = null;
-  await audit({ actorType: 'USER', actorId: user.id, action: 'payment_map.update', entityType: 'Setting', entityId: 'woo.paymentMap' });
-}
-
-/** Resolve a WooCommerce payment_method to a Veeey method code: admin map first,
- *  then sensible defaults. Pure (map fetched once per sync run). */
-export function mapWooPayment(wc: string, map: Record<string, string>): string | null {
-  const key = wc.trim().toLowerCase();
-  if (!key) return null;
-  if (map[key]) return map[key];
-  if (key.includes('cod') || key.includes('cash')) return 'COD';
-  if (key.includes('bacs') || key.includes('bank')) return 'BANK_TRANSFER';
-  if (key.includes('kashier') || key.includes('card') || key.includes('visa') || key.includes('paymob') || key.includes('opay')) return 'KASHIER';
-  if (key.includes('wallet') || key.includes('vodafone') || key.includes('fawry')) return 'WALLET';
-  return null;
-}
-
-/** Re-map already-imported orders that have a stored legacy payment string. */
+/** Re-classify imported orders (those with a stored raw value) by the current aliases. */
 export async function remapOrderPayments(): Promise<number> {
   const user = await requirePermission('settings.manage');
-  const map = await getPaymentMap();
   const orders = await prisma.order.findMany({ where: { legacyPaymentMethod: { not: null } }, select: { id: true, legacyPaymentMethod: true } });
   let changed = 0;
   for (const o of orders) {
-    const code = mapWooPayment(o.legacyPaymentMethod ?? '', map);
-    if (code) { await prisma.order.update({ where: { id: o.id }, data: { paymentMethod: code } }); changed++; }
+    const { systemCode, customerCode } = await resolveImportPayment(o.legacyPaymentMethod ?? '');
+    if (systemCode || customerCode) { await prisma.order.update({ where: { id: o.id }, data: { systemPaymentMethod: systemCode, ...(customerCode ? { paymentMethod: customerCode } : {}) } }); changed++; }
   }
-  await audit({ actorType: 'USER', actorId: user.id, action: 'payment_map.remap', entityType: 'Order', entityId: `${changed} re-mapped` });
+  await audit({ actorType: 'USER', actorId: user.id, action: 'payment.remap', entityType: 'Order', entityId: `${changed} re-mapped` });
   return changed;
 }

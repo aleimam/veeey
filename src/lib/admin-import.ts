@@ -4,6 +4,7 @@ import { egpToPiastres } from '@/lib/format';
 import { generateReferralCode } from '@/lib/customer';
 import { createProduct } from '@/lib/catalog-service';
 import { ORDER_STATUSES } from '@/lib/order-status';
+import { resolveImportPayment } from '@/lib/payment-method-service';
 import type { PermissionKey } from '@/lib/permissions';
 import type { ExportEntity } from '@/lib/admin-export';
 import type { Prisma } from '@/generated/prisma/client';
@@ -144,13 +145,17 @@ const importOrders = (rows: Row[]) => run(rows, async (r) => {
     customerId = u?.customer?.id ?? null;
   }
   const total = egpToPiastres(num(r.totalEgp) ?? 0);
+  const rawPay = (r.paymentMethod ?? '').trim();
+  const pay = await resolveImportPayment(rawPay); // map raw value → {customer, system} via aliases
   await prisma.order.create({
     data: {
       number,
       customerId,
       guestEmail: customerId ? null : (r.customerEmail || null),
       status: oneOf(r.status, ORDER_STATUSES, 'PENDING_CONFIRMATION') as Prisma.OrderCreateInput['status'],
-      paymentMethod: (['COD', 'POS_ON_DELIVERY', 'KASHIER', 'BANK_TRANSFER', 'WALLET', 'OPAY'].includes((r.paymentMethod ?? '').trim()) ? r.paymentMethod.trim() : null) as Prisma.OrderCreateInput['paymentMethod'],
+      paymentMethod: pay.customerCode,
+      systemPaymentMethod: pay.systemCode,
+      legacyPaymentMethod: rawPay || null,
       subtotalPiastres: total,
       totalPiastres: total,
       shippingAddressJson: { governorate: r.governorate || '', city: r.city || '', street: r.street || '' },

@@ -1,11 +1,10 @@
 import PDFDocument from 'pdfkit';
 import { formatEGP } from '@/lib/format';
-import { paymentMethodLabel } from '@/lib/payments';
 
 type InvoiceOrder = {
   number: string;
   placedAt: Date;
-  paymentMethod: string | null;
+  paymentLabel: string; // precomputed (system method, else customer-facing) by the caller
   shippingPiastres: bigint;
   subtotalPiastres: bigint;
   discountPiastres: bigint;
@@ -36,7 +35,7 @@ export function generateInvoicePdf(order: InvoiceOrder): Promise<Buffer> {
     doc.fontSize(9).fillColor('#6a7b72');
     doc.text(`Date: ${order.placedAt.toISOString().slice(0, 10)}`);
     doc.text(`Pharmacist: ${order.pharmacist?.name ?? '—'}`);
-    doc.text(`Payment: ${paymentMethodLabel(order.paymentMethod)}`);
+    doc.text(`Payment: ${order.paymentLabel}`);
     const addr = order.shippingAddressJson as { name?: string; phone?: string; governorate?: string; city?: string; area?: string; street?: string } | null;
     if (addr) {
       doc.moveDown(0.5);

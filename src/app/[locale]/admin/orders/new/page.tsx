@@ -2,7 +2,7 @@ import { setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { prisma } from '@/lib/prisma';
 import { listShippingTypes } from '@/lib/shipping-service';
-import { enabledPaymentMethods } from '@/lib/payments';
+import { enabledCustomerMethods } from '@/lib/payment-method-service';
 import { ManualOrderForm } from '@/components/admin/manual-order-form';
 import { pick } from '@/lib/admin-i18n';
 
@@ -11,11 +11,11 @@ export default async function NewOrderPage({ params }: { params: Promise<{ local
   setRequestLocale(locale);
   const tb = pick(locale);
 
-  const [products, shippingTypes, methods] = await Promise.all([
+  const [products, shippingTypes] = await Promise.all([
     prisma.product.findMany({ where: { status: 'PUBLISHED' }, select: { id: true, nameEn: true, sku: true }, orderBy: { nameEn: 'asc' } }),
     listShippingTypes(),
-    enabledPaymentMethods(locale),
   ]);
+  const methods = enabledCustomerMethods(locale, { posAllowed: true }); // staff may pick any method
 
   return (
     <div className="p-6">

@@ -8,9 +8,10 @@ import { ALLOWED_TRANSITIONS, type OrderStatus } from '@/lib/order-status';
 import { formatEGP } from '@/lib/format';
 import { StatusBadge, inputCls } from '@/components/admin/ui';
 import { aramexConfigured, smsaConfigured } from '@/lib/provider-config';
+import { listSystemMethods, customerLabel } from '@/lib/payment-method-service';
 import { pick } from '@/lib/admin-i18n';
 import {
-  transitionOrderAction, assignPharmacistAction, setPayCheckAction, setOrderMetaAction,
+  transitionOrderAction, assignPharmacistAction, setPayCheckAction, setSystemPaymentMethodAction, setOrderMetaAction,
   setTrackingAction, addOrderItemAction, removeOrderItemAction, addGiftToOrderAction,
 } from '@/server/order-actions';
 import { createAramexShipmentAction, trackAramexAction, createSmsaShipmentAction, trackSmsaAction } from '@/server/carrier-actions';
@@ -28,12 +29,13 @@ export default async function OrderDetailPage({ params, searchParams }: { params
   const order = await getOrder(id);
   if (!order) notFound();
 
-  const [staff, gifts, products, aramexOn, smsaOn] = await Promise.all([
+  const [staff, gifts, products, aramexOn, smsaOn, systemMethods] = await Promise.all([
     prisma.user.findMany({ where: { roleId: { not: null } }, select: { id: true, name: true, email: true } }),
     listGifts(),
     listProducts(),
     aramexConfigured(),
     smsaConfigured(),
+    listSystemMethods(),
   ]);
   const shipErr = one(sp.shiperr);
   const shipOk = one(sp.shipok) === '1';
@@ -132,6 +134,19 @@ export default async function OrderDetailPage({ params, searchParams }: { params
             <select name="payCheck" defaultValue={order.payCheck} className={inputCls}>
               {['NO', 'YES', 'PROBLEM'].map((p) => <option key={p} value={p}>{p}</option>)}
             </select>
+            <button className="mt-2 w-full rounded-md border border-border px-3 py-1.5 hover:bg-surface">{tb('Save', 'حفظ')}</button>
+          </form>
+
+          <form action={setSystemPaymentMethodAction} className="rounded-lg border border-border p-4">
+            {hidden({})}
+            <p className="mb-1 font-medium">{tb('Payment method', 'طريقة الدفع')}</p>
+            <p className="mb-2 text-xs text-muted-foreground">{tb('Customer chose', 'اختار العميل')}: <span className="text-foreground">{customerLabel(order.paymentMethod, locale)}</span></p>
+            <label className="text-xs text-muted-foreground">{tb('System method (invoice)', 'طريقة النظام (الفاتورة)')}
+              <select name="systemPaymentMethod" defaultValue={order.systemPaymentMethod ?? ''} className={`${inputCls} mt-1`}>
+                <option value="">{tb('— auto / unset —', '— تلقائي / غير محدد —')}</option>
+                {systemMethods.map((m) => <option key={m.id} value={m.code}>{locale === 'ar' ? m.labelAr || m.labelEn : m.labelEn}</option>)}
+              </select>
+            </label>
             <button className="mt-2 w-full rounded-md border border-border px-3 py-1.5 hover:bg-surface">{tb('Save', 'حفظ')}</button>
           </form>
 

@@ -24,12 +24,16 @@ export type CardOrder = {
   phone?: string | null;
 };
 
-/** Which gateway backs the card method. Admin setting `payments.cardGateway`
- *  (`auto` | `kashier` | `opay`); `auto` prefers Kashier, then OPay. Returns null
- *  when neither is configured (caller falls back to a pending order). */
-export async function resolveCardGateway(): Promise<CardGateway | null> {
-  const pref = (await getSetting('payments.cardGateway')).trim().toLowerCase();
+/** Which gateway backs the card method. The customer's explicit choice
+ *  (CARD_OPAY / CARD_KASHIER → `prefer`) wins when that gateway is configured;
+ *  otherwise the admin setting `payments.cardGateway` (`auto` | `kashier` |
+ *  `opay`) applies, with `auto` preferring Kashier then OPay. Returns null when
+ *  neither is configured (caller falls back to a pending order). */
+export async function resolveCardGateway(prefer?: CardGateway | null): Promise<CardGateway | null> {
   const [k, o] = await Promise.all([getKashierConfig(), getOpayConfig()]);
+  if (prefer === 'kashier' && k) return 'kashier';
+  if (prefer === 'opay' && o) return 'opay';
+  const pref = (await getSetting('payments.cardGateway')).trim().toLowerCase();
   if (pref === 'kashier' && k) return 'kashier';
   if (pref === 'opay' && o) return 'opay';
   if (k) return 'kashier';
@@ -43,8 +47,8 @@ function returnUrl(order: CardOrder) {
 
 /** Build the hosted-checkout redirect for an order, or null if no gateway is
  *  configured / the gateway call failed (order stays PENDING). */
-export async function buildCardRedirect(order: CardOrder): Promise<string | null> {
-  const gateway = await resolveCardGateway();
+export async function buildCardRedirect(order: CardOrder, prefer?: CardGateway | null): Promise<string | null> {
+  const gateway = await resolveCardGateway(prefer);
   if (gateway === 'kashier') return buildKashierRedirect(order);
   if (gateway === 'opay') return buildOpayRedirect(order);
   return null;

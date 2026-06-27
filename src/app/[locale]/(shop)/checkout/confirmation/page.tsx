@@ -1,6 +1,7 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { getOrderByNumber } from '@/lib/checkout-service';
+import { customerLabel, isOnlineMethod } from '@/lib/payment-method-service';
 import { formatEGP } from '@/lib/format';
 
 type SP = Record<string, string | string[] | undefined>;
@@ -16,7 +17,6 @@ export default async function ConfirmationPage({
   const sp = await searchParams;
   setRequestLocale(locale);
   const t = await getTranslations('storefront.confirmation');
-  const tPay = await getTranslations('storefront.payments');
   const number = Array.isArray(sp.order) ? sp.order[0] : sp.order;
   const cancelled = (Array.isArray(sp.cancelled) ? sp.cancelled[0] : sp.cancelled) === '1';
   const order = number ? await getOrderByNumber(number) : null;
@@ -30,7 +30,7 @@ export default async function ConfirmationPage({
     );
   }
 
-  const isCard = order.paymentMethod === 'KASHIER' || order.paymentMethod === 'OPAY';
+  const isCard = isOnlineMethod(order.paymentMethod);
   // Online card flow: surface the gateway settlement state (webhook is the source
   // of truth). Cancelled return → prompt a retry from the cart.
   const payBanner = isCard
@@ -72,7 +72,7 @@ export default async function ConfirmationPage({
         <div className="mt-3 space-y-1 border-t border-[color:var(--slate-border)] pt-3 text-sm">
           <div className="flex justify-between text-[color:var(--text-muted)]"><span>{t('shipping')}</span><span>{Number(order.shippingPiastres) === 0 ? t('free') : formatEGP(Number(order.shippingPiastres))}</span></div>
           <div className="flex justify-between font-bold text-green-dark"><span>{t('total')}</span><span>{formatEGP(Number(order.totalPiastres))}</span></div>
-          <div className="flex justify-between text-[color:var(--text-muted)]"><span>{t('payment')}</span><span>{order.paymentMethod ? (tPay.has(order.paymentMethod) ? tPay(order.paymentMethod) : order.paymentMethod) : '—'}</span></div>
+          <div className="flex justify-between text-[color:var(--text-muted)]"><span>{t('payment')}</span><span>{customerLabel(order.paymentMethod, locale)}</span></div>
         </div>
       </div>
 

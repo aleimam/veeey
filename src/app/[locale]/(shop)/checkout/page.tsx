@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { readCartId, getCart } from '@/lib/cart-service';
 import { listShippingTypes } from '@/lib/shipping-service';
-import { enabledPaymentMethods } from '@/lib/payments';
+import { enabledCustomerMethods } from '@/lib/payment-method-service';
 import { getNumberSetting } from '@/lib/settings-service';
 import { getCurrentUser } from '@/lib/auth-guards';
 import { listAddresses } from '@/lib/address-service';
@@ -26,7 +26,9 @@ export default async function CheckoutPage({ params }: { params: Promise<{ local
 
   const tp = await getTranslations('storefront.checkout');
   const pointsPerEgp = await getNumberSetting('loyalty.redeemPointsPerEgp');
-  const methods = await enabledPaymentMethods(locale);
+  const methods = enabledCustomerMethods(locale, { posAllowed: true }); // POS gated per-governorate in the form
+  const posAreas = await prisma.shippingArea.findMany({ where: { allowsPos: true }, select: { zone: { select: { governorate: true } } } });
+  const posGovernorates = [...new Set(posAreas.map((a) => a.zone.governorate))];
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
@@ -38,6 +40,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ local
         subtotalPiastres={subtotal}
         shippingOptions={types.map((s) => ({ type: s.type, label: (locale === 'ar' ? s.labelAr : s.labelEn) ?? s.labelEn, feePiastres: Number(s.feePiastres) }))}
         paymentMethods={methods.map((m) => ({ key: m.code, label: m.label }))}
+        posGovernorates={posGovernorates}
         pointsBalance={customer?.pointsBalance ?? 0}
         pointsPerEgp={pointsPerEgp}
         savedAddresses={savedAddresses}

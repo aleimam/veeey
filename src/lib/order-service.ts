@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
 import { canTransition, isDelivered, type OrderStatus } from '@/lib/order-status';
+import { deriveSystemMethod } from '@/lib/payment-method-service';
 import { availableQty } from '@/lib/inventory';
 import { getShippingFee, type ShippingTypeKey } from '@/lib/shipping-service';
 import { creditOrderPoints, creditReferralReward } from '@/lib/loyalty-service';
@@ -138,6 +139,13 @@ export async function setPayCheck(id: string, payCheck: 'NO' | 'YES' | 'PROBLEM'
   await audit({ actorType: 'USER', actorId: user.id, action: 'order.paycheck', entityType: 'Order', entityId: id, data: { payCheck } });
 }
 
+/** Staff override of the granular system payment method (e.g. pick which POS / bank). */
+export async function setSystemPaymentMethod(id: string, systemCode: string | null) {
+  const user = await requirePermission('orders.write');
+  await prisma.order.update({ where: { id }, data: { systemPaymentMethod: systemCode || null } });
+  await audit({ actorType: 'USER', actorId: user.id, action: 'order.system_payment', entityType: 'Order', entityId: id, data: { systemCode } });
+}
+
 export async function setOrderMeta(id: string, meta: { customerOrderType?: string | null; orderProductType?: string | null; source?: string | null }) {
   const user = await requirePermission('orders.write');
   await prisma.order.update({
@@ -156,9 +164,12 @@ export async function setTracking(id: string, trackingNumber: string, courier?: 
   const user = await requirePermission('orders.fulfill');
   const order = await prisma.order.findUniqueOrThrow({ where: { id } });
   const nextStatus = canTransition(order.status as OrderStatus, 'SHIPPED') ? 'SHIPPED' : (order.status as OrderStatus);
+  // Courier now known → derive the granular system method (e.g. COD → COD+SMSA).
+  // Only set when derivable so a staff-chosen POS/bank method isn't wiped.
+  const sys = await deriveSystemMethod(order.paymentMethod, courier || null);
   await prisma.order.update({
     where: { id },
-    data: { trackingNumber, courier: (courier || null) as 'ARAMEX' | 'SMSA' | 'OWN' | null, status: nextStatus },
+    data: { trackingNumber, courier: (courier || null) as 'ARAMEX' | 'SMSA' | 'OWN' | null, status: nextStatus, ...(sys ? { systemPaymentMethod: sys } : {}) },
   });
   await audit({ actorType: 'USER', actorId: user.id, action: 'order.tracking', entityType: 'Order', entityId: id, data: { trackingNumber, notifyCustomer: true } });
   if (nextStatus === 'SHIPPED') await notifyOrder(id, 'order.shipped');
@@ -218,7 +229,7 @@ const manualOrderSchema = z.object({
   area: z.string().trim().optional().default(''),
   street: z.string().trim().min(1),
   shippingType: z.enum(['FAST_FREE', 'ULTRAFAST', 'PICK_FROM_OFFICE']).default('FAST_FREE'),
-  paymentMethod: z.string().trim().min(1).default('COD'), // PaymentMethodConfig.code
+  paymentMethod: z.string().trim().min(1).default('COD'), // customer-facing method code (CUSTOMER_METHODS)
   discreetPackaging: z.boolean().default(false),
   items: z.array(z.object({ productId: z.string().min(1), qty: z.coerce.number().int().positive() })).min(1),
 });
@@ -250,7 +261,7 @@ export async function createManualOrder(raw: ManualOrderInput) {
     const ord = await tx.order.create({
       data: {
         number, customerId, guestEmail,
-        status: 'PENDING_CONFIRMATION', paymentMethod: d.paymentMethod, paymentState: 'PENDING', payCheck: 'NO',
+        status: 'PENDING_CONFIRMATION', paymentMethod: d.paymentMethod, systemPaymentMethod: await deriveSystemMethod(d.paymentMethod, null), paymentState: 'PENDING', payCheck: 'NO',
         subtotalPiastres: 0n, shippingPiastres: shipping, discountPiastres: 0n, totalPiastres: shipping,
         shippingType: d.shippingType, discreetPackaging: d.discreetPackaging,
         shippingAddressId, shippingAddressJson: addressSnapshot,

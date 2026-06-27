@@ -5,7 +5,7 @@ import { slugify, brandCode, skuFromParts } from '@/lib/sku';
 import { ensureCustomerProfile } from '@/lib/customer';
 import { normalizeMobile } from '@/lib/provider-config';
 import type { OrderStatus, Prisma } from '@/generated/prisma/client';
-import { getPaymentMap, mapWooPayment } from '@/lib/payment-method-service';
+import { resolveImportPayment } from '@/lib/payment-method-service';
 
 /**
  * WooCommerce → Veeey live sync (egyptvitamins.com). Incremental, idempotent
@@ -305,7 +305,6 @@ export async function syncOrders(opts: { maxPages?: number; perPage?: number; bu
   const startPage = Number.isFinite(startNum) && startNum >= 1 ? startNum + 1 : 1;
   const s = newSummary('orders', state?.cursor ?? null);
   let lastCompleted: number | null = Number.isFinite(startNum) && startNum >= 1 ? startNum : null;
-  const payMap = await getPaymentMap(); // WooCommerce → Veeey method code (admin-editable)
 
   let page = startPage;
   let pagesThisRun = 0;
@@ -341,9 +340,11 @@ export async function syncOrders(opts: { maxPages?: number; perPage?: number; bu
         const cust = wcCustomerId ? await prisma.customer.findUnique({ where: { legacyWpId: wcCustomerId }, select: { id: true } }) : null;
         const shipping = egpToPiastres(o.shipping_total) ?? 0;
         const discount = egpToPiastres(o.discount_total) ?? 0;
+        const pay = await resolveImportPayment(str(o.payment_method)); // raw WC method → {customer, system} via aliases
         const data = {
           status: ORDER_STATUS[str(o.status)] ?? ('PROCESSING' as OrderStatus),
-          paymentMethod: mapWooPayment(str(o.payment_method), payMap),
+          paymentMethod: pay.customerCode,
+          systemPaymentMethod: pay.systemCode,
           legacyPaymentMethod: str(o.payment_method) || null,
           subtotalPiastres: BigInt(Math.max(0, total + discount - shipping)),
           discountPiastres: BigInt(discount),

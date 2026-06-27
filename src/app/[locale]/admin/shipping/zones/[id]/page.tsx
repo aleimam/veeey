@@ -29,6 +29,7 @@ export default async function ZoneAreasPage({ params }: { params: Promise<{ loca
               <label className="text-sm font-medium">{tb('Sub-area name', 'اسم المنطقة الفرعية')}<input name="name" defaultValue={a.name} className={`${inputCls} w-48`} /></label>
               <label className="text-sm font-medium">{tb('ETA text', 'نص الوقت المتوقع')}<input name="etaText" defaultValue={a.etaText ?? ''} placeholder={tb('e.g. today or tomorrow', 'مثال: اليوم أو غدًا')} className={`${inputCls} w-52`} /></label>
               <label className="flex items-center gap-2 pb-2 text-sm"><input type="checkbox" name="allowsUltraFast" defaultChecked={a.allowsUltraFast} /> {tb('Eligible for UltraFast', 'مؤهّلة لـ UltraFast')}</label>
+              <label className="flex items-center gap-2 pb-2 text-sm"><input type="checkbox" name="allowsPos" defaultChecked={a.allowsPos} /> {tb('Eligible for POS on Delivery', 'مؤهّلة لدفع البطاقة عند الاستلام')}</label>
               <button className="rounded-md border border-border px-3 py-2 text-sm hover:bg-surface">{tb('Save', 'حفظ')}</button>
             </form>
             <form action={deleteAreaAction} className="mt-2">
@@ -49,6 +50,7 @@ export default async function ZoneAreasPage({ params }: { params: Promise<{ loca
         <label className="text-sm font-medium">{tb('Sub-area name', 'اسم المنطقة الفرعية')}<input name="name" required className={`${inputCls} w-48`} /></label>
         <label className="text-sm font-medium">{tb('ETA text', 'نص الوقت المتوقع')}<input name="etaText" placeholder={tb('e.g. 1–2 business days', 'مثال: 1–2 يوم عمل')} className={`${inputCls} w-52`} /></label>
         <label className="flex items-center gap-2 pb-2 text-sm"><input type="checkbox" name="allowsUltraFast" /> {tb('Eligible for UltraFast', 'مؤهّلة لـ UltraFast')}</label>
+        <label className="flex items-center gap-2 pb-2 text-sm"><input type="checkbox" name="allowsPos" /> {tb('Eligible for POS on Delivery', 'مؤهّلة لدفع البطاقة عند الاستلام')}</label>
         <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">{tb('Add sub-area', 'إضافة منطقة فرعية')}</button>
       </form>
     </div>

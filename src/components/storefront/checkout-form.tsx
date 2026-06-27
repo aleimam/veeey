@@ -21,6 +21,7 @@ export function CheckoutForm({
   subtotalPiastres,
   shippingOptions,
   paymentMethods,
+  posGovernorates = [],
   pointsBalance = 0,
   pointsPerEgp = 200,
   savedAddresses = [],
@@ -31,6 +32,7 @@ export function CheckoutForm({
   subtotalPiastres: number;
   shippingOptions: ShipOpt[];
   paymentMethods: PayOpt[];
+  posGovernorates?: string[];
   pointsBalance?: number;
   pointsPerEgp?: number;
   savedAddresses?: SavedAddr[];
@@ -133,7 +135,7 @@ export function CheckoutForm({
         <section>
           <h2 className={heading}>{t('payment')}</h2>
           <select name="paymentMethod" className={field}>
-            {paymentMethods.map((m) => <option key={m.key} value={m.key}>{tPay.has(m.key) ? tPay(m.key) : m.label}</option>)}
+            {paymentMethods.filter((m) => m.key !== 'POS_ON_DELIVERY' || posGovernorates.includes(addr.governorate)).map((m) => <option key={m.key} value={m.key}>{tPay.has(m.key) ? tPay(m.key) : m.label}</option>)}
           </select>
           <label className="mt-3 flex items-center gap-2 text-sm text-ink">
             <input type="checkbox" name="discreetPackaging" className="size-4 accent-[color:var(--green-dark)]" /> {t('discreet')}
