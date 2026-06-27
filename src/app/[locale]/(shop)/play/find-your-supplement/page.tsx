@@ -3,7 +3,7 @@ import { Link } from '@/i18n/navigation';
 import { prisma } from '@/lib/prisma';
 import { GUIDED_QUIZ } from '@/lib/guided-selling';
 import { findSupplementAction } from '@/server/play-actions';
-import { cardProductInclude, toCardProduct } from '@/lib/storefront';
+import { cardProductInclude, toCardProduct, visibleProductWhere } from '@/lib/storefront';
 import { ProductRow } from '@/components/storefront/product-row';
 
 type SP = Record<string, string | string[] | undefined>;
@@ -18,7 +18,7 @@ export default async function FindSupplementPage({ params, searchParams }: { par
   let recs: ReturnType<typeof toCardProduct>[] = [];
   if (goals.length) {
     const products = await prisma.product.findMany({
-      where: { status: 'PUBLISHED', OR: [{ categories: { some: { slug: { in: goals } } } }, { tags: { some: { slug: { in: goals } } } }] },
+      where: { status: 'PUBLISHED', AND: [visibleProductWhere], OR: [{ categories: { some: { slug: { in: goals } } } }, { tags: { some: { slug: { in: goals } } } }] },
       include: cardProductInclude,
       orderBy: { ratingCount: 'desc' },
       take: 6,

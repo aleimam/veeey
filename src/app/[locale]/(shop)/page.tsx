@@ -2,7 +2,7 @@ import { setRequestLocale } from 'next-intl/server';
 import { prisma } from '@/lib/prisma';
 import { getFeaturedCollectionId } from '@/lib/home-content-service';
 import { resolveCollectionProducts } from '@/lib/content-service';
-import { toCardProduct, cardProductInclude } from '@/lib/storefront';
+import { toCardProduct, cardProductInclude, visibleProductWhere } from '@/lib/storefront';
 import { ChewyHome } from '@/components/storefront/chewy/chewy-home';
 
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
@@ -16,9 +16,9 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     const featuredIds = featuredId ? (await resolveCollectionProducts(featuredId)).slice(0, 8).map((p) => p.id) : [];
     const dbProducts =
       featuredId && featuredIds.length
-        ? await prisma.product.findMany({ where: { id: { in: featuredIds }, status: 'PUBLISHED' }, include: cardProductInclude })
+        ? await prisma.product.findMany({ where: { id: { in: featuredIds }, status: 'PUBLISHED', AND: [visibleProductWhere] }, include: cardProductInclude })
         : await prisma.product.findMany({
-            where: { status: 'PUBLISHED' },
+            where: { status: 'PUBLISHED', AND: [visibleProductWhere] },
             include: cardProductInclude,
             orderBy: [{ ratingCount: 'desc' }, { updatedAt: 'desc' }],
             take: 8,
@@ -26,7 +26,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     bestsellers = dbProducts.map((p) => toCardProduct(p, locale));
 
     const dealProducts = await prisma.product.findMany({
-      where: { status: 'PUBLISHED', lots: { some: { saleFlag: true } } },
+      where: { status: 'PUBLISHED', lots: { some: { saleFlag: true } }, AND: [visibleProductWhere] },
       include: cardProductInclude,
       orderBy: [{ updatedAt: 'desc' }],
       take: 6,

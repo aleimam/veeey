@@ -1,5 +1,6 @@
 import { mcpEnabled, verifyMcp } from '@/lib/mcp-auth';
 import { prisma } from '@/lib/prisma';
+import { visibleProductWhere } from '@/lib/storefront';
 
 /** AI-MCP read endpoint (FR-MCP-01): HMAC-gated catalog + live stock summary. */
 export async function GET(req: Request) {
@@ -7,7 +8,7 @@ export async function GET(req: Request) {
   if (!verifyMcp(req.headers, '')) return Response.json({ error: 'unauthorized' }, { status: 401 });
 
   const products = await prisma.product.findMany({
-    where: { status: 'PUBLISHED' },
+    where: { status: 'PUBLISHED', AND: [visibleProductWhere] },
     select: { sku: true, nameEn: true, basePricePiastres: true, ratingAvg: true, ratingCount: true, lots: { where: { status: 'LIVE' }, select: { qtyOnHand: true } } },
     take: 500,
   });

@@ -41,6 +41,7 @@ export default async function ProductEditPage({
         slugAr: product.slugAr ?? '',
         kind: product.kind,
         status: product.status,
+        preorderEnabled: product.preorderEnabled,
         brandId: product.brandId,
         productType: product.productType,
         basePriceEgp: piastresToEgp(product.basePricePiastres),

@@ -43,7 +43,7 @@ export default async function GoLivePage({ params, searchParams }: { params: Pro
   return (
     <div className="p-4 sm:p-6">
       <h1 className="mb-1 font-heading text-xl font-semibold text-foreground">{tb('Catalog go-live', 'إطلاق الكتالوج')}</h1>
-      <p className="mb-4 max-w-3xl text-sm text-muted-foreground">{tb('Get imported products sale-ready: load stock, then publish. A product is ready when it has stock, a price, and at least one image. Publishing only flips ready products.', 'جهّز المنتجات المستوردة للبيع: أضف المخزون ثم انشر. المنتج جاهز عندما يكون لديه مخزون وسعر وصورة واحدة على الأقل. النشر يفعّل المنتجات الجاهزة فقط.')}</p>
+      <p className="mb-4 max-w-3xl text-sm text-muted-foreground">{tb('Get imported products sale-ready. A product is ready to publish once it has a price and at least one image — publishing only flips ready products. Stock is optional: a published product with no stock stays hidden from the storefront until you add stock or turn on its pre-order switch.', 'جهّز المنتجات المستوردة للبيع. يصبح المنتج جاهزًا للنشر بمجرد أن يكون لديه سعر وصورة واحدة على الأقل — والنشر يفعّل المنتجات الجاهزة فقط. المخزون اختياري: المنتج المنشور بدون مخزون يظل مخفيًا في المتجر حتى تضيف مخزونًا أو تفعّل خيار الطلب المسبق.')}</p>
 
       {published != null && <div className="mb-4 rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary">{tb(`Published ${published} product(s).`, `تم نشر ${published} منتج.`)}</div>}
       {one(sp.added) && <div className="mb-4 rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary">{tb('Stock added.', 'تمت إضافة المخزون.')}</div>}

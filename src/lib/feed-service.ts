@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { visibleProductWhere } from '@/lib/storefront';
 import type { FeedProduct } from '@/lib/feed-xml';
 
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://veeey.com';
@@ -7,7 +8,7 @@ export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://veeey.com';
  *  live lot stock; price from base price (per-tier feed pricing is future work). */
 export async function feedProducts(locale = 'en'): Promise<FeedProduct[]> {
   const products = await prisma.product.findMany({
-    where: { status: 'PUBLISHED' },
+    where: { status: 'PUBLISHED', AND: [visibleProductWhere] },
     include: {
       brand: { select: { nameEn: true } },
       images: { take: 1, orderBy: { sortOrder: 'asc' } },

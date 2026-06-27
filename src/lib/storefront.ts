@@ -26,6 +26,17 @@ export const cardProductInclude = {
   lots: { where: { status: 'LIVE' }, orderBy: { expiryDate: 'asc' } },
 } as const;
 
+/** A product has sellable live stock. */
+export const inStockWhere = { lots: { some: { status: 'LIVE' as const, qtyOnHand: { gt: 0 } } } };
+/**
+ * Storefront visibility (FR-CAT). On top of `status: 'PUBLISHED'`, the customer
+ * only sees products that are in stock OR flagged pre-order — out-of-stock,
+ * non-preorder products stay published (admin/SEO/direct link) but are hidden
+ * from listings/search/home/feed. Merge as `AND: [visibleProductWhere]` so it
+ * composes with any existing OR in the query.
+ */
+export const visibleProductWhere = { OR: [inStockWhere, { preorderEnabled: true }] };
+
 function monthYear(d: Date): string {
   return `${String(d.getUTCMonth() + 1).padStart(2, '0')}/${d.getUTCFullYear()}`;
 }

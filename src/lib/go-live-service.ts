@@ -9,9 +9,12 @@ export { parseExpiryCell } from '@/lib/go-live-parse';
 /**
  * Catalog go-live (post-migration). Imported products land PRIVATE with zero
  * stock (WooCommerce's API never carried lots/expiry). This module gets them
- * sale-ready: a readiness view (in-stock + priced + has image), a bulk stock
- * importer (creates LIVE lots), and a guarded "publish ready" that only flips
- * products that pass every check. SKU is the canonical key.
+ * sale-ready: a readiness view (priced + has image), a bulk stock importer
+ * (creates LIVE lots), and a guarded "publish ready" that flips every priced +
+ * imaged product. Stock is NOT a publish gate — storefront visibility hides an
+ * out-of-stock product unless it is in stock or flagged pre-order
+ * (`visibleProductWhere`). `missingStock` stays as an informational count.
+ * SKU is the canonical key.
  */
 
 const PRELIVE = ['PRIVATE', 'DRAFT'] as const;
@@ -24,7 +27,7 @@ export async function goLiveCounts(): Promise<GoLiveCounts> {
   const [preLive, published, ready, missingStock, missingPrice, missingImage] = await Promise.all([
     prisma.product.count({ where: pre }),
     prisma.product.count({ where: { status: 'PUBLISHED' } }),
-    prisma.product.count({ where: { ...pre, basePricePiastres: { gt: 0 }, images: { some: {} }, lots: { some: inStockLot } } }),
+    prisma.product.count({ where: { ...pre, basePricePiastres: { gt: 0 }, images: { some: {} } } }),
     prisma.product.count({ where: { ...pre, lots: { none: inStockLot } } }),
     prisma.product.count({ where: { ...pre, basePricePiastres: { lte: 0 } } }),
     prisma.product.count({ where: { ...pre, images: { none: {} } } }),
@@ -58,7 +61,7 @@ export async function listGoLiveProducts(opts: { q?: string; only?: string; skip
   });
   return rows.map((p) => {
     const inStock = p.lots.length > 0;
-    const ready = inStock && p.basePricePiastres > 0n && p._count.images > 0;
+    const ready = p.basePricePiastres > 0n && p._count.images > 0;
     return { id: p.id, sku: p.sku, nameEn: p.nameEn, nameAr: p.nameAr, status: p.status, pricePiastres: p.basePricePiastres, images: p._count.images, inStock, ready };
   });
 }
@@ -203,15 +206,16 @@ export async function quickAddStock(input: { productId: string; qty: number; exp
   await audit({ actorType: 'USER', actorId: user.id, action: 'go-live.stock.add', entityType: 'Product', entityId: input.productId, data: { qty: input.qty } });
 }
 
-// ---- Publish (guarded: only fully-ready products) --------------------------
-/** Publish ready (in-stock + priced + imaged) products. If ids given, restrict to them. Returns counts. */
+// ---- Publish (guarded: only priced + imaged products) ----------------------
+/** Publish ready (priced + imaged) products. Stock is not required — an
+ *  out-of-stock published product simply stays hidden from the storefront until
+ *  it has stock or is flagged pre-order. If ids given, restrict to them. */
 export async function publishReady(ids?: string[]): Promise<{ published: number; skipped: number }> {
   const user = await requirePermission('catalog.write');
   const readyWhere = {
     status: { in: [...PRELIVE] },
     basePricePiastres: { gt: 0 },
     images: { some: {} },
-    lots: { some: inStockLot },
     ...(ids && ids.length ? { id: { in: ids } } : {}),
   };
   const ready = await prisma.product.findMany({ where: readyWhere, select: { id: true } });

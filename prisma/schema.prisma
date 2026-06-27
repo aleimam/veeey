@@ -676,6 +676,7 @@ model Product {
   weightG           Int?
   basePricePiastres BigInt            @default(0)
   status            ProductStatus     @default(PUBLISHED)
+  preorderEnabled   Boolean           @default(false) // shown on storefront even when out of stock (pre-order / special order)
   productType       OrderProductType? // merchandising tag (FR-ORD-05 list reused)
 
   // Health duration calculator inputs (FR-HEALTH-01 / FR-REPL-01)

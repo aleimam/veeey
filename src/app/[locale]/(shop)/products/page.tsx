@@ -1,7 +1,7 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { pick } from '@/lib/admin-i18n';
 import { prisma } from '@/lib/prisma';
-import { toCardProduct, cardProductInclude } from '@/lib/storefront';
+import { toCardProduct, cardProductInclude, visibleProductWhere } from '@/lib/storefront';
 import { ChewyProductCard } from '@/components/storefront/chewy/chewy-product-card';
 import { Select } from '@/components/storefront/ui/select';
 import { Checkbox } from '@/components/storefront/ui/checkbox';
@@ -32,6 +32,7 @@ export default async function ProductsPage({
 
   const where = {
     status: 'PUBLISHED' as const,
+    AND: [visibleProductWhere],
     ...(q ? { nameEn: { contains: q, mode: 'insensitive' as const } } : {}),
     ...(brand ? { brandId: brand } : {}),
     ...(kind ? { kind: kind as 'SUPPLEMENT' | 'DEVICE' | 'INJECTION' } : {}),

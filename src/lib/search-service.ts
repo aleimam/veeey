@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { cardProductInclude } from '@/lib/storefront';
+import { cardProductInclude, visibleProductWhere } from '@/lib/storefront';
 
 /**
  * Product search (FR-SCH-01/02). The production driver is a dedicated engine
@@ -15,6 +15,7 @@ export async function searchProducts(query: string) {
   const products = await prisma.product.findMany({
     where: {
       status: 'PUBLISHED',
+      AND: [visibleProductWhere],
       OR: [
         { nameEn: { contains: q, mode: 'insensitive' } },
         { nameAr: { contains: q } },

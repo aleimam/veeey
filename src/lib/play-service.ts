@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-guards';
 import { recommendFromAnswers } from '@/lib/guided-selling';
-import { cardProductInclude, toCardProduct } from '@/lib/storefront';
+import { cardProductInclude, toCardProduct, visibleProductWhere } from '@/lib/storefront';
 
 /** Play section (FR-PLAY-*) + guided-selling (FR-QUIZ-01). */
 
@@ -23,6 +23,7 @@ export async function guidedSellingRecommend(answers: Record<string, string>, lo
   const products = await prisma.product.findMany({
     where: {
       status: 'PUBLISHED',
+      AND: [visibleProductWhere],
       OR: [{ categories: { some: { slug: { in: goals } } } }, { tags: { some: { slug: { in: goals } } } }],
     },
     include: cardProductInclude,

@@ -3,7 +3,7 @@ import Image from 'next/image';
 import { setRequestLocale } from 'next-intl/server';
 import { pick } from '@/lib/admin-i18n';
 import { prisma } from '@/lib/prisma';
-import { toCardProduct, cardProductInclude, type DbCardProduct } from '@/lib/storefront';
+import { toCardProduct, cardProductInclude, visibleProductWhere, type DbCardProduct } from '@/lib/storefront';
 import { formatEGP } from '@/lib/format';
 import { Icon } from '@/components/storefront/ui/icon';
 import { ChewyProductCard } from '@/components/storefront/chewy/chewy-product-card';
@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
 async function popularProducts(locale: string, take: number) {
   try {
     const rows = (await prisma.product.findMany({
-      where: { status: 'PUBLISHED' },
+      where: { status: 'PUBLISHED', AND: [visibleProductWhere] },
       include: cardProductInclude,
       orderBy: [{ ratingCount: 'desc' }, { updatedAt: 'desc' }],
       take,

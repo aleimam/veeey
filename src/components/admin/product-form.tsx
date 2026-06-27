@@ -23,6 +23,7 @@ export type ProductDefaults = {
   slugAr?: string;
   kind?: string;
   status?: string;
+  preorderEnabled?: boolean;
   brandId?: string | null;
   productType?: string | null;
   basePriceEgp?: number;
@@ -155,6 +156,12 @@ export function ProductForm({
             <option value="DRAFT">{tb('Draft', 'مسودة')}</option>
             <option value="ARCHIVED">{tb('Archived', 'مؤرشف')}</option>
           </select>
+        </Field>
+        <Field label={tb('Pre-order', 'الطلب المسبق')} hint={tb('Show in the storefront even when out of stock.', 'إظهاره في المتجر حتى عند نفاد المخزون.')}>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="preorderEnabled" defaultChecked={d.preorderEnabled} className="size-4" />
+            {tb('Allow pre-order', 'السماح بالطلب المسبق')}
+          </label>
         </Field>
         <Field label={tb('Base price (EGP)', 'السعر الأساسي (ج.م)')}><input name="basePriceEgp" type="number" step="0.01" min="0" defaultValue={d.basePriceEgp ?? 0} className={inputCls} /></Field>
         <Field label={tb('Weight (g)', 'الوزن (جم)')}><input name="weightG" type="number" min="0" defaultValue={d.weightG ?? ''} className={inputCls} /></Field>

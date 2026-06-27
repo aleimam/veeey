@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
-import { cardProductInclude, toCardProduct } from '@/lib/storefront';
+import { cardProductInclude, toCardProduct, visibleProductWhere } from '@/lib/storefront';
 import type { Product as CardProduct } from '@/components/storefront/product-card';
 
 /** Rule-based recommenders (FR-PERS-*). Driven by recently-viewed (cookie) and
@@ -19,7 +19,7 @@ export async function readRecentlyViewedIds(): Promise<string[]> {
 
 async function loadCards(ids: string[], locale: string): Promise<CardProduct[]> {
   if (ids.length === 0) return [];
-  const products = await prisma.product.findMany({ where: { id: { in: ids }, status: 'PUBLISHED' }, include: cardProductInclude });
+  const products = await prisma.product.findMany({ where: { id: { in: ids }, status: 'PUBLISHED', AND: [visibleProductWhere] }, include: cardProductInclude });
   const byId = new Map(products.map((p) => [p.id, p]));
   return ids.map((id) => byId.get(id)).filter((p): p is NonNullable<typeof p> => !!p).map((p) => toCardProduct(p, locale));
 }
@@ -36,7 +36,7 @@ export async function buyAgain(customerId: string, locale: string, limit = 4): P
 }
 
 async function popularIds(limit: number): Promise<string[]> {
-  const pop = await prisma.product.findMany({ where: { status: 'PUBLISHED' }, orderBy: [{ ratingCount: 'desc' }, { updatedAt: 'desc' }], take: limit, select: { id: true } });
+  const pop = await prisma.product.findMany({ where: { status: 'PUBLISHED', AND: [visibleProductWhere] }, orderBy: [{ ratingCount: 'desc' }, { updatedAt: 'desc' }], take: limit, select: { id: true } });
   return pop.map((p) => p.id);
 }
 
@@ -60,7 +60,7 @@ export async function recommendedForYou(locale: string, limit = 4): Promise<Card
     const cats = await prisma.product.findMany({ where: { id: { in: recent } }, select: { categories: { select: { id: true } } } });
     const catIds = [...new Set(cats.flatMap((c) => c.categories.map((x) => x.id)))];
     if (catIds.length) {
-      const inCat = await prisma.product.findMany({ where: { status: 'PUBLISHED', id: { notIn: recent }, categories: { some: { id: { in: catIds } } } }, orderBy: { ratingCount: 'desc' }, take: limit, select: { id: true } });
+      const inCat = await prisma.product.findMany({ where: { status: 'PUBLISHED', id: { notIn: recent }, categories: { some: { id: { in: catIds } } }, AND: [visibleProductWhere] }, orderBy: { ratingCount: 'desc' }, take: limit, select: { id: true } });
       ids = inCat.map((p) => p.id);
     }
   }

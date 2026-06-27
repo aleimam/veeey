@@ -79,6 +79,7 @@ export async function saveProductAction(_p: AdminFormState, fd: FormData): Promi
     slugAr: str(fd, 'slugAr'),
     kind: (str(fd, 'kind') ?? 'SUPPLEMENT') as 'SUPPLEMENT' | 'DEVICE' | 'INJECTION',
     status: (str(fd, 'status') ?? 'PUBLISHED') as 'DRAFT' | 'PUBLISHED' | 'PRIVATE' | 'ARCHIVED',
+    preorderEnabled: bool(fd, 'preorderEnabled'),
     brandId: str(fd, 'brandId') ?? null,
     basePriceEgp: str(fd, 'basePriceEgp') ?? '0',
     shortDescEn: str(fd, 'shortDescEn'),
