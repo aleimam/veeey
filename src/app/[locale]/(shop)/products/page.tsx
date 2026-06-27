@@ -7,6 +7,7 @@ import { Select } from '@/components/storefront/ui/select';
 import { Checkbox } from '@/components/storefront/ui/checkbox';
 import { Icon } from '@/components/storefront/ui/icon';
 import { Link } from '@/i18n/navigation';
+import { AdminEditLink } from '@/components/storefront/admin-edit-link';
 
 type SP = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
@@ -68,6 +69,7 @@ export default async function ProductsPage({
       </div>
 
       <div className="mb-5">
+        {brand && <div className="mb-2"><AdminEditLink href={`/admin/brands/edit/${brand}`} locale={locale} /></div>}
         <h1 className="text-[clamp(28px,3.4vw,38px)] font-bold text-green-dark">{heading}</h1>
         <div className="mt-1 text-sm text-[color:var(--text-muted)]">
           {tb(`${products.length} products · genuine imports, every lot dated`, `${products.length} منتجًا · واردات أصلية، وكل تشغيلة مؤرّخة`)}
