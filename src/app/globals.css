@@ -336,3 +336,29 @@ html[lang='ar'] .veeey-shop :is(h1, h2) {
 html[lang='ar'] .veeey-shop .font-heading {
   font-family: var(--font-arabic-display);
 }
+
+/* Rendered product rich text (sanitized HTML descriptions from migration / admin). */
+.veeey-rich h1,
+.veeey-rich h2,
+.veeey-rich h3,
+.veeey-rich h4 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--green-dark);
+  margin: 1.25em 0 0.5em;
+  line-height: 1.25;
+}
+.veeey-rich h1 { font-size: 1.5rem; }
+.veeey-rich h2 { font-size: 1.3rem; }
+.veeey-rich h3 { font-size: 1.1rem; }
+.veeey-rich p { margin: 0 0 0.85em; }
+.veeey-rich ul,
+.veeey-rich ol { margin: 0 0 0.85em; padding-inline-start: 1.4em; }
+.veeey-rich ul { list-style: disc; }
+.veeey-rich ol { list-style: decimal; }
+.veeey-rich li { margin: 0.25em 0; }
+.veeey-rich a { color: var(--green-dark); text-decoration: underline; }
+.veeey-rich img { max-width: 100%; height: auto; border-radius: 8px; margin: 0.5em 0; }
+.veeey-rich strong, .veeey-rich b { font-weight: 700; }
+.veeey-rich table { width: 100%; border-collapse: collapse; margin: 0.85em 0; }
+.veeey-rich th, .veeey-rich td { border: 1px solid var(--slate-border); padding: 0.5em 0.75em; text-align: start; }

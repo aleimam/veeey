@@ -28,6 +28,8 @@ export const SETTINGS: SettingDef[] = [
   { key: 'referral.codeLength', label: 'Referral code random length', group: 'Referrals', type: 'number', default: '8', hint: 'Number of random characters after the prefix (4–16).' },
   // Payments
   { key: 'payments.cardGateway', label: 'Card gateway', group: 'Payments', type: 'text', default: 'auto', hint: 'auto | kashier | opay — which gateway handles Visa/MasterCard (auto prefers Kashier). Configure keys in Providers.' },
+  // Storefront
+  { key: 'refill.enabled', label: 'Show "Subscribe with Refill" on products', group: 'Storefront', type: 'text', default: 'false', hint: 'true / false. Real recurring subscriptions are not built yet — keep "false" to hide the per-product subscribe option.' },
   // Store contact (shown in the footer / contact block)
   { key: 'store.contactEmail', label: 'Contact email', group: 'Store', type: 'text', default: 'info@veeey.com' },
   { key: 'store.phone', label: 'Phone number', group: 'Store', type: 'text', default: '', hint: 'Shown in the footer; tap-to-call on mobile.' },

@@ -4,9 +4,15 @@ import createNextIntlPlugin from 'next-intl/plugin';
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 const nextConfig: NextConfig = {
-  // Product images are re-hosted on our CDN at migration; add hostnames here then.
+  // Imported product images are still served from Egypt Vitamins' BunnyCDN until
+  // they're re-hosted on Veeey storage (follow-up). Allowlist those hosts so
+  // next/image can load them.
   images: {
-    remotePatterns: [],
+    remotePatterns: [
+      { protocol: 'https', hostname: 'egyptvitamin.b-cdn.net' },
+      { protocol: 'https', hostname: 'egyptvitamins.com' },
+      { protocol: 'https', hostname: '*.egyptvitamins.com' },
+    ],
   },
   async headers() {
     return [

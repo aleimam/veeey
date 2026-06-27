@@ -5,6 +5,8 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { pick } from '@/lib/admin-i18n';
 import { prisma } from '@/lib/prisma';
 import { piastresToEgp } from '@/lib/format';
+import { sanitizeRichHtml, hasRichContent } from '@/lib/rich-text';
+import { getSetting } from '@/lib/settings-service';
 import { ChewyBuyBox } from '@/components/storefront/chewy/chewy-buy-box';
 import type { BuyLot } from '@/components/storefront/buy-box';
 import { TrackView } from '@/components/analytics/track-view';
@@ -53,7 +55,9 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
   const tb = pick(locale);
   const name = (locale === 'ar' ? p.nameAr : p.nameEn) ?? p.nameEn;
   const brandName = (locale === 'ar' ? p.brand?.nameAr : p.brand?.nameEn) ?? p.brand?.nameEn ?? undefined;
-  const longDesc = (locale === 'ar' ? p.longDescAr : p.longDescEn) ?? p.longDescEn ?? p.shortDescEn;
+  const longHtml = sanitizeRichHtml((locale === 'ar' ? p.longDescAr : p.longDescEn) ?? p.longDescEn);
+  const shortHtml = sanitizeRichHtml((locale === 'ar' ? p.shortDescAr : p.shortDescEn) ?? p.shortDescEn);
+  const refillEnabled = (await getSetting('refill.enabled')) === 'true'; // visual subscribe upsell off until real Refill ships
   const images = p.images.length ? p.images : [{ id: 'ph', url: '/placeholder.svg', alt: name }];
 
   const buyLots: BuyLot[] = p.lots.map((l) => ({
@@ -125,7 +129,7 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
         </div>
 
         <div className="lg:sticky lg:top-[130px]">
-          <ChewyBuyBox brand={brandName} name={name} rating={p.ratingAvg ?? 0} reviews={p.ratingCount} basePricePiastres={basePrice} lots={buyLots} productId={p.id} points={points} locale={locale} />
+          <ChewyBuyBox brand={brandName} name={name} rating={p.ratingAvg ?? 0} reviews={p.ratingCount} basePricePiastres={basePrice} lots={buyLots} productId={p.id} points={points} locale={locale} refillEnabled={refillEnabled} />
           <div className="mt-4 flex gap-5 text-sm">
             <form action={toggleWishlistAction}>
               <input type="hidden" name="locale" value={locale} />
@@ -144,10 +148,15 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
       </div>
 
       <div className="mt-12 max-w-3xl space-y-10">
-        {longDesc && (
+        {hasRichContent(shortHtml) && (
+          <section>
+            <div className="veeey-rich text-[17px] font-medium leading-relaxed text-ink" dangerouslySetInnerHTML={{ __html: shortHtml }} />
+          </section>
+        )}
+        {hasRichContent(longHtml) && (
           <section>
             <h2 className="mb-3 text-xl font-bold text-green-dark">{t('about')}</h2>
-            <p className="whitespace-pre-line leading-relaxed text-[color:var(--text-body)]">{longDesc}</p>
+            <div className="veeey-rich leading-relaxed text-[color:var(--text-body)]" dangerouslySetInnerHTML={{ __html: longHtml }} />
           </section>
         )}
 

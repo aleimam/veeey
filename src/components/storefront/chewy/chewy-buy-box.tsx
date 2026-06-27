@@ -24,6 +24,7 @@ export function ChewyBuyBox({
   productId,
   points,
   locale = 'en',
+  refillEnabled = false,
 }: {
   brand?: string;
   name: string;
@@ -34,6 +35,7 @@ export function ChewyBuyBox({
   productId: string;
   points: number;
   locale?: string;
+  refillEnabled?: boolean;
 }) {
   const t = pick(locale);
   const [selected, setSelected] = useState(0);
@@ -90,6 +92,7 @@ export function ChewyBuyBox({
         </div>
       )}
 
+      {refillEnabled && (
       <div className="flex flex-col gap-2.5">
         {(
           [
@@ -120,6 +123,7 @@ export function ChewyBuyBox({
           );
         })}
       </div>
+      )}
 
       <div className="flex items-center gap-2.5 rounded-[12px] bg-green-wash px-3.5 py-3">
         <TierBadge tier="select" />
