@@ -132,6 +132,35 @@ export async function deletePost(id: string) {
   return prisma.blogPost.delete({ where: { id } });
 }
 
+// ---- Generic bulk archive/restore/delete --------------------------------------
+type ArchiveFn = (id: string, archived: boolean) => Promise<unknown>;
+type DeleteFn = (id: string) => Promise<unknown>;
+
+const BULK_ARCHIVERS: Record<string, ArchiveFn> = {
+  brand: archiveBrand, category: archiveCategory, tag: archiveTag, attribute: archiveAttribute,
+  coupon: archiveCoupon, gift: archiveGift, collection: archiveCollection, page: archivePage, post: archivePost,
+};
+const BULK_DELETERS: Record<string, DeleteFn> = {
+  brand: deleteBrand, category: deleteCategory, tag: deleteTag, attribute: deleteAttribute,
+  coupon: deleteCoupon, gift: deleteGift, collection: deleteCollection, page: deletePage, post: deletePost,
+};
+
+/** Apply archive / restore / delete to many ids. Each underlying fn does its own
+ *  RBAC + audit; in-use deletes throw and are counted as skipped (not fatal). */
+export async function bulkSoftDelete(entity: string, op: 'archive' | 'restore' | 'delete', ids: string[]): Promise<{ affected: number; skipped: number }> {
+  let affected = 0, skipped = 0;
+  if (op === 'delete') {
+    const fn = BULK_DELETERS[entity];
+    if (!fn) throw new Error('BAD_ENTITY');
+    for (const id of ids) { try { await fn(id); affected++; } catch { skipped++; } }
+  } else {
+    const fn = BULK_ARCHIVERS[entity];
+    if (!fn) throw new Error('BAD_ENTITY');
+    for (const id of ids) { try { await fn(id, op === 'archive'); affected++; } catch { skipped++; } }
+  }
+  return { affected, skipped };
+}
+
 // ---- Products (status enum; archive lives in catalog-service.setProductStatus) ----
 export async function deleteProduct(id: string) {
   const [items, lots] = await Promise.all([

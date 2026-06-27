@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { bulkProducts, bulkOrders, bulkCustomers, type BulkResult } from '@/lib/admin-bulk-service';
+import { bulkSoftDelete } from '@/lib/soft-delete-service';
 
 const localeOf = (fd: FormData) => (fd.get('locale') === 'ar' ? 'ar' : 'en');
 const str = (fd: FormData, k: string) => {
@@ -54,6 +55,28 @@ export async function bulkOrdersAction(fd: FormData): Promise<void> {
   }
   if (!r) return;
   revalidatePath(`/${locale}/admin/orders`);
+  finish(target, r);
+}
+
+/** Generic archive/restore/delete for AdminList entities (brand, category, tag,
+ *  attribute, coupon, gift, collection, page, post). `entity` + `path` come from
+ *  hidden fields; the op-select supplies archive|restore|delete. */
+export async function bulkSoftDeleteAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const entity = str(fd, 'entity');
+  const path = str(fd, 'path') || `${entity}s`;
+  const op = str(fd, 'op');
+  const target = backTo(fd, locale, path);
+  let r: BulkResult | null = null;
+  try {
+    r = await bulkSoftDelete(entity, op as 'archive' | 'restore' | 'delete', idsOf(fd));
+  } catch (e) {
+    console.error('bulk soft-delete failed', e);
+    revalidatePath(`/${locale}/admin/${path}`);
+    fail(target);
+  }
+  if (!r) return;
+  revalidatePath(`/${locale}/admin/${path}`);
   finish(target, r);
 }
 

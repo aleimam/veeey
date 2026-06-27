@@ -1,10 +1,21 @@
 import { z } from 'zod';
+import type { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
 import { uniqueSlug } from '@/lib/slug';
 
 /** Taxonomy CRUD (FR-CAT-01/08). RBAC-gated + audited. */
+
+// Shared admin-list options. `archived` undefined = no filter (used by pickers);
+// with `page` set the list paginates. Array return shape is kept for callers
+// that use these for dropdown options.
+export type TaxoListOpts = { q?: string; archived?: boolean; sort?: string; dir?: 'asc' | 'desc'; page?: number; perPage?: number };
+const archivedWhere = (archived?: boolean) => (archived === undefined ? {} : archived ? { archivedAt: { not: null } } : { archivedAt: null });
+const paging = (o: TaxoListOpts) => ({
+  skip: o.page != null ? (Math.max(1, o.page) - 1) * (o.perPage ?? 50) : 0,
+  take: o.page != null ? (o.perPage ?? 50) : 100000, // not paged → effectively all (pickers)
+});
 
 const bilingual = {
   nameEn: z.string().trim().min(1),
@@ -24,11 +35,13 @@ const brandSchema = z.object({
 });
 export type BrandInput = z.input<typeof brandSchema>;
 
-export const listBrands = ({ q }: { q?: string } = {}) =>
-  prisma.brand.findMany({
-    where: q ? { nameEn: { contains: q, mode: 'insensitive' } } : undefined,
-    orderBy: { nameEn: 'asc' },
-  });
+const brandWhere = (o: TaxoListOpts): Prisma.BrandWhereInput => ({
+  ...(o.q ? { nameEn: { contains: o.q, mode: 'insensitive' } } : {}),
+  ...archivedWhere(o.archived),
+});
+export const listBrands = (o: TaxoListOpts = {}) =>
+  prisma.brand.findMany({ where: brandWhere(o), orderBy: o.sort === 'slug' ? { slug: o.dir ?? 'asc' } : { nameEn: o.dir ?? 'asc' }, ...paging(o) });
+export const countBrands = (o: TaxoListOpts = {}) => prisma.brand.count({ where: brandWhere(o) });
 export const getBrand = (id: string) => prisma.brand.findUnique({ where: { id } });
 
 export async function saveBrand(id: string | null, raw: BrandInput) {
@@ -62,12 +75,13 @@ const categorySchema = z.object({
 });
 export type CategoryInput = z.input<typeof categorySchema>;
 
-export const listCategories = ({ q }: { q?: string } = {}) =>
-  prisma.category.findMany({
-    where: q ? { nameEn: { contains: q, mode: 'insensitive' } } : undefined,
-    include: { parent: true },
-    orderBy: { nameEn: 'asc' },
-  });
+const categoryWhere = (o: TaxoListOpts): Prisma.CategoryWhereInput => ({
+  ...(o.q ? { nameEn: { contains: o.q, mode: 'insensitive' } } : {}),
+  ...archivedWhere(o.archived),
+});
+export const listCategories = (o: TaxoListOpts = {}) =>
+  prisma.category.findMany({ where: categoryWhere(o), include: { parent: true }, orderBy: o.sort === 'slug' ? { slug: o.dir ?? 'asc' } : { nameEn: o.dir ?? 'asc' }, ...paging(o) });
+export const countCategories = (o: TaxoListOpts = {}) => prisma.category.count({ where: categoryWhere(o) });
 export const getCategory = (id: string) => prisma.category.findUnique({ where: { id } });
 
 export async function saveCategory(id: string | null, raw: CategoryInput) {
@@ -93,7 +107,13 @@ export async function saveCategory(id: string | null, raw: CategoryInput) {
 const tagSchema = z.object({ ...bilingual, slug: z.string().trim().optional() });
 export type TagInput = z.input<typeof tagSchema>;
 
-export const listTags = () => prisma.tag.findMany({ orderBy: { nameEn: 'asc' } });
+const tagWhere = (o: TaxoListOpts): Prisma.TagWhereInput => ({
+  ...(o.q ? { nameEn: { contains: o.q, mode: 'insensitive' } } : {}),
+  ...archivedWhere(o.archived),
+});
+export const listTags = (o: TaxoListOpts = {}) =>
+  prisma.tag.findMany({ where: tagWhere(o), orderBy: o.sort === 'slug' ? { slug: o.dir ?? 'asc' } : { nameEn: o.dir ?? 'asc' }, ...paging(o) });
+export const countTags = (o: TaxoListOpts = {}) => prisma.tag.count({ where: tagWhere(o) });
 export const getTag = (id: string) => prisma.tag.findUnique({ where: { id } });
 
 export async function saveTag(id: string | null, raw: TagInput) {

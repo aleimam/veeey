@@ -36,6 +36,7 @@ export function BulkBar({
   back,
   ops,
   exportHref,
+  hidden,
   labels,
 }: {
   formId: string;
@@ -44,6 +45,7 @@ export function BulkBar({
   back: string;
   ops: BulkOp[];
   exportHref?: string;
+  hidden?: Record<string, string>;
   labels: { selectAllPage: string; selected: string; apply: string; exportSel: string; confirmDanger: string; needValue: string };
 }) {
   const formRef = useRef<HTMLFormElement>(null);
@@ -100,6 +102,7 @@ export function BulkBar({
     <form id={formId} ref={formRef} action={action} onSubmit={onSubmit} className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-2">
       <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="back" value={back} />
+      {hidden && Object.entries(hidden).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
       <label className="flex items-center gap-1.5 px-1 text-sm">
         <input type="checkbox" checked={allChecked} onChange={(e) => toggleAll(e.target.checked)} className="size-4" />
         {labels.selectAllPage}
