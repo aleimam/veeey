@@ -130,7 +130,13 @@ export async function syncProducts(opts: { maxPages?: number; perPage?: number; 
     try {
       res = await wooFetch('products', { per_page: perPage, orderby: 'id', order: 'asc', _fields: PRODUCT_FIELDS, page }, FETCH_MS);
     } catch (e) {
-      pushErr(s, `page ${page}`, e instanceof Error ? e.message.slice(0, 140) : 'fetch failed');
+      const msg = e instanceof Error ? e.message : 'fetch failed';
+      pushErr(s, `page ${page}`, msg.slice(0, 140));
+      // A 400 means the page is past the last page (WooCommerce rejects out-of-range
+      // pages instead of returning []) → we've reached the end, so reset the cursor
+      // (caught up). Other errors (timeout/5xx) are transient — keep the cursor so
+      // the next run resumes exactly here rather than falsely marking it complete.
+      if (msg.includes('WOO_HTTP_400')) lastCompleted = null;
       break;
     }
     const totalPages = res.totalPages;
@@ -223,7 +229,13 @@ export async function syncCustomers(opts: { maxPages?: number; perPage?: number;
     try {
       res = await wooFetch('customers', { per_page: perPage, orderby: 'id', order: 'asc', _fields: CUSTOMER_FIELDS, page }, FETCH_MS);
     } catch (e) {
-      pushErr(s, `page ${page}`, e instanceof Error ? e.message.slice(0, 140) : 'fetch failed');
+      const msg = e instanceof Error ? e.message : 'fetch failed';
+      pushErr(s, `page ${page}`, msg.slice(0, 140));
+      // A 400 means the page is past the last page (WooCommerce rejects out-of-range
+      // pages instead of returning []) → we've reached the end, so reset the cursor
+      // (caught up). Other errors (timeout/5xx) are transient — keep the cursor so
+      // the next run resumes exactly here rather than falsely marking it complete.
+      if (msg.includes('WOO_HTTP_400')) lastCompleted = null;
       break;
     }
     const totalPages = res.totalPages;
@@ -307,7 +319,13 @@ export async function syncOrders(opts: { maxPages?: number; perPage?: number; bu
     try {
       res = await wooFetch('orders', { per_page: perPage, orderby: 'id', order: 'asc', _fields: ORDER_FIELDS, page }, FETCH_MS);
     } catch (e) {
-      pushErr(s, `page ${page}`, e instanceof Error ? e.message.slice(0, 140) : 'fetch failed');
+      const msg = e instanceof Error ? e.message : 'fetch failed';
+      pushErr(s, `page ${page}`, msg.slice(0, 140));
+      // A 400 means the page is past the last page (WooCommerce rejects out-of-range
+      // pages instead of returning []) → we've reached the end, so reset the cursor
+      // (caught up). Other errors (timeout/5xx) are transient — keep the cursor so
+      // the next run resumes exactly here rather than falsely marking it complete.
+      if (msg.includes('WOO_HTTP_400')) lastCompleted = null;
       break;
     }
     const totalPages = res.totalPages;
