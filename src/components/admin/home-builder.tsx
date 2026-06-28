@@ -240,6 +240,36 @@ function FieldEditor({ fields, props, setProp, tb }: { fields: FieldDesc[]; prop
   );
 }
 
+/** Per-block visual frame: background colour + extra spacing (stored in props._style). */
+function StyleEditor({ style, setStyle, tb }: { style: Record<string, unknown>; setStyle: (k: string, v: unknown) => void; tb: Tb }) {
+  const bg = typeof style.bg === 'string' ? style.bg : '';
+  const sel = (k: string) => (typeof style[k] === 'string' ? (style[k] as string) : '');
+  const spaceOpts = (
+    <>
+      <option value="">{tb('Default', 'افتراضي')}</option>
+      <option value="sm">{tb('Small', 'صغير')}</option>
+      <option value="md">{tb('Medium', 'متوسط')}</option>
+      <option value="lg">{tb('Large', 'كبير')}</option>
+    </>
+  );
+  return (
+    <div className="mb-4 rounded-md border border-border bg-surface/40 p-3">
+      <div className="mb-2 text-xs font-semibold uppercase text-muted-foreground">{tb('Section style', 'تنسيق القسم')}</div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="text-sm">
+          <Lbl>{tb('Background', 'الخلفية')}</Lbl>
+          <div className="flex items-center gap-2">
+            <input type="color" value={bg || '#ffffff'} onChange={(e) => setStyle('bg', e.target.value)} className="h-9 w-12 rounded border border-border" />
+            {bg && <button type="button" onClick={() => setStyle('bg', '')} className="text-xs text-destructive hover:underline">{tb('Clear', 'مسح')}</button>}
+          </div>
+        </div>
+        <label className="text-sm"><Lbl>{tb('Space above', 'مسافة فوق')}</Lbl><select value={sel('spaceTop')} onChange={(e) => setStyle('spaceTop', e.target.value)} className={inputCls}>{spaceOpts}</select></label>
+        <label className="text-sm"><Lbl>{tb('Space below', 'مسافة تحت')}</Lbl><select value={sel('spaceBottom')} onChange={(e) => setStyle('spaceBottom', e.target.value)} className={inputCls}>{spaceOpts}</select></label>
+      </div>
+    </div>
+  );
+}
+
 export function BlockBuilder({ initialBlocks, collections, saveLabel }: { initialBlocks: Block[]; collections: Coll[]; saveLabel?: string }) {
   const tb = pick(useLocale());
   const [blocks, setBlocks] = useState<Block[]>(initialBlocks);
@@ -310,6 +340,11 @@ export function BlockBuilder({ initialBlocks, collections, saveLabel }: { initia
               </div>
               {editing === b.id && (
                 <div className="border-t border-border p-4">
+                  <StyleEditor
+                    style={(b.props?._style ?? {}) as Record<string, unknown>}
+                    setStyle={(k, v) => setProp(b.id, '_style', { ...((b.props?._style ?? {}) as Record<string, unknown>), [k]: v })}
+                    tb={tb}
+                  />
                   {gadget
                     ? <GadgetEditor block={b} setProp={(k, v) => setProp(b.id, k, v)} collections={collections} tb={tb} />
                     : <FieldEditor fields={BUILTIN_FIELDS[b.type as BuiltinType]} props={(b.props ?? {}) as Record<string, unknown>} setProp={(k, v) => setProp(b.id, k, v)} tb={tb} />}

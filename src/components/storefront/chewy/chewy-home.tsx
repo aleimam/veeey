@@ -268,5 +268,19 @@ export function ChewyHome({ locale, blocks, data }: { locale: string; blocks: Bl
     }
   };
 
-  return <div>{blocks.map(renderBlock)}</div>;
+  // Optional per-block frame: background colour + extra vertical spacing.
+  const PAD: Record<string, string> = { sm: '1.5rem', md: '3rem', lg: '5rem' };
+  const framed = (b: Block) => {
+    const el = renderBlock(b);
+    if (!el) return null;
+    const st = ((b.props?._style ?? {}) as { bg?: string; spaceTop?: string; spaceBottom?: string });
+    if (!st.bg && !st.spaceTop && !st.spaceBottom) return el;
+    return (
+      <div key={b.id} style={{ background: st.bg || undefined, paddingTop: PAD[st.spaceTop ?? ''], paddingBottom: PAD[st.spaceBottom ?? ''] }}>
+        {el}
+      </div>
+    );
+  };
+
+  return <div>{blocks.map(framed)}</div>;
 }
