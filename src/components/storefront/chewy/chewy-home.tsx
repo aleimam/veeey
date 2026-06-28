@@ -7,7 +7,10 @@ import { TierBadge } from '@/components/storefront/ui/tier-badge';
 import { IlloTile } from '@/components/storefront/chewy/illustration';
 import { ChewyHero, type HeroSlide } from '@/components/storefront/chewy/chewy-hero';
 import { ChewyProductCard } from '@/components/storefront/chewy/chewy-product-card';
+import { RichBlock, ImageBannerBlock, ProductRowBlock, CtaBlock, TilesBlock } from '@/components/storefront/chewy/blocks/gadgets';
 import type { Product } from '@/components/storefront/product-card';
+import type { Block } from '@/lib/home-layout';
+import type { HomeData } from '@/lib/home-layout-service';
 
 type T = (en: string, ar: string) => string;
 
@@ -236,9 +239,9 @@ function BrandStrip({ t }: { t: T }) {
   );
 }
 
-export function ChewyHome({ locale, bestsellers, deals }: { locale: string; bestsellers: Product[]; deals: Product[] }) {
+export function ChewyHome({ locale, blocks, data }: { locale: string; blocks: Block[]; data: HomeData }) {
   const t = pick(locale);
-  const heroImgs = bestsellers.map((p) => p.image).filter((x): x is string => !!x);
+  const heroImgs = data.bestsellers.map((p) => p.image).filter((x): x is string => !!x);
   const pair = (a: number, b: number) => {
     const s = heroImgs.slice(a, b);
     return s.length ? s : heroImgs.slice(0, 2);
@@ -249,18 +252,28 @@ export function ChewyHome({ locale, bestsellers, deals }: { locale: string; best
     { eyebrow: t('Expiry transparency', 'شفافية الصلاحية'), title: t('Choose your expiry,\nchoose your price.', 'اختر الصلاحية،\nاختر السعر.'), body: t('Same genuine product, different lots. Near-dated stock costs less — you save, nothing goes to waste.', 'نفس المنتج الأصلي، تشغيلات مختلفة. الأقرب انتهاءً أرخص — توفّر دون هدر.'), cta: t('Shop expiry deals', 'تسوّق عروض الصلاحية'), href: '/products?offers=1', images: pair(0, 2) },
   ].filter((s) => s.images.length > 0);
 
-  return (
-    <div>
-      {slides.length > 0 && <ChewyHero slides={slides} />}
-      <GreetStrip t={t} />
-      <GoalCircles t={t} />
-      <MembershipBanner t={t} />
-      <DealRail t={t} deals={deals} locale={locale} />
-      <CategoryTiles t={t} />
-      <FeatureBanner t={t} />
-      <SpecialOrder t={t} />
-      <BestSellers t={t} items={bestsellers} locale={locale} />
-      <BrandStrip t={t} />
-    </div>
-  );
+  const renderBlock = (b: Block) => {
+    if (!b.enabled) return null;
+    const props = (b.props ?? {}) as Record<string, unknown>;
+    switch (b.type) {
+      case 'hero': return slides.length > 0 ? <ChewyHero key={b.id} slides={slides} /> : null;
+      case 'greet-strip': return <GreetStrip key={b.id} t={t} />;
+      case 'goals': return <GoalCircles key={b.id} t={t} />;
+      case 'membership': return <MembershipBanner key={b.id} t={t} />;
+      case 'deals': return <DealRail key={b.id} t={t} deals={data.deals} locale={locale} />;
+      case 'categories': return <CategoryTiles key={b.id} t={t} />;
+      case 'feature-banner': return <FeatureBanner key={b.id} t={t} />;
+      case 'special-order': return <SpecialOrder key={b.id} t={t} />;
+      case 'best-sellers': return <BestSellers key={b.id} t={t} items={data.bestsellers} locale={locale} />;
+      case 'brands': return <BrandStrip key={b.id} t={t} />;
+      case 'rich': return <RichBlock key={b.id} props={props} locale={locale} />;
+      case 'image-banner': return <ImageBannerBlock key={b.id} props={props} locale={locale} />;
+      case 'product-row': return <ProductRowBlock key={b.id} props={props} locale={locale} items={data.rows[b.id] ?? []} />;
+      case 'cta': return <CtaBlock key={b.id} props={props} locale={locale} />;
+      case 'tiles': return <TilesBlock key={b.id} props={props} locale={locale} />;
+      default: return null;
+    }
+  };
+
+  return <div>{blocks.map(renderBlock)}</div>;
 }

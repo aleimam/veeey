@@ -3,8 +3,27 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { HOME_FIELDS, FEATURED_KEY, saveHomeContent } from '@/lib/home-content-service';
+import { saveHomeLayout } from '@/lib/home-layout-service';
+import type { Block } from '@/lib/home-layout';
 
 const localeOf = (fd: FormData) => (fd.get('locale') === 'ar' ? 'ar' : 'en');
+
+/** Save the homepage block layout (the section/gadget builder). */
+export async function saveHomeLayoutAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const raw = fd.get('layout');
+  try {
+    const blocks = JSON.parse(typeof raw === 'string' ? raw : '[]') as Block[];
+    await saveHomeLayout(blocks);
+  } catch (e) {
+    console.error('home layout save failed', e);
+    revalidatePath(`/${locale}/admin/homepage`);
+    redirect(`/${locale}/admin/homepage?error=1`);
+  }
+  revalidatePath(`/${locale}/admin/homepage`);
+  revalidatePath(`/${locale}`);
+  redirect(`/${locale}/admin/homepage?saved=1`);
+}
 
 export async function saveHomeContentAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
