@@ -5,7 +5,7 @@ import { useEditor, EditorContent, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { TableKit } from '@tiptap/extension-table';
 import { TextAlign } from '@tiptap/extension-text-align';
-import { TextStyle, Color, FontSize } from '@tiptap/extension-text-style';
+import { TextStyle, Color, FontSize, FontFamily } from '@tiptap/extension-text-style';
 import { Highlight } from '@tiptap/extension-highlight';
 import { Image } from '@tiptap/extension-image';
 import { Placeholder } from '@tiptap/extension-placeholder';
@@ -19,14 +19,16 @@ import {
 /**
  * Shared Veeey rich-text editor (Tiptap v3). Takes an HTML string and emits HTML
  * via onChange; the host wraps it with a hidden field so it submits with the form
- * (see RichTextField). Output is sanitized server-side before render. `compact`
- * shows a slim toolbar (bold/italic/underline + lists + link) for short fields;
- * the full toolbar adds headings, font size, alignment, colour, tables and images.
+ * (see RichTextField). Output is sanitized server-side before render. The full
+ * toolbar (headings, font family + size, alignment, colour + highlight, lists,
+ * quote, link, image upload, tables) shows on EVERY field; `compact` only makes
+ * the editing box shorter for naturally-short fields.
  */
 export interface RichTextEditorProps {
   value: string;
   onChange: (html: string) => void;
   placeholder?: string;
+  /** Shorter editing box for short fields. The toolbar is the same (full) either way. */
   compact?: boolean;
   dir?: 'ltr' | 'rtl';
   /** Field name; lets external actions (e.g. AI translate) push content via a `veeey:rich-set` event. */
@@ -53,13 +55,25 @@ function Btn({ active, disabled, onClick, title, children }: { active?: boolean;
 }
 const Sep = () => <span className="mx-1 h-5 w-px bg-border" />;
 const FONT_SIZES = ['13px', '16px', '20px', '26px', '34px'];
+const FONT_FAMILIES: { label: string; value: string }[] = [
+  { label: 'Font', value: '' },
+  { label: 'Montserrat', value: 'Montserrat, sans-serif' },
+  { label: 'Playfair Display', value: '"Playfair Display", serif' },
+  { label: 'Cairo (Arabic)', value: 'Cairo, sans-serif' },
+  { label: 'Arial', value: 'Arial, Helvetica, sans-serif' },
+  { label: 'Georgia', value: 'Georgia, serif' },
+  { label: 'Times New Roman', value: '"Times New Roman", Times, serif' },
+  { label: 'Tahoma', value: 'Tahoma, sans-serif' },
+  { label: 'Courier New', value: '"Courier New", monospace' },
+];
 
-function Toolbar({ editor, compact, uploadImage }: { editor: Editor; compact?: boolean; uploadImage?: (f: File) => Promise<string> }) {
+function Toolbar({ editor, uploadImage }: { editor: Editor; uploadImage?: (f: File) => Promise<string> }) {
   const [busy, setBusy] = useState(false);
   const inTable = editor.isActive('table');
   const textColor = (editor.getAttributes('textStyle').color as string) || '#33424f';
   const hlColor = (editor.getAttributes('highlight').color as string) || '#fff3a3';
   const fontSize = (editor.getAttributes('textStyle').fontSize as string) || '';
+  const fontFamily = (editor.getAttributes('textStyle').fontFamily as string) || '';
 
   const setLink = () => {
     const prev = editor.getAttributes('link').href as string | undefined;
@@ -86,52 +100,58 @@ function Toolbar({ editor, compact, uploadImage }: { editor: Editor; compact?: b
       <Btn title="Bold" active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()}><Bold size={ICON} /></Btn>
       <Btn title="Italic" active={editor.isActive('italic')} onClick={() => editor.chain().focus().toggleItalic().run()}><Italic size={ICON} /></Btn>
       <Btn title="Underline" active={editor.isActive('underline')} onClick={() => editor.chain().focus().toggleUnderline().run()}><Underline size={ICON} /></Btn>
-      {!compact && <Btn title="Strikethrough" active={editor.isActive('strike')} onClick={() => editor.chain().focus().toggleStrike().run()}><Strikethrough size={ICON} /></Btn>}
+      <Btn title="Strikethrough" active={editor.isActive('strike')} onClick={() => editor.chain().focus().toggleStrike().run()}><Strikethrough size={ICON} /></Btn>
 
-      {!compact && (<>
-        <Sep />
-        <Btn title="Heading 1" active={editor.isActive('heading', { level: 1 })} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}><Heading1 size={ICON} /></Btn>
-        <Btn title="Heading 2" active={editor.isActive('heading', { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}><Heading2 size={ICON} /></Btn>
-        <Btn title="Heading 3" active={editor.isActive('heading', { level: 3 })} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}><Heading3 size={ICON} /></Btn>
-        <select
-          title="Font size"
-          value={fontSize}
-          className="h-8 rounded bg-transparent px-1 text-sm text-foreground hover:bg-surface"
-          onChange={(e) => { const v = e.target.value; if (v) editor.chain().focus().setFontSize(v).run(); else editor.chain().focus().unsetFontSize().run(); }}
-        >
-          <option value="">Size</option>{FONT_SIZES.map((s) => <option key={s} value={s}>{parseInt(s, 10)}</option>)}
-        </select>
-        <Sep />
-        <Btn title="Align left" active={editor.isActive({ textAlign: 'left' })} onClick={() => editor.chain().focus().setTextAlign('left').run()}><AlignLeft size={ICON} /></Btn>
-        <Btn title="Align center" active={editor.isActive({ textAlign: 'center' })} onClick={() => editor.chain().focus().setTextAlign('center').run()}><AlignCenter size={ICON} /></Btn>
-        <Btn title="Align right" active={editor.isActive({ textAlign: 'right' })} onClick={() => editor.chain().focus().setTextAlign('right').run()}><AlignRight size={ICON} /></Btn>
-        <Btn title="Justify" active={editor.isActive({ textAlign: 'justify' })} onClick={() => editor.chain().focus().setTextAlign('justify').run()}><AlignJustify size={ICON} /></Btn>
-        <Sep />
-        <label className="relative inline-flex h-8 min-w-8 cursor-pointer items-center justify-center rounded hover:bg-surface" title="Text colour">
-          <Baseline size={ICON} style={{ color: textColor }} />
-          <input type="color" value={textColor} onChange={(e) => editor.chain().focus().setColor(e.target.value).run()} className="absolute inset-0 cursor-pointer opacity-0" tabIndex={-1} />
-        </label>
-        <label className="relative inline-flex h-8 min-w-8 cursor-pointer items-center justify-center rounded hover:bg-surface" title="Highlight">
-          <Highlighter size={ICON} style={{ color: hlColor }} />
-          <input type="color" value={hlColor} onChange={(e) => editor.chain().focus().setHighlight({ color: e.target.value }).run()} className="absolute inset-0 cursor-pointer opacity-0" tabIndex={-1} />
-        </label>
-        <Btn title="Clear highlight" onClick={() => editor.chain().focus().unsetHighlight().run()}>H×</Btn>
-      </>)}
+      <Sep />
+      <Btn title="Heading 1" active={editor.isActive('heading', { level: 1 })} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}><Heading1 size={ICON} /></Btn>
+      <Btn title="Heading 2" active={editor.isActive('heading', { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}><Heading2 size={ICON} /></Btn>
+      <Btn title="Heading 3" active={editor.isActive('heading', { level: 3 })} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}><Heading3 size={ICON} /></Btn>
+      <select
+        title="Font family"
+        value={fontFamily}
+        className="h-8 max-w-[8.5rem] rounded bg-transparent px-1 text-sm text-foreground hover:bg-surface"
+        onChange={(e) => { const v = e.target.value; if (v) editor.chain().focus().setFontFamily(v).run(); else editor.chain().focus().unsetFontFamily().run(); }}
+      >
+        {FONT_FAMILIES.map((f) => <option key={f.label} value={f.value}>{f.label}</option>)}
+      </select>
+      <select
+        title="Font size"
+        value={fontSize}
+        className="h-8 rounded bg-transparent px-1 text-sm text-foreground hover:bg-surface"
+        onChange={(e) => { const v = e.target.value; if (v) editor.chain().focus().setFontSize(v).run(); else editor.chain().focus().unsetFontSize().run(); }}
+      >
+        <option value="">Size</option>{FONT_SIZES.map((s) => <option key={s} value={s}>{parseInt(s, 10)}</option>)}
+      </select>
+      <Sep />
+      <Btn title="Align left" active={editor.isActive({ textAlign: 'left' })} onClick={() => editor.chain().focus().setTextAlign('left').run()}><AlignLeft size={ICON} /></Btn>
+      <Btn title="Align center" active={editor.isActive({ textAlign: 'center' })} onClick={() => editor.chain().focus().setTextAlign('center').run()}><AlignCenter size={ICON} /></Btn>
+      <Btn title="Align right" active={editor.isActive({ textAlign: 'right' })} onClick={() => editor.chain().focus().setTextAlign('right').run()}><AlignRight size={ICON} /></Btn>
+      <Btn title="Justify" active={editor.isActive({ textAlign: 'justify' })} onClick={() => editor.chain().focus().setTextAlign('justify').run()}><AlignJustify size={ICON} /></Btn>
+      <Sep />
+      <label className="relative inline-flex h-8 min-w-8 cursor-pointer items-center justify-center rounded hover:bg-surface" title="Text colour">
+        <Baseline size={ICON} style={{ color: textColor }} />
+        <input type="color" value={textColor} onChange={(e) => editor.chain().focus().setColor(e.target.value).run()} className="absolute inset-0 cursor-pointer opacity-0" tabIndex={-1} />
+      </label>
+      <label className="relative inline-flex h-8 min-w-8 cursor-pointer items-center justify-center rounded hover:bg-surface" title="Highlight">
+        <Highlighter size={ICON} style={{ color: hlColor }} />
+        <input type="color" value={hlColor} onChange={(e) => editor.chain().focus().setHighlight({ color: e.target.value }).run()} className="absolute inset-0 cursor-pointer opacity-0" tabIndex={-1} />
+      </label>
+      <Btn title="Clear highlight" onClick={() => editor.chain().focus().unsetHighlight().run()}>H×</Btn>
 
       <Sep />
       <Btn title="Bullet list" active={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()}><List size={ICON} /></Btn>
       <Btn title="Numbered list" active={editor.isActive('orderedList')} onClick={() => editor.chain().focus().toggleOrderedList().run()}><ListOrdered size={ICON} /></Btn>
-      {!compact && <Btn title="Quote" active={editor.isActive('blockquote')} onClick={() => editor.chain().focus().toggleBlockquote().run()}><Quote size={ICON} /></Btn>}
+      <Btn title="Quote" active={editor.isActive('blockquote')} onClick={() => editor.chain().focus().toggleBlockquote().run()}><Quote size={ICON} /></Btn>
       <Btn title="Link" active={editor.isActive('link')} onClick={setLink}><Link2 size={ICON} /></Btn>
 
-      {!compact && uploadImage && (
+      {uploadImage && (
         <label className="relative inline-flex h-8 min-w-8 cursor-pointer items-center justify-center rounded text-sm hover:bg-surface" title="Insert image">
           {busy ? '…' : <ImagePlus size={ICON} />}
           <input type="file" accept="image/*" disabled={busy} onChange={onImage} className="absolute inset-0 cursor-pointer opacity-0" tabIndex={-1} />
         </label>
       )}
-      {!compact && <Btn title="Insert table" onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}><TableIcon size={ICON} /></Btn>}
-      {!compact && inTable && (<>
+      <Btn title="Insert table" onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}><TableIcon size={ICON} /></Btn>
+      {inTable && (<>
         <Sep />
         <Btn title="Add column" onClick={() => editor.chain().focus().addColumnAfter().run()}><Plus size={12} />|</Btn>
         <Btn title="Delete column" onClick={() => editor.chain().focus().deleteColumn().run()}><Minus size={12} />|</Btn>
@@ -154,7 +174,7 @@ export function RichTextEditor({ value, onChange, placeholder = 'Start writing�
     StarterKit,
     TableKit,
     TextAlign.configure({ types: ['heading', 'paragraph'] }),
-    TextStyle, Color, FontSize,
+    TextStyle, Color, FontSize, FontFamily,
     Highlight.configure({ multicolor: true }),
     Image.configure({ inline: false }),
     Placeholder.configure({ placeholder }),
@@ -189,7 +209,7 @@ export function RichTextEditor({ value, onChange, placeholder = 'Start writing�
   if (!editor) return <div className="rounded-lg border border-border p-4 text-sm text-muted-foreground">Loading…</div>;
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card">
-      <Toolbar editor={editor} compact={compact} uploadImage={uploadImage} />
+      <Toolbar editor={editor} uploadImage={uploadImage} />
       <EditorContent editor={editor} />
     </div>
   );

@@ -17,7 +17,8 @@ async function uploadImage(file: File): Promise<string> {
  * Form-ready rich-text field: the Tiptap editor plus a hidden <textarea name>
  * that always carries the current HTML, so it submits with the surrounding
  * FormData server action unchanged. Arabic fields (name ending "Ar") render RTL.
- * `compact` selects the slim toolbar and hides image upload.
+ * Every field gets the full toolbar (colours, fonts, images, tables); `compact`
+ * only makes the editing box shorter for naturally-short fields.
  */
 export function RichTextField({
   name,
@@ -44,7 +45,7 @@ export function RichTextField({
         compact={compact}
         dir={resolvedDir}
         name={name}
-        uploadImage={compact ? undefined : uploadImage}
+        uploadImage={uploadImage}
       />
     </>
   );
