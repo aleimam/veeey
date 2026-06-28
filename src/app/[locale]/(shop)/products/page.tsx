@@ -2,6 +2,9 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { pick } from '@/lib/admin-i18n';
 import { prisma } from '@/lib/prisma';
 import { toCardProduct, cardProductInclude, visibleProductWhere } from '@/lib/storefront';
+import { getZones } from '@/lib/page-zone-service';
+import { resolveHomeData, type HomeData } from '@/lib/home-layout-service';
+import { ChewyHome } from '@/components/storefront/chewy/chewy-home';
 import { ChewyProductCard } from '@/components/storefront/chewy/chewy-product-card';
 import { Select } from '@/components/storefront/ui/select';
 import { Checkbox } from '@/components/storefront/ui/checkbox';
@@ -61,7 +64,17 @@ export default async function ProductsPage({
   const tb = pick(locale);
   const heading = q ? t('resultsFor', { q }) : t('allProducts');
 
+  const zones = await getZones(['category.top', 'category.bottom']);
+  let zoneData: HomeData = { bestsellers: [], deals: [], rows: {} };
+  try {
+    zoneData = await resolveHomeData([...zones['category.top'], ...zones['category.bottom']], locale);
+  } catch {
+    // zone product data is best-effort
+  }
+
   return (
+    <>
+    {zones['category.top'].length > 0 && <ChewyHome locale={locale} blocks={zones['category.top']} data={zoneData} />}
     <div className="mx-auto max-w-[1440px] px-4 pb-12 pt-5 sm:px-6 lg:px-8">
       <div className="mb-3.5 flex items-center gap-2 text-[13px] text-[color:var(--text-muted)]">
         <Link href="/">{tb('Home', 'الرئيسية')}</Link>
@@ -125,5 +138,7 @@ export default async function ProductsPage({
         </section>
       </form>
     </div>
+    {zones['category.bottom'].length > 0 && <ChewyHome locale={locale} blocks={zones['category.bottom']} data={zoneData} />}
+    </>
   );
 }

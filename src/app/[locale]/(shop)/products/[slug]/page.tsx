@@ -15,6 +15,9 @@ import { toggleWishlistAction, toggleCompareAction } from '@/server/engagement-a
 import { RecentlyViewedTracker } from '@/components/storefront/recently-viewed-tracker';
 import { ChewyProductCard } from '@/components/storefront/chewy/chewy-product-card';
 import { frequentlyBoughtTogether, recentlyViewed } from '@/lib/personalization-service';
+import { getZones } from '@/lib/page-zone-service';
+import { resolveHomeData, type HomeData } from '@/lib/home-layout-service';
+import { ChewyHome } from '@/components/storefront/chewy/chewy-home';
 import { submitReviewAction } from '@/server/play-actions';
 import { Icon } from '@/components/storefront/ui/icon';
 import { Rating } from '@/components/storefront/ui/rating';
@@ -95,7 +98,17 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
     ...(p.ratingCount > 0 ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: p.ratingAvg ?? 0, reviewCount: p.ratingCount } } : {}),
   };
 
+  const zones = await getZones(['pdp.top', 'pdp.bottom']);
+  let zoneData: HomeData = { bestsellers: [], deals: [], rows: {} };
+  try {
+    zoneData = await resolveHomeData([...zones['pdp.top'], ...zones['pdp.bottom']], locale);
+  } catch {
+    // zone product data is best-effort
+  }
+
   return (
+    <>
+    {zones['pdp.top'].length > 0 && <ChewyHome locale={locale} blocks={zones['pdp.top']} data={zoneData} />}
     <div className="mx-auto max-w-[1440px] px-4 pb-14 pt-5 sm:px-6 lg:px-8">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <TrackView name="product_view" props={{ sku: p.sku, slug, name }} />
@@ -256,5 +269,7 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
         </section>
       )}
     </div>
+    {zones['pdp.bottom'].length > 0 && <ChewyHome locale={locale} blocks={zones['pdp.bottom']} data={zoneData} />}
+    </>
   );
 }

@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { HOME_FIELDS, FEATURED_KEY, saveHomeContent } from '@/lib/home-content-service';
 import { saveHomeLayout } from '@/lib/home-layout-service';
 import { savePageLayout, deletePageLayout } from '@/lib/page-layout-service';
+import { saveZone } from '@/lib/page-zone-service';
 import type { Block } from '@/lib/home-layout';
 
 const localeOf = (fd: FormData) => (fd.get('locale') === 'ar' ? 'ar' : 'en');
@@ -25,6 +26,24 @@ export async function saveHomeLayoutAction(fd: FormData): Promise<void> {
   revalidatePath(`/${locale}/admin/homepage`);
   revalidatePath(`/${locale}`);
   redirect(`/${locale}/admin/homepage?saved=1`);
+}
+
+/** Save one page zone (category/pdp top/bottom) of blocks. */
+export async function savePageZoneAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const zone = str(fd, 'zone') ?? '';
+  try {
+    const raw = fd.get('layout');
+    const blocks = JSON.parse(typeof raw === 'string' ? raw : '[]') as Block[];
+    await saveZone(zone, blocks);
+  } catch (e) {
+    console.error('page zone save failed', e);
+    revalidatePath(`/${locale}/admin/page-sections`);
+    redirect(`/${locale}/admin/page-sections?error=1`);
+  }
+  revalidatePath(`/${locale}/admin/page-sections`);
+  revalidatePath(`/${locale}/products`);
+  redirect(`/${locale}/admin/page-sections?saved=${encodeURIComponent(zone)}`);
 }
 
 /** Create/update a composable landing page (PageLayout). */
