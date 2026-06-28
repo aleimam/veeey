@@ -35,6 +35,12 @@ export const productWriteSchema = z.object({
     .enum(['MISCELLANEOUS', 'MALE_SUPPORT', 'PREMIUM', 'NEW', 'TREND'])
     .optional()
     .nullable(),
+  // Merchandising flag + sourcing (internal). purchaseCost is in MAJOR units of
+  // the origin currency; stored as minor units, currency derived from origin.
+  maleSupport: z.coerce.boolean().default(false),
+  purchaseUrl: z.string().trim().optional().nullable(),
+  originCountry: z.enum(['USA', 'UK', 'EU']).optional().nullable(),
+  purchaseCost: z.coerce.number().nonnegative().optional().nullable(),
   categoryIds: z.array(z.string()).max(4).default([]),
   tagIds: z.array(z.string()).default([]),
   attributeValueIds: z.array(z.string()).default([]),
@@ -71,7 +77,14 @@ async function generateUniqueSku(brandId?: string | null): Promise<string> {
 }
 
 function scalarFields(data: z.infer<typeof productWriteSchema>) {
+  const origin = data.originCountry ?? null;
+  const currency = origin === 'USA' ? 'USD' : origin === 'UK' ? 'GBP' : origin === 'EU' ? 'EUR' : null;
   return {
+    maleSupport: data.maleSupport,
+    purchaseUrl: data.purchaseUrl ?? null,
+    originCountry: origin,
+    purchaseCurrency: currency,
+    purchaseCostMinor: data.purchaseCost != null ? Math.round(data.purchaseCost * 100) : null,
     nameEn: data.nameEn,
     nameAr: data.nameAr ?? null,
     kind: data.kind,

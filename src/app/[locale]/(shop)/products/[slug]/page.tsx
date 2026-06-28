@@ -98,6 +98,13 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
     ...(p.ratingCount > 0 ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: p.ratingAvg ?? 0, reviewCount: p.ratingCount } } : {}),
   };
 
+  const ORIGIN_BADGE: Record<string, { flag: string; en: string; ar: string }> = {
+    USA: { flag: '🇺🇸', en: 'Imported from the USA', ar: 'مستورد من الولايات المتحدة' },
+    UK: { flag: '🇬🇧', en: 'Imported from the UK', ar: 'مستورد من بريطانيا' },
+    EU: { flag: '🇪🇺', en: 'Imported from the EU', ar: 'مستورد من الاتحاد الأوروبي' },
+  };
+  const originBadge = p.originCountry ? ORIGIN_BADGE[p.originCountry] : null;
+
   const zones = await getZones(['pdp.top', 'pdp.bottom']);
   let zoneData: HomeData = { bestsellers: [], deals: [], rows: {} };
   try {
@@ -144,6 +151,11 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
 
         <div className="lg:sticky lg:top-[130px]">
           <div className="mb-3"><AdminEditLink href={`/admin/products/edit/${p.id}`} locale={locale} /></div>
+          {originBadge && (
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[color:var(--green-dark-05)] bg-green-wash px-3 py-1.5 text-[13px] font-semibold text-green-dark">
+              <span aria-hidden>{originBadge.flag}</span> {tb(originBadge.en, originBadge.ar)}
+            </div>
+          )}
           <ChewyBuyBox brand={brandName} name={name} rating={p.ratingAvg ?? 0} reviews={p.ratingCount} basePricePiastres={basePrice} lots={buyLots} productId={p.id} points={points} locale={locale} refillEnabled={refillEnabled} />
           <div className="mt-4 flex gap-5 text-sm">
             <form action={toggleWishlistAction}>

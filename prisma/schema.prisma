@@ -698,6 +698,13 @@ model Product {
   dailyDosageMax      Int? // optional upper bound of the dose range
   defaultSupplierHint String?
 
+  // Sourcing (internal) + merchandising flag
+  maleSupport       Boolean @default(false) // dedicated Yes/No flag (independent of productType)
+  purchaseUrl       String? // supplier/source link (admin only)
+  originCountry     String? // 'USA' | 'UK' | 'EU' — import origin (shown as a trust badge)
+  purchaseCostMinor Int? // purchase price in MINOR units of the origin currency (cents/pence)
+  purchaseCurrency  String? // 'USD' | 'GBP' | 'EUR' — auto-derived from originCountry
+
   // AI-generated review summary (FR-REV-04) — cached, regenerated on demand
   aiReviewSummary   String?
   aiReviewSummaryAt DateTime?

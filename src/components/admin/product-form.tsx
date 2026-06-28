@@ -25,6 +25,11 @@ export type ProductDefaults = {
   kind?: string;
   status?: string;
   preorderEnabled?: boolean;
+  maleSupport?: boolean;
+  purchaseUrl?: string;
+  originCountry?: string | null;
+  purchaseCost?: number;
+  purchaseCurrency?: string | null;
   brandId?: string | null;
   productType?: string | null;
   basePriceEgp?: number;
@@ -88,6 +93,8 @@ export function ProductForm({
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set(d.tagIds ?? []));
   const [tagQuery, setTagQuery] = useState('');
   const [busy, setBusy] = useState(false);
+  const [origin, setOrigin] = useState<string>(d.originCountry ?? '');
+  const currencyOf = (o: string) => (o === 'USA' ? 'USD ($)' : o === 'UK' ? 'GBP (£)' : o === 'EU' ? 'EUR (€)' : '');
   const toggleTag = (id: string) => setSelectedTags((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
   async function addBrand() {
@@ -187,6 +194,12 @@ export function ProductForm({
             {tb('Allow pre-order', 'السماح بالطلب المسبق')}
           </label>
         </Field>
+        <Field label={tb('Male support', 'دعم الرجال')} hint={tb('Flag this product for men’s health.', 'تمييز المنتج لصحة الرجال.')}>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="maleSupport" defaultChecked={d.maleSupport} className="size-4" />
+            {tb('Is male support', 'منتج لدعم الرجال')}
+          </label>
+        </Field>
         <Field label={tb('Base price (EGP)', 'السعر الأساسي (ج.م)')}><input name="basePriceEgp" type="number" step="0.01" min="0" defaultValue={d.basePriceEgp ?? 0} className={inputCls} /></Field>
         <Field label={tb('Weight (g)', 'الوزن (جم)')}><input name="weightG" type="number" min="0" defaultValue={d.weightG ?? ''} className={inputCls} /></Field>
         {kind !== 'DEVICE' && (
@@ -205,6 +218,26 @@ export function ProductForm({
       <section className="grid gap-4">
         <Field label={tb('Detailed description (English)', 'وصف تفصيلي (بالإنجليزية)')}><RichTextField name="longDescEn" initial={d.longDescEn ?? ''} /></Field>
         <Field label={tb('Detailed description (Arabic)', 'وصف تفصيلي (بالعربية)')}><RichTextField name="longDescAr" initial={d.longDescAr ?? ''} /></Field>
+      </section>
+
+      <section className="rounded-lg border border-border bg-surface/40 p-4">
+        <div className="mb-3 text-xs font-semibold uppercase text-muted-foreground">{tb('Sourcing (internal)', 'المصدر (داخلي)')}</div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field label={tb('Origin country', 'بلد المنشأ')} hint={tb('Import origin — shown to customers as a trust badge.', 'مصدر الاستيراد — يظهر للعملاء كشارة ثقة.')}>
+            <select name="originCountry" value={origin} onChange={(e) => setOrigin(e.target.value)} className={inputCls}>
+              <option value="">{tb('— None —', '— بدون —')}</option>
+              <option value="USA">{tb('USA', 'الولايات المتحدة')}</option>
+              <option value="UK">{tb('UK', 'بريطانيا')}</option>
+              <option value="EU">{tb('EU', 'الاتحاد الأوروبي')}</option>
+            </select>
+          </Field>
+          <Field label={tb('Purchase price', 'سعر الشراء')} hint={origin ? tb(`In ${currencyOf(origin)} (set by origin).`, `بعملة ${currencyOf(origin)} (حسب المنشأ).`) : tb('Pick an origin country to set the currency.', 'اختر بلد المنشأ لتحديد العملة.')}>
+            <input name="purchaseCost" type="number" step="0.01" min="0" defaultValue={d.purchaseCost ?? ''} disabled={!origin} className={inputCls} />
+          </Field>
+          <Field label={tb('Purchase URL', 'رابط الشراء')} hint={tb('Supplier / source link (internal only).', 'رابط المورّد/المصدر (داخلي فقط).')}>
+            <input name="purchaseUrl" type="url" defaultValue={d.purchaseUrl ?? ''} placeholder="https://…" className={inputCls} />
+          </Field>
+        </div>
       </section>
 
       <section className="grid gap-4 sm:grid-cols-3">

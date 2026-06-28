@@ -92,6 +92,10 @@ export async function saveProductAction(_p: AdminFormState, fd: FormData): Promi
     dailyDosageMax: str(fd, 'dailyDosageMax'),
     productType: (str(fd, 'productType') ?? null) as
       | 'MISCELLANEOUS' | 'MALE_SUPPORT' | 'PREMIUM' | 'NEW' | 'TREND' | null,
+    maleSupport: bool(fd, 'maleSupport'),
+    purchaseUrl: str(fd, 'purchaseUrl'),
+    originCountry: (str(fd, 'originCountry') ?? null) as 'USA' | 'UK' | 'EU' | null,
+    purchaseCost: str(fd, 'purchaseCost'),
     categoryIds: arr(fd, 'categoryIds'),
     tagIds: arr(fd, 'tagIds'),
     attributeValueIds: arr(fd, 'attributeValueIds'),
