@@ -81,6 +81,7 @@ export function ProductForm({
   const [kind, setKind] = useState<string>(d.kind ?? 'SUPPLEMENT');
   const [brandOpts, setBrandOpts] = useState<Opt[]>(brands);
   const [brandId, setBrandId] = useState<string>(d.brandId ?? '');
+  const [brandQuery, setBrandQuery] = useState('');
   const [newBrand, setNewBrand] = useState('');
   const [tagOpts, setTagOpts] = useState<Opt[]>(tags);
   const [newTag, setNewTag] = useState('');
@@ -131,11 +132,33 @@ export function ProductForm({
         <Field label={tb('Name (English)', 'الاسم (بالإنجليزية)')}><input name="nameEn" required defaultValue={d.nameEn ?? ''} className={inputCls} /></Field>
         <Field label={tb('Name (Arabic)', 'الاسم (بالعربية)')}><input name="nameAr" defaultValue={d.nameAr ?? ''} dir="rtl" className={inputCls} /></Field>
         <Field label={tb('SKU', 'رمز المنتج (SKU)')} hint={tb('Leave empty to auto-generate (VEY-…).', 'اتركه فارغًا للتوليد التلقائي (VEY-…).')}><input name="sku" defaultValue={d.sku ?? ''} className={inputCls} /></Field>
-        <Field label={tb('Brand', 'العلامة التجارية')}>
-          <select name="brandId" value={brandId} onChange={(e) => setBrandId(e.target.value)} className={inputCls}>
-            <option value="">{tb('— None —', '— بدون —')}</option>
-            {brandOpts.map((b) => <option key={b.value} value={b.value}>{b.label}</option>)}
-          </select>
+        <Field label={tb('Brand', 'العلامة التجارية')} hint={tb('Search and pick one brand.', 'ابحث واختر علامة واحدة.')}>
+          <input
+            value={brandQuery}
+            onChange={(e) => setBrandQuery(e.target.value)}
+            placeholder={tb('Search brands…', 'ابحث في العلامات…')}
+            className={inputCls}
+          />
+          <div className="mt-1 max-h-40 overflow-auto rounded-md border border-border">
+            <label className="flex cursor-pointer items-center gap-2 px-2 py-1 text-sm hover:bg-surface">
+              <input type="radio" name="brandPick" checked={brandId === ''} onChange={() => setBrandId('')} className="size-4" />
+              {tb('— None —', '— بدون —')}
+            </label>
+            {brandOpts
+              .filter((b) => b.label.toLowerCase().includes(brandQuery.trim().toLowerCase()))
+              .map((b) => (
+                <label key={b.value} className="flex cursor-pointer items-center gap-2 px-2 py-1 text-sm hover:bg-surface">
+                  <input type="radio" name="brandPick" checked={brandId === b.value} onChange={() => setBrandId(b.value)} className="size-4" />
+                  {b.label}
+                </label>
+              ))}
+            {brandOpts.filter((b) => b.label.toLowerCase().includes(brandQuery.trim().toLowerCase())).length === 0 && (
+              <p className="px-2 py-1.5 text-xs text-muted-foreground">{tb('No brands match.', 'لا توجد علامات مطابقة.')}</p>
+            )}
+          </div>
+          {/* Selected brand submits regardless of the current filter. */}
+          <input type="hidden" name="brandId" value={brandId} />
+          {brandId && <p className="mt-1 text-xs text-muted-foreground">{tb('Selected: ', 'المحدد: ')}{brandOpts.find((b) => b.value === brandId)?.label ?? ''}</p>}
           <div className="mt-1 flex items-center gap-2 text-xs">
             <input value={newBrand} onChange={(e) => setNewBrand(e.target.value)} placeholder={tb('New brand', 'علامة جديدة')} className={`${inputCls} py-1`} />
             <button type="button" onClick={addBrand} disabled={busy || !newBrand.trim()} className="whitespace-nowrap text-primary hover:underline disabled:opacity-50">{tb('+ Add', '+ إضافة')}</button>
