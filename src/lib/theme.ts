@@ -60,6 +60,8 @@ export const THEME_TOKENS: ThemeToken[] = [
   { v: '--surface-sunk', label: 'Surface sunk', group: 'Colors', sub: 'Neutrals', control: 'color', def: '#ebefea' },
   { v: '--panel-dark', label: 'Dark panel (special order)', group: 'Colors', sub: 'Neutrals', control: 'color', def: '#2a3340' },
   { v: '--wash-cool', label: 'Cool wash (device tint)', group: 'Colors', sub: 'Neutrals', control: 'color', def: '#e9eef4' },
+  { v: '--surface-card', label: 'Card background', group: 'Colors', sub: 'Neutrals', control: 'color', def: '#ffffff', hint: 'Default card/panel background.' },
+  { v: '--link-color', label: 'Link colour', group: 'Colors', sub: 'Neutrals', control: 'color', def: '#38764d', hint: 'Links inside rich content.' },
   // ── Colors · Status ──
   { v: '--success', label: 'Success', group: 'Colors', sub: 'Status', control: 'color', def: '#2f855a' },
   { v: '--warning', label: 'Warning', group: 'Colors', sub: 'Status', control: 'color', def: '#e9a800' },
@@ -80,6 +82,11 @@ export const THEME_TOKENS: ThemeToken[] = [
   { v: '--fs-body', label: 'Body size', group: 'Typography', sub: 'Sizes', control: 'size', def: '16px' },
   { v: '--fs-caption', label: 'Caption size', group: 'Typography', sub: 'Sizes', control: 'size', def: '14px' },
   { v: '--fs-overline', label: 'Overline size', group: 'Typography', sub: 'Sizes', control: 'size', def: '12px' },
+  { v: '--fs-button', label: 'Button text size', group: 'Typography', sub: 'Sizes', control: 'size', def: '16px' },
+  // ── Typography · Weights ──
+  { v: '--fw-medium', label: 'Weight — medium', group: 'Typography', sub: 'Weights', control: 'number', def: '500' },
+  { v: '--fw-semibold', label: 'Weight — semibold', group: 'Typography', sub: 'Weights', control: 'number', def: '600' },
+  { v: '--fw-bold', label: 'Weight — bold', group: 'Typography', sub: 'Weights', control: 'number', def: '700' },
   // ── Typography · Rhythm ──
   { v: '--lh-heading', label: 'Heading line-height', group: 'Typography', sub: 'Rhythm', control: 'number', def: '1.25' },
   { v: '--lh-body', label: 'Body line-height', group: 'Typography', sub: 'Rhythm', control: 'number', def: '1.5' },
@@ -103,6 +110,7 @@ export const THEME_TOKENS: ThemeToken[] = [
   { v: '--radius-lg', label: 'Radius large', group: 'Radii', control: 'size', def: '12px' },
   { v: '--radius-xl', label: 'Radius x-large', group: 'Radii', control: 'size', def: '16px' },
   { v: '--radius-pill', label: 'Pill radius', group: 'Radii', control: 'size', def: '999px' },
+  { v: '--btn-radius', label: 'Button radius', group: 'Radii', control: 'size', def: '999px', hint: 'Button corners. Lower = squarer (e.g. 8px).' },
 
   // ── Shadows ──
   { v: '--shadow-xs', label: 'Shadow XS', group: 'Shadows', control: 'shadow', def: '0 1px 2px rgba(28, 37, 48, 0.06)' },

@@ -357,7 +357,9 @@ html[lang='ar'] .veeey-shop .font-heading {
 .veeey-rich ul { list-style: disc; }
 .veeey-rich ol { list-style: decimal; }
 .veeey-rich li { margin: 0.25em 0; }
-.veeey-rich a { color: var(--green-dark); text-decoration: underline; }
+.veeey-rich a { color: var(--link-color, var(--green-dark)); text-decoration: underline; }
+/* Themeable button corner radius (Appearance editor → Radii → Button radius). */
+.veeey-shop .v-btn { border-radius: var(--btn-radius, var(--radius-pill)); }
 .veeey-rich img { max-width: 100%; height: auto; border-radius: 8px; margin: 0.5em 0; }
 .veeey-rich strong, .veeey-rich b { font-weight: 700; }
 .veeey-rich table { width: 100%; border-collapse: collapse; margin: 0.85em 0; }
