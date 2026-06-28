@@ -8,8 +8,9 @@ import { RichTextEditor } from './rich-text/editor';
 import { saveHomeLayoutAction } from '@/server/home-actions';
 import {
   BLOCK_META, GADGET_TYPES, defaultProps, isGadget,
-  moveBlock, toggleBlock, removeBlock, type Block, type GadgetType,
+  moveBlock, toggleBlock, removeBlock, type Block, type GadgetType, type BuiltinType,
 } from '@/lib/home-layout';
+import { BUILTIN_FIELDS, BUILTIN_DEFAULTS, type FieldDesc } from '@/lib/home-defaults';
 
 type Coll = { id: string; title: string };
 type Tb = (en: string, ar: string) => string;
@@ -185,6 +186,60 @@ function GadgetEditor({ block, setProp, collections, tb }: { block: Block; setPr
   return null;
 }
 
+/** Descriptor-driven editor for built-in section content (text / image / lists). */
+function FieldEditor({ fields, props, setProp, tb }: { fields: FieldDesc[]; props: Record<string, unknown>; setProp: (k: string, v: unknown) => void; tb: Tb }) {
+  const sval = (o: Record<string, unknown>, k: string) => (typeof o[k] === 'string' ? (o[k] as string) : '');
+  return (
+    <div className="space-y-3">
+      {fields.map((f) => {
+        if (f.kind !== 'list') {
+          if (f.kind === 'text') {
+            return (
+              <Row key={f.key}>
+                <label><Lbl>{tb(f.en, f.ar)} (EN)</Lbl><input value={sval(props, `${f.key}En`)} onChange={(e) => setProp(`${f.key}En`, e.target.value)} className={inputCls} /></label>
+                <label><Lbl>{tb(f.en, f.ar)} (AR)</Lbl><input value={sval(props, `${f.key}Ar`)} onChange={(e) => setProp(`${f.key}Ar`, e.target.value)} dir="rtl" className={inputCls} /></label>
+              </Row>
+            );
+          }
+          if (f.kind === 'image') return <ImgField key={f.key} value={sval(props, f.key)} onChange={(v) => setProp(f.key, v)} label={tb(f.en, f.ar)} tb={tb} />;
+          return <label key={f.key} className="block"><Lbl>{tb(f.en, f.ar)}</Lbl><input value={sval(props, f.key)} onChange={(e) => setProp(f.key, e.target.value)} className={inputCls} /></label>;
+        }
+        // list
+        const arr = (Array.isArray(props[f.key]) ? props[f.key] : []) as Record<string, unknown>[];
+        const setArr = (n: Record<string, unknown>[]) => setProp(f.key, n);
+        const updItem = (i: number, k: string, v: unknown) => setArr(arr.map((it, j) => (i === j ? { ...it, [k]: v } : it)));
+        return (
+          <div key={f.key} className="rounded-md border border-border p-3">
+            <div className="mb-2 text-sm font-semibold">{tb(f.en, f.ar)}</div>
+            <div className="space-y-3">
+              {arr.map((it, i) => (
+                <div key={i} className="rounded-md border border-border p-2">
+                  <div className="mb-1 flex items-center justify-between"><span className="text-xs text-muted-foreground">{i + 1}</span>
+                    <button type="button" onClick={() => setArr(arr.filter((_, j) => j !== i))} className="text-xs text-destructive hover:underline">{tb('Remove', 'إزالة')}</button>
+                  </div>
+                  {f.item.map((sub) => {
+                    if (sub.kind === 'text') {
+                      return (
+                        <Row key={sub.key}>
+                          <label><Lbl>{tb(sub.en, sub.ar)} (EN)</Lbl><input value={sval(it, `${sub.key}En`)} onChange={(e) => updItem(i, `${sub.key}En`, e.target.value)} className={inputCls} /></label>
+                          <label><Lbl>{tb(sub.en, sub.ar)} (AR)</Lbl><input value={sval(it, `${sub.key}Ar`)} onChange={(e) => updItem(i, `${sub.key}Ar`, e.target.value)} dir="rtl" className={inputCls} /></label>
+                        </Row>
+                      );
+                    }
+                    if (sub.kind === 'image') return <div key={sub.key} className="mt-2"><ImgField value={sval(it, sub.key)} onChange={(v) => updItem(i, sub.key, v)} label={tb(sub.en, sub.ar)} tb={tb} /></div>;
+                    return <label key={sub.key} className="mt-2 block"><Lbl>{tb(sub.en, sub.ar)}</Lbl><input value={sval(it, sub.key)} onChange={(e) => updItem(i, sub.key, e.target.value)} className={inputCls} /></label>;
+                  })}
+                </div>
+              ))}
+              <button type="button" onClick={() => setArr([...arr, {}])} className="rounded-md border border-dashed border-border px-3 py-1.5 text-sm hover:bg-surface">+ {tb('Add', 'إضافة')}</button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function HomeBuilder({ locale, initialBlocks, collections }: { locale: string; initialBlocks: Block[]; collections: Coll[] }) {
   const tb = pick(useLocale());
   const [blocks, setBlocks] = useState<Block[]>(initialBlocks);
@@ -199,6 +254,18 @@ export function HomeBuilder({ locale, initialBlocks, collections }: { locale: st
     setBlocks((bs) => [...bs, { id, type, enabled: true, props: defaultProps(type) }]);
     setEditing(id);
     setAdding(false);
+  };
+
+  // Open/close a block's editor. Opening a built-in seeds its props from the
+  // defaults (so the editor starts from the current content), once.
+  const openEdit = (b: Block) => {
+    const opening = editing !== b.id;
+    setEditing(opening ? b.id : null);
+    if (opening && !isGadget(b.type)) {
+      setBlocks((bs) => bs.map((x) => (x.id === b.id && (!x.props || Object.keys(x.props).length === 0)
+        ? { ...x, props: JSON.parse(JSON.stringify(BUILTIN_DEFAULTS[x.type as BuiltinType])) as Record<string, unknown> }
+        : x)));
+    }
   };
 
   return (
@@ -239,12 +306,14 @@ export function HomeBuilder({ locale, initialBlocks, collections }: { locale: st
                   <input type="checkbox" checked={b.enabled} onChange={() => setBlocks((bs) => toggleBlock(bs, b.id))} className="size-4" />
                   {b.enabled ? tb('Shown', 'ظاهر') : tb('Hidden', 'مخفي')}
                 </label>
-                {gadget && <button type="button" onClick={() => setEditing((e) => (e === b.id ? null : b.id))} className="text-sm text-primary hover:underline">{editing === b.id ? tb('Close', 'إغلاق') : tb('Edit', 'تعديل')}</button>}
+                <button type="button" onClick={() => openEdit(b)} className="text-sm text-primary hover:underline">{editing === b.id ? tb('Close', 'إغلاق') : tb('Edit', 'تعديل')}</button>
                 {gadget && <button type="button" onClick={() => { setBlocks((bs) => removeBlock(bs, b.id)); if (editing === b.id) setEditing(null); }} className="text-sm text-destructive hover:underline">{tb('Delete', 'حذف')}</button>}
               </div>
-              {gadget && editing === b.id && (
+              {editing === b.id && (
                 <div className="border-t border-border p-4">
-                  <GadgetEditor block={b} setProp={(k, v) => setProp(b.id, k, v)} collections={collections} tb={tb} />
+                  {gadget
+                    ? <GadgetEditor block={b} setProp={(k, v) => setProp(b.id, k, v)} collections={collections} tb={tb} />
+                    : <FieldEditor fields={BUILTIN_FIELDS[b.type as BuiltinType]} props={(b.props ?? {}) as Record<string, unknown>} setProp={(k, v) => setProp(b.id, k, v)} tb={tb} />}
                 </div>
               )}
             </li>
