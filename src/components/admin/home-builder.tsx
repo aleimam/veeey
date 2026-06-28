@@ -240,7 +240,7 @@ function FieldEditor({ fields, props, setProp, tb }: { fields: FieldDesc[]; prop
   );
 }
 
-export function HomeBuilder({ locale, initialBlocks, collections }: { locale: string; initialBlocks: Block[]; collections: Coll[] }) {
+export function BlockBuilder({ initialBlocks, collections, saveLabel }: { initialBlocks: Block[]; collections: Coll[]; saveLabel?: string }) {
   const tb = pick(useLocale());
   const [blocks, setBlocks] = useState<Block[]>(initialBlocks);
   const [editing, setEditing] = useState<string | null>(null);
@@ -269,8 +269,7 @@ export function HomeBuilder({ locale, initialBlocks, collections }: { locale: st
   };
 
   return (
-    <form action={saveHomeLayoutAction}>
-      <input type="hidden" name="locale" value={locale} />
+    <>
       <input type="hidden" name="layout" value={JSON.stringify(blocks)} />
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -284,7 +283,7 @@ export function HomeBuilder({ locale, initialBlocks, collections }: { locale: st
             </div>
           )}
         </div>
-        <SubmitButton>{tb('Save homepage', 'حفظ الصفحة الرئيسية')}</SubmitButton>
+        <SubmitButton>{saveLabel ?? tb('Save', 'حفظ')}</SubmitButton>
       </div>
 
       <ol className="space-y-2">
@@ -320,6 +319,16 @@ export function HomeBuilder({ locale, initialBlocks, collections }: { locale: st
           );
         })}
       </ol>
+    </>
+  );
+}
+
+/** Homepage wrapper: BlockBuilder inside the home-layout save form. */
+export function HomeBuilder({ locale, initialBlocks, collections }: { locale: string; initialBlocks: Block[]; collections: Coll[] }) {
+  return (
+    <form action={saveHomeLayoutAction}>
+      <input type="hidden" name="locale" value={locale} />
+      <BlockBuilder initialBlocks={initialBlocks} collections={collections} saveLabel={locale === 'ar' ? 'حفظ الصفحة الرئيسية' : 'Save homepage'} />
     </form>
   );
 }

@@ -76,8 +76,9 @@ export function defaultLayout(): Block[] {
  * append any built-in section missing from storage (so new built-ins appear),
  * and drop unknown types. Built-in ids are their type; gadgets keep their id.
  */
-export function normalizeLayout(stored: Block[] | null | undefined): Block[] {
-  if (!stored || stored.length === 0) return defaultLayout();
+export function normalizeLayout(stored: Block[] | null | undefined, opts: { appendBuiltins?: boolean } = {}): Block[] {
+  const appendBuiltins = opts.appendBuiltins !== false; // default true (homepage)
+  if (!stored || stored.length === 0) return appendBuiltins ? defaultLayout() : [];
   const seen = new Set<string>();
   const out: Block[] = [];
   for (const b of stored) {
@@ -91,9 +92,11 @@ export function normalizeLayout(stored: Block[] | null | undefined): Block[] {
       out.push({ id: b.id || `g-${out.length}`, type: b.type, enabled: b.enabled !== false, props: b.props ?? {} });
     }
   }
-  // Append any built-in not present (disabled by default so we don't resurrect a section the owner removed intentionally? -> append ENABLED=false to be safe).
-  for (const t of BUILTIN_TYPES) {
-    if (!seen.has(t)) out.push({ id: t, type: t, enabled: false });
+  // Homepage: append any built-in not present (disabled) so new sections surface.
+  if (appendBuiltins) {
+    for (const t of BUILTIN_TYPES) {
+      if (!seen.has(t)) out.push({ id: t, type: t, enabled: false });
+    }
   }
   return out;
 }
@@ -130,7 +133,7 @@ const blockSchema = z.object({
 });
 export const layoutSchema = z.array(blockSchema).max(60);
 
-export function parseLayout(json: unknown): Block[] {
+export function parseLayout(json: unknown, opts: { appendBuiltins?: boolean } = {}): Block[] {
   const arr = layoutSchema.parse(json);
-  return normalizeLayout(arr as unknown as Block[]);
+  return normalizeLayout(arr as unknown as Block[], opts);
 }

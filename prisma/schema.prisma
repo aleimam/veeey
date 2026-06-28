@@ -444,6 +444,19 @@ model Theme {
   tiers     Tier[]
 }
 
+// Composable storefront landing pages (homepage-builder blocks on arbitrary URLs).
+// Rendered at /[locale]/l/[slug]. `blocks` = ordered Block[] (see lib/home-layout).
+model PageLayout {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  titleEn   String
+  titleAr   String?
+  status    String   @default("DRAFT") // DRAFT | PUBLISHED
+  blocks    Json     @default("[]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 // WooCommerce live-sync cursor + last-run state, one row per entity
 // ('products' | 'customers' | 'orders'). Powers incremental `modified_after` pulls.
 model WooSyncState {

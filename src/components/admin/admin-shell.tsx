@@ -12,7 +12,7 @@ import {
   FolderTree, Tags, SlidersHorizontal, LayoutGrid, Boxes, ClipboardCheck, Truck, Users,
   Crown, Ticket, Star, Home, FileText, Newspaper, Share2, HelpCircle, Bell, UserCog,
   ShieldCheck, Settings, Plug, Palette, Webhook, Menu, X, Search, PanelLeftClose,
-  PanelLeftOpen, Sun, Moon, LogOut, ExternalLink, ChevronRight, KeyRound, Cable, DatabaseZap, RefreshCw, Trash2, CreditCard, ListChecks, Rocket,
+  PanelLeftOpen, Sun, Moon, LogOut, ExternalLink, ChevronRight, KeyRound, Cable, DatabaseZap, RefreshCw, Trash2, CreditCard, ListChecks, Rocket, LayoutTemplate,
 } from 'lucide-react';
 
 export type NavItem = { href: string; label: string; icon: string };
@@ -23,7 +23,7 @@ const ICONS: Record<string, LucideIcon> = {
   specialOrders: Globe, gifts: Gift, products: Package, brands: Award, categories: FolderTree,
   tags: Tags, attributes: SlidersHorizontal, collections: LayoutGrid, inventory: Boxes,
   stocktake: ClipboardCheck, shipping: Truck, customers: Users, tiers: Crown, coupons: Ticket,
-  reviews: Star, homepage: Home, cmsPages: FileText, blog: Newspaper, social: Share2,
+  reviews: Star, homepage: Home, landing: LayoutTemplate, cmsPages: FileText, blog: Newspaper, social: Share2,
   quizzes: HelpCircle, notifications: Bell, users: UserCog, roles: ShieldCheck, settings: Settings,
   providers: Plug, appearance: Palette, loginProviders: KeyRound, integration: Webhook, payments: CreditCard, orderStatuses: ListChecks, goLive: Rocket,
   wooConnection: Cable, wooProducts: Package, wooCustomers: Users, wooOrders: ShoppingCart, wooImport: DatabaseZap, wooSync: RefreshCw, wooCleanup: Trash2,

@@ -51,6 +51,7 @@ const NAV_SECTIONS: RawSection[] = [
   ] },
   { title: ['Website', 'الموقع'], items: [
     { href: '/admin/homepage', key: 'homepage', permission: 'content.manage' },
+    { href: '/admin/landing', key: 'landing', permission: 'content.manage' },
     { href: '/admin/content/pages', key: 'cmsPages', permission: 'content.manage' },
     { href: '/admin/content/blog', key: 'blog', permission: 'content.manage' },
     { href: '/admin/social', key: 'social', permission: 'content.manage' },
