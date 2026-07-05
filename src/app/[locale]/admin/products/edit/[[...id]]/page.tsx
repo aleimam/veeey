@@ -8,6 +8,7 @@ import { hasPermission } from '@/lib/rbac';
 import { piastresToEgp } from '@/lib/format';
 import { ProductForm, type ProductDefaults } from '@/components/admin/product-form';
 import { ProductStock } from '@/components/admin/product-stock';
+import { ChangeHistory } from '@/components/admin/change-history';
 import { Link } from '@/i18n/navigation';
 import { pick } from '@/lib/admin-i18n';
 
@@ -122,6 +123,8 @@ export default async function ProductEditPage({
           canEdit={canStock}
         />
       )}
+
+      {product && <ChangeHistory entityType="Product" entityId={product.id} locale={locale} />}
     </div>
   );
 }

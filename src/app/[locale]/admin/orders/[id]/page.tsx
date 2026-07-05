@@ -13,6 +13,7 @@ import { CHANNELS } from '@/lib/channels';
 import { pick } from '@/lib/admin-i18n';
 import { conditionLabel, isConditionVariant } from '@/lib/lot-condition';
 import { deriveSourceKey, sourceLabel, attributionDetail, type Attribution } from '@/lib/attribution';
+import { ChangeHistory } from '@/components/admin/change-history';
 import {
   transitionOrderAction, assignPharmacistAction, setPayCheckAction, setSystemPaymentMethodAction, setOrderMetaAction,
   setTrackingAction, addOrderItemAction, removeOrderItemAction, addGiftToOrderAction, markOrderItemLostAction,
@@ -259,6 +260,8 @@ export default async function OrderDetailPage({ params, searchParams }: { params
           )}
         </aside>
       </div>
+
+      <ChangeHistory entityType="Order" entityId={order.id} locale={locale} />
     </div>
   );
 }

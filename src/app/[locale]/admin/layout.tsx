@@ -72,6 +72,7 @@ const NAV_SECTIONS: RawSection[] = [
     { href: '/admin/providers', key: 'providers', permission: 'settings.manage' },
     { href: '/admin/appearance', key: 'appearance', permission: 'settings.manage' },
     { href: '/admin/login-providers', key: 'loginProviders', permission: 'settings.manage' },
+    { href: '/admin/change-log', key: 'changeLog', permission: 'settings.manage' },
   ] },
   { title: ['Egypt Vitamins', 'إيجيبت فيتامينز'], items: [
     { href: '/admin/woocommerce', key: 'wooConnection', permission: 'settings.manage' },
