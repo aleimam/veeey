@@ -27,10 +27,17 @@ export default async function CartPage({
   const t = await getTranslations('storefront.cart');
   const cartId = await readCartId();
   const lines = cartId ? await getCart(cartId, locale) : [];
+  const addFailed = (Array.isArray(sp.add) ? sp.add[0] : sp.add) === 'out';
+  const stockNotice = addFailed && (
+    <div className="mb-6 rounded-[12px] border border-[color:var(--gold)] bg-gold-wash px-4 py-3 text-sm font-medium text-ink" role="alert">
+      {t('outOfStock')}
+    </div>
+  );
 
   if (lines.length === 0) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-20 text-center">
+        {stockNotice}
         <h1 className="text-3xl font-bold text-green-dark">{t('emptyTitle')}</h1>
         <Link href="/products" className="mt-4 inline-block text-sm font-semibold text-green-dark hover:text-lime-press">{t('browse')}</Link>
       </div>
@@ -43,6 +50,7 @@ export default async function CartPage({
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+      {stockNotice}
       <h1 className="mb-6 text-3xl font-bold text-green-dark">{t('title')}</h1>
       <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
         <ul className="space-y-4">

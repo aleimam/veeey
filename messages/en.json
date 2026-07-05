@@ -448,6 +448,7 @@
     "cart": {
       "emptyTitle": "Your cart is empty",
       "browse": "Browse products",
+      "outOfStock": "Sorry — we couldn't add that item: not enough stock is available right now.",
       "title": "Your cart",
       "exp": "Exp {date}",
       "noExpiry": "No expiry",

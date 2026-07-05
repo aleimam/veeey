@@ -89,7 +89,10 @@ export function addToCart(
   qty: number,
   opts: { lotId?: string; condition?: string; locationId?: string } = {},
 ) {
-  return reserveStock(productId, opts.locationId ?? 'loc_main', qty, {
+  // No location filter: sell from any location's LIVE stock (FEFO). The old
+  // hard-coded 'loc_main' default only matched the dev seed — on production
+  // (generated location ids) it made every add-to-cart fail silently.
+  return reserveStock(productId, opts.locationId ?? null, qty, {
     sessionId: cartId,
     holdMinutes: CART_HOLD_MIN,
     lotId: opts.lotId,

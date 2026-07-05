@@ -20,16 +20,17 @@ export async function addToCartAction(fd: FormData): Promise<void> {
   // Buy box pins the exact lot when the customer picks a condition variant
   // (Open-box / Damaged / Broken) — default adds pool NEW lots FEFO.
   const lotId = str(fd, 'lotId');
+  let failed = false;
   if (productId) {
     const cartId = await ensureCartId();
     try {
       await addToCart(cartId, productId, qty, { lotId });
     } catch {
-      // INSUFFICIENT_STOCK — line simply won't appear; PDP offers pre-order.
+      failed = true; // INSUFFICIENT_STOCK — tell the shopper instead of a silent empty cart
     }
   }
   revalidatePath(`/${locale}/cart`);
-  redirect(`/${locale}/cart`);
+  redirect(`/${locale}/cart${failed ? '?add=out' : ''}`);
 }
 
 export async function updateCartQtyAction(fd: FormData): Promise<void> {
@@ -38,15 +39,16 @@ export async function updateCartQtyAction(fd: FormData): Promise<void> {
   const qty = Number(str(fd, 'qty') ?? '0');
   const condition = str(fd, 'condition') ?? 'NEW';
   const cartId = await readCartId();
+  let failed = false;
   if (cartId && productId) {
     try {
       await setCartQty(cartId, productId, Math.max(0, qty), condition);
     } catch {
-      // keep prior qty on failure
+      failed = true; // requested more than available
     }
   }
   revalidatePath(`/${locale}/cart`);
-  redirect(`/${locale}/cart`);
+  redirect(`/${locale}/cart${failed ? '?add=out' : ''}`);
 }
 
 export async function removeFromCartAction(fd: FormData): Promise<void> {

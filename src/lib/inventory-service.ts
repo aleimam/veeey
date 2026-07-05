@@ -153,12 +153,15 @@ export type ReservationBinding = {
 
 /** FEFO soft-hold (FR-INV-03). Reserves `qty` across nearest-expiry lots,
  *  splitting if needed. Throws INSUFFICIENT_STOCK if not enough is available.
+ *  `locationId` is an optional filter — the storefront reserves across ALL
+ *  locations (production locations have generated ids, so a hard-coded id
+ *  would find no stock; that bug blanked every cart on the live site).
  *  Default FEFO only pools NEW-condition lots; a condition variant is reserved
  *  either by pinning its exact lot (`lotId`, buy-box pick) or by condition
  *  (`condition`, cart qty updates). */
 export async function reserveStock(
   productId: string,
-  locationId: string,
+  locationId: string | null,
   qty: number,
   opts: { sessionId?: string; orderId?: string; holdMinutes?: number; lotId?: string; condition?: string } = {},
 ): Promise<ReservationBinding[]> {
@@ -167,7 +170,7 @@ export async function reserveStock(
     const lots = await tx.lot.findMany({
       where: {
         productId,
-        locationId,
+        ...(locationId ? { locationId } : {}),
         status: 'LIVE',
         ...(opts.lotId ? { id: opts.lotId } : { condition: opts.condition ?? 'NEW' }),
       },
@@ -184,7 +187,7 @@ export async function reserveStock(
       const res = await tx.lotReservation.create({
         data: { lotId: lot.id, qty: take, sessionId: opts.sessionId, orderId: opts.orderId, expiresAt },
       });
-      await tx.movementLedger.create({ data: { lotId: lot.id, locationId, type: 'RESERVE', qtyDelta: -take, refType: 'reservation', refId: res.id } });
+      await tx.movementLedger.create({ data: { lotId: lot.id, locationId: lot.locationId, type: 'RESERVE', qtyDelta: -take, refType: 'reservation', refId: res.id } });
       bindings.push({ lotId: lot.id, reservationId: res.id, qty: take, expiryDate: lot.expiryDate, priceOverridePiastres: lot.priceOverridePiastres });
       remaining -= take;
     }
