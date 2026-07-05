@@ -1,8 +1,9 @@
 import { setRequestLocale } from 'next-intl/server';
-import { funnelCounts, topSearches, topViewedProducts, kpis, commerceMetrics } from '@/lib/analytics-service';
+import { funnelCounts, topSearches, topViewedProducts, kpis, commerceMetrics, ordersBySource } from '@/lib/analytics-service';
 import { buildFunnel } from '@/lib/analytics';
 import { formatEGP } from '@/lib/format';
 import { pick } from '@/lib/admin-i18n';
+import { sourceLabel } from '@/lib/attribution';
 
 const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
 
@@ -12,7 +13,7 @@ const MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'ما
 export default async function AnalyticsPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const [counts, searches, products, k, m] = await Promise.all([funnelCounts(), topSearches(), topViewedProducts(), kpis(), commerceMetrics()]);
+  const [counts, searches, products, k, m, sources] = await Promise.all([funnelCounts(), topSearches(), topViewedProducts(), kpis(), commerceMetrics(), ordersBySource()]);
   const funnel = buildFunnel(counts);
   const top = funnel[0].count || 1;
   const tb = pick(locale);
@@ -77,6 +78,30 @@ export default async function AnalyticsPage({ params }: { params: Promise<{ loca
             </div>
           ))}
         </div>
+      </section>
+
+      <section className="mb-8">
+        <h2 className="mb-3 text-sm font-semibold">{tb('Traffic sources (last 30 days, orders)', 'مصادر الزيارات (آخر 30 يومًا، الطلبات)')}</h2>
+        <div className="overflow-hidden rounded-lg border border-border">
+          <table className="w-full text-sm">
+            <thead className="bg-surface text-xs uppercase text-muted-foreground"><tr><th className="p-2 text-start">{tb('Source', 'المصدر')}</th><th className="p-2">{tb('Orders', 'الطلبات')}</th><th className="p-2 text-end">{tb('Revenue (delivered)', 'الإيرادات (تم التسليم)')}</th></tr></thead>
+            <tbody>
+              {sources.map((s) => (
+                <tr key={s.key} className="border-t border-border">
+                  <td className="p-2">{sourceLabel(s.key, locale)}</td>
+                  <td className="p-2 text-center font-medium">{s.orders}</td>
+                  <td className="p-2 text-end">{formatEGP(s.revenue)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          {tb(
+            'Automatic attribution from UTM tags, ad click-ids and referrers on the visit that led to the order — separate from the manual Channel field.',
+            'إسناد تلقائي من وسوم UTM ومعرّفات نقرات الإعلانات والمُحيل في الزيارة التي أدّت إلى الطلب — منفصل عن حقل القناة اليدوي.',
+          )}
+        </p>
       </section>
 
       <section className="mb-8">

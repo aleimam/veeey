@@ -1,9 +1,11 @@
 import { z } from 'zod';
 import { randomInt } from 'node:crypto';
+import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/auth';
 import { audit } from '@/lib/audit';
 import { clearCartCookie } from '@/lib/cart-service';
+import { ATTR_COOKIE, parseAttribution } from '@/lib/attribution';
 import { getShippingFee, type ShippingTypeKey } from '@/lib/shipping-service';
 import { orderTotal, depositAndBalance } from '@/lib/checkout-math';
 import { scoreOrderRisk } from '@/lib/fraud';
@@ -92,6 +94,9 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
   });
 
   const number = `VY-${Date.now().toString(36).toUpperCase()}-${randomInt(100, 999)}`;
+  // Attribution snapshot (owner batch #7) — the proxy-captured last non-direct
+  // touch travels onto the order; the manual Channel (source) stays separate.
+  const attribution = parseAttribution((await cookies()).get(ATTR_COOKIE)?.value);
   // Granular system method (courier not yet known → null for COD; gateway for cards).
   const systemPaymentMethod = await deriveSystemMethod(data.paymentMethod, null);
   const addressSnapshot = {
@@ -125,6 +130,7 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
         shippingType: data.shippingType,
         discreetPackaging: data.discreetPackaging,
         source: 'DIRECT', // placed directly from the storefront
+        utmJson: attribution ?? undefined,
         shippingAddressId,
         shippingAddressJson: addressSnapshot,
       },

@@ -1,7 +1,26 @@
 import { prisma } from '@/lib/prisma';
+import { deriveSourceKey, SOURCE_KEYS, type Attribution, type SourceKey } from '@/lib/attribution';
 
 /** Behavioral analytics from the first-party clickstream + orders (FR-ANL-*). */
 const sinceDate = (days: number) => new Date(Date.now() - days * 86_400_000);
+
+/**
+ * Traffic-sources report (owner batch #7): orders bucketed by the derived
+ * attribution source (Order.utmJson), with delivered revenue per bucket.
+ */
+export async function ordersBySource(days = 30) {
+  const rows = await prisma.order.findMany({
+    where: { placedAt: { gte: sinceDate(days) } },
+    select: { utmJson: true, totalPiastres: true, status: true },
+  });
+  const buckets = new Map<SourceKey, { orders: number; revenue: number }>(SOURCE_KEYS.map((k) => [k, { orders: 0, revenue: 0 }]));
+  for (const o of rows) {
+    const b = buckets.get(deriveSourceKey(o.utmJson as Attribution | null))!;
+    b.orders += 1;
+    if (o.status === 'DELIVERED') b.revenue += Number(o.totalPiastres);
+  }
+  return SOURCE_KEYS.map((key) => ({ key, ...buckets.get(key)! })).sort((a, b) => b.orders - a.orders);
+}
 
 export async function funnelCounts(days = 30) {
   const since = sinceDate(days);

@@ -12,6 +12,7 @@ import { listSystemMethods, customerLabel } from '@/lib/payment-method-service';
 import { CHANNELS } from '@/lib/channels';
 import { pick } from '@/lib/admin-i18n';
 import { conditionLabel, isConditionVariant } from '@/lib/lot-condition';
+import { deriveSourceKey, sourceLabel, attributionDetail, type Attribution } from '@/lib/attribution';
 import {
   transitionOrderAction, assignPharmacistAction, setPayCheckAction, setSystemPaymentMethodAction, setOrderMetaAction,
   setTrackingAction, addOrderItemAction, removeOrderItemAction, addGiftToOrderAction, markOrderItemLostAction,
@@ -233,6 +234,16 @@ export default async function OrderDetailPage({ params, searchParams }: { params
               {CHANNELS.map((c) => <option key={c.code} value={c.code}>{locale === 'ar' ? c.ar : c.en}</option>)}
             </select>
             <button className="mt-2 w-full rounded-md border border-border px-3 py-1.5 hover:bg-surface">{tb('Save', 'حفظ')}</button>
+            {/* Automatic traffic attribution (read-only) — lives alongside the manual Channel. */}
+            <div className="mt-3 border-t border-border pt-2 text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">{tb('Traffic source', 'مصدر الزيارة')}: </span>
+              {sourceLabel(deriveSourceKey(order.utmJson as Attribution | null), locale)}
+              {attributionDetail(order.utmJson as Attribution | null) && (
+                <span className="block truncate" title={attributionDetail(order.utmJson as Attribution | null)}>
+                  {attributionDetail(order.utmJson as Attribution | null)}
+                </span>
+              )}
+            </div>
           </form>
 
           {gifts.length > 0 && (
