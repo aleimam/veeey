@@ -3,6 +3,7 @@ import { Link } from '@/i18n/navigation';
 import { getOrderByNumber } from '@/lib/checkout-service';
 import { customerLabel, isOnlineMethod } from '@/lib/payment-method-service';
 import { formatEGP } from '@/lib/format';
+import { conditionLabel, isConditionVariant } from '@/lib/lot-condition';
 
 type SP = Record<string, string | string[] | undefined>;
 
@@ -64,7 +65,11 @@ export default async function ConfirmationPage({
         <ul className="divide-y divide-[color:var(--slate-border)]">
           {order.items.map((it) => (
             <li key={it.id} className="flex justify-between py-2 text-sm text-ink">
-              <span>{it.product.nameEn} × {it.qty}{it.lineExpiry ? ` · ${t('exp', { date: it.lineExpiry.toISOString().slice(0, 7) })}` : ''}</span>
+              <span>
+                {it.product.nameEn} × {it.qty}
+                {it.lineExpiry ? ` · ${t('exp', { date: it.lineExpiry.toISOString().slice(0, 7) })}` : ''}
+                {isConditionVariant(it.condition) ? ` · ${conditionLabel(it.condition, locale)}` : ''}
+              </span>
               <span className="font-semibold">{formatEGP(Number(it.unitPricePiastres) * it.qty)}</span>
             </li>
           ))}

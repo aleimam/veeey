@@ -43,6 +43,7 @@ export async function saveLotAction(_p: AdminFormState, fd: FormData): Promise<A
       qtyOnHand: str(fd, 'qtyOnHand') ?? '0',
       costEgp: str(fd, 'costEgp'),
       priceOverrideEgp: str(fd, 'priceOverrideEgp'),
+      condition: (str(fd, 'condition') ?? 'NEW') as 'NEW' | 'OPEN_BOX' | 'DAMAGED' | 'BROKEN',
       saleFlag: bool(fd, 'saleFlag'),
       status: (str(fd, 'status') ?? 'LIVE') as 'LIVE' | 'QUARANTINE' | 'EXPIRED' | 'WRITTEN_OFF',
     });
@@ -67,6 +68,7 @@ export async function saveProductLotAction(fd: FormData): Promise<void> {
       qtyOnHand: str(fd, 'qtyOnHand') ?? '0',
       costEgp: str(fd, 'costEgp'),
       priceOverrideEgp: str(fd, 'priceOverrideEgp'),
+      condition: (str(fd, 'condition') ?? 'NEW') as 'NEW' | 'OPEN_BOX' | 'DAMAGED' | 'BROKEN',
       saleFlag: bool(fd, 'saleFlag'),
       status: (str(fd, 'status') ?? 'LIVE') as 'LIVE' | 'QUARANTINE' | 'EXPIRED' | 'WRITTEN_OFF',
     });

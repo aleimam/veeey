@@ -11,6 +11,7 @@ import { aramexConfigured, smsaConfigured } from '@/lib/provider-config';
 import { listSystemMethods, customerLabel } from '@/lib/payment-method-service';
 import { CHANNELS } from '@/lib/channels';
 import { pick } from '@/lib/admin-i18n';
+import { conditionLabel, isConditionVariant } from '@/lib/lot-condition';
 import {
   transitionOrderAction, assignPharmacistAction, setPayCheckAction, setSystemPaymentMethodAction, setOrderMetaAction,
   setTrackingAction, addOrderItemAction, removeOrderItemAction, addGiftToOrderAction, markOrderItemLostAction,
@@ -75,7 +76,10 @@ export default async function OrderDetailPage({ params, searchParams }: { params
                 {order.items.map((it) => (
                   <tr key={it.id} className={`border-t border-border ${it.lost ? 'opacity-60' : ''}`}>
                     <td className={`p-2 ${it.lost ? 'line-through' : ''}`}>{it.product.nameEn} <span className="text-muted-foreground">({it.product.sku})</span>{it.lost && <span className="ms-2 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-medium text-destructive no-underline">{tb('Lost', 'مفقود')}</span>}</td>
-                    <td className="p-2 text-center">{monthYear(it.lineExpiry)}</td>
+                    <td className="p-2 text-center">
+                      {monthYear(it.lineExpiry)}
+                      {isConditionVariant(it.condition) && <span className="ms-1.5 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">{conditionLabel(it.condition, locale)}</span>}
+                    </td>
                     <td className="p-2 text-center">{it.product.weightG != null ? `${it.product.weightG}g` : '—'}</td>
                     <td className="p-2 text-center">{it.qty}</td>
                     <td className={`p-2 text-center ${it.lost ? 'line-through' : ''}`}>{formatEGP(Number(it.unitPricePiastres) * it.qty)}</td>

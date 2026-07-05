@@ -13,6 +13,7 @@ export type BuyLot = {
   pricePiastres: number;
   sale: boolean;
   qty: number;
+  condition: string; // 'NEW' or an explicit variant (OPEN_BOX / DAMAGED / BROKEN)
 };
 
 const priceFont = { fontFamily: 'var(--font-display)' } as const;

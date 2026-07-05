@@ -5,6 +5,7 @@ import { readCartId, getCart } from '@/lib/cart-service';
 import { listAreas, deliverToOptions } from '@/lib/shipping-service';
 import { updateCartQtyAction, removeFromCartAction } from '@/server/cart-actions';
 import { formatEGP } from '@/lib/format';
+import { conditionLabel, isConditionVariant } from '@/lib/lot-condition';
 
 const monthYear = (d: Date) => `${String(d.getUTCMonth() + 1).padStart(2, '0')}/${d.getUTCFullYear()}`;
 type SP = Record<string, string | string[] | undefined>;
@@ -46,25 +47,34 @@ export default async function CartPage({
       <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
         <ul className="space-y-4">
           {lines.map((l) => (
-            <li key={l.productId} className="flex gap-4 rounded-[12px] border border-[color:var(--green-dark-05)] bg-white p-4 shadow-[var(--shadow-card)]">
+            <li key={`${l.productId}:${l.condition}`} className="flex gap-4 rounded-[12px] border border-[color:var(--green-dark-05)] bg-white p-4 shadow-[var(--shadow-card)]">
               <div className="relative size-20 shrink-0 overflow-hidden rounded-[10px] bg-surface">
                 <Image src={l.image} alt={l.name} fill sizes="80px" className="object-cover" />
               </div>
               <div className="flex flex-1 flex-col">
                 <Link href={`/products/${l.slug}`} className="font-semibold text-ink hover:text-green-dark">{l.name}</Link>
-                <span className="mt-1 inline-flex w-fit rounded-full bg-green-wash px-2.5 py-0.5 text-xs font-semibold text-green-dark">
-                  {l.nearestExpiry ? t('exp', { date: monthYear(l.nearestExpiry) }) : t('noExpiry')}
+                <span className="mt-1 flex flex-wrap gap-1.5">
+                  <span className="inline-flex w-fit rounded-full bg-green-wash px-2.5 py-0.5 text-xs font-semibold text-green-dark">
+                    {l.nearestExpiry ? t('exp', { date: monthYear(l.nearestExpiry) }) : t('noExpiry')}
+                  </span>
+                  {isConditionVariant(l.condition) && (
+                    <span className="inline-flex w-fit rounded-full bg-gold-wash px-2.5 py-0.5 text-xs font-semibold text-gold-deep">
+                      {conditionLabel(l.condition, locale)}
+                    </span>
+                  )}
                 </span>
                 <div className="mt-auto flex items-center justify-between">
                   <form action={updateCartQtyAction} className="flex items-center gap-2">
                     <input type="hidden" name="locale" value={locale} />
                     <input type="hidden" name="productId" value={l.productId} />
+                    <input type="hidden" name="condition" value={l.condition} />
                     <input type="number" name="qty" min="0" defaultValue={l.qty} className="w-16 rounded-[8px] border border-[color:var(--slate-border)] bg-surface px-2 py-1 text-sm text-ink" />
                     <button className="text-xs font-semibold text-green-dark hover:text-lime-press">{t('update')}</button>
                   </form>
                   <form action={removeFromCartAction}>
                     <input type="hidden" name="locale" value={locale} />
                     <input type="hidden" name="productId" value={l.productId} />
+                    <input type="hidden" name="condition" value={l.condition} />
                     <button className="text-xs text-slate-45 hover:text-error">{t('remove')}</button>
                   </form>
                 </div>

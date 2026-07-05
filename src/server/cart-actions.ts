@@ -17,10 +17,13 @@ export async function addToCartAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
   const productId = str(fd, 'productId');
   const qty = Number(str(fd, 'qty') ?? '1') || 1;
+  // Buy box pins the exact lot when the customer picks a condition variant
+  // (Open-box / Damaged / Broken) — default adds pool NEW lots FEFO.
+  const lotId = str(fd, 'lotId');
   if (productId) {
     const cartId = await ensureCartId();
     try {
-      await addToCart(cartId, productId, qty);
+      await addToCart(cartId, productId, qty, { lotId });
     } catch {
       // INSUFFICIENT_STOCK — line simply won't appear; PDP offers pre-order.
     }
@@ -33,10 +36,11 @@ export async function updateCartQtyAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
   const productId = str(fd, 'productId');
   const qty = Number(str(fd, 'qty') ?? '0');
+  const condition = str(fd, 'condition') ?? 'NEW';
   const cartId = await readCartId();
   if (cartId && productId) {
     try {
-      await setCartQty(cartId, productId, Math.max(0, qty));
+      await setCartQty(cartId, productId, Math.max(0, qty), condition);
     } catch {
       // keep prior qty on failure
     }
@@ -48,8 +52,9 @@ export async function updateCartQtyAction(fd: FormData): Promise<void> {
 export async function removeFromCartAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
   const productId = str(fd, 'productId');
+  const condition = str(fd, 'condition');
   const cartId = await readCartId();
-  if (cartId && productId) await removeFromCart(cartId, productId);
+  if (cartId && productId) await removeFromCart(cartId, productId, condition);
   revalidatePath(`/${locale}/cart`);
   redirect(`/${locale}/cart`);
 }

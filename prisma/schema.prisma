@@ -819,6 +819,7 @@ model Lot {
   qtyReserved           Int       @default(0)
   costPiastres          BigInt?
   priceOverridePiastres BigInt? // price-per-expiry (FR-INV-04)
+  condition             String    @default("NEW") // NEW | OPEN_BOX | DAMAGED | BROKEN — non-NEW sells as an explicit buy-box variant
   saleFlag              Boolean   @default(false)
   sourceBatchId         String? // YeldnIN batch for revenue/COGS attribution (FR-INT-04)
   receivedAt            DateTime  @default(now())
@@ -974,6 +975,7 @@ model OrderItem {
   qty               Int
   unitPricePiastres BigInt
   lineExpiry        DateTime? // exact expiry of bound lot travels with the line (FR-INV-02)
+  condition         String? // bound lot's condition snapshot (null = NEW / pre-feature)
   weightG           Int?
   pointsEarned      Int          @default(0)
   isGift            Boolean      @default(false)

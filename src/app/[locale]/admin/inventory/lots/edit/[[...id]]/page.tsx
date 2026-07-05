@@ -29,6 +29,7 @@ export default async function LotEditPage({ params }: { params: Promise<{ locale
         qtyOnHand: lot.qtyOnHand,
         costEgp: lot.costPiastres != null ? piastresToEgp(lot.costPiastres) : '',
         priceOverrideEgp: lot.priceOverridePiastres != null ? piastresToEgp(lot.priceOverridePiastres) : '',
+        condition: lot.condition,
         saleFlag: lot.saleFlag,
         status: lot.status,
       }

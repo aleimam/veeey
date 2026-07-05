@@ -6,6 +6,7 @@ import { Link } from '@/i18n/navigation';
 import { saveLotAction, type AdminFormState } from '@/server/inventory-actions';
 import { Field, FormError, SubmitButton, inputCls } from './ui';
 import { pick } from '@/lib/admin-i18n';
+import { LOT_CONDITIONS, conditionLabel } from '@/lib/lot-condition';
 
 type Opt = { value: string; label: string };
 
@@ -101,11 +102,18 @@ export function LotForm({
       <label className="flex items-center gap-2 text-sm font-medium">
         <input type="checkbox" name="saleFlag" defaultChecked={!!d.saleFlag} className="size-4" /> {tb('Near-expiry discount', 'تخفيض قرب انتهاء الصلاحية')}
       </label>
-      <Field label={tb('Status', 'الحالة')}>
-        <select name="status" defaultValue={(d.status as string) ?? 'LIVE'} className={inputCls}>
-          {['LIVE', 'QUARANTINE', 'EXPIRED', 'WRITTEN_OFF'].map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
-      </Field>
+      <div className="grid grid-cols-2 gap-4">
+        <Field label={tb('Condition', 'حالة العبوة')} hint={tb('Non-new lots sell as an explicit buy-box variant at this lot’s price.', 'الدفعات غير الجديدة تُباع كخيار صريح في صندوق الشراء بسعر هذه الدفعة.')}>
+          <select name="condition" defaultValue={(d.condition as string) ?? 'NEW'} className={inputCls}>
+            {LOT_CONDITIONS.map((c) => <option key={c} value={c}>{conditionLabel(c, locale)}</option>)}
+          </select>
+        </Field>
+        <Field label={tb('Status', 'الحالة')}>
+          <select name="status" defaultValue={(d.status as string) ?? 'LIVE'} className={inputCls}>
+            {['LIVE', 'QUARANTINE', 'EXPIRED', 'WRITTEN_OFF'].map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </Field>
+      </div>
 
       <div className="flex items-center gap-3">
         <SubmitButton>{tb('Save lot', 'حفظ الدفعة')}</SubmitButton>

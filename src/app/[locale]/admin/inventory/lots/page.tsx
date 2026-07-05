@@ -10,6 +10,7 @@ import { SortableTh } from '@/components/admin/sortable-th';
 import { ListPagination } from '@/components/admin/list-pagination';
 import { parseListParams, one, type SP } from '@/lib/admin-list';
 import { pick } from '@/lib/admin-i18n';
+import { conditionLabel, isConditionVariant } from '@/lib/lot-condition';
 
 const monthYear = (d: Date) => `${String(d.getUTCMonth() + 1).padStart(2, '0')}/${d.getUTCFullYear()}`;
 const SORTABLE = ['product', 'location', 'expiry', 'onhand', 'price', 'status'] as const;
@@ -79,7 +80,10 @@ export default async function LotsPage({ params, searchParams }: { params: Promi
               <tr key={l.id} className="border-t border-border">
                 <td className="p-3"><div className="font-medium">{l.product.nameEn}</div><div className="font-mono text-xs text-muted-foreground">{l.product.sku}</div></td>
                 <td className="p-3 text-muted-foreground">{l.location.name}</td>
-                <td className="p-3">{l.expiryDate ? monthYear(l.expiryDate) : tb('No expiry', 'بدون صلاحية')}</td>
+                <td className="p-3">
+                  {l.expiryDate ? monthYear(l.expiryDate) : tb('No expiry', 'بدون صلاحية')}
+                  {isConditionVariant(l.condition) && <span className="ms-1.5 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">{conditionLabel(l.condition, locale)}</span>}
+                </td>
                 <td className="p-3 text-center">{l.qtyOnHand}</td>
                 <td className="p-3 text-center text-muted-foreground">{availableQty(l)}</td>
                 <td className="p-3">{formatEGP(Number(l.priceOverridePiastres ?? l.product.basePricePiastres))}{l.saleFlag ? ` · ${tb('Sale', 'تخفيض')}` : ''}</td>

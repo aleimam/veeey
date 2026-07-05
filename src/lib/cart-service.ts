@@ -41,6 +41,7 @@ export type CartLine = {
   unitPricePiastres: number;
   subtotalPiastres: number;
   nearestExpiry: Date | null;
+  condition: string; // 'NEW' or an explicit variant (OPEN_BOX / DAMAGED / BROKEN)
 };
 
 export async function getCart(cartId: string, locale = 'en'): Promise<CartLine[]> {
@@ -48,11 +49,14 @@ export async function getCart(cartId: string, locale = 'en'): Promise<CartLine[]
     where: { sessionId: cartId },
     include: { lot: { include: { product: { include: { brand: true, images: { take: 1, orderBy: { sortOrder: 'asc' } } } } } } },
   });
+  // Lines group by product × condition, so a NEW line and an Open-box line of
+  // the same product stay separate (different prices, separate qty controls).
   const map = new Map<string, CartLine>();
   for (const r of res) {
     const p = r.lot.product;
     const unit = Number(r.lot.priceOverridePiastres ?? p.basePricePiastres);
-    const line = map.get(p.id) ?? {
+    const key = `${p.id}:${r.lot.condition}`;
+    const line = map.get(key) ?? {
       productId: p.id,
       slug: (locale === 'ar' ? p.slugAr : p.slugEn) ?? p.slugEn,
       name: (locale === 'ar' ? p.nameAr : p.nameEn) ?? p.nameEn,
@@ -62,13 +66,14 @@ export async function getCart(cartId: string, locale = 'en'): Promise<CartLine[]
       unitPricePiastres: unit,
       subtotalPiastres: 0,
       nearestExpiry: r.lot.expiryDate,
+      condition: r.lot.condition,
     };
     line.qty += r.qty;
     line.subtotalPiastres += unit * r.qty;
     // Keep the earliest dated expiry; NA (null) never overrides a date, and
     // only remains if every bound lot is non-perishable.
     if (r.lot.expiryDate && (!line.nearestExpiry || r.lot.expiryDate < line.nearestExpiry)) line.nearestExpiry = r.lot.expiryDate;
-    map.set(p.id, line);
+    map.set(key, line);
   }
   return [...map.values()];
 }
@@ -78,16 +83,30 @@ export async function cartCount(cartId: string): Promise<number> {
   return agg._sum.qty ?? 0;
 }
 
-export function addToCart(cartId: string, productId: string, qty: number, locationId = 'loc_main') {
-  return reserveStock(productId, locationId, qty, { sessionId: cartId, holdMinutes: CART_HOLD_MIN });
+export function addToCart(
+  cartId: string,
+  productId: string,
+  qty: number,
+  opts: { lotId?: string; condition?: string; locationId?: string } = {},
+) {
+  return reserveStock(productId, opts.locationId ?? 'loc_main', qty, {
+    sessionId: cartId,
+    holdMinutes: CART_HOLD_MIN,
+    lotId: opts.lotId,
+    condition: opts.condition,
+  });
 }
 
-export async function removeFromCart(cartId: string, productId: string) {
-  const res = await prisma.lotReservation.findMany({ where: { sessionId: cartId, lot: { productId } }, select: { id: true } });
+/** Remove a product's holds — all of them, or only one condition line's. */
+export async function removeFromCart(cartId: string, productId: string, condition?: string) {
+  const res = await prisma.lotReservation.findMany({
+    where: { sessionId: cartId, lot: { productId, ...(condition ? { condition } : {}) } },
+    select: { id: true },
+  });
   for (const r of res) await releaseReservation(r.id);
 }
 
-export async function setCartQty(cartId: string, productId: string, qty: number) {
-  await removeFromCart(cartId, productId);
-  if (qty > 0) await addToCart(cartId, productId, qty);
+export async function setCartQty(cartId: string, productId: string, qty: number, condition = 'NEW') {
+  await removeFromCart(cartId, productId, condition);
+  if (qty > 0) await addToCart(cartId, productId, qty, { condition });
 }

@@ -1,5 +1,6 @@
 import PDFDocument from 'pdfkit';
 import { formatEGP } from '@/lib/format';
+import { conditionLabel, isConditionVariant } from '@/lib/lot-condition';
 
 type InvoiceOrder = {
   number: string;
@@ -11,7 +12,7 @@ type InvoiceOrder = {
   totalPiastres: bigint;
   shippingAddressJson: unknown;
   pharmacist: { name: string | null } | null;
-  items: { qty: number; unitPricePiastres: bigint; lineExpiry: Date | null; product: { nameEn: string; sku: string; weightG: number | null } }[];
+  items: { qty: number; unitPricePiastres: bigint; lineExpiry: Date | null; condition: string | null; product: { nameEn: string; sku: string; weightG: number | null } }[];
 };
 
 /**
@@ -56,7 +57,7 @@ export function generateInvoicePdf(order: InvoiceOrder): Promise<Buffer> {
 
     for (const it of order.items) {
       const y = doc.y;
-      doc.fillColor('#2a3640').text(`${it.product.nameEn}`, 50, y, { width: 220 });
+      doc.fillColor('#2a3640').text(`${it.product.nameEn}${isConditionVariant(it.condition) ? ` — ${conditionLabel(it.condition, 'en')}` : ''}`, 50, y, { width: 220 });
       const lineY = Math.max(y, doc.y - 12);
       doc.fillColor('#6a7b72');
       doc.text(it.lineExpiry ? it.lineExpiry.toISOString().slice(0, 7) : '—', 280, lineY);

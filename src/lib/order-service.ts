@@ -249,7 +249,10 @@ export async function addOrderItem(orderId: string, productId: string, qty: numb
   await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUniqueOrThrow({ where: { id: orderId } });
     if (!(['HOLD', 'EDIT', 'CONFIRMED', 'PENDING'] as string[]).includes(order.status)) throw new Error('NOT_EDITABLE');
-    const lots = await tx.lot.findMany({ where: { productId, status: 'LIVE' }, orderBy: { expiryDate: 'asc' }, include: { product: true } });
+    const found = await tx.lot.findMany({ where: { productId, status: 'LIVE' }, orderBy: { expiryDate: 'asc' }, include: { product: true } });
+    // Prefer NEW units (FEFO); fall back to condition variants (Open-box/…)
+    // only when NEW stock runs out — the line snapshots the condition either way.
+    const lots = [...found].sort((a, b) => Number(a.condition !== 'NEW') - Number(b.condition !== 'NEW'));
     let remaining = qty;
     for (const lot of lots) {
       if (remaining <= 0) break;
@@ -257,7 +260,7 @@ export async function addOrderItem(orderId: string, productId: string, qty: numb
       if (avail <= 0) continue;
       const take = Math.min(avail, remaining);
       const unit = lot.priceOverridePiastres ?? lot.product.basePricePiastres;
-      await tx.orderItem.create({ data: { orderId, productId, lotId: lot.id, qty: take, unitPricePiastres: unit, lineExpiry: lot.expiryDate, weightG: lot.product.weightG } });
+      await tx.orderItem.create({ data: { orderId, productId, lotId: lot.id, qty: take, unitPricePiastres: unit, lineExpiry: lot.expiryDate, condition: lot.condition, weightG: lot.product.weightG } });
       await tx.lot.update({ where: { id: lot.id }, data: { qtyOnHand: { decrement: take } } });
       await tx.movementLedger.create({ data: { lotId: lot.id, locationId: lot.locationId, type: 'SALE', qtyDelta: -take, refType: 'order_edit', refId: orderId } });
       remaining -= take;

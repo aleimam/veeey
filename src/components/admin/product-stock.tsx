@@ -3,6 +3,7 @@ import { availableQty } from '@/lib/inventory';
 import { piastresToEgp, formatEGP } from '@/lib/format';
 import { StatusBadge, inputCls } from './ui';
 import { pick } from '@/lib/admin-i18n';
+import { LOT_CONDITIONS, conditionLabel } from '@/lib/lot-condition';
 
 type LotRow = {
   id: string;
@@ -12,6 +13,7 @@ type LotRow = {
   qtyOnHand: number;
   qtyReserved: number;
   priceOverridePiastres: bigint | null;
+  condition: string;
   saleFlag: boolean;
   status: string;
 };
@@ -74,6 +76,7 @@ export function ProductStock({
               <th className={`${cell} text-center`}>{tb('On hand', 'المتاح')}</th>
               <th className={`${cell} text-center`}>{tb('Sellable', 'القابل للبيع')}</th>
               <th className={`${cell} text-start`}>{tb('Lot price (EGP)', 'سعر الدفعة (ج.م)')}</th>
+              <th className={`${cell} text-start`}>{tb('Condition', 'حالة العبوة')}</th>
               <th className={`${cell} text-start`}>{tb('Status', 'الحالة')}</th>
               {canEdit && <th className={cell} />}
             </tr>
@@ -115,6 +118,11 @@ export function ProductStock({
                     </label>
                   </td>
                   <td className={cell}>
+                    <select form={`lot-${l.id}`} name="condition" defaultValue={l.condition} className={mini}>
+                      {LOT_CONDITIONS.map((c) => <option key={c} value={c}>{conditionLabel(c, locale)}</option>)}
+                    </select>
+                  </td>
+                  <td className={cell}>
                     <select form={`lot-${l.id}`} name="status" defaultValue={l.status} className={mini}>
                       {LOT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                     </select>
@@ -138,12 +146,13 @@ export function ProductStock({
                     {formatEGP(Number(l.priceOverridePiastres ?? basePricePiastres))}
                     {l.saleFlag ? ` · ${tb('Sale', 'تخفيض')}` : ''}
                   </td>
+                  <td className={cell}>{conditionLabel(l.condition, locale)}</td>
                   <td className={cell}><StatusBadge status={l.status} /></td>
                 </tr>
               ),
             )}
             {lots.length === 0 && (
-              <tr><td colSpan={canEdit ? 7 : 6} className="p-4 text-center text-muted-foreground">{tb('No stock yet. Add a lot below.', 'لا يوجد مخزون بعد. أضف دفعة بالأسفل.')}</td></tr>
+              <tr><td colSpan={canEdit ? 8 : 7} className="p-4 text-center text-muted-foreground">{tb('No stock yet. Add a lot below.', 'لا يوجد مخزون بعد. أضف دفعة بالأسفل.')}</td></tr>
             )}
           </tbody>
 
@@ -172,6 +181,11 @@ export function ProductStock({
                     <input form="lot-new" type="checkbox" name="saleFlag" className="size-3.5" />
                     {tb('Near-expiry sale', 'تخفيض قرب الصلاحية')}
                   </label>
+                </td>
+                <td className={cell}>
+                  <select form="lot-new" name="condition" defaultValue="NEW" className={mini}>
+                    {LOT_CONDITIONS.map((c) => <option key={c} value={c}>{conditionLabel(c, locale)}</option>)}
+                  </select>
                 </td>
                 <td className={cell}>
                   <select form="lot-new" name="status" defaultValue="LIVE" className={mini}>

@@ -64,13 +64,18 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
   const refillEnabled = (await getSetting('refill.enabled')) === 'true'; // visual subscribe upsell off until real Refill ships
   const images = p.images.length ? p.images : [{ id: 'ph', url: '/placeholder.svg', alt: name }];
 
-  const buyLots: BuyLot[] = p.lots.map((l) => ({
-    id: l.id,
-    expiry: l.expiryDate ? monthYear(l.expiryDate) : null,
-    pricePiastres: Number(l.priceOverridePiastres ?? p.basePricePiastres),
-    sale: l.saleFlag && l.priceOverridePiastres != null,
-    qty: l.qtyOnHand,
-  }));
+  // NEW lots first (FEFO order preserved), condition variants after — so the
+  // default buy-box selection is always a NEW unit when one exists.
+  const buyLots: BuyLot[] = [...p.lots]
+    .sort((a, b) => Number(a.condition !== 'NEW') - Number(b.condition !== 'NEW'))
+    .map((l) => ({
+      id: l.id,
+      expiry: l.expiryDate ? monthYear(l.expiryDate) : null,
+      pricePiastres: Number(l.priceOverridePiastres ?? p.basePricePiastres),
+      sale: l.saleFlag && l.priceOverridePiastres != null,
+      qty: l.qtyOnHand,
+      condition: l.condition,
+    }));
   const basePrice = Number(p.basePricePiastres);
   const points = Math.round(basePrice / 100);
 

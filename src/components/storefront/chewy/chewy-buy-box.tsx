@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { pick } from '@/lib/admin-i18n';
 import { formatEGP } from '@/lib/format';
+import { conditionLabel, isConditionVariant } from '@/lib/lot-condition';
 import { addToCartAction } from '@/server/cart-actions';
 import { Icon } from '@/components/storefront/ui/icon';
 import { Rating } from '@/components/storefront/ui/rating';
@@ -42,6 +43,7 @@ export function ChewyBuyBox({
   const [mode, setMode] = useState<'once' | 'refill'>('once');
   const [qty, setQty] = useState(1);
   const lot = lots.length ? lots[selected] : null;
+  const variant = isConditionVariant(lot?.condition); // Open-box / Damaged / Broken unit
   const unit = lot ? lot.pricePiastres : basePricePiastres;
   const refillUnit = Math.round(unit * 0.85);
   const display = mode === 'refill' ? refillUnit : unit;
@@ -79,9 +81,12 @@ export function ChewyBuyBox({
                 <button
                   key={l.id}
                   type="button"
-                  onClick={() => setSelected(i)}
+                  onClick={() => { setSelected(i); if (isConditionVariant(l.condition)) setQty((q) => Math.min(q, Math.max(1, l.qty))); }}
                   className={`min-w-[100px] rounded-[12px] px-3.5 py-2.5 text-start ${on ? 'border-[1.5px] border-green-dark bg-green-wash' : 'border border-[color:var(--slate-border)] bg-white'}`}
                 >
+                  {isConditionVariant(l.condition) && (
+                    <div className="text-[11px] font-bold uppercase tracking-[0.04em] text-gold-deep">{conditionLabel(l.condition, locale)}</div>
+                  )}
                   <div className="text-xs text-[color:var(--text-muted)]">{l.expiry ? t(`Exp ${l.expiry}`, `الصلاحية ${l.expiry}`) : t('No expiry', 'بدون صلاحية')}</div>
                   <div className={`text-[17px] font-bold ${on ? 'text-green-dark' : 'text-ink'}`}>{formatEGP(l.pricePiastres)}</div>
                   {pct > 0 && <div className="text-[11px] font-bold text-gold-deep">−{pct}%</div>}
@@ -89,6 +94,18 @@ export function ChewyBuyBox({
               );
             })}
           </div>
+        </div>
+      )}
+
+      {variant && lot && (
+        <div className="flex items-center gap-2.5 rounded-[12px] bg-gold-wash px-3.5 py-3">
+          <Icon name="package-open" size={18} color="var(--gold-deep)" />
+          <span className="text-[13px] font-medium text-ink">
+            {t(
+              `${conditionLabel(lot.condition, 'en')} unit — genuine product, discounted for its packaging condition. Only ${lot.qty} left.`,
+              `وحدة ${conditionLabel(lot.condition, 'ar')} — منتج أصلي بسعر مخفَّض بسبب حالة العبوة. متبقٍ ${lot.qty} فقط.`,
+            )}
+          </span>
         </div>
       )}
 
@@ -134,6 +151,8 @@ export function ChewyBuyBox({
 
       <form action={addToCartAction} className="flex items-stretch gap-3">
         <input type="hidden" name="productId" value={productId} />
+        {/* A condition variant is a specific physical unit — pin its exact lot. */}
+        {variant && lot && <input type="hidden" name="lotId" value={lot.id} />}
         <input type="hidden" name="qty" value={qty} />
         <input type="hidden" name="locale" value={locale} />
         <div className="flex flex-none items-center rounded-full border border-[color:var(--slate-border)] px-1.5">
@@ -141,7 +160,12 @@ export function ChewyBuyBox({
             <Icon name="minus" size={16} color="var(--slate)" />
           </button>
           <span className="w-7 text-center text-[15px] font-bold text-ink">{qty}</span>
-          <button type="button" onClick={() => setQty(qty + 1)} aria-label={t('Increase', 'زيادة')} className="flex size-9 items-center justify-center text-slate">
+          <button
+            type="button"
+            onClick={() => setQty(variant && lot ? Math.min(lot.qty, qty + 1) : qty + 1)}
+            aria-label={t('Increase', 'زيادة')}
+            className="flex size-9 items-center justify-center text-slate"
+          >
             <Icon name="plus" size={16} color="var(--slate)" />
           </button>
         </div>

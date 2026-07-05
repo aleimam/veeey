@@ -140,6 +140,7 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
           qty: r.qty,
           unitPricePiastres: unit,
           lineExpiry: r.lot.expiryDate,
+          condition: r.lot.condition,
           pointsEarned: Math.floor((Number(unit) / 100) * r.qty),
         },
       });

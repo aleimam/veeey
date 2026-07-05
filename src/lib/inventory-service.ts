@@ -5,6 +5,7 @@ import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
 import { egpToPiastres } from '@/lib/format';
 import { availableQty, daysToExpiry } from '@/lib/inventory';
+import { LOT_CONDITIONS } from '@/lib/lot-condition';
 import { suggestDiscountPct, discountedPiastres } from '@/lib/suggestion';
 
 /** Inventory service (FR-INV-*). Lots are product × expiry × location. Every
@@ -20,6 +21,7 @@ export const lotInputSchema = z.object({
   qtyOnHand: z.coerce.number().int().nonnegative(),
   costEgp: z.coerce.number().nonnegative().optional().nullable(),
   priceOverrideEgp: z.coerce.number().nonnegative().optional().nullable(),
+  condition: z.enum(LOT_CONDITIONS).default('NEW'),
   saleFlag: z.boolean().default(false),
   status: z.enum(['LIVE', 'QUARANTINE', 'EXPIRED', 'WRITTEN_OFF']).default('LIVE'),
 });
@@ -98,6 +100,7 @@ export async function saveLot(id: string | null, raw: LotInput) {
     qtyOnHand: d.qtyOnHand,
     costPiastres: d.costEgp != null ? egpToPiastres(d.costEgp) : null,
     priceOverridePiastres: d.priceOverrideEgp != null ? egpToPiastres(d.priceOverrideEgp) : null,
+    condition: d.condition,
     saleFlag: d.saleFlag,
     status: d.status,
   };
@@ -149,17 +152,25 @@ export type ReservationBinding = {
 };
 
 /** FEFO soft-hold (FR-INV-03). Reserves `qty` across nearest-expiry lots,
- *  splitting if needed. Throws INSUFFICIENT_STOCK if not enough is available. */
+ *  splitting if needed. Throws INSUFFICIENT_STOCK if not enough is available.
+ *  Default FEFO only pools NEW-condition lots; a condition variant is reserved
+ *  either by pinning its exact lot (`lotId`, buy-box pick) or by condition
+ *  (`condition`, cart qty updates). */
 export async function reserveStock(
   productId: string,
   locationId: string,
   qty: number,
-  opts: { sessionId?: string; orderId?: string; holdMinutes?: number } = {},
+  opts: { sessionId?: string; orderId?: string; holdMinutes?: number; lotId?: string; condition?: string } = {},
 ): Promise<ReservationBinding[]> {
   const expiresAt = new Date(Date.now() + (opts.holdMinutes ?? HOLD_MINUTES_DEFAULT) * 60_000);
   return prisma.$transaction(async (tx) => {
     const lots = await tx.lot.findMany({
-      where: { productId, locationId, status: 'LIVE' },
+      where: {
+        productId,
+        locationId,
+        status: 'LIVE',
+        ...(opts.lotId ? { id: opts.lotId } : { condition: opts.condition ?? 'NEW' }),
+      },
       orderBy: { expiryDate: 'asc' },
     });
     const bindings: ReservationBinding[] = [];
