@@ -241,7 +241,14 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
                     <div className="flex items-center gap-2.5">
                       <span className="flex size-9 items-center justify-center rounded-full bg-green-wash text-[15px] font-bold text-green-dark">{(r.authorName ?? 'V').slice(0, 1).toUpperCase()}</span>
                       <div className="flex-1">
-                        <div className="text-sm font-semibold text-ink">{r.authorName ?? tb('Verified buyer', 'مشترٍ موثّق')}</div>
+                        <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+                          {r.authorName ?? tb('Veeey customer', 'عميل Veeey')}
+                          {r.verifiedPurchase && (
+                            <span className="rounded-full bg-green-wash px-2 py-0.5 text-[10.5px] font-bold text-green-dark">
+                              ✓ {tb('Verified purchase', 'شراء موثّق')}
+                            </span>
+                          )}
+                        </div>
                         <div className="text-xs text-[color:var(--text-subtle)]">{r.createdAt.toISOString().slice(0, 10)}</div>
                       </div>
                       <Rating value={r.rating} />

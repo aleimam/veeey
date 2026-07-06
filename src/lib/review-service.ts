@@ -20,6 +20,13 @@ export type ReviewInput = z.input<typeof reviewSchema>;
 export async function submitReview(raw: ReviewInput) {
   const data = reviewSchema.parse(raw);
   const user = await getCurrentUser();
+  // Verified purchase = the signed-in reviewer has a non-cancelled order line
+  // for this product (audit P1 5.1 — verified badges).
+  const verifiedPurchase = user?.customerId
+    ? (await prisma.orderItem.count({
+        where: { productId: data.productId, order: { customerId: user.customerId, status: { notIn: ['CANCELLED', 'REFUNDED'] } } },
+      })) > 0
+    : false;
   return prisma.review.create({
     data: {
       productId: data.productId,
@@ -29,6 +36,7 @@ export async function submitReview(raw: ReviewInput) {
       title: data.title ?? null,
       body: data.body ?? null,
       status: 'PENDING',
+      verifiedPurchase,
       media: data.media && data.media.length ? { create: data.media.map((url) => ({ url, type: 'IMAGE' as const })) } : undefined,
     },
   });

@@ -46,7 +46,7 @@ export function ChewyProductCard({ product, locale = 'en' }: { product: Product;
         <h3 className="line-clamp-2 min-h-[38px] text-sm font-semibold leading-snug text-ink">
           <Link href={`/products/${product.slug}`}>{product.name}</Link>
         </h3>
-        <Rating value={product.rating} count={product.reviews} />
+        <Rating value={product.rating} count={product.reviews} emptyLabel={t('Be the first to review', 'كن أول من يقيّم')} />
         <div className="mt-0.5 flex items-baseline gap-2">
           <span className={`text-[22px] font-bold ${pct > 0 ? 'text-green-dark' : 'text-ink'}`}>{formatEGP(product.pricePiastres)}</span>
           {product.oldPricePiastres ? <span className="text-[13px] text-[color:var(--text-subtle)] line-through">{formatEGP(product.oldPricePiastres)}</span> : null}

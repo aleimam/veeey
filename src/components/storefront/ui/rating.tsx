@@ -14,15 +14,26 @@ function Star({ fill }: { fill: boolean }) {
   );
 }
 
-/** Veeey Rating — gold star rating with optional value + review count. */
+/** Veeey Rating — gold star rating with optional value + review count.
+ *  With zero reviews, hollow stars + "(0)" hurt trust (audit P1 5.1): pass
+ *  `emptyLabel` to show a "Be the first to review" line instead — or nothing. */
 export function Rating({
   value = 0,
   count,
   showValue = false,
+  emptyLabel,
   className = '',
   ...rest
-}: HTMLAttributes<HTMLSpanElement> & { value?: number; count?: number; showValue?: boolean }) {
+}: HTMLAttributes<HTMLSpanElement> & { value?: number; count?: number; showValue?: boolean; emptyLabel?: string }) {
   const rounded = Math.round(value);
+  if (count === 0) {
+    if (!emptyLabel) return null;
+    return (
+      <span className={['v-rating', className].filter(Boolean).join(' ')} {...rest}>
+        <span className="text-xs text-[color:var(--text-subtle)]">{emptyLabel}</span>
+      </span>
+    );
+  }
   return (
     <span className={['v-rating', className].filter(Boolean).join(' ')} {...rest}>
       <span className="v-rating__stars" aria-hidden="true">

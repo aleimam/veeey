@@ -53,6 +53,7 @@ export async function getSyncSettings() {
     products: m['woo.sync.products'] !== 'false',
     customers: m['woo.sync.customers'] !== 'false',
     orders: m['woo.sync.orders'] !== 'false',
+    reviews: m['woo.sync.reviews'] !== 'false',
     hasWebhookSecret: !!m['woo.webhookSecret'],
   };
 }

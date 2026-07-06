@@ -1151,6 +1151,7 @@ model Review {
   body        String?
   status      ReviewStatus  @default(PENDING)
   source      ReviewSource  @default(NATIVE)
+  verifiedPurchase Boolean  @default(false)
   moderatorId String?
   moderator   User?         @relation("ReviewModerator", fields: [moderatorId], references: [id])
   legacyId    String?

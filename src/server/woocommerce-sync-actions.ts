@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
-import { syncProducts, syncCustomers, syncOrders, runFullSync, type SyncSummary } from '@/lib/migration/wc-sync';
+import { syncProducts, syncCustomers, syncOrders, syncReviews, runFullSync, type SyncSummary } from '@/lib/migration/wc-sync';
 import { saveSyncSettings } from '@/lib/woocommerce-service';
 import { enqueue, QUEUES } from '@/lib/jobs';
 
@@ -43,6 +43,9 @@ export async function syncCustomersAction(fd: FormData): Promise<void> {
 export async function syncOrdersAction(fd: FormData): Promise<void> {
   return run('orders', syncOrders, fd);
 }
+export async function syncReviewsAction(fd: FormData): Promise<void> {
+  return run('reviews', syncReviews, fd);
+}
 
 export async function syncEverythingAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
@@ -63,6 +66,7 @@ export async function saveSyncSettingsAction(fd: FormData): Promise<void> {
       'woo.sync.products': fd.get('p') != null ? 'true' : 'false',
       'woo.sync.customers': fd.get('c') != null ? 'true' : 'false',
       'woo.sync.orders': fd.get('o') != null ? 'true' : 'false',
+      'woo.sync.reviews': fd.get('r') != null ? 'true' : 'false',
       'woo.webhookSecret': str(fd, 'webhookSecret'),
     });
   } catch (e) {

@@ -49,6 +49,7 @@ const FETCH_MS = 45_000;
 const PRODUCT_FIELDS = 'id,name,sku,regular_price,price,description,short_description,weight,global_unique_id,status,categories,brands,attributes,images,date_modified,date_modified_gmt';
 const ORDER_FIELDS = 'id,number,status,total,discount_total,shipping_total,payment_method,customer_id,billing,shipping,line_items,date_created,date_created_gmt,date_modified,date_modified_gmt';
 const CUSTOMER_FIELDS = 'id,email,first_name,last_name,username,billing,date_created';
+const REVIEW_FIELDS = 'id,product_id,reviewer,review,rating,verified,status,date_created,date_created_gmt';
 
 function egpToPiastres(v: unknown): number | null {
   if (v == null || v === '') return null;
@@ -390,14 +391,99 @@ export async function syncOrders(opts: { maxPages?: number; perPage?: number; bu
   return s;
 }
 
+// ── Reviews ─────────────────────────────────────────────────────────────────
+// Seeds real Egypt Vitamins product reviews (audit P1 5.1 — social proof).
+// Keyed on Review.legacyId = "wc-<id>"; products resolved via legacyWpId.
+// Approved WC reviews land APPROVED so pages stop showing "(0)"; product
+// ratingAvg/ratingCount are recomputed for every touched product at the end.
+const stripHtml = (s: string) => s.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+export async function syncReviews(opts: { maxPages?: number; perPage?: number; budgetMs?: number } = {}): Promise<SyncSummary> {
+  const maxPages = Math.min(opts.maxPages ?? 5, 400);
+  const perPage = opts.perPage ?? 100;
+  const deadline = Date.now() + (opts.budgetMs ?? BUDGET_MS);
+  const state = await prisma.wooSyncState.findUnique({ where: { entity: 'reviews' } });
+  const startNum = Number(state?.cursor);
+  const startPage = Number.isFinite(startNum) && startNum >= 1 ? startNum + 1 : 1;
+  const s = newSummary('reviews', state?.cursor ?? null);
+  let lastCompleted: number | null = Number.isFinite(startNum) && startNum >= 1 ? startNum : null;
+  const touchedProducts = new Set<string>();
+
+  let page = startPage;
+  let pagesThisRun = 0;
+  while (pagesThisRun < maxPages) {
+    if (Date.now() > deadline) break;
+    let res: Awaited<ReturnType<typeof wooFetch>>;
+    try {
+      res = await wooFetch('products/reviews', { per_page: perPage, orderby: 'id', order: 'asc', _fields: REVIEW_FIELDS, page }, FETCH_MS);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'fetch failed';
+      pushErr(s, `page ${page}`, msg.slice(0, 140));
+      if (msg.includes('WOO_HTTP_400')) lastCompleted = null; // past the end → caught up
+      break;
+    }
+    const totalPages = res.totalPages;
+    const items = res.data as Record<string, unknown>[];
+    if (items.length === 0) { lastCompleted = null; break; }
+    for (const r of items) {
+      s.scanned++;
+      const wpId = Number(r.id);
+      try {
+        const rating = Number(r.rating);
+        if (!Number.isFinite(wpId) || !Number.isFinite(rating) || rating < 1 || rating > 5) { pushErr(s, str(r.id), 'invalid id / rating'); continue; }
+        const product = await prisma.product.findUnique({ where: { legacyWpId: Number(r.product_id) }, select: { id: true } });
+        if (!product) { pushSkip(s, `review ${wpId}`, 'product not imported'); continue; }
+        const legacyId = `wc-${wpId}`;
+        const body = stripHtml(str(r.review)).slice(0, 2000) || null;
+        const data = {
+          productId: product.id,
+          authorName: str(r.reviewer).trim().slice(0, 80) || null,
+          rating: Math.round(rating),
+          body,
+          status: (str(r.status) === 'approved' ? 'APPROVED' : 'PENDING') as 'APPROVED' | 'PENDING',
+          source: 'IMPORT' as const,
+          verifiedPurchase: r.verified === true,
+        };
+        const existing = await prisma.review.findFirst({ where: { legacyId }, select: { id: true } });
+        if (existing) {
+          await prisma.review.update({ where: { id: existing.id }, data });
+          s.updated++;
+        } else {
+          await prisma.review.create({ data: { ...data, legacyId, createdAt: new Date(str(r.date_created) || str(r.date_created_gmt) || Date.now()) } });
+          s.created++;
+        }
+        touchedProducts.add(product.id);
+      } catch (e) {
+        pushErr(s, str(r.id), e instanceof Error ? e.message.slice(0, 140) : 'error');
+      }
+    }
+    lastCompleted = page;
+    pagesThisRun++;
+    await saveState('reviews', String(lastCompleted), s);
+    if (page >= totalPages || items.length < perPage) { lastCompleted = null; break; }
+    page++;
+  }
+  // Refresh the cached product rating aggregates for everything we touched.
+  for (const productId of touchedProducts) {
+    try {
+      const agg = await prisma.review.aggregate({ where: { productId, status: 'APPROVED' }, _avg: { rating: true }, _count: true });
+      await prisma.product.update({ where: { id: productId }, data: { ratingAvg: agg._avg.rating ?? 0, ratingCount: agg._count } });
+    } catch { /* aggregate refresh is best-effort */ }
+  }
+  s.cursor = lastCompleted == null ? null : String(lastCompleted);
+  await saveState('reviews', s.cursor, s);
+  return s;
+}
+
 export async function getSyncState(entity: string) {
   return prisma.wooSyncState.findUnique({ where: { entity } });
 }
 
 /** Run a single entity — used by the scheduler/webhook/full-sync. */
-export async function syncEntity(entity: 'products' | 'customers' | 'orders', opts: { maxPages?: number; budgetMs?: number } = {}): Promise<SyncSummary> {
+export async function syncEntity(entity: 'products' | 'customers' | 'orders' | 'reviews', opts: { maxPages?: number; budgetMs?: number } = {}): Promise<SyncSummary> {
   if (entity === 'products') return syncProducts(opts);
   if (entity === 'customers') return syncCustomers(opts);
+  if (entity === 'reviews') return syncReviews(opts);
   return syncOrders(opts);
 }
 
@@ -412,7 +498,7 @@ export async function runFullSync(opts: { budgetMs?: number } = {}): Promise<{ s
   const deadline = Date.now() + (opts.budgetMs ?? 600_000);
   const summaries: SyncSummary[] = [];
   let done = true;
-  for (const entity of ['products', 'orders', 'customers'] as const) {
+  for (const entity of ['products', 'orders', 'customers', 'reviews'] as const) {
     const agg = newSummary(entity, null);
     let caughtUp = false;
     let guard = 0;
@@ -448,5 +534,6 @@ export async function runScheduledSync(maxPages = 20): Promise<SyncSummary[]> {
   if (await flag('woo.sync.products', true)) out.push(await syncProducts({ maxPages, budgetMs }));
   if (await flag('woo.sync.customers', true)) out.push(await syncCustomers({ maxPages, budgetMs }));
   if (await flag('woo.sync.orders', true)) out.push(await syncOrders({ maxPages, budgetMs }));
+  if (await flag('woo.sync.reviews', true)) out.push(await syncReviews({ maxPages, budgetMs }));
   return out;
 }

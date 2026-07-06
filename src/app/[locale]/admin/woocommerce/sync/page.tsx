@@ -7,7 +7,7 @@ import { pick } from '@/lib/admin-i18n';
 import { wooConfigured, getSyncSettings } from '@/lib/woocommerce';
 import { getSyncState } from '@/lib/migration/wc-sync';
 import { SubmitButton, inputCls } from '@/components/admin/ui';
-import { syncProductsAction, syncCustomersAction, syncOrdersAction, saveSyncSettingsAction, syncEverythingAction } from '@/server/woocommerce-sync-actions';
+import { syncProductsAction, syncCustomersAction, syncOrdersAction, syncReviewsAction, saveSyncSettingsAction, syncEverythingAction } from '@/server/woocommerce-sync-actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +24,7 @@ const ENTITIES = [
   { slug: 'products', en: 'Products', ar: 'المنتجات', action: syncProductsAction, note: ['Incremental — only products changed since the last run.', 'تزايدي — فقط ما تغيّر منذ آخر تشغيل.'] as const },
   { slug: 'orders', en: 'Orders', ar: 'الطلبات', action: syncOrdersAction, note: ['Incremental — only orders changed since the last run.', 'تزايدي — فقط ما تغيّر منذ آخر تشغيل.'] as const },
   { slug: 'customers', en: 'Customers', ar: 'العملاء', action: syncCustomersAction, note: ['Bulk re-scan (WooCommerce has no “changed since” filter for customers) — best for the first full pull.', 'مسح شامل (لا يوفّر ووكومرس مرشّح تغيير للعملاء) — الأفضل للسحب الأول.'] as const },
+  { slug: 'reviews', en: 'Reviews', ar: 'التقييمات', action: syncReviewsAction, note: ['Seeds real product reviews so pages stop showing “(0)”. Approved reviews go live immediately; product star ratings recompute automatically.', 'يستورد تقييمات المنتجات الحقيقية لتختفي «(0)». التقييمات المعتمدة تظهر فورًا وتُحدَّث نجوم المنتجات تلقائيًا.'] as const },
 ] as const;
 
 export default async function WooSyncPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<SP> }) {
@@ -142,6 +143,7 @@ export default async function WooSyncPage({ params, searchParams }: { params: Pr
                 <label className="flex items-center gap-2"><input type="checkbox" name="p" defaultChecked={settings?.products} className="size-4" /> {tb('Products', 'المنتجات')}</label>
                 <label className="flex items-center gap-2"><input type="checkbox" name="c" defaultChecked={settings?.customers} className="size-4" /> {tb('Customers', 'العملاء')}</label>
                 <label className="flex items-center gap-2"><input type="checkbox" name="o" defaultChecked={settings?.orders} className="size-4" /> {tb('Orders', 'الطلبات')}</label>
+                <label className="flex items-center gap-2"><input type="checkbox" name="r" defaultChecked={settings?.reviews} className="size-4" /> {tb('Reviews', 'التقييمات')}</label>
               </div>
               <div>
                 <span className="block text-sm font-medium text-foreground">{tb('Webhook URL (add in WooCommerce → Settings → Advanced → Webhooks)', 'رابط الخطاف (أضِفه في ووكومرس ← الإعدادات ← متقدّم ← الخطافات)')}</span>

@@ -55,7 +55,7 @@ export function ChewyBuyBox({
         {brand && <div className="text-xs font-bold uppercase tracking-[0.12em] text-[color:var(--text-subtle)]">{brand}</div>}
         <h1 className="mb-3 mt-2 text-[clamp(26px,3vw,34px)] font-bold leading-tight text-ink">{name}</h1>
         <div className="flex flex-wrap items-center gap-3.5">
-          <Rating value={rating} count={reviews} />
+          <Rating value={rating} count={reviews} emptyLabel={t('Be the first to review', 'كن أول من يقيّم')} />
           <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-success">
             <Icon name="badge-check" size={16} color="var(--success)" /> {t('Genuine guaranteed', 'أصلي مضمون')}
           </span>
