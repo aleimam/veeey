@@ -87,7 +87,7 @@ export const BUILTIN_DEFAULTS: Record<BuiltinType, Record<string, unknown>> = {
     ],
   },
   'best-sellers': {
-    eyebrowEn: 'Loved by our A+++ members', eyebrowAr: 'محبوب من أعضائنا', titleEn: 'Best sellers', titleAr: 'الأكثر مبيعًا', actionHref: '/products',
+    eyebrowEn: 'Customer favorites', eyebrowAr: 'مفضلات عملائنا', titleEn: 'Best sellers', titleAr: 'الأكثر مبيعًا', actionHref: '/products',
   },
   'learn-blog': {
     eyebrowEn: 'Health, explained', eyebrowAr: 'الصحة ببساطة',

@@ -46,6 +46,41 @@ const HREFS: Record<string, string> = {
 const payments = ["card", "cod", "pos", "bank"]
 const platformLabel = (p: string) => SOCIAL_PLATFORMS.find((x) => x.value === p)?.label ?? p
 
+/** Recognisable payment marks (audit P3): Visa/Mastercard chips + icon pills
+ *  for COD / POS / bank transfer, replacing plain text pills. */
+function PaymentMark({ kind, label }: { kind: string; label: string }) {
+  if (kind === "card") {
+    return (
+      <li className="flex items-center gap-1.5" aria-label={label} title={label}>
+        <span className="flex h-7 items-center rounded-[6px] border border-[color:var(--slate-border)] bg-white px-2 text-[13px] font-extrabold italic tracking-tight text-[#1a1f71]">VISA</span>
+        <span className="flex h-7 items-center rounded-[6px] border border-[color:var(--slate-border)] bg-white px-2" aria-hidden="true">
+          <span className="relative flex items-center">
+            <span className="size-4 rounded-full bg-[#eb001b]" />
+            <span className="-ms-1.5 size-4 rounded-full bg-[#f79e1b] opacity-90" />
+          </span>
+        </span>
+      </li>
+    )
+  }
+  const icon =
+    kind === "cod" ? (
+      // banknote
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="size-4" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2" /><circle cx="12" cy="12" r="2.5" /><path d="M6 12h.01M18 12h.01" /></svg>
+    ) : kind === "pos" ? (
+      // card terminal
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="size-4" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2" /><path d="M9 6h6M9 18h6" /></svg>
+    ) : (
+      // bank
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="size-4" aria-hidden="true"><path d="M3 21h18M4 10h16M12 3l9 7H3l9-7ZM6 10v11M10 10v11M14 10v11M18 10v11" /></svg>
+    )
+  return (
+    <li className="flex h-7 items-center gap-1.5 rounded-[6px] border border-[color:var(--slate-border)] bg-white px-2 text-xs font-medium text-slate">
+      {icon}
+      {label}
+    </li>
+  )
+}
+
 export async function SiteFooter() {
   const t = await getTranslations("storefront.footer")
   const locale = await getLocale()
@@ -110,9 +145,7 @@ export async function SiteFooter() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <ul className="flex flex-wrap items-center gap-2" aria-label={t("paymentMethods")}>
               {payments.map((p) => (
-                <li key={p} className="rounded-full border border-[color:var(--slate-border)] px-3 py-1 text-xs text-[color:var(--text-muted)]">
-                  {t(`pay.${p}`)}
-                </li>
+                <PaymentMark key={p} kind={p} label={t(`pay.${p}`)} />
               ))}
             </ul>
             <p className="text-xs text-[color:var(--text-subtle)]">{t("rights", { year: new Date().getFullYear() })} · You Deserve More</p>
