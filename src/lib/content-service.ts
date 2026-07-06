@@ -49,6 +49,8 @@ const postSchema = z.object({
   excerptEn: z.string().optional().nullable(),
   bodyEn: z.string().optional().nullable(),
   bodyAr: z.string().optional().nullable(),
+  coverImage: z.string().trim().optional().nullable(),
+  authorName: z.string().trim().max(80).optional().nullable(),
   status: STATUS.default('DRAFT'),
 });
 export type PostInput = z.input<typeof postSchema>;
@@ -66,6 +68,7 @@ export async function savePost(id: string | null, raw: PostInput) {
   const data = {
     titleEn: d.titleEn, titleAr: d.titleAr ?? null, slug,
     excerptEn: d.excerptEn ?? null, bodyEn: d.bodyEn ?? null, bodyAr: d.bodyAr ?? null,
+    coverImage: d.coverImage || null, authorName: d.authorName || null,
     status: d.status, publishedAt: d.status === 'PUBLISHED' ? new Date() : null,
   };
   const post = id ? await prisma.blogPost.update({ where: { id }, data }) : await prisma.blogPost.create({ data });

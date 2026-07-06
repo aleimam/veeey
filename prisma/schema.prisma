@@ -1304,6 +1304,8 @@ model BlogPost {
   excerptAr   String?
   bodyEn      String?
   bodyAr      String?
+  coverImage  String? // card thumbnail (blog listing + homepage section)
+  authorName  String? // pharmacist byline
   status      ContentStatus @default(DRAFT)
   publishedAt DateTime?
   metaTitleEn String?

@@ -149,6 +149,10 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
             </div>
           )}
           <ChewyBuyBox brand={brandName} name={name} rating={p.ratingAvg ?? 0} reviews={p.ratingCount} basePricePiastres={basePrice} lots={buyLots} productId={p.id} points={points} locale={locale} refillEnabled={refillEnabled} />
+          {/* Key selling points belong beside the price, not below the fold (audit 6.5). */}
+          {hasRichContent(shortHtml) && (
+            <div className="veeey-rich mt-5 rounded-[12px] border border-[color:var(--green-dark-05)] bg-white p-4 text-[14.5px] font-medium leading-relaxed text-ink" dangerouslySetInnerHTML={{ __html: shortHtml }} />
+          )}
           <div className="mt-4 flex gap-5 text-sm">
             <form action={toggleWishlistAction}>
               <input type="hidden" name="locale" value={locale} />
@@ -166,12 +170,7 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
         </div>
       </div>
 
-      <div className="mt-12 max-w-3xl space-y-10">
-        {hasRichContent(shortHtml) && (
-          <section>
-            <div className="veeey-rich text-[17px] font-medium leading-relaxed text-ink" dangerouslySetInnerHTML={{ __html: shortHtml }} />
-          </section>
-        )}
+      <div className="mt-12 max-w-5xl space-y-10">
         {hasRichContent(longHtml) && (
           <section>
             <h2 className="mb-3 text-xl font-bold text-green-dark">{t('about')}</h2>

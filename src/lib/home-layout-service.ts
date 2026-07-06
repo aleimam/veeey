@@ -58,16 +58,37 @@ async function collectionRow(collectionId: string, locale: string, take: number)
   return ids.map((id) => byId.get(id)).filter((p): p is NonNullable<typeof p> => !!p).map((p) => toCardProduct(p, locale));
 }
 
-export type HomeData = { bestsellers: CardProduct[]; deals: CardProduct[]; rows: Record<string, CardProduct[]> };
+export type HomePost = { slug: string; title: string; excerpt: string; coverImage: string | null; authorName: string | null; publishedAt: Date | null };
+export type HomeData = { bestsellers: CardProduct[]; deals: CardProduct[]; rows: Record<string, CardProduct[]>; posts?: HomePost[] };
+
+async function latestPosts(locale: string, take: number): Promise<HomePost[]> {
+  const rows = await prisma.blogPost.findMany({
+    where: { status: 'PUBLISHED' },
+    orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
+    take,
+    select: { slug: true, titleEn: true, titleAr: true, excerptEn: true, excerptAr: true, coverImage: true, authorName: true, publishedAt: true },
+  });
+  const ar = locale === 'ar';
+  return rows.map((p) => ({
+    slug: p.slug,
+    title: (ar ? p.titleAr : p.titleEn) ?? p.titleEn,
+    excerpt: ((ar ? p.excerptAr : p.excerptEn) ?? p.excerptEn ?? '').slice(0, 160),
+    coverImage: p.coverImage,
+    authorName: p.authorName,
+    publishedAt: p.publishedAt,
+  }));
+}
 
 /** Resolve only the product data the enabled blocks actually need. */
 export async function resolveHomeData(blocks: Block[], locale: string): Promise<HomeData> {
   const enabled = blocks.filter((b) => b.enabled);
   const needBest = enabled.some((b) => b.type === 'best-sellers' || b.type === 'hero');
   const needDeals = enabled.some((b) => b.type === 'deals');
-  const [bestsellers, deals] = await Promise.all([
+  const needPosts = enabled.some((b) => b.type === 'learn-blog');
+  const [bestsellers, deals, posts] = await Promise.all([
     needBest ? popular(locale, 8) : Promise.resolve<CardProduct[]>([]),
     needDeals ? dealsProducts(locale, 6) : Promise.resolve<CardProduct[]>([]),
+    needPosts ? latestPosts(locale, 4) : Promise.resolve<HomePost[]>([]),
   ]);
   const rows: Record<string, CardProduct[]> = {};
   for (const b of enabled.filter((x) => x.type === 'product-row')) {
@@ -79,5 +100,5 @@ export async function resolveHomeData(blocks: Block[], locale: string): Promise<
     else if (source === 'new') rows[b.id] = await newest(locale, limit);
     else rows[b.id] = await popular(locale, limit);
   }
-  return { bestsellers, deals, rows };
+  return { bestsellers, deals, rows, posts };
 }

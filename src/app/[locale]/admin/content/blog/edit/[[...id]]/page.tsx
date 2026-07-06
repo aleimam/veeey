@@ -12,6 +12,8 @@ export default async function PostEditPage({ params }: { params: Promise<{ local
     { name: 'titleEn', label: tb('Title (English)', 'العنوان (إنجليزي)'), type: 'text', required: true },
     { name: 'titleAr', label: tb('Title (Arabic)', 'العنوان (عربي)'), type: 'text' },
     { name: 'slug', label: tb('Slug', 'المُعرّف'), type: 'slug' },
+    { name: 'coverImage', label: tb('Cover image', 'صورة الغلاف'), type: 'image', hint: tb('Card thumbnail on /blog and the homepage.', 'الصورة المصغّرة في المدونة والصفحة الرئيسية.') },
+    { name: 'authorName', label: tb('Author (pharmacist)', 'الكاتب (الصيدلي)'), type: 'text' },
     { name: 'excerptEn', label: tb('Excerpt (English)', 'المقتطف (إنجليزي)'), type: 'rich', compact: true },
     { name: 'bodyEn', label: tb('Body (English)', 'النص (إنجليزي)'), type: 'rich' },
     { name: 'bodyAr', label: tb('Body (Arabic)', 'النص (عربي)'), type: 'rich' },

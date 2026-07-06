@@ -10,7 +10,7 @@ import { RichBlock, ImageBannerBlock, ProductRowBlock, CtaBlock, TilesBlock } fr
 import { builtinContent } from '@/lib/home-defaults';
 import type { Product } from '@/components/storefront/product-card';
 import type { Block } from '@/lib/home-layout';
-import type { HomeData } from '@/lib/home-layout-service';
+import type { HomeData, HomePost } from '@/lib/home-layout-service';
 
 type T = (en: string, ar: string) => string;
 type C = Record<string, unknown>;
@@ -208,6 +208,70 @@ function BestSellers({ t, c, items, locale }: { t: T; c: C; items: Product[]; lo
   );
 }
 
+/** Chewy-style trust row (audit P2 6.6/9): pharmacist help, authenticity,
+ *  UltraFast delivery, Refill — four icon cards under the hero. */
+function TrustRow({ t, c }: { t: T; c: C }) {
+  const cards = (Array.isArray(c.cards) ? c.cards : []) as C[];
+  if (cards.length === 0) return null;
+  return (
+    <section className="mx-auto max-w-[1440px] px-4 pb-2 pt-6 sm:px-6">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {cards.map((card, i) => (
+          <Link
+            key={i}
+            href={sv(card.href) || '/'}
+            className="flex items-start gap-3.5 rounded-[16px] border border-[color:var(--green-dark-05)] bg-white p-4 transition-all hover:border-green-dark hover:shadow-[var(--shadow-sm)]"
+          >
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-green-wash">
+              <Icon name={sv(card.icon) || 'badge-check'} size={22} color="var(--green-dark)" />
+            </span>
+            <span>
+              <span className="block text-[14.5px] font-bold text-ink">{t(sv(card.titleEn), sv(card.titleAr))}</span>
+              <span className="mt-0.5 block text-[13px] leading-snug text-[color:var(--text-muted)]">{t(sv(card.textEn), sv(card.textAr))}</span>
+            </span>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** Homepage Learn & Blog section (audit P2 6.3): latest article cards with
+ *  thumbnail, pharmacist byline and date. */
+function LearnBlog({ t, c, posts, locale }: { t: T; c: C; posts: HomePost[]; locale: string }) {
+  if (posts.length === 0) return null;
+  const fmtDate = (d: Date | null) =>
+    d ? d.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+  return (
+    <section className="mx-auto max-w-[1440px] px-4 pb-2 pt-11 sm:px-6">
+      <SectionHead eyebrow={cx(t, c, 'eyebrow')} title={cx(t, c, 'title')} actionHref={sv(c.actionHref) || '/learn'} actionLabel={t('Explore Learn', 'استكشف تعلّم')} />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {posts.map((p) => (
+          <Link key={p.slug} href={`/blog/${p.slug}`} className="group flex h-full flex-col overflow-hidden rounded-[16px] border border-[color:var(--green-dark-05)] bg-white transition-all hover:-translate-y-[3px] hover:shadow-[var(--shadow-card-hover)]">
+            <span className="relative flex h-40 items-center justify-center overflow-hidden bg-green-wash">
+              {p.coverImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={p.coverImage} alt="" className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+              ) : (
+                <Icon name="book-open" size={40} color="var(--green-mid)" />
+              )}
+            </span>
+            <span className="flex flex-1 flex-col p-4">
+              <span className="line-clamp-2 text-[15px] font-bold leading-snug text-ink group-hover:text-green-dark">{p.title}</span>
+              {p.excerpt && <span className="mt-1.5 line-clamp-2 text-[13px] leading-snug text-[color:var(--text-muted)]">{p.excerpt}</span>}
+              <span className="mt-auto flex items-center gap-2 pt-3 text-xs text-[color:var(--text-subtle)]">
+                {p.authorName && <span className="font-semibold text-green-dark">{p.authorName}</span>}
+                {p.authorName && p.publishedAt && <span aria-hidden>·</span>}
+                {p.publishedAt && <span>{fmtDate(p.publishedAt)}</span>}
+              </span>
+            </span>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function BrandStrip({ t, c }: { t: T; c: C }) {
   const items = (Array.isArray(c.items) ? c.items : []) as C[];
   return (
@@ -215,8 +279,20 @@ function BrandStrip({ t, c }: { t: T; c: C }) {
       <div className="mb-5 text-center text-[13px] font-semibold uppercase tracking-[0.08em] text-[color:var(--text-muted)]">{cx(t, c, 'heading')}</div>
       <div className="flex flex-wrap justify-center gap-3.5">
         {items.map((b, i) => (
-          <span key={i} className="rounded-full border border-[color:var(--slate-border)] px-[22px] py-3 text-[17px] font-semibold text-slate" style={{ fontFamily: 'var(--font-display)' }}>{sv(b.name)}</span>
+          <Link
+            key={i}
+            href={sv(b.href) || '/brands'}
+            className="rounded-full border border-[color:var(--slate-border)] px-[22px] py-3 text-[17px] font-semibold text-slate transition-colors hover:border-green-dark hover:text-green-dark"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            {sv(b.name)}
+          </Link>
         ))}
+      </div>
+      <div className="mt-5 text-center">
+        <Link href="/brands" className="inline-flex items-center gap-1.5 text-sm font-semibold text-green-dark hover:text-lime-press">
+          {t('Explore all brands', 'استكشف كل العلامات')} <Icon name="arrow-right" size={15} color="var(--green-dark)" />
+        </Link>
       </div>
     </section>
   );
@@ -251,6 +327,7 @@ export function ChewyHome({ locale, blocks, data }: { locale: string; blocks: Bl
     switch (b.type) {
       case 'hero': { const slides = heroSlides(props); return slides.length > 0 ? <ChewyHero key={b.id} slides={slides} /> : null; }
       case 'greet-strip': return <GreetStrip key={b.id} t={t} c={builtinContent('greet-strip', props)} />;
+      case 'trust-row': return <TrustRow key={b.id} t={t} c={builtinContent('trust-row', props)} />;
       case 'goals': return <GoalCircles key={b.id} t={t} c={builtinContent('goals', props)} />;
       case 'membership': return <MembershipBanner key={b.id} t={t} c={builtinContent('membership', props)} />;
       case 'deals': return <DealRail key={b.id} t={t} c={builtinContent('deals', props)} deals={data.deals} locale={locale} />;
@@ -258,6 +335,7 @@ export function ChewyHome({ locale, blocks, data }: { locale: string; blocks: Bl
       case 'feature-banner': return <FeatureBanner key={b.id} t={t} c={builtinContent('feature-banner', props)} />;
       case 'special-order': return <SpecialOrder key={b.id} t={t} c={builtinContent('special-order', props)} />;
       case 'best-sellers': return <BestSellers key={b.id} t={t} c={builtinContent('best-sellers', props)} items={data.bestsellers} locale={locale} />;
+      case 'learn-blog': return <LearnBlog key={b.id} t={t} c={builtinContent('learn-blog', props)} posts={data.posts ?? []} locale={locale} />;
       case 'brands': return <BrandStrip key={b.id} t={t} c={builtinContent('brands', props)} />;
       case 'rich': return <RichBlock key={b.id} props={props} locale={locale} />;
       case 'image-banner': return <ImageBannerBlock key={b.id} props={props} locale={locale} />;

@@ -17,7 +17,7 @@ const columns = [
 const HREFS: Record<string, string> = {
   "shop.vitamins": "/products?kind=SUPPLEMENT",
   "shop.devices": "/products?kind=DEVICE",
-  "shop.brands": "/products",
+  "shop.brands": "/brands",
   "shop.offers": "/products?offers=1",
   "shop.specialOrder": "/special-order",
   "shop.refill": "/refill",

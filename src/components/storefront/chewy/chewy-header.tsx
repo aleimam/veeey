@@ -35,18 +35,21 @@ export function ChewyHeader({
   cartLines = [],
   subtotalPiastres = 0,
   isStaff = false,
+  help,
 }: {
   locale: string;
   cartCount?: number;
   cartLines?: CartLine[];
   subtotalPiastres?: number;
   isStaff?: boolean;
+  help?: { whatsapp?: string; phone?: string };
 }) {
   const loc = useLocale();
   const t = pick(loc);
   const [mega, setMega] = useState<'goals' | 'supps' | null>(null);
   const [mobOpen, setMobOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   return (
     <>
@@ -69,6 +72,57 @@ export function ChewyHeader({
                 placeholder={t('Search supplements, brands, goals…', 'ابحث عن مكمّلات أو علامات أو أهداف…')}
                 className="hidden h-[46px] max-w-[560px] flex-1 md:block"
               />
+
+              {/* 24/7 help dropdown (audit P2 6.1) — pharmacist line, WhatsApp, call */}
+              <div className="relative hidden md:block" onMouseEnter={() => setHelpOpen(true)} onMouseLeave={() => setHelpOpen(false)}>
+                <button
+                  type="button"
+                  aria-expanded={helpOpen}
+                  onClick={() => setHelpOpen((v) => !v)}
+                  className="flex items-center gap-1.5 px-1.5 py-1.5 text-white"
+                >
+                  <Icon name="messages-square" size={22} color="#fff" />
+                  <span className="hidden flex-col items-start leading-[1.15] lg:flex">
+                    <span className="text-xs text-white/70">{t('24/7', '٢٤/٧')}</span>
+                    <span className="text-[15px] font-bold">{t('Help', 'مساعدة')}</span>
+                  </span>
+                  <Icon name="chevron-down" size={14} color="#fff" />
+                </button>
+                {helpOpen && (
+                  <div className="absolute end-0 top-full z-50 w-72 rounded-[14px] border border-[color:var(--slate-border)] bg-white p-4 text-ink shadow-[var(--shadow-lg)]">
+                    <p className="mb-3 text-sm font-bold text-green-dark">
+                      {t('Get 24/7 help from our expert pharmacist', 'احصل على مساعدة على مدار الساعة من صيدلينا الخبير')}
+                    </p>
+                    <div className="flex flex-col gap-2">
+                      {help?.whatsapp && (
+                        <a
+                          href={`https://wa.me/${help.whatsapp}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-2.5 rounded-[10px] bg-green-wash px-3 py-2.5 text-sm font-semibold text-green-dark hover:bg-lime-wash"
+                        >
+                          <Icon name="message-circle" size={18} color="var(--green-dark)" /> {t('Chat on WhatsApp', 'دردش على واتساب')}
+                        </a>
+                      )}
+                      {help?.phone && (
+                        <a
+                          href={`tel:${help.phone}`}
+                          className="flex items-center gap-2.5 rounded-[10px] bg-surface px-3 py-2.5 text-sm font-semibold text-ink hover:bg-green-wash"
+                        >
+                          <Icon name="stethoscope" size={18} color="var(--green-dark)" /> {t(`Call us: ${help.phone}`, `اتصل بنا: ${help.phone}`)}
+                        </a>
+                      )}
+                      <Link
+                        href="/p/faq"
+                        onClick={() => setHelpOpen(false)}
+                        className="flex items-center gap-2.5 rounded-[10px] bg-surface px-3 py-2.5 text-sm font-semibold text-ink hover:bg-green-wash"
+                      >
+                        <Icon name="book-open" size={18} color="var(--green-dark)" /> {t('Help & FAQ', 'المساعدة والأسئلة الشائعة')}
+                      </Link>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               <div className="hidden md:block">
                 <LanguageSwitcher className="flex items-center gap-2 text-sm text-white" />

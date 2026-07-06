@@ -33,13 +33,21 @@ export default async function ShopLayout({
     pricePiastres: l.qty > 0 ? Math.round(l.subtotalPiastres / l.qty) : l.subtotalPiastres,
   }));
   const whatsapp = await getSetting('store.whatsappNumber');
+  const phone = await getSetting('store.phone');
   const home = await getHomeContent(locale);
   const session = await auth();
   const isStaff = canAccessAdmin(session?.user?.permissions ?? []);
   return (
     <div className="veeey-shop min-h-screen bg-background">
       <AnnouncementBar text={home.announcement} />
-      <ChewyHeader locale={locale} cartCount={count} cartLines={cartLines} subtotalPiastres={subtotalPiastres} isStaff={isStaff} />
+      <ChewyHeader
+        locale={locale}
+        cartCount={count}
+        cartLines={cartLines}
+        subtotalPiastres={subtotalPiastres}
+        isStaff={isStaff}
+        help={{ whatsapp: whatsapp ?? undefined, phone: phone ?? undefined }}
+      />
       <main>{children}</main>
       <SiteFooter />
       <WhatsAppButton phone={whatsapp} />

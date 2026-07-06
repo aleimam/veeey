@@ -9,8 +9,8 @@ import { z } from 'zod';
 
 // Built-in homepage sections — singletons, toggle + reorder only (content edited elsewhere for now).
 export const BUILTIN_TYPES = [
-  'hero', 'greet-strip', 'goals', 'membership', 'deals',
-  'categories', 'feature-banner', 'special-order', 'best-sellers', 'brands',
+  'hero', 'greet-strip', 'trust-row', 'goals', 'membership', 'deals',
+  'categories', 'feature-banner', 'special-order', 'best-sellers', 'learn-blog', 'brands',
 ] as const;
 // Gadgets — repeatable, fully editable, can be added/removed.
 export const GADGET_TYPES = ['rich', 'image-banner', 'product-row', 'cta', 'tiles'] as const;
@@ -35,6 +35,7 @@ export const isBuiltin = (t: string): t is BuiltinType => BUILTIN_SET.has(t);
 export const BLOCK_META: Record<BlockType, { en: string; ar: string; gadget: boolean }> = {
   hero: { en: 'Hero carousel', ar: 'سلايدر البطل', gadget: false },
   'greet-strip': { en: 'Greeting strip', ar: 'شريط الترحيب', gadget: false },
+  'trust-row': { en: 'Trust row (help / authenticity / delivery)', ar: 'شريط الثقة (مساعدة / أصالة / توصيل)', gadget: false },
   goals: { en: 'Wellness goals', ar: 'الأهداف الصحية', gadget: false },
   membership: { en: 'Membership banner', ar: 'بانر العضوية', gadget: false },
   deals: { en: 'Expiry deals', ar: 'عروض الصلاحية', gadget: false },
@@ -42,6 +43,7 @@ export const BLOCK_META: Record<BlockType, { en: string; ar: string; gadget: boo
   'feature-banner': { en: 'Refill feature banner', ar: 'بانر ريفيل', gadget: false },
   'special-order': { en: 'Special order', ar: 'الطلب الخاص', gadget: false },
   'best-sellers': { en: 'Best sellers', ar: 'الأكثر مبيعًا', gadget: false },
+  'learn-blog': { en: 'From Veeey Learn & Blog', ar: 'من فيي تعلّم والمدونة', gadget: false },
   brands: { en: 'Brand strip', ar: 'شريط العلامات', gadget: false },
   rich: { en: 'Rich content', ar: 'محتوى منسّق', gadget: true },
   'image-banner': { en: 'Image / banner', ar: 'صورة / بانر', gadget: true },

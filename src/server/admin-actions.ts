@@ -220,6 +220,7 @@ export async function savePostAction(_p: AdminFormState, fd: FormData): Promise<
     await savePost(str(fd, 'id') ?? null, {
       titleEn: str(fd, 'titleEn') ?? '', titleAr: str(fd, 'titleAr'), slug: str(fd, 'slug'),
       excerptEn: str(fd, 'excerptEn'), bodyEn: str(fd, 'bodyEn'), bodyAr: str(fd, 'bodyAr'),
+      coverImage: str(fd, 'coverImage'), authorName: str(fd, 'authorName'),
       status: (str(fd, 'status') ?? 'DRAFT') as 'DRAFT' | 'PUBLISHED' | 'ARCHIVED',
     });
   } catch (e) { return fail(e); }

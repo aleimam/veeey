@@ -26,6 +26,14 @@ export const BUILTIN_DEFAULTS: Record<BuiltinType, Record<string, unknown>> = {
       { icon: 'gift', textEn: 'Earn points on every order', textAr: 'اكسب نقاطًا مع كل طلب', linkEn: 'See loyalty tiers', linkAr: 'شاهد مستويات الولاء', href: '/p/loyalty-rewards' },
     ],
   },
+  'trust-row': {
+    cards: [
+      { icon: 'stethoscope', titleEn: '24/7 pharmacist help', titleAr: 'مساعدة صيدلي ٢٤/٧', textEn: 'Chat with a licensed Veeey pharmacist any time.', textAr: 'دردش مع صيدلي فيي مرخّص في أي وقت.', href: '/p/contact' },
+      { icon: 'shield-check', titleEn: 'Genuine, guaranteed', titleAr: 'أصلي ومضمون', textEn: 'Authentic imports from the USA, UK & EU — every lot dated.', textAr: 'واردات أصلية من أمريكا وبريطانيا وأوروبا — كل تشغيلة مؤرّخة.', href: '/p/authenticity-guarantee' },
+      { icon: 'truck', titleEn: 'UltraFast delivery', titleAr: 'توصيل فائق السرعة', textEn: '3–6h in Greater Cairo, fast & free nationwide.', textAr: '٣–٦ ساعات في القاهرة الكبرى، سريع ومجاني للجمهورية.', href: '/p/shipping-delivery' },
+      { icon: 'repeat', titleEn: 'Veeey Refill', titleAr: 'فيي ريفيل', textEn: 'Never run out — scheduled refills, pause anytime.', textAr: 'لا تنفد أبدًا — إعادة تعبئة مجدولة، أوقفها متى شئت.', href: '/refill' },
+    ],
+  },
   goals: {
     titleEn: "What's your wellness goal today?", titleAr: 'ما هدفك الصحي اليوم؟',
     items: [
@@ -81,6 +89,11 @@ export const BUILTIN_DEFAULTS: Record<BuiltinType, Record<string, unknown>> = {
   'best-sellers': {
     eyebrowEn: 'Loved by our A+++ members', eyebrowAr: 'محبوب من أعضائنا', titleEn: 'Best sellers', titleAr: 'الأكثر مبيعًا', actionHref: '/products',
   },
+  'learn-blog': {
+    eyebrowEn: 'Health, explained', eyebrowAr: 'الصحة ببساطة',
+    titleEn: 'From Veeey Learn & Blog', titleAr: 'من فيي تعلّم والمدونة',
+    actionHref: '/learn',
+  },
   brands: {
     headingEn: 'Trusted imported brands, sourced authentically', headingAr: 'علامات مستوردة موثوقة، بمصادر أصلية',
     items: [
@@ -124,6 +137,13 @@ export const BUILTIN_FIELDS: Record<BuiltinType, FieldDesc[]> = {
       { key: 'href', kind: 'plain', en: 'Link', ar: 'الرابط' },
     ] },
   ],
+  'trust-row': [
+    { key: 'cards', kind: 'list', en: 'Cards', ar: 'البطاقات', item: [
+      { key: 'title', kind: 'text', en: 'Title', ar: 'العنوان' },
+      { key: 'text', kind: 'text', en: 'Text', ar: 'النص' },
+      { key: 'href', kind: 'plain', en: 'Link', ar: 'الرابط' },
+    ] },
+  ],
   goals: [
     T('title', 'Title', 'العنوان'),
     { key: 'items', kind: 'list', en: 'Goals', ar: 'الأهداف', item: [
@@ -147,8 +167,12 @@ export const BUILTIN_FIELDS: Record<BuiltinType, FieldDesc[]> = {
     { key: 'steps', kind: 'list', en: 'Steps', ar: 'الخطوات', item: [{ key: 'label', kind: 'text', en: 'Step', ar: 'الخطوة' }] },
   ],
   'best-sellers': [T('eyebrow', 'Eyebrow', 'تمهيد'), T('title', 'Title', 'العنوان'), P('actionHref', '"View all" link', 'رابط "عرض الكل"')],
+  'learn-blog': [T('eyebrow', 'Eyebrow', 'تمهيد'), T('title', 'Title', 'العنوان'), P('actionHref', '"View all" link', 'رابط "عرض الكل"')],
   brands: [
     T('heading', 'Heading', 'العنوان'),
-    { key: 'items', kind: 'list', en: 'Brands', ar: 'العلامات', item: [{ key: 'name', kind: 'plain', en: 'Brand name', ar: 'اسم العلامة' }] },
+    { key: 'items', kind: 'list', en: 'Brands', ar: 'العلامات', item: [
+      { key: 'name', kind: 'plain', en: 'Brand name', ar: 'اسم العلامة' },
+      { key: 'href', kind: 'plain', en: 'Link (e.g. /brands/<slug>)', ar: 'الرابط (مثل ‎/brands/<slug>)' },
+    ] },
   ],
 };
