@@ -54,6 +54,10 @@ import {
   LayoutDashboard,
   Target,
   MapPin,
+  ZoomIn,
+  TrendingUp,
+  FolderTree,
+  PackageOpen,
 } from 'lucide-react';
 
 /**
@@ -116,6 +120,10 @@ const MAP: Record<string, LucideIcon> = {
   'layout-dashboard': LayoutDashboard,
   target: Target,
   'map-pin': MapPin,
+  'zoom-in': ZoomIn,
+  'trending-up': TrendingUp,
+  'folder-tree': FolderTree,
+  'package-open': PackageOpen,
 };
 
 export function Icon({

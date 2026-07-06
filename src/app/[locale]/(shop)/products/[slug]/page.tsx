@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { pick } from '@/lib/admin-i18n';
@@ -9,6 +8,7 @@ import { sanitizeRichHtml, hasRichContent, richToText } from '@/lib/rich-text';
 import { getSetting } from '@/lib/settings-service';
 import { AdminEditLink } from '@/components/storefront/admin-edit-link';
 import { ChewyBuyBox } from '@/components/storefront/chewy/chewy-buy-box';
+import { ProductGallery } from '@/components/storefront/chewy/product-gallery';
 import type { BuyLot } from '@/components/storefront/buy-box';
 import { TrackView } from '@/components/analytics/track-view';
 import { toggleWishlistAction, toggleCompareAction } from '@/server/engagement-actions';
@@ -139,20 +139,7 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
       </div>
 
       <div className="grid items-start gap-12 lg:grid-cols-2">
-        <div>
-          <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-[20px] border border-[color:var(--green-dark-05)]" style={{ background: 'linear-gradient(160deg,#fff,var(--surface) 70%)' }}>
-            <Image src={images[0].url} alt={name} fill sizes="(max-width:1024px) 100vw, 45vw" className="object-contain p-[8%]" />
-          </div>
-          {images.length > 1 && (
-            <div className="mt-3.5 flex gap-3">
-              {images.slice(0, 4).map((img, n) => (
-                <div key={img.id} className={`relative size-[72px] overflow-hidden rounded-[12px] bg-white ${n === 0 ? 'border-2 border-green-dark' : 'border border-[color:var(--slate-border)]'}`}>
-                  <Image src={img.url} alt="" fill sizes="72px" className="object-contain p-1.5" />
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <ProductGallery images={images.map((im) => ({ id: im.id, url: im.url, alt: im.alt }))} name={name} locale={locale} />
 
         <div className="lg:sticky lg:top-[130px]">
           <div className="mb-3"><AdminEditLink href={`/admin/products/edit/${p.id}`} locale={locale} /></div>
