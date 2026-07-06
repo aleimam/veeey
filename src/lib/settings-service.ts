@@ -19,6 +19,8 @@ export const SETTINGS: SettingDef[] = [
   { key: 'specialOrder.depositPercent', label: 'Special-order deposit (%)', group: 'Special orders', type: 'percent', default: '25', hint: 'Deposit required to reserve a special order.' },
   { key: 'specialOrder.defaultLeadDays', label: 'Default lead time (days)', group: 'Special orders', type: 'days', default: '20' },
   { key: 'specialOrder.compensationGraceDays', label: 'Compensation grace (days)', group: 'Special orders', type: 'days', default: '3', hint: 'Days past the promised date before auto-compensation applies.' },
+  // Pre-orders (buy a product before it is back in stock)
+  { key: 'preorder.depositPercent', label: 'Pre-order deposit (%)', group: 'Pre-orders', type: 'percent', default: '25', hint: 'Deposit charged up front to reserve a pre-order; the balance is due on delivery.' },
   // Shipping
   { key: 'shipping.freeThresholdEgp', label: 'Free-shipping threshold (EGP)', group: 'Shipping', type: 'number', default: '0', hint: '0 = shipping fees come from the per-type config.' },
   // Referrals

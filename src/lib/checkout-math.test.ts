@@ -13,6 +13,13 @@ describe('checkout math', () => {
     expect(depositAndBalance(100000n, true)).toEqual({ depositPiastres: 25000n, balancePiastres: 75000n });
   });
 
+  it('depositAndBalance: honors a configured rate and clamps it to 0–100', () => {
+    expect(depositAndBalance(100000n, true, 40)).toEqual({ depositPiastres: 40000n, balancePiastres: 60000n });
+    expect(depositAndBalance(100000n, true, 0)).toEqual({ depositPiastres: 0n, balancePiastres: 100000n });
+    expect(depositAndBalance(100000n, true, 150)).toEqual({ depositPiastres: 100000n, balancePiastres: 0n }); // clamped to 100
+    expect(depositAndBalance(100000n, false, 40)).toEqual({ depositPiastres: 100000n, balancePiastres: 0n }); // no deposit → full
+  });
+
   it('pointsEarned scales subtotal by tier rate', () => {
     expect(pointsEarned(85000n, 1)).toBe(850); // 850 EGP × 1 pt
     expect(pointsEarned(85000n, 3)).toBe(2550); // Select tier

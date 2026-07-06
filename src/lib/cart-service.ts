@@ -2,11 +2,17 @@ import { cookies } from 'next/headers';
 import { randomUUID } from 'node:crypto';
 import { prisma } from '@/lib/prisma';
 import { reserveStock, releaseReservation } from '@/lib/inventory-service';
+import {
+  PREORDER_COOKIE, parsePreorderCart, serializePreorderCart, addPreorderLine,
+  setPreorderQty as setPreorderQtyPure, removePreorderLine, preorderCount, type PreorderLine,
+} from '@/lib/preorder-cart';
 
 /**
  * Cart (FR-CHK-02). The cart IS the set of FEFO soft-holds for a cart session —
  * adding to cart reserves the nearest-expiry lot(s) (FR-INV-03), so the bound
  * lot's exact expiry travels through to the order. Cart id lives in a cookie.
+ * Pre-order lines (products bought before they are back in stock) have no lot
+ * to hold, so they live in a separate JSON cookie (see preorder-cart.ts).
  */
 const CART_COOKIE = 'veeey-cart';
 const CART_HOLD_MIN = 1440; // 24h hold for cart items
@@ -29,6 +35,34 @@ export async function ensureCartId(): Promise<string> {
 export async function clearCartCookie() {
   const c = await cookies();
   c.delete(CART_COOKIE);
+  c.delete(PREORDER_COOKIE);
+}
+
+// ---- Pre-order lines (cookie-backed) ---------------------------------------
+export async function readPreorderLines(): Promise<PreorderLine[]> {
+  const c = await cookies();
+  return parsePreorderCart(c.get(PREORDER_COOKIE)?.value);
+}
+
+async function writePreorderLines(lines: PreorderLine[]) {
+  const c = await cookies();
+  if (lines.length === 0) c.delete(PREORDER_COOKIE);
+  else c.set(PREORDER_COOKIE, serializePreorderCart(lines), { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 30 });
+}
+
+export async function addPreorder(productId: string, qty = 1) {
+  // Only accept products that are actually published + pre-order enabled.
+  const p = await prisma.product.findFirst({ where: { id: productId, status: 'PUBLISHED', preorderEnabled: true }, select: { id: true } });
+  if (!p) return;
+  await writePreorderLines(addPreorderLine(await readPreorderLines(), productId, qty));
+}
+
+export async function setPreorderQty(productId: string, qty: number) {
+  await writePreorderLines(setPreorderQtyPure(await readPreorderLines(), productId, qty));
+}
+
+export async function removePreorder(productId: string) {
+  await writePreorderLines(removePreorderLine(await readPreorderLines(), productId));
 }
 
 export type CartLine = {
@@ -42,7 +76,39 @@ export type CartLine = {
   subtotalPiastres: number;
   nearestExpiry: Date | null;
   condition: string; // 'NEW' or an explicit variant (OPEN_BOX / DAMAGED / BROKEN)
+  preorder: boolean; // awaiting-stock line (no lot held); charged a deposit at checkout
 };
+
+/** Pre-order lines (cookie) resolved to CartLine rows at base price. */
+async function preorderCartLines(locale: string): Promise<CartLine[]> {
+  const lines = await readPreorderLines();
+  if (lines.length === 0) return [];
+  const products = await prisma.product.findMany({
+    where: { id: { in: lines.map((l) => l.productId) }, status: 'PUBLISHED', preorderEnabled: true },
+    include: { brand: true, images: { take: 1, orderBy: { sortOrder: 'asc' } } },
+  });
+  const byId = new Map(products.map((p) => [p.id, p]));
+  const out: CartLine[] = [];
+  for (const l of lines) {
+    const p = byId.get(l.productId);
+    if (!p) continue; // product unpublished / pre-order turned off → drop silently
+    const unit = Number(p.basePricePiastres);
+    out.push({
+      productId: p.id,
+      slug: (locale === 'ar' ? p.slugAr : p.slugEn) ?? p.slugEn,
+      name: (locale === 'ar' ? p.nameAr : p.nameEn) ?? p.nameEn,
+      brand: p.brand?.nameEn ?? '',
+      image: p.images[0]?.url ?? '/placeholder.svg',
+      qty: l.qty,
+      unitPricePiastres: unit,
+      subtotalPiastres: unit * l.qty,
+      nearestExpiry: null,
+      condition: 'NEW',
+      preorder: true,
+    });
+  }
+  return out;
+}
 
 export async function getCart(cartId: string, locale = 'en'): Promise<CartLine[]> {
   const res = await prisma.lotReservation.findMany({
@@ -67,6 +133,7 @@ export async function getCart(cartId: string, locale = 'en'): Promise<CartLine[]
       subtotalPiastres: 0,
       nearestExpiry: r.lot.expiryDate,
       condition: r.lot.condition,
+      preorder: false,
     };
     line.qty += r.qty;
     line.subtotalPiastres += unit * r.qty;
@@ -75,12 +142,12 @@ export async function getCart(cartId: string, locale = 'en'): Promise<CartLine[]
     if (r.lot.expiryDate && (!line.nearestExpiry || r.lot.expiryDate < line.nearestExpiry)) line.nearestExpiry = r.lot.expiryDate;
     map.set(key, line);
   }
-  return [...map.values()];
+  return [...map.values(), ...(await preorderCartLines(locale))];
 }
 
 export async function cartCount(cartId: string): Promise<number> {
   const agg = await prisma.lotReservation.aggregate({ _sum: { qty: true }, where: { sessionId: cartId } });
-  return agg._sum.qty ?? 0;
+  return (agg._sum.qty ?? 0) + preorderCount(await readPreorderLines());
 }
 
 export function addToCart(

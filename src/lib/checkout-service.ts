@@ -6,6 +6,7 @@ import { auth } from '@/auth';
 import { audit } from '@/lib/audit';
 import { clearCartCookie } from '@/lib/cart-service';
 import { ATTR_COOKIE, parseAttribution } from '@/lib/attribution';
+import { PREORDER_COOKIE, parsePreorderCart } from '@/lib/preorder-cart';
 import { getShippingFee, type ShippingTypeKey } from '@/lib/shipping-service';
 import { orderTotal, depositAndBalance } from '@/lib/checkout-math';
 import { scoreOrderRisk } from '@/lib/fraud';
@@ -46,11 +47,28 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
     where: { sessionId: cartId },
     include: { lot: { include: { product: true } } },
   });
-  if (reservations.length === 0) throw new Error('EMPTY_CART');
+
+  // Pre-order lines (cookie-backed, no lot held) — validated against the live
+  // catalog so a since-unpublished / no-longer-pre-order product is dropped.
+  const cookieStore = await cookies();
+  const preLines = parsePreorderCart(cookieStore.get(PREORDER_COOKIE)?.value);
+  const preProducts = preLines.length
+    ? await prisma.product.findMany({
+        where: { id: { in: preLines.map((l) => l.productId) }, status: 'PUBLISHED', preorderEnabled: true },
+        select: { id: true, basePricePiastres: true, weightG: true },
+      })
+    : [];
+  const preById = new Map(preProducts.map((p) => [p.id, p]));
+  const preorders = preLines.filter((l) => preById.has(l.productId));
+
+  if (reservations.length === 0 && preorders.length === 0) throw new Error('EMPTY_CART');
 
   let subtotal = 0n;
   for (const r of reservations) {
     subtotal += (r.lot.priceOverridePiastres ?? r.lot.product.basePricePiastres) * BigInt(r.qty);
+  }
+  for (const l of preorders) {
+    subtotal += preById.get(l.productId)!.basePricePiastres * BigInt(l.qty);
   }
   const shipping = await getShippingFee(data.shippingType as ShippingTypeKey);
 
@@ -78,8 +96,11 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
   const discount = couponDiscount + pointsValue;
   const total = orderTotal(subtotal, shipping, discount);
 
-  const requiresDeposit = false;
-  const { balancePiastres } = depositAndBalance(total, requiresDeposit);
+  // Pre-order → deposit up front (admin-configurable %), balance on delivery.
+  const requiresDeposit = preorders.length > 0;
+  const depositPct = requiresDeposit ? await getNumberSetting('preorder.depositPercent') : 0;
+  const { depositPiastres, balancePiastres } = depositAndBalance(total, requiresDeposit, depositPct);
+  const amountDue = requiresDeposit ? depositPiastres : total; // charged now (gateway) / collected on delivery
 
   const recent = customerId
     ? await prisma.order.count({ where: { customerId, placedAt: { gte: new Date(Date.now() - 86_400_000) } } })
@@ -87,7 +108,7 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
   const risk = scoreOrderRisk({
     totalPiastres: Number(total),
     isGuest: !customerId,
-    itemCount: reservations.length,
+    itemCount: reservations.length + preorders.length,
     paymentMethod: data.paymentMethod,
     recentOrders24h: recent,
     addressProvided: !!data.street,
@@ -126,6 +147,8 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
         shippingPiastres: shipping,
         discountPiastres: discount,
         totalPiastres: total,
+        isPreorder: requiresDeposit,
+        depositPaidPiastres: requiresDeposit ? depositPiastres : null,
         balanceDuePiastres: requiresDeposit ? balancePiastres : null,
         shippingType: data.shippingType,
         discreetPackaging: data.discreetPackaging,
@@ -153,6 +176,25 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
       await tx.lot.update({ where: { id: r.lotId }, data: { qtyOnHand: { decrement: r.qty }, qtyReserved: { decrement: r.qty } } });
       await tx.movementLedger.create({ data: { lotId: r.lotId, locationId: r.lot.locationId, type: 'SALE', qtyDelta: -r.qty, refType: 'order', refId: ord.id } });
       await tx.lotReservation.delete({ where: { id: r.id } });
+    }
+
+    // Pre-order lines: no lot bound, no stock decrement, no ledger/revenue and
+    // no points until fulfilled (staff bind a lot + collect the balance when
+    // stock arrives). The unit price is snapshotted at the current base price.
+    for (const l of preorders) {
+      const p = preById.get(l.productId)!;
+      await tx.orderItem.create({
+        data: {
+          orderId: ord.id,
+          productId: p.id,
+          lotId: null,
+          qty: l.qty,
+          unitPricePiastres: p.basePricePiastres,
+          preorder: true,
+          weightG: p.weightG,
+          pointsEarned: 0,
+        },
+      });
     }
 
     if (couponId) {
@@ -190,6 +232,8 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
     number: order.number,
     riskLevel: risk.level,
     totalPiastres: total,
+    amountDuePiastres: amountDue, // deposit for pre-orders, full total otherwise (what the gateway charges)
+    isPreorder: requiresDeposit,
     paymentMethod: data.paymentMethod,
     name: data.name,
     phone: data.phone,

@@ -79,7 +79,7 @@ export default async function OrderDetailPage({ params, searchParams }: { params
                   <tr key={it.id} className={`border-t border-border ${it.lost ? 'opacity-60' : ''}`}>
                     <td className={`p-2 ${it.lost ? 'line-through' : ''}`}>{it.product.nameEn} <span className="text-muted-foreground">({it.product.sku})</span>{it.lost && <span className="ms-2 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-medium text-destructive no-underline">{tb('Lost', 'مفقود')}</span>}</td>
                     <td className="p-2 text-center">
-                      {monthYear(it.lineExpiry)}
+                      {it.preorder ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">{tb('Pre-order', 'طلب مسبق')}</span> : monthYear(it.lineExpiry)}
                       {isConditionVariant(it.condition) && <span className="ms-1.5 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">{conditionLabel(it.condition, locale)}</span>}
                     </td>
                     <td className="p-2 text-center">{it.product.weightG != null ? `${it.product.weightG}g` : '—'}</td>
@@ -104,6 +104,11 @@ export default async function OrderDetailPage({ params, searchParams }: { params
           <div className="mt-2 text-end text-sm">
             <span className="text-muted-foreground">{tb('Total', 'الإجمالي')} </span><span className="font-semibold">{formatEGP(Number(order.totalPiastres))}</span>
           </div>
+          {order.isPreorder && (
+            <div className="mt-1 rounded-md bg-amber-50 px-3 py-2 text-end text-xs text-amber-900">
+              {tb('Pre-order', 'طلب مسبق')} · {tb('Deposit', 'العربون')} {formatEGP(Number(order.depositPaidPiastres ?? 0n))} · {tb('Balance on delivery', 'الباقي عند التوصيل')} {formatEGP(Number(order.balanceDuePiastres ?? 0n))}
+            </div>
+          )}
 
           {editable && (
             <form action={addOrderItemAction} className="mt-4 flex flex-wrap items-end gap-2 rounded-lg border border-dashed border-border p-3">

@@ -2,7 +2,7 @@
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { ensureCartId, readCartId, addToCart, setCartQty, removeFromCart } from '@/lib/cart-service';
+import { ensureCartId, readCartId, addToCart, setCartQty, removeFromCart, addPreorder, setPreorderQty, removePreorder } from '@/lib/cart-service';
 import { placeOrder, type CheckoutInput } from '@/lib/checkout-service';
 import { buildCardRedirect } from '@/lib/payment-gateways';
 import { isOnlineMethod, gatewayFor } from '@/lib/payment-method-service';
@@ -33,18 +33,35 @@ export async function addToCartAction(fd: FormData): Promise<void> {
   redirect(`/${locale}/cart${failed ? '?add=out' : ''}`);
 }
 
+/** Pre-order (buy before back in stock) — no lot to hold, so this writes the
+ *  pre-order cookie instead of reserving stock. A deposit is taken at checkout. */
+export async function addPreorderToCartAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const productId = str(fd, 'productId');
+  const qty = Number(str(fd, 'qty') ?? '1') || 1;
+  if (productId) await addPreorder(productId, qty);
+  revalidatePath(`/${locale}/cart`);
+  redirect(`/${locale}/cart`);
+}
+
 export async function updateCartQtyAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
   const productId = str(fd, 'productId');
   const qty = Number(str(fd, 'qty') ?? '0');
   const condition = str(fd, 'condition') ?? 'NEW';
-  const cartId = await readCartId();
   let failed = false;
-  if (cartId && productId) {
-    try {
-      await setCartQty(cartId, productId, Math.max(0, qty), condition);
-    } catch {
-      failed = true; // requested more than available
+  if (productId) {
+    if (fd.get('preorder') != null) {
+      await setPreorderQty(productId, Math.max(0, qty));
+    } else {
+      const cartId = await readCartId();
+      if (cartId) {
+        try {
+          await setCartQty(cartId, productId, Math.max(0, qty), condition);
+        } catch {
+          failed = true; // requested more than available
+        }
+      }
     }
   }
   revalidatePath(`/${locale}/cart`);
@@ -55,8 +72,14 @@ export async function removeFromCartAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
   const productId = str(fd, 'productId');
   const condition = str(fd, 'condition');
-  const cartId = await readCartId();
-  if (cartId && productId) await removeFromCart(cartId, productId, condition);
+  if (productId) {
+    if (fd.get('preorder') != null) {
+      await removePreorder(productId);
+    } else {
+      const cartId = await readCartId();
+      if (cartId) await removeFromCart(cartId, productId, condition);
+    }
+  }
   revalidatePath(`/${locale}/cart`);
   redirect(`/${locale}/cart`);
 }
@@ -97,7 +120,8 @@ export async function placeOrderAction(_p: CheckoutState, fd: FormData): Promise
       gatewayUrl = await buildCardRedirect(
         {
           number: result.number,
-          totalPiastres: result.totalPiastres,
+          // Pre-orders charge the deposit up front; everything else the full total.
+          totalPiastres: result.amountDuePiastres,
           locale,
           name: result.name,
           email: result.email,

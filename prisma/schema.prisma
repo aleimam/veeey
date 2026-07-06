@@ -947,6 +947,7 @@ model Order {
   riskScore           Int?
   discreetPackaging   Boolean       @default(false)
   isSpecialOrder      Boolean       @default(false)
+  isPreorder          Boolean       @default(false) // contains pre-order lines → deposit taken, balance due on delivery
 
   legacyWpId Int?     @unique
   syncedAt   DateTime? // last WooCommerce sync write (detach detection)
@@ -976,6 +977,7 @@ model OrderItem {
   unitPricePiastres BigInt
   lineExpiry        DateTime? // exact expiry of bound lot travels with the line (FR-INV-02)
   condition         String? // bound lot's condition snapshot (null = NEW / pre-feature)
+  preorder          Boolean      @default(false) // awaiting stock: no lot bound, no stock decrement, no revenue until fulfilled
   weightG           Int?
   pointsEarned      Int          @default(0)
   isGift            Boolean      @default(false)

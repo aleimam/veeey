@@ -62,6 +62,7 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
   const longHtml = sanitizeRichHtml((locale === 'ar' ? p.longDescAr : p.longDescEn) ?? p.longDescEn);
   const shortHtml = sanitizeRichHtml((locale === 'ar' ? p.shortDescAr : p.shortDescEn) ?? p.shortDescEn);
   const refillEnabled = (await getSetting('refill.enabled')) === 'true'; // visual subscribe upsell off until real Refill ships
+  const depositPercent = Number(await getSetting('preorder.depositPercent')) || 25;
   const images = p.images.length ? p.images : [{ id: 'ph', url: '/placeholder.svg', alt: name }];
 
   // NEW lots first (FEFO order preserved), condition variants after — so the
@@ -99,7 +100,7 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
     brand: p.brand?.nameEn,
     sku: p.sku,
     image: images[0]?.url,
-    offers: { '@type': 'Offer', price: piastresToEgp(BigInt(offerPrice)), priceCurrency: 'EGP', availability: buyLots.length ? 'https://schema.org/InStock' : 'https://schema.org/PreOrder' },
+    offers: { '@type': 'Offer', price: piastresToEgp(BigInt(offerPrice)), priceCurrency: 'EGP', availability: buyLots.length ? 'https://schema.org/InStock' : p.preorderEnabled ? 'https://schema.org/PreOrder' : 'https://schema.org/OutOfStock' },
     ...(p.ratingCount > 0 ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: p.ratingAvg ?? 0, reviewCount: p.ratingCount } } : {}),
   };
 
@@ -148,7 +149,7 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
               <span aria-hidden>{originBadge.flag}</span> {tb(originBadge.en, originBadge.ar)}
             </div>
           )}
-          <ChewyBuyBox brand={brandName} name={name} rating={p.ratingAvg ?? 0} reviews={p.ratingCount} basePricePiastres={basePrice} lots={buyLots} productId={p.id} points={points} locale={locale} refillEnabled={refillEnabled} />
+          <ChewyBuyBox brand={brandName} name={name} rating={p.ratingAvg ?? 0} reviews={p.ratingCount} basePricePiastres={basePrice} lots={buyLots} productId={p.id} points={points} locale={locale} refillEnabled={refillEnabled} preorderEnabled={p.preorderEnabled} depositPercent={depositPercent} />
           {/* Key selling points belong beside the price, not below the fold (audit 6.5). */}
           {hasRichContent(shortHtml) && (
             <div className="veeey-rich mt-5 rounded-[12px] border border-[color:var(--green-dark-05)] bg-white p-4 text-[14.5px] font-medium leading-relaxed text-ink" dangerouslySetInnerHTML={{ __html: shortHtml }} />

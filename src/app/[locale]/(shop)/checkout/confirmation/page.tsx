@@ -69,6 +69,7 @@ export default async function ConfirmationPage({
                 {it.product.nameEn} × {it.qty}
                 {it.lineExpiry ? ` · ${t('exp', { date: it.lineExpiry.toISOString().slice(0, 7) })}` : ''}
                 {isConditionVariant(it.condition) ? ` · ${conditionLabel(it.condition, locale)}` : ''}
+                {it.preorder ? ` · ${locale === 'ar' ? 'طلب مسبق' : 'Pre-order'}` : ''}
               </span>
               <span className="font-semibold">{formatEGP(Number(it.unitPricePiastres) * it.qty)}</span>
             </li>
@@ -77,8 +78,21 @@ export default async function ConfirmationPage({
         <div className="mt-3 space-y-1 border-t border-[color:var(--slate-border)] pt-3 text-sm">
           <div className="flex justify-between text-[color:var(--text-muted)]"><span>{t('shipping')}</span><span>{Number(order.shippingPiastres) === 0 ? t('free') : formatEGP(Number(order.shippingPiastres))}</span></div>
           <div className="flex justify-between font-bold text-green-dark"><span>{t('total')}</span><span>{formatEGP(Number(order.totalPiastres))}</span></div>
+          {order.isPreorder && order.depositPaidPiastres != null && (
+            <>
+              <div className="flex justify-between text-gold-deep"><span>{locale === 'ar' ? 'العربون (مدفوع الآن)' : 'Deposit (paid now)'}</span><span className="font-semibold">{formatEGP(Number(order.depositPaidPiastres))}</span></div>
+              <div className="flex justify-between text-[color:var(--text-muted)]"><span>{locale === 'ar' ? 'الباقي عند التوصيل' : 'Balance on delivery'}</span><span className="font-semibold">{formatEGP(Number(order.balanceDuePiastres ?? 0n))}</span></div>
+            </>
+          )}
           <div className="flex justify-between text-[color:var(--text-muted)]"><span>{t('payment')}</span><span>{customerLabel(order.paymentMethod, locale)}</span></div>
         </div>
+        {order.isPreorder && (
+          <p className="mt-3 rounded-[10px] bg-gold-wash px-3 py-2 text-xs leading-snug text-[color:var(--text-muted)]">
+            {locale === 'ar'
+              ? 'يتضمّن طلبك منتجًا بالطلب المسبق. سنجهّز طلبك ونشحنه كاملًا حين يتوفّر المخزون، ويُحصّل الباقي عند التوصيل.'
+              : 'Your order includes a pre-order item. We’ll prepare and ship the whole order once it’s back in stock, and collect the balance on delivery.'}
+          </p>
+        )}
       </div>
 
       <Link href="/products" className="mt-6 inline-block text-sm font-semibold text-green-dark hover:text-lime-press">{t('continueShopping')}</Link>
