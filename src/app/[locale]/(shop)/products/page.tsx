@@ -28,6 +28,7 @@ export default async function ProductsPage({
 
   const q = one(sp.q)?.trim();
   const brand = one(sp.brand);
+  const category = one(sp.category);
   const kind = one(sp.kind);
   const sort = one(sp.sort) ?? 'popular';
   const inStock = one(sp.instock) === '1';
@@ -38,6 +39,7 @@ export default async function ProductsPage({
     AND: [visibleProductWhere],
     ...(q ? { nameEn: { contains: q, mode: 'insensitive' as const } } : {}),
     ...(brand ? { brandId: brand } : {}),
+    ...(category ? { categories: { some: { id: category } } } : {}),
     ...(kind ? { kind: kind as 'SUPPLEMENT' | 'DEVICE' | 'INJECTION' } : {}),
     ...(inStock ? { lots: { some: { status: 'LIVE' as const, qtyOnHand: { gt: 0 } } } } : {}),
     ...(offers ? { lots: { some: { saleFlag: true } } } : {}),
@@ -92,6 +94,7 @@ export default async function ProductsPage({
 
       <form action={`/${locale}/products`} className="grid items-start gap-7 lg:grid-cols-[240px_1fr]">
         {q && <input type="hidden" name="q" value={q} />}
+        {category && <input type="hidden" name="category" value={category} />}
         <aside className="rounded-[16px] border border-[color:var(--green-dark-05)] bg-white p-5 lg:sticky lg:top-[130px]">
           <div className="space-y-4">
             <Select name="kind" defaultValue={kind ?? ''} label={t('type')}>

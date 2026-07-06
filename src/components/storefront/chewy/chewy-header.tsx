@@ -9,6 +9,7 @@ import { Icon } from '@/components/storefront/ui/icon';
 import { Badge } from '@/components/storefront/ui/badge';
 import { VeeeyLogo } from '@/components/storefront/veeey-logo';
 import { LanguageSwitcher } from '@/components/storefront/language-switcher';
+import { SearchAutocomplete } from '@/components/storefront/chewy/search-autocomplete';
 
 export type CartLine = { name: string; image: string; pricePiastres: number; qty: number };
 
@@ -63,18 +64,11 @@ export function ChewyHeader({
               </Link>
 
               {/* desktop search */}
-              <form action={`/${locale}/search`} className="hidden h-[46px] max-w-[560px] flex-1 items-center overflow-hidden rounded-full bg-white ps-4 md:flex">
-                <input
-                  name="q"
-                  type="search"
-                  placeholder={t('Search supplements, brands, goals…', 'ابحث عن مكمّلات أو علامات أو أهداف…')}
-                  className="w-full border-none bg-transparent text-sm text-slate outline-none"
-                  aria-label={t('Search', 'بحث')}
-                />
-                <button type="submit" aria-label={t('Search', 'بحث')} className="flex h-full items-center justify-center bg-lime px-4">
-                  <Icon name="search" size={20} color="var(--green-dark)" />
-                </button>
-              </form>
+              <SearchAutocomplete
+                locale={locale}
+                placeholder={t('Search supplements, brands, goals…', 'ابحث عن مكمّلات أو علامات أو أهداف…')}
+                className="hidden h-[46px] max-w-[560px] flex-1 md:block"
+              />
 
               <div className="hidden md:block">
                 <LanguageSwitcher className="flex items-center gap-2 text-sm text-white" />
@@ -108,18 +102,11 @@ export function ChewyHeader({
             </div>
 
             {/* mobile search */}
-            <form action={`/${locale}/search`} className="mt-2.5 flex h-11 items-center overflow-hidden rounded-full bg-white ps-4 md:hidden">
-              <input
-                name="q"
-                type="search"
-                placeholder={t('Search supplements, brands…', 'ابحث عن مكمّلات أو علامات…')}
-                className="w-full border-none bg-transparent text-sm text-slate outline-none"
-                aria-label={t('Search', 'بحث')}
-              />
-              <button type="submit" aria-label={t('Search', 'بحث')} className="flex h-full items-center justify-center bg-lime px-4">
-                <Icon name="search" size={20} color="var(--green-dark)" />
-              </button>
-            </form>
+            <SearchAutocomplete
+              locale={locale}
+              placeholder={t('Search supplements, brands…', 'ابحث عن مكمّلات أو علامات…')}
+              className="mt-2.5 h-11 md:hidden"
+            />
           </div>
 
           {/* desktop nav row */}
