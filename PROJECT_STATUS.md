@@ -2,7 +2,7 @@
 
 > Living status/handoff doc. Repo-committed so it travels with the code (unlike
 > per-user assistant memory). Update it when features ship or the backlog changes.
-> **Last updated: 2026-07-08.** Authoritative product docs: `VEEEY_PRD.md`,
+> **Last updated: 2026-07-08 (evening — PDP per-unit/at-a-glance, Product Q&A, WhatsApp confirmations added; NOT yet deployed).** Authoritative product docs: `VEEEY_PRD.md`,
 > `VEEEY_SPEC.md`, `BUILD_PLAN.md`, `AGENTS.md`, `DEPLOYMENT.md`.
 
 ## Current state
@@ -37,11 +37,7 @@
 - **YeldnIN integration** (epic V) — gated; needs `INTEGRATION_CONTRACT.md` re-baselined.
 
 ### Buildable now (no blocker — just not scheduled)
-- PDP **per-unit price** (e.g. "EGP X / capsule").
-- PDP **"at a glance" benefit icons**.
-- PDP **Q&A** ("Answered Questions") section.
-- **WhatsApp order-confirmation** message (today only email + optional SMS).
-- **Real Autoship/Refill subscriptions** with recurring billing (epic #119; currently visual-only).
+- **Real Autoship/Refill subscriptions** with recurring billing (epic #119; currently visual-only). Design-discuss with the owner first (recurring card billing effectively waits on Payments Stage B; COD-cycle variant possible sooner).
 - Extensions to shipped features: more **AI apply-actions** (only `product.update` + `review.moderate` today); **always-on GTM w/ Consent Mode** toggle; **scheduled audit reports + retention policy**.
 
 ### Owner in-admin / content actions (not code)
@@ -61,6 +57,10 @@ Optional: create an **AI key** in `/admin/ai-keys`; paste GA4/GTM/Search-Console
 | Admin sidebar regroup | `8980b5a` | **Appearance / Content / Integrations & API** groups; Egypt Vitamins kept separate |
 | **AI access (MCP)** | `90d3abf` | `/admin/ai-keys` (scoped Bearer keys) + `/admin/ai-approvals` (staged-write approval); `/api/mcp/*`; migration `ai_access` |
 | **Google services** + audit CSV export | `66e9537` | `/admin/google` (GA4/GTM/Search Console) + tag injection; change-log **Export CSV** + date filters |
+| Homepage builder suite (earlier cycle) | `0922b29`…`a5a9129` | homepage sections toggle/reorder/edit + gadgets; custom landing pages `/l/<slug>` (+`PageLayout` migration); per-block bg/spacing; category+PDP top/bottom block zones; Appearance tokens broadened |
+| PDP per-unit price + At-a-glance | `404513e` | "≈ EGP X / serving" in the buy box (live per selected lot); auto-derived icon facts strip (type/pack/dose/supply/weight/origin/genuine) |
+| **Product Q&A** | `d9c2187` | PDP ask form + published pharmacist answers; `/admin/questions` moderation (answer / publish / hide); `ProductQuestion` **migration** |
+| **WhatsApp order confirmation** | `8917a53` | Meta Cloud API send via existing `/admin/providers` WhatsApp creds; order.placed/shipped WA templates (en/ar); Notification log records outcomes |
 
 ## Notes for whoever picks this up
 - Assistant memory (per-Windows-user, at `~/.claude/projects/C--Claude-eCommerce/memory/`) has deeper
