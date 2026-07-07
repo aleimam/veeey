@@ -33,6 +33,7 @@ export async function AdminList({
   sortCtx,
   bulk,
   pagination,
+  emptyState,
 }: {
   title: string;
   newHref: string;
@@ -46,6 +47,7 @@ export async function AdminList({
   sortCtx?: SortCtx;
   bulk?: BulkConfig;
   pagination?: PageCtx;
+  emptyState?: React.ReactNode;
 }) {
   const t = await getTranslations('admin.common');
   const colSpan = head.length + 1 + (bulk ? 1 : 0);
@@ -114,7 +116,7 @@ export async function AdminList({
               </tr>
             ))}
             {rows.length === 0 && (
-              <tr><td colSpan={colSpan} className="p-6 text-center text-muted-foreground">Nothing here yet.</td></tr>
+              <tr><td colSpan={colSpan} className="p-6 text-center text-muted-foreground">{emptyState ?? 'Nothing here yet.'}</td></tr>
             )}
           </tbody>
         </table>

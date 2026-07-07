@@ -4,8 +4,9 @@ import { getCurrentUser } from '@/lib/auth-guards';
 import { prisma } from '@/lib/prisma';
 import { getSetting } from '@/lib/settings-service';
 import { signOutAction } from '@/server/auth-actions';
-import { requestReturnAction } from '@/server/account-actions';
+import { listReturnReasons } from '@/lib/return-reason-service';
 import { reorderSuggestions } from '@/lib/replenishment-service';
+import { ReturnRequestForm } from '@/components/storefront/return-request-form';
 import { ChewyProductCard } from '@/components/storefront/chewy/chewy-product-card';
 import { formatEGP } from '@/lib/format';
 import { StatusBadge } from '@/components/admin/ui';
@@ -27,13 +28,15 @@ export default async function AccountPage({ params }: { params: Promise<{ locale
   if (!user) redirect({ href: '/login', locale });
   if (!user) return null;
 
-  const [orders, customer, whatsapp] = await Promise.all([
+  const [orders, customer, whatsapp, returnReasons] = await Promise.all([
     user.customerId
       ? prisma.order.findMany({ where: { customerId: user.customerId }, orderBy: { placedAt: 'desc' }, take: 20, include: { _count: { select: { items: true } } } })
       : Promise.resolve([]),
     user.customerId ? prisma.customer.findUnique({ where: { id: user.customerId }, include: { tier: true } }) : Promise.resolve(null),
     getSetting('store.whatsappNumber'),
+    listReturnReasons(true),
   ]);
+  const reasonOptions = returnReasons.map((r) => ({ id: r.id, label: locale === 'ar' ? r.labelAr : r.labelEn, requiresDetail: r.requiresDetail }));
 
   const reorders = user.customerId ? await reorderSuggestions(user.customerId, locale, currentDate()) : [];
   const t = await getTranslations('storefront.account');
@@ -184,12 +187,17 @@ export default async function AccountPage({ params }: { params: Promise<{ locale
                         <td className="p-3 text-ink">{formatEGP(Number(o.totalPiastres))}</td>
                         <td className="p-3"><StatusBadge status={o.customerStatus ?? o.status} /></td>
                         <td className="p-3 text-end">
-                          {o.status === 'DELIVERED' && (
-                            <form action={requestReturnAction}>
-                              <input type="hidden" name="locale" value={locale} />
-                              <input type="hidden" name="orderId" value={o.id} />
-                              <button className="text-xs font-semibold text-green-dark hover:text-lime-press">{t('requestReturn')}</button>
-                            </form>
+                          {o.status === 'DELIVERED' && reasonOptions.length > 0 && (
+                            <ReturnRequestForm
+                              orderId={o.id}
+                              locale={locale}
+                              reasons={reasonOptions}
+                              labels={{
+                                submit: t('requestReturn'),
+                                choose: tb('Reason for return', 'سبب الإرجاع'),
+                                detail: tb('Please add a few details', 'يرجى إضافة بعض التفاصيل'),
+                              }}
+                            />
                           )}
                         </td>
                       </tr>

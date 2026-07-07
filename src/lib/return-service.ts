@@ -7,21 +7,45 @@ import type { Prisma } from '@/generated/prisma/client';
 /** Returns & refunds (FR-RET-*). Returned stock goes to QUARANTINE for pharmacist
  *  review (re-shelf to the correct lot or write off — never auto-resell). */
 
-export async function requestReturn(orderId: string, customerId: string | null, reasonCode: string, items: { orderItemId: string; qty: number }[]) {
+export type ReturnReasonRef = { reasonCode: string; reasonId?: string | null; reasonNote?: string | null };
+
+export async function requestReturn(orderId: string, customerId: string | null, reason: ReturnReasonRef, items: { orderItemId: string; qty: number }[]) {
   const ret = await prisma.return.create({
-    data: { orderId, customerId, reasonCode, status: 'REQUESTED', items: { create: items.map((i) => ({ orderItemId: i.orderItemId, qty: i.qty, disposition: 'PENDING' })) } },
+    data: {
+      orderId,
+      customerId,
+      reasonCode: reason.reasonCode,
+      reasonId: reason.reasonId ?? null,
+      reasonNote: reason.reasonNote ?? null,
+      status: 'REQUESTED',
+      items: { create: items.map((i) => ({ orderItemId: i.orderItemId, qty: i.qty, disposition: 'PENDING' })) },
+    },
   });
   await audit({ actorType: customerId ? 'CUSTOMER' : 'USER', actorId: customerId, action: 'return.request', entityType: 'Return', entityId: ret.id });
   return ret;
 }
 
-export const listReturns = ({ status, q }: { status?: string; q?: string } = {}) =>
+export const listReturns = ({ status, q, reasonId }: { status?: string; q?: string; reasonId?: string } = {}) =>
   prisma.return.findMany({
     where: {
       ...(status ? { status: status as Prisma.ReturnWhereInput['status'] } : {}),
-      ...(q ? { order: { number: { contains: q, mode: 'insensitive' } } } : {}),
+      ...(reasonId ? { reasonId } : {}),
+      // Search matches the order number or the customer (email / name).
+      ...(q
+        ? { OR: [
+            { order: { number: { contains: q, mode: 'insensitive' } } },
+            { customer: { user: { email: { contains: q, mode: 'insensitive' } } } },
+            { customer: { firstName: { contains: q, mode: 'insensitive' } } },
+            { customer: { lastName: { contains: q, mode: 'insensitive' } } },
+          ] }
+        : {}),
     },
-    include: { order: { select: { number: true } }, items: true },
+    include: {
+      order: { select: { id: true, number: true } },
+      customer: { select: { firstName: true, lastName: true, user: { select: { email: true } } } },
+      reason: { select: { labelEn: true, labelAr: true } },
+      items: true,
+    },
     orderBy: { createdAt: 'desc' },
   });
 

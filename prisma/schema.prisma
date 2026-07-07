@@ -1176,19 +1176,42 @@ model ReviewMedia {
 // ============================================================================
 
 model Return {
-  id             String       @id @default(cuid())
+  id             String        @id @default(cuid())
   orderId        String
-  order          Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order          Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
   customerId     String?
-  customer       Customer?    @relation(fields: [customerId], references: [id])
-  reasonCode     String
-  status         ReturnStatus @default(REQUESTED)
+  customer       Customer?     @relation(fields: [customerId], references: [id])
+  reasonCode     String // denormalized reason label snapshot (kept readable even if the reason is renamed/deactivated)
+  reasonId       String? // managed ReturnReason (null for legacy free-text returns)
+  reason         ReturnReason? @relation(fields: [reasonId], references: [id])
+  reasonNote     String? // free text for the "Other" reason or a required sub-detail
+  status         ReturnStatus  @default(REQUESTED)
   refundMethod   String?
   refundPiastres BigInt?
   items          ReturnItem[]
-  createdAt      DateTime     @default(now())
+  createdAt      DateTime      @default(now())
 
   @@index([orderId])
+  @@index([reasonId])
+}
+
+/// Managed, bilingual return reasons (FR-RET). Admins add/edit/reorder/deactivate
+/// these without a deploy; the return-creation dropdown reads active ones ordered
+/// by sortOrder. Soft-deactivate (active=false) rather than delete so historical
+/// returns keep their reason. `requiresDetail` reasons ("Product issue", "Other")
+/// reveal a free-text sub-detail field at creation.
+model ReturnReason {
+  id             String   @id @default(cuid())
+  labelEn        String
+  labelAr        String
+  active         Boolean  @default(true)
+  sortOrder      Int      @default(0)
+  requiresDetail Boolean  @default(false)
+  returns        Return[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([active, sortOrder])
 }
 
 model ReturnItem {
