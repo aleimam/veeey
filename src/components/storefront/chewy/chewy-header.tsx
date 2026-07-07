@@ -10,27 +10,15 @@ import { Badge } from '@/components/storefront/ui/badge';
 import { VeeeyLogo } from '@/components/storefront/veeey-logo';
 import { LanguageSwitcher } from '@/components/storefront/language-switcher';
 import { SearchAutocomplete } from '@/components/storefront/chewy/search-autocomplete';
+import { navFontResolve, type NavConfig, type NavItem } from '@/lib/nav-config';
 
 export type CartLine = { name: string; image: string; pricePiastres: number; qty: number };
-
-type NavItem = { en: string; ar: string; href: string; mega?: 'goals' | 'supps'; lux?: boolean; hot?: boolean };
-
-const NAV: NavItem[] = [
-  { en: 'Shop by Goal', ar: 'تسوّق حسب الهدف', href: '/products', mega: 'goals' },
-  { en: 'Supplements', ar: 'المكمّلات', href: '/products?kind=SUPPLEMENT', mega: 'supps' },
-  { en: 'Devices', ar: 'الأجهزة', href: '/products?kind=DEVICE' },
-  { en: 'Veeey Refill', ar: 'فيي ريفيل', href: '/refill' },
-  { en: 'Veeey Select', ar: 'فيي سيلكت', href: '/select', lux: true },
-  { en: "Today's Deals", ar: 'عروض اليوم', href: '/products?offers=1', hot: true },
-  { en: 'Special Order', ar: 'طلب خاص', href: '/special-order' },
-  { en: 'Learn', ar: 'تعلّم', href: '/learn' },
-  { en: 'Blog', ar: 'المدوّنة', href: '/blog' },
-];
 
 const FREE_DELIVERY_PIASTRES = 150000; // EGP 1,500
 
 export function ChewyHeader({
   locale,
+  nav,
   cartCount = 0,
   cartLines = [],
   subtotalPiastres = 0,
@@ -38,6 +26,7 @@ export function ChewyHeader({
   help,
 }: {
   locale: string;
+  nav: NavConfig;
   cartCount?: number;
   cartLines?: CartLine[];
   subtotalPiastres?: number;
@@ -46,10 +35,14 @@ export function ChewyHeader({
 }) {
   const loc = useLocale();
   const t = pick(loc);
-  const [mega, setMega] = useState<'goals' | 'supps' | null>(null);
+  const [mega, setMega] = useState<string | null>(null);
   const [mobOpen, setMobOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+
+  const navFontCss = navFontResolve(nav.fontFamily).css;
+  const navItems = nav.items.filter((i) => i.visible);
+  const activeItem = navItems.find((i) => i.id === mega) ?? null;
 
   return (
     <>
@@ -163,32 +156,43 @@ export function ChewyHeader({
             />
           </div>
 
-          {/* desktop nav row */}
-          <div className="relative hidden border-t border-white/12 md:block">
+          {/* desktop nav row (rendered from the editable nav config) */}
+          <div className="relative hidden border-t border-white/12 md:block" style={navFontCss ? { fontFamily: navFontCss } : undefined}>
             <div className="mx-auto flex h-[52px] max-w-[1440px] items-center gap-7 px-6">
-              {NAV.map((n) => (
-                <Link
-                  key={n.en}
-                  href={n.href}
-                  onMouseEnter={() => setMega(n.mega ?? null)}
-                  onClick={() => setMega(null)}
-                  className={`inline-flex h-full items-center gap-1 border-b-[3px] text-[15px] font-bold ${
-                    mega && mega === n.mega ? 'border-lime' : 'border-transparent'
-                  } ${n.lux ? 'text-gold' : n.hot ? 'text-lime' : 'text-white/95'}`}
-                >
-                  {n.lux && <Icon name="crown" size={15} color="var(--gold)" />}
-                  {t(n.en, n.ar)}
-                  {n.mega && <Icon name="chevron-down" size={15} color="rgba(255,255,255,.7)" />}
-                </Link>
-              ))}
-              <span className="ms-auto text-[15px] font-bold text-gold">{t('Free delivery over EGP 1,500', 'توصيل مجاني لأكثر من ١٥٠٠ ج.م')}</span>
+              {navItems.map((n) => {
+                const color = n.color || nav.baseColor;
+                return (
+                  <Link
+                    key={n.id}
+                    href={n.href}
+                    onMouseEnter={() => setMega(n.mega ? n.id : null)}
+                    onClick={() => setMega(null)}
+                    className={`inline-flex h-full items-center gap-1 border-b-[3px] ${mega === n.id ? 'border-lime' : 'border-transparent'}`}
+                    style={{ color, fontSize: `${n.sizePx ?? nav.baseSizePx}px`, fontWeight: n.bold ? 700 : 500 }}
+                  >
+                    {n.icon && <Icon name={n.icon} size={15} color={color} />}
+                    {t(n.labelEn, n.labelAr)}
+                    {n.mega && <Icon name="chevron-down" size={15} color="rgba(255,255,255,.7)" />}
+                  </Link>
+                );
+              })}
+              {nav.promo.enabled &&
+                (nav.promo.href ? (
+                  <Link href={nav.promo.href} className="ms-auto font-bold" style={{ color: nav.promo.color, fontSize: `${nav.baseSizePx}px` }}>
+                    {t(nav.promo.textEn, nav.promo.textAr)}
+                  </Link>
+                ) : (
+                  <span className="ms-auto font-bold" style={{ color: nav.promo.color, fontSize: `${nav.baseSizePx}px` }}>
+                    {t(nav.promo.textEn, nav.promo.textAr)}
+                  </span>
+                ))}
             </div>
-            {mega && <MegaMenu which={mega} t={t} onClose={() => setMega(null)} />}
+            {activeItem?.mega && <MegaMenu item={activeItem} t={t} onClose={() => setMega(null)} />}
           </div>
         </div>
       </header>
 
-      {mobOpen && <MobileNav t={t} onClose={() => setMobOpen(false)} />}
+      {mobOpen && <MobileNav nav={nav} t={t} onClose={() => setMobOpen(false)} />}
       {cartOpen && (
         <CartDrawer
           t={t}
@@ -204,56 +208,50 @@ export function ChewyHeader({
 
 type T = (en: string, ar: string) => string;
 
-function MegaMenu({ which, t, onClose }: { which: 'goals' | 'supps'; t: T; onClose: () => void }) {
-  const cols =
-    which === 'goals'
-      ? [
-          { h: t('By goal', 'حسب الهدف'), items: ['Immunity', 'Energy', 'Sleep', 'Heart', 'Gut Health', 'Beauty', "Men's", 'Devices'] },
-          { h: t('Popular', 'الأكثر رواجًا'), items: ['Best sellers', 'New arrivals', 'Expiry deals', 'Bundles & stacks'] },
-          { h: t("Men's wellness", 'صحة الرجل'), items: ['Performance', 'Prostate', 'Testosterone', 'Energy'] },
-        ]
-      : [
-          { h: t('By form', 'حسب الشكل'), items: ['Capsules & Tablets', 'Softgels & Oils', 'Powders & Greens', 'Liquids & Drops'] },
-          { h: t('Top brands', 'أفضل العلامات'), items: ['Vital Nutrients', 'Sports Research', 'Terra Origin', 'Tru Niagen', 'Dr. Berg'] },
-          { h: t('Health devices', 'الأجهزة الصحية'), items: ['Blood pressure', 'Glucose', 'Thermometers', 'Scales'] },
-        ];
+function MegaMenu({ item, t, onClose }: { item: NavItem; t: T; onClose: () => void }) {
+  const mega = item.mega;
+  if (!mega) return null;
+  const hasPromo = !!mega.promo?.enabled;
+  const gridCols = `repeat(${Math.max(1, mega.columns.length)},1fr)${hasPromo ? ' 1.1fr' : ''}`;
   return (
     <div onMouseLeave={onClose} className="absolute inset-x-0 top-full z-40 border-t border-[color:var(--green-dark-05)] bg-white shadow-[var(--shadow-lg)]">
-      <div className="mx-auto grid max-w-[1440px] grid-cols-[repeat(3,1fr)_1.1fr] gap-8 px-6 pb-8 pt-7">
-        {cols.map((c) => (
-          <div key={c.h}>
-            <div className="mb-3.5 text-xs font-bold uppercase tracking-[0.12em] text-green-mid">{c.h}</div>
+      <div className="mx-auto grid max-w-[1440px] gap-8 px-6 pb-8 pt-7" style={{ gridTemplateColumns: gridCols }}>
+        {mega.columns.map((c) => (
+          <div key={c.id}>
+            <div className="mb-3.5 text-xs font-bold uppercase tracking-[0.12em] text-green-mid">{t(c.headingEn, c.headingAr)}</div>
             <div className="flex flex-col gap-2.5">
-              {c.items.map((it) => (
-                <Link key={it} href="/products" onClick={onClose} className="text-sm text-slate transition-colors hover:text-green-dark">
-                  {it}
+              {c.links.map((l) => (
+                <Link key={l.id} href={l.href} onClick={onClose} className="text-sm text-slate transition-colors hover:text-green-dark">
+                  {t(l.labelEn, l.labelAr)}
                 </Link>
               ))}
             </div>
           </div>
         ))}
-        <Link
-          href="/refill"
-          onClick={onClose}
-          className="flex flex-col justify-between rounded-2xl p-[22px] text-white"
-          style={{ background: 'linear-gradient(150deg,var(--green-dark),var(--green-emerald))' }}
-        >
-          <div>
-            <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-lime">{t('Veeey Refill', 'فيي ريفيل')}</div>
-            <div className="mt-2 text-[22px] font-bold leading-tight" style={{ fontFamily: 'var(--font-display)' }}>
-              {t('Subscribe & save 15% on every delivery', 'اشترك ووفّر ١٥٪ على كل توصيلة')}
+        {hasPromo && mega.promo && (
+          <Link
+            href={mega.promo.href}
+            onClick={onClose}
+            className="flex flex-col justify-between rounded-2xl p-[22px] text-white"
+            style={{ background: 'linear-gradient(150deg,var(--green-dark),var(--green-emerald))' }}
+          >
+            <div>
+              <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-lime">{t(mega.promo.eyebrowEn, mega.promo.eyebrowAr)}</div>
+              <div className="mt-2 text-[22px] font-bold leading-tight" style={{ fontFamily: 'var(--font-display)' }}>
+                {t(mega.promo.titleEn, mega.promo.titleAr)}
+              </div>
             </div>
-          </div>
-          <span className="mt-4 inline-flex items-center gap-1.5 text-[13px] font-bold text-lime">
-            {t('Set up a plan', 'ابدأ خطة')} <Icon name="arrow-right" size={15} color="var(--lime)" />
-          </span>
-        </Link>
+            <span className="mt-4 inline-flex items-center gap-1.5 text-[13px] font-bold text-lime">
+              {t(mega.promo.ctaEn, mega.promo.ctaAr)} <Icon name="arrow-right" size={15} color="var(--lime)" />
+            </span>
+          </Link>
+        )}
       </div>
     </div>
   );
 }
 
-function MobileNav({ t, onClose }: { t: T; onClose: () => void }) {
+function MobileNav({ nav, t, onClose }: { nav: NavConfig; t: T; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-[60]">
       <div onClick={onClose} className="absolute inset-0" style={{ background: 'var(--scrim)' }} />
@@ -265,14 +263,17 @@ function MobileNav({ t, onClose }: { t: T; onClose: () => void }) {
           </button>
         </div>
         <div className="flex flex-col">
-          {NAV.map((n) => (
+          {nav.items.filter((i) => i.visible).map((n) => (
             <Link
-              key={n.en}
+              key={n.id}
               href={n.href}
               onClick={onClose}
               className="flex items-center justify-between border-b border-[color:var(--slate-border)] py-3.5 text-[16px] font-semibold text-slate"
             >
-              {t(n.en, n.ar)}
+              <span className="inline-flex items-center gap-2">
+                {n.icon && <Icon name={n.icon} size={17} color="var(--green-dark)" />}
+                {t(n.labelEn, n.labelAr)}
+              </span>
               <Icon name="chevron-right" size={18} color="var(--slate-45)" />
             </Link>
           ))}

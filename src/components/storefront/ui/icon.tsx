@@ -126,6 +126,9 @@ const MAP: Record<string, LucideIcon> = {
   'package-open': PackageOpen,
 };
 
+/** Valid icon names (for admin pickers). */
+export const ICON_NAMES = Object.keys(MAP);
+
 export function Icon({
   name,
   size = 20,

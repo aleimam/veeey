@@ -4,6 +4,8 @@ import { canAccessAdmin } from '@/lib/rbac';
 import { readCartId, cartCount, getCart } from '@/lib/cart-service';
 import { getSetting } from '@/lib/settings-service';
 import { getHomeContent } from '@/lib/home-content-service';
+import { getNavConfig } from '@/lib/nav-service';
+import { NavFontLink } from '@/components/storefront/chewy/nav-font-link';
 import { AnnouncementBar } from '@/components/storefront/announcement-bar';
 import { ChewyHeader, type CartLine } from '@/components/storefront/chewy/chewy-header';
 import { SiteFooter } from '@/components/storefront/site-footer';
@@ -35,13 +37,16 @@ export default async function ShopLayout({
   const whatsapp = await getSetting('store.whatsappNumber');
   const phone = await getSetting('store.phone');
   const home = await getHomeContent(locale);
+  const nav = await getNavConfig();
   const session = await auth();
   const isStaff = canAccessAdmin(session?.user?.permissions ?? []);
   return (
     <div className="veeey-shop min-h-screen bg-background">
+      <NavFontLink nav={nav} />
       <AnnouncementBar text={home.announcement} />
       <ChewyHeader
         locale={locale}
+        nav={nav}
         cartCount={count}
         cartLines={cartLines}
         subtotalPiastres={subtotalPiastres}
