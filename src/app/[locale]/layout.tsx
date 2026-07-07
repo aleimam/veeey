@@ -11,6 +11,7 @@ import { ServiceWorkerRegister } from '@/components/service-worker-register';
 import { AnalyticsProvider } from '@/components/analytics/analytics-provider';
 import { PostHogLoader } from '@/components/analytics/posthog-loader';
 import { ClarityLoader } from '@/components/analytics/clarity-loader';
+import { GoogleTags } from '@/components/analytics/google-tags';
 import '../globals.css';
 
 // Admin fonts (unchanged).
@@ -103,6 +104,7 @@ export default async function LocaleLayout({
         <ServiceWorkerRegister />
         <PostHogLoader />
         <ClarityLoader />
+        <GoogleTags />
       </body>
     </html>
   );

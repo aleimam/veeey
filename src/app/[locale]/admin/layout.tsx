@@ -81,6 +81,7 @@ const NAV_SECTIONS: RawSection[] = [
   { title: ['Integrations & API', 'التكاملات والواجهات'], items: [
     { href: '/admin/ai-keys', key: 'aiKeys', permission: 'settings.manage' },
     { href: '/admin/ai-approvals', key: 'aiApprovals', permission: 'settings.manage' },
+    { href: '/admin/google', key: 'google', permission: 'settings.manage' },
     { href: '/admin/payments', key: 'payments', permission: 'settings.manage' },
     { href: '/admin/providers', key: 'providers', permission: 'settings.manage' },
     { href: '/admin/login-providers', key: 'loginProviders', permission: 'settings.manage' },

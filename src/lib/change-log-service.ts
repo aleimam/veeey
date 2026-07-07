@@ -28,9 +28,22 @@ export type ChangeLogOpts = {
   entityType?: string;
   entityId?: string;
   action?: string;
+  from?: string;
+  to?: string;
   page?: number;
   perPage?: number;
 };
+
+function buildWhere(opts: ChangeLogOpts) {
+  return {
+    ...(opts.entityType ? { entityType: opts.entityType } : {}),
+    ...(opts.entityId ? { entityId: opts.entityId } : {}),
+    ...(opts.action ? { action: { contains: opts.action, mode: 'insensitive' as const } } : {}),
+    ...(opts.from || opts.to
+      ? { createdAt: { ...(opts.from ? { gte: new Date(opts.from) } : {}), ...(opts.to ? { lte: new Date(`${opts.to}T23:59:59`) } : {}) } }
+      : {}),
+  };
+}
 
 async function requireAdmin() {
   const user = await getCurrentUser();
@@ -69,11 +82,7 @@ async function actorMap(rows: { actorId: string | null }[]): Promise<Map<string,
 
 export async function listChangeLog(opts: ChangeLogOpts = {}) {
   await requireAdmin();
-  const where = {
-    ...(opts.entityType ? { entityType: opts.entityType } : {}),
-    ...(opts.entityId ? { entityId: opts.entityId } : {}),
-    ...(opts.action ? { action: { contains: opts.action, mode: 'insensitive' as const } } : {}),
-  };
+  const where = buildWhere(opts);
   const perPage = opts.perPage ?? 50;
   const page = Math.max(1, opts.page ?? 1);
   const [rows, total] = await Promise.all([
@@ -82,6 +91,22 @@ export async function listChangeLog(opts: ChangeLogOpts = {}) {
   ]);
   const actorBy = await actorMap(rows);
   return { entries: rows.map((r) => toEntry(r, actorBy)), total };
+}
+
+/** All matching entries (capped) for CSV export — respects the same filters. */
+export async function exportChangeLog(opts: ChangeLogOpts = {}, cap = 10000): Promise<ChangeLogEntry[]> {
+  await requireAdmin();
+  const rows = await prisma.auditLog.findMany({ where: buildWhere(opts), orderBy: { createdAt: 'desc' }, take: cap });
+  const actorBy = await actorMap(rows);
+  return rows.map((r) => toEntry(r, actorBy));
+}
+
+/** One-line human summary of an entry's payload (for CSV / compact views). */
+export function entrySummary(e: ChangeLogEntry): string {
+  if (e.changes?.length) return e.changes.map((c) => `${c.field}: ${c.from ?? '∅'} → ${c.to ?? '∅'}`).join(' | ');
+  if (e.snapshot) return `snapshot: ${JSON.stringify(e.snapshot)}`;
+  if (e.meta) return JSON.stringify(e.meta);
+  return '';
 }
 
 /** Distinct entity types present in the log — for the filter dropdown. */

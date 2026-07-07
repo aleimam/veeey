@@ -23,36 +23,51 @@ export default async function ChangeLogPage({ params, searchParams }: { params: 
   const entityType = one(sp.type);
   const entityId = one(sp.id);
   const action = one(sp.q);
+  const from = one(sp.from);
+  const to = one(sp.to);
   const page = Math.max(1, Number(one(sp.page)) || 1);
   const perPage = 50;
 
   const [{ entries, total }, types] = await Promise.all([
-    listChangeLog({ entityType, entityId, action, page, perPage }),
+    listChangeLog({ entityType, entityId, action, from, to, page, perPage }),
     changeLogEntityTypes(),
   ]);
 
   const basePath = `/${locale}/admin/change-log`;
+  const exportQuery = new URLSearchParams(
+    Object.entries({ type: entityType, id: entityId, q: action, from, to }).filter(([, v]) => v) as [string, string][],
+  ).toString();
 
   return (
     <div className="p-6">
-      <header className="mb-6">
-        <h1 className="font-heading text-xl font-semibold">{tb('Change log', 'سجل التغييرات')} ({total})</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {tb(
-            'Who changed what, everywhere: field-level before → after diffs for every entity, plus system events.',
-            'مَن غيّر ماذا وأين: فروقات قبل → بعد على مستوى الحقول لكل الكيانات، إضافة إلى أحداث النظام.',
-          )}
-        </p>
+      <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-heading text-xl font-semibold">{tb('Change log', 'سجل التغييرات')} ({total})</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {tb(
+              'Who changed what, everywhere: field-level before → after diffs for every entity, plus system events.',
+              'مَن غيّر ماذا وأين: فروقات قبل → بعد على مستوى الحقول لكل الكيانات، إضافة إلى أحداث النظام.',
+            )}
+          </p>
+        </div>
+        <a
+          href={`/api/admin/change-log/export${exportQuery ? `?${exportQuery}` : ''}`}
+          className="shrink-0 rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-surface"
+        >
+          {tb('Export CSV', 'تصدير CSV')}
+        </a>
       </header>
 
       <FilterBar
         locale={locale}
         path="change-log"
-        values={{ type: entityType, id: entityId, q: action }}
+        values={{ type: entityType, id: entityId, q: action, from, to }}
         fields={[
           { name: 'type', label: tb('Entity', 'الكيان'), type: 'select', options: types.map((t) => ({ value: t, label: t })) },
           { name: 'id', label: tb('Entity id', 'معرّف الكيان'), type: 'text', placeholder: 'cln…' },
           { name: 'q', label: tb('Action', 'الإجراء'), type: 'text', placeholder: tb('e.g. change.update', 'مثال change.update') },
+          { name: 'from', label: tb('From', 'من'), type: 'date' },
+          { name: 'to', label: tb('To', 'إلى'), type: 'date' },
         ]}
       />
 
