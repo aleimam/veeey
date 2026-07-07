@@ -7,7 +7,7 @@ export function renderTemplate(template: string, vars: Record<string, string | n
   return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, k: string) => (k in vars ? String(vars[k]) : ''));
 }
 
-export type SeedTemplate = { key: string; channel: 'EMAIL' | 'PUSH' | 'SMS'; locale: string; subject?: string; body: string };
+export type SeedTemplate = { key: string; channel: 'EMAIL' | 'PUSH' | 'SMS' | 'WHATSAPP'; locale: string; subject?: string; body: string };
 
 export const SEED_TEMPLATES: SeedTemplate[] = [
   { key: 'order.placed', channel: 'EMAIL', locale: 'en', subject: 'Order {{number}} received', body: 'Hi {{name}}, we received your order {{number}} ({{total}} EGP). We will keep you posted.' },
@@ -22,4 +22,9 @@ export const SEED_TEMPLATES: SeedTemplate[] = [
   { key: 'order.shipped', channel: 'SMS', locale: 'ar', body: 'Veeey: تم شحن طلبك {{number}}. رقم التتبّع: {{tracking}}.' },
   { key: 'order.delivered', channel: 'SMS', locale: 'en', body: 'Veeey: order {{number}} delivered. Enjoy — loyalty points added!' },
   { key: 'order.delivered', channel: 'SMS', locale: 'ar', body: 'Veeey: تم تسليم طلبك {{number}}. استمتع — وأُضيفت نقاط الولاء!' },
+  // WhatsApp order confirmation (sent when the WhatsApp provider is configured).
+  { key: 'order.placed', channel: 'WHATSAPP', locale: 'en', body: 'Hi {{name}} 👋 Thank you for your Veeey order {{number}} ({{total}} EGP). We are preparing it and will keep you posted right here.' },
+  { key: 'order.placed', channel: 'WHATSAPP', locale: 'ar', body: 'أهلًا {{name}} 👋 شكرًا لطلبك من فيي {{number}} ({{total}} ج.م). نجهّزه الآن وسنوافيك بالتحديثات هنا.' },
+  { key: 'order.shipped', channel: 'WHATSAPP', locale: 'en', body: 'Veeey: good news {{name}} — order {{number}} has shipped 🚚 Tracking: {{tracking}}.' },
+  { key: 'order.shipped', channel: 'WHATSAPP', locale: 'ar', body: 'فيي: خبر سار يا {{name}} — تم شحن طلبك {{number}} 🚚 رقم التتبّع: {{tracking}}.' },
 ];

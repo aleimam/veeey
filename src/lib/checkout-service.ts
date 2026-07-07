@@ -15,7 +15,7 @@ import { maxRedeemablePoints, pointsToPiastres } from '@/lib/loyalty';
 import { getNumberSetting } from '@/lib/settings-service';
 import { enqueue, QUEUES } from '@/lib/jobs';
 import { notify, type NotifyInput } from '@/lib/notification-service';
-import { smsConfigured } from '@/lib/provider-config';
+import { smsConfigured, whatsappConfigured } from '@/lib/provider-config';
 import { deriveSystemMethod } from '@/lib/payment-method-service';
 
 /** Checkout → Order (FR-CHK-*, FR-ORD-01). Converts cart soft-holds into a real
@@ -225,6 +225,11 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
     if (data.phone && (await smsConfigured())) {
       const sms: NotifyInput = { customerId, toAddress: data.phone, type: 'ORDER', channel: 'SMS', templateKey: 'order.placed', vars, refType: 'order', refId: order.id };
       await enqueue(QUEUES.notify, sms, () => notify(sms));
+    }
+    // Order-placed WhatsApp — only when the WhatsApp provider is configured.
+    if (data.phone && (await whatsappConfigured())) {
+      const wa: NotifyInput = { customerId, toAddress: data.phone, type: 'ORDER', channel: 'WHATSAPP', templateKey: 'order.placed', vars, refType: 'order', refId: order.id };
+      await enqueue(QUEUES.notify, wa, () => notify(wa));
     }
   } catch { /* notifications never block checkout */ }
 

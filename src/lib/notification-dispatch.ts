@@ -1,5 +1,5 @@
 import webpush from 'web-push';
-import { getSmtpConfig, getSmsConfig, normalizeMobile } from '@/lib/provider-config';
+import { getSmtpConfig, getSmsConfig, getWhatsappConfig, normalizeMobile } from '@/lib/provider-config';
 
 /**
  * Channel dispatch (FR-NOT-02). Without credentials a send is reported `skipped`
@@ -75,6 +75,28 @@ export async function dispatchSms(to: string, message: string): Promise<Dispatch
     return { ok: false, error: `sms_${json?.code ?? res.status}` };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message.slice(0, 120) : 'sms_error' };
+  }
+}
+
+/** WhatsApp via the Meta Cloud API — free-form text message (allowed inside the
+ *  24h customer-service window; order confirmations follow the customer's own
+ *  checkout, so they qualify). Skipped when the provider isn't configured. */
+export async function dispatchWhatsapp(to: string, message: string): Promise<DispatchResult> {
+  const cfg = await getWhatsappConfig();
+  if (!cfg) return { ok: false, skipped: true };
+  const mobile = normalizeMobile(to.split(',')[0] ?? '');
+  if (!mobile) return { ok: false, error: 'no_mobile' };
+  try {
+    const res = await fetch(`https://graph.facebook.com/v20.0/${encodeURIComponent(cfg.sender)}/messages`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${cfg.token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ messaging_product: 'whatsapp', to: mobile, type: 'text', text: { body: message } }),
+    });
+    if (res.ok) return { ok: true };
+    const err = (await res.json().catch(() => null)) as { error?: { code?: number } } | null;
+    return { ok: false, error: `wa_${err?.error?.code ?? res.status}` };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message.slice(0, 120) : 'wa_error' };
   }
 }
 

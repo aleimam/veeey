@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { renderTemplate, SEED_TEMPLATES } from '@/lib/notify-templates';
 import { channelAllowed, DEFAULT_PREFS, type NotifyType, type NotifyChannel, type Prefs } from '@/lib/notify-prefs';
-import { dispatchEmail, dispatchPush, dispatchSms } from '@/lib/notification-dispatch';
+import { dispatchEmail, dispatchPush, dispatchSms, dispatchWhatsapp } from '@/lib/notification-dispatch';
 
 /** Notification pipeline (FR-NOT-*): preference gate → template render → record →
  *  channel dispatch (env-gated). Always records a Notification row with outcome. */
@@ -55,7 +55,7 @@ export async function notify(input: NotifyInput) {
   } else if (input.channel === 'SMS') {
     result = input.toAddress ? await dispatchSms(input.toAddress, body) : { ok: false, error: 'no_phone' };
   } else if (input.channel === 'WHATSAPP') {
-    result = { ok: false, skipped: true, error: 'wa_not_configured' }; // WhatsApp sending: config-only for now
+    result = input.toAddress ? await dispatchWhatsapp(input.toAddress, body) : { ok: false, error: 'no_phone' };
   } else {
     const subs = input.customerId ? await prisma.pushSubscription.findMany({ where: { customerId: input.customerId } }) : [];
     if (subs.length === 0) result = { ok: false, skipped: true, error: 'no_subscription' };

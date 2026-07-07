@@ -158,7 +158,7 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
 
       <section className="mt-10 max-w-2xl">
         <h2 className="mb-1 font-heading text-lg font-semibold">WhatsApp</h2>
-        <p className="mb-4 text-sm text-muted-foreground">{tb('Save your credentials now; WhatsApp ', 'احفظ بيانات اعتمادك الآن؛ ')}<em>{tb('sending', 'إرسال')}</em>{tb(' WhatsApp is wired up in a later step (provider not yet decided).', ' WhatsApp يتم ربطه في خطوة لاحقة (المزوّد لم يُحدَّد بعد).')}</p>
+        <p className="mb-4 text-sm text-muted-foreground">{tb('Meta WhatsApp Cloud API. Sender = your WhatsApp Business phone-number ID; token = a permanent access token. Once saved, order confirmations are also sent on WhatsApp.', 'واجهة Meta WhatsApp Cloud. المُرسِل = مُعرّف رقم واتساب للأعمال؛ الرمز = رمز وصول دائم. بعد الحفظ تُرسل تأكيدات الطلب عبر واتساب أيضًا.')}</p>
         <form action={saveWhatsappConfigAction} className="space-y-4 rounded-lg border border-border p-4">
           <input type="hidden" name="locale" value={locale} />
           <label className="block text-sm font-medium">{tb('Sender / phone number ID', 'المُرسِل / مُعرّف رقم الهاتف')}

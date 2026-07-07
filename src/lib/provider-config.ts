@@ -94,7 +94,18 @@ export async function getSmsFormValues() {
   };
 }
 
-// ---- WhatsApp (config-only for now) ----------------------------------------
+// ---- WhatsApp (Meta Cloud API) ----------------------------------------------
+// sender = the WhatsApp Business "phone number ID"; token = a permanent access token.
+export type WhatsappConfig = { sender: string; token: string };
+
+export async function getWhatsappConfig(): Promise<WhatsappConfig | null> {
+  const m = await rawMap('wa.');
+  const sender = m['wa.sender'] || process.env.WA_SENDER;
+  const token = m['wa.token'] || process.env.WA_TOKEN;
+  return sender && token ? { sender, token } : null;
+}
+export const whatsappConfigured = async () => !!(await getWhatsappConfig());
+
 export async function getWhatsappFormValues() {
   const m = await rawMap('wa.');
   return { sender: m['wa.sender'] ?? '', hasToken: !!m['wa.token'] };
