@@ -111,6 +111,25 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
   };
   const originBadge = p.originCountry ? ORIGIN_BADGE[p.originCountry] : null;
 
+  // "At a glance" facts (audit 6.5) — auto-derived, no admin work; nulls skipped.
+  const doseText = p.dailyDosage
+    ? p.dailyDosageMax && p.dailyDosageMax > p.dailyDosage
+      ? tb(`${p.dailyDosage}–${p.dailyDosageMax} per day`, `${p.dailyDosage}–${p.dailyDosageMax} يوميًا`)
+      : tb(`${p.dailyDosage} per day`, `${p.dailyDosage} يوميًا`)
+    : null;
+  const supplyDays = p.servingsPerUnit && p.dailyDosage ? Math.floor(p.servingsPerUnit / p.dailyDosage) : null;
+  const glance: { icon: string; label: string; value: string }[] = [
+    p.kind === 'DEVICE'
+      ? { icon: 'heart-pulse', label: tb('Type', 'النوع'), value: tb('Health device', 'جهاز صحي') }
+      : { icon: 'flask-conical', label: tb('Type', 'النوع'), value: p.kind === 'INJECTION' ? tb('Injection', 'حقن') : tb('Dietary supplement', 'مكمل غذائي') },
+    ...(p.servingsPerUnit ? [{ icon: 'calendar-days', label: tb('Pack size', 'حجم العبوة'), value: tb(`${p.servingsPerUnit} servings`, `${p.servingsPerUnit} جرعة`) }] : []),
+    ...(doseText ? [{ icon: 'check-circle', label: tb('Suggested use', 'الاستخدام المقترح'), value: doseText }] : []),
+    ...(supplyDays && supplyDays > 1 ? [{ icon: 'calendar-clock', label: tb('Lasts about', 'تكفي حوالي'), value: tb(`${supplyDays} days`, `${supplyDays} يومًا`) }] : []),
+    ...(p.weightG ? [{ icon: 'package', label: tb('Weight', 'الوزن'), value: `${p.weightG} ${tb('g', 'جم')}` }] : []),
+    ...(originBadge ? [{ icon: 'globe', label: tb('Origin', 'المنشأ'), value: tb(p.originCountry === 'USA' ? 'Imported · USA' : p.originCountry === 'UK' ? 'Imported · UK' : 'Imported · EU', p.originCountry === 'USA' ? 'مستورد · أمريكا' : p.originCountry === 'UK' ? 'مستورد · بريطانيا' : 'مستورد · أوروبا') }] : []),
+    { icon: 'badge-check', label: tb('Authenticity', 'الأصالة'), value: tb('Lot-dated & genuine', 'أصلي بتاريخ تشغيلة') },
+  ];
+
   const zones = await getZones(['pdp.top', 'pdp.bottom']);
   let zoneData: HomeData = { bestsellers: [], deals: [], rows: {} };
   try {
@@ -149,7 +168,7 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
               <span aria-hidden>{originBadge.flag}</span> {tb(originBadge.en, originBadge.ar)}
             </div>
           )}
-          <ChewyBuyBox brand={brandName} name={name} rating={p.ratingAvg ?? 0} reviews={p.ratingCount} basePricePiastres={basePrice} lots={buyLots} productId={p.id} points={points} locale={locale} refillEnabled={refillEnabled} preorderEnabled={p.preorderEnabled} depositPercent={depositPercent} />
+          <ChewyBuyBox brand={brandName} name={name} rating={p.ratingAvg ?? 0} reviews={p.ratingCount} basePricePiastres={basePrice} lots={buyLots} productId={p.id} points={points} locale={locale} refillEnabled={refillEnabled} preorderEnabled={p.preorderEnabled} depositPercent={depositPercent} servingsPerUnit={p.servingsPerUnit} />
           {/* Key selling points belong beside the price, not below the fold (audit 6.5). */}
           {hasRichContent(shortHtml) && (
             <div className="veeey-rich mt-5 rounded-[12px] border border-[color:var(--green-dark-05)] bg-white p-4 text-[14.5px] font-medium leading-relaxed text-ink" dangerouslySetInnerHTML={{ __html: shortHtml }} />
@@ -170,6 +189,23 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
           </div>
         </div>
       </div>
+
+      {glance.length >= 3 && (
+        <section className="mt-10">
+          <h2 className="mb-4 text-xl font-bold text-green-dark">{tb('At a glance', 'لمحة سريعة')}</h2>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            {glance.map((g, i) => (
+              <div key={i} className="flex flex-col items-center gap-2 rounded-[14px] border border-[color:var(--green-dark-05)] bg-white px-3 py-4 text-center">
+                <span className="flex size-11 items-center justify-center rounded-full bg-green-wash">
+                  <Icon name={g.icon} size={22} color="var(--green-dark)" />
+                </span>
+                <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[color:var(--text-subtle)]">{g.label}</span>
+                <span className="text-[13.5px] font-bold leading-snug text-ink">{g.value}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="mt-12 max-w-5xl space-y-10">
         {hasRichContent(longHtml) && (

@@ -29,6 +29,7 @@ export function ChewyBuyBox({
   refillEnabled = false,
   preorderEnabled = false,
   depositPercent = 25,
+  servingsPerUnit = null,
 }: {
   brand?: string;
   name: string;
@@ -42,6 +43,8 @@ export function ChewyBuyBox({
   refillEnabled?: boolean;
   preorderEnabled?: boolean;
   depositPercent?: number;
+  /** Servings/doses per pack — enables the "≈ EGP X / serving" line. */
+  servingsPerUnit?: number | null;
 }) {
   const t = pick(locale);
   const track = useTrack();
@@ -74,10 +77,18 @@ export function ChewyBuyBox({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-baseline gap-3">
-        <span className="text-4xl font-bold text-green-dark">{formatEGP(display)}</span>
-        {showWas && <span className="text-[17px] text-[color:var(--text-subtle)] line-through">{formatEGP(basePricePiastres)}</span>}
-        {points > 0 && !soldOut && <span className="text-[13px] font-semibold text-gold-deep">★ {t(`Earn ${points} pts`, `اكسب ${points} نقطة`)}</span>}
+      <div>
+        <div className="flex flex-wrap items-baseline gap-3">
+          <span className="text-4xl font-bold text-green-dark">{formatEGP(display)}</span>
+          {showWas && <span className="text-[17px] text-[color:var(--text-subtle)] line-through">{formatEGP(basePricePiastres)}</span>}
+          {points > 0 && !soldOut && <span className="text-[13px] font-semibold text-gold-deep">★ {t(`Earn ${points} pts`, `اكسب ${points} نقطة`)}</span>}
+        </div>
+        {servingsPerUnit != null && servingsPerUnit > 0 && (
+          <div className="mt-1 text-[13px] text-[color:var(--text-muted)]">
+            {t(`≈ ${formatEGP(Math.round(display / servingsPerUnit))} / serving · ${servingsPerUnit} servings per pack`,
+               `≈ ${formatEGP(Math.round(display / servingsPerUnit))} / جرعة · ${servingsPerUnit} جرعة في العبوة`)}
+          </div>
+        )}
       </div>
 
       {preorderMode && (
