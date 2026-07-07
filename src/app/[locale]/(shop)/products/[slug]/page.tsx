@@ -15,6 +15,8 @@ import { toggleWishlistAction, toggleCompareAction } from '@/server/engagement-a
 import { RecentlyViewedTracker } from '@/components/storefront/recently-viewed-tracker';
 import { ChewyProductCard } from '@/components/storefront/chewy/chewy-product-card';
 import { frequentlyBoughtTogether, recentlyViewed } from '@/lib/personalization-service';
+import { publishedQuestions } from '@/lib/qa-service';
+import { askQuestionAction } from '@/server/play-actions';
 import { getZones } from '@/lib/page-zone-service';
 import { resolveHomeData, type HomeData } from '@/lib/home-layout-service';
 import { ChewyHome } from '@/components/storefront/chewy/chewy-home';
@@ -85,7 +87,7 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
     value: (locale === 'ar' ? av.attributeValue.valueAr : av.attributeValue.valueEn) ?? av.attributeValue.valueEn,
   }));
 
-  const [fbt, alsoViewed] = await Promise.all([frequentlyBoughtTogether(p.id, locale), recentlyViewed(locale, p.id)]);
+  const [fbt, alsoViewed, qa] = await Promise.all([frequentlyBoughtTogether(p.id, locale), recentlyViewed(locale, p.id), publishedQuestions(p.id)]);
   const related = (fbt.length ? fbt : alsoViewed).slice(0, 5);
 
   const counts = [5, 4, 3, 2, 1].map((s) => p.reviews.filter((r) => r.rating === s).length);
@@ -303,6 +305,40 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
             <input name="media" placeholder={t('mediaPlaceholder')} className={inputCls} />
             <p className="text-xs text-[color:var(--text-muted)]">{t('moderationNote')}</p>
             <button className="v-btn v-btn--primary v-btn--sm">{t('submitReview')}</button>
+          </form>
+        </section>
+
+        <section id="qa" className="scroll-mt-24">
+          <h2 className="mb-4 text-xl font-bold text-green-dark">{tb('Questions & answers', 'أسئلة وأجوبة')}</h2>
+
+          {qa.length > 0 ? (
+            <ul className="mb-6 space-y-4">
+              {qa.map((item) => (
+                <li key={item.id} className="rounded-[12px] border border-[color:var(--slate-border)] p-4">
+                  <p className="text-[14.5px] font-bold text-ink">{tb('Q:', 'س:')} {item.question}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-[color:var(--text-body)]">
+                    <span className="font-bold text-green-dark">{tb('A:', 'ج:')} </span>{item.answer}
+                  </p>
+                  <p className="mt-2 text-xs text-[color:var(--text-muted)]">
+                    {tb('Answered by the Veeey pharmacy team', 'أجاب عنه فريق صيدلية فيي')}
+                    {item.answeredAt ? ` · ${new Date(item.answeredAt).toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-GB')}` : ''}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mb-4 text-sm text-[color:var(--text-muted)]">{tb('No questions yet — ask the first one and our pharmacists will answer.', 'لا توجد أسئلة بعد — اسأل أول سؤال وسيجيبك صيادلتنا.')}</p>
+          )}
+
+          <form action={askQuestionAction} className="space-y-3 rounded-[12px] border border-[color:var(--slate-border)] p-4">
+            <p className="text-sm font-semibold text-ink">{tb('Ask a question', 'اسأل سؤالًا')}</p>
+            <input type="hidden" name="locale" value={locale} />
+            <input type="hidden" name="productId" value={p.id} />
+            <input type="hidden" name="slug" value={slug} />
+            <input name="askerName" placeholder={tb('Your name (optional)', 'اسمك (اختياري)')} className={inputCls} />
+            <textarea name="question" rows={3} required minLength={5} placeholder={tb('e.g. Is this suitable during pregnancy?', 'مثال: هل يناسب أثناء الحمل؟')} className={inputCls} />
+            <p className="text-xs text-[color:var(--text-muted)]">{tb('Our pharmacists review every question; published answers appear here.', 'يراجع صيادلتنا كل سؤال؛ وتظهر الإجابات المنشورة هنا.')}</p>
+            <button className="v-btn v-btn--primary v-btn--sm">{tb('Submit question', 'إرسال السؤال')}</button>
           </form>
         </section>
       </div>

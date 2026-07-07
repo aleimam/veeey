@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { recordPlayEntry } from '@/lib/play-service';
 import { recommendFromAnswers } from '@/lib/guided-selling';
 import { submitReview } from '@/lib/review-service';
+import { askQuestion } from '@/lib/qa-service';
 
 const localeOf = (fd: FormData) => (fd.get('locale') === 'ar' ? 'ar' : 'en');
 const str = (fd: FormData, k: string) => {
@@ -43,4 +44,19 @@ export async function submitReviewAction(fd: FormData): Promise<void> {
   } catch { /* validation/ignore */ }
   revalidatePath(`/${locale}/products/${slug}`);
   redirect(`/${locale}/products/${slug}?review=submitted`);
+}
+
+/** Public "ask a question" from the PDP — lands PENDING for moderation. */
+export async function askQuestionAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const slug = str(fd, 'slug') ?? '';
+  try {
+    await askQuestion({
+      productId: str(fd, 'productId') ?? '',
+      askerName: str(fd, 'askerName'),
+      question: str(fd, 'question') ?? '',
+    });
+  } catch { /* validation/ignore */ }
+  revalidatePath(`/${locale}/products/${slug}`);
+  redirect(`/${locale}/products/${slug}?question=submitted#qa`);
 }

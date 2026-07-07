@@ -741,6 +741,7 @@ model Product {
   attributeValues ProductAttributeValue[]
   lots            Lot[]
   reviews         Review[]
+  questions       ProductQuestion[]
   wishlistItems   WishlistItem[]
   compareItems    CompareItem[]
   orderItems      OrderItem[]
@@ -1169,6 +1170,24 @@ model ReviewMedia {
   review   Review    @relation(fields: [reviewId], references: [id], onDelete: Cascade)
   url      String
   type     MediaType @default(IMAGE)
+}
+
+// Customer product Q&A ("Answered Questions", audit follow-up). Questions land
+// PENDING; staff answer + publish. Only PUBLISHED pairs render on the PDP.
+model ProductQuestion {
+  id         String    @id @default(cuid())
+  productId  String
+  product    Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customerId String?
+  askerName  String?
+  question   String
+  answer     String?
+  status     String    @default("PENDING") // PENDING | PUBLISHED | HIDDEN
+  createdAt  DateTime  @default(now())
+  answeredAt DateTime?
+
+  @@index([productId, status])
+  @@index([status])
 }
 
 // ============================================================================

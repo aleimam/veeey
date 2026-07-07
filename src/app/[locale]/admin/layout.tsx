@@ -48,6 +48,7 @@ const NAV_SECTIONS: RawSection[] = [
     { href: '/admin/tiers', key: 'tiers', permission: 'pricing.manage' },
     { href: '/admin/coupons', key: 'coupons', permission: 'coupons.manage' },
     { href: '/admin/reviews', key: 'reviews', permission: 'reviews.moderate' },
+    { href: '/admin/questions', key: 'questions', permission: 'reviews.moderate' },
   ] },
   // Appearance — theming, page-building & site chrome (req: one "Appearance" group).
   { title: ['Appearance', 'المظهر'], items: [

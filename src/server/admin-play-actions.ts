@@ -7,6 +7,7 @@ import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
 import { generateQuiz } from '@/lib/ai';
 import { moderateReview, regenerateReviewSummary } from '@/lib/review-service';
+import { answerQuestion, setQuestionStatus, deleteQuestion } from '@/lib/qa-service';
 
 const localeOf = (fd: FormData) => (fd.get('locale') === 'ar' ? 'ar' : 'en');
 const str = (fd: FormData, k: string) => {
@@ -50,6 +51,34 @@ export async function moderateReviewAction(fd: FormData): Promise<void> {
   if (id && status) { try { await moderateReview(id, status); } catch (e) { console.error(e); } }
   revalidatePath(`/${locale}/admin/reviews`);
   redirect(`/${locale}/admin/reviews`);
+}
+
+// ---- Product Q&A moderation -------------------------------------------------
+export async function answerQuestionAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const id = str(fd, 'id');
+  const answer = str(fd, 'answer') ?? '';
+  const publish = fd.get('publish') != null;
+  if (id) { try { await answerQuestion(id, answer, publish); } catch (e) { console.error(e); } }
+  revalidatePath(`/${locale}/admin/questions`);
+  redirect(`/${locale}/admin/questions`);
+}
+
+export async function setQuestionStatusAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const id = str(fd, 'id');
+  const status = str(fd, 'status') as 'PENDING' | 'PUBLISHED' | 'HIDDEN' | undefined;
+  if (id && status) { try { await setQuestionStatus(id, status); } catch (e) { console.error(e); } }
+  revalidatePath(`/${locale}/admin/questions`);
+  redirect(`/${locale}/admin/questions`);
+}
+
+export async function deleteQuestionAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const id = str(fd, 'id');
+  if (id) { try { await deleteQuestion(id); } catch (e) { console.error(e); } }
+  revalidatePath(`/${locale}/admin/questions`);
+  redirect(`/${locale}/admin/questions`);
 }
 
 export async function regenSummaryAction(fd: FormData): Promise<void> {
