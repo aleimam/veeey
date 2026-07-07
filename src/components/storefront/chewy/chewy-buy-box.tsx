@@ -5,6 +5,7 @@ import { pick } from '@/lib/admin-i18n';
 import { formatEGP } from '@/lib/format';
 import { conditionLabel, isConditionVariant } from '@/lib/lot-condition';
 import { addToCartAction, addPreorderToCartAction } from '@/server/cart-actions';
+import { useTrack } from '@/components/analytics/analytics-provider';
 import { Icon } from '@/components/storefront/ui/icon';
 import { Rating } from '@/components/storefront/ui/rating';
 import { TierBadge } from '@/components/storefront/ui/tier-badge';
@@ -43,6 +44,7 @@ export function ChewyBuyBox({
   depositPercent?: number;
 }) {
   const t = pick(locale);
+  const track = useTrack();
   const [selected, setSelected] = useState(0);
   const [mode, setMode] = useState<'once' | 'refill'>('once');
   const [qty, setQty] = useState(1);
@@ -209,7 +211,11 @@ export function ChewyBuyBox({
               <Icon name="plus" size={16} color="var(--slate)" />
             </button>
           </div>
-          <button type="submit" className="v-btn v-btn--primary v-btn--lg v-btn--block">
+          <button
+            type="submit"
+            onClick={() => { if (!preorderMode) track('add_to_cart', { productId, qty }); }}
+            className="v-btn v-btn--primary v-btn--lg v-btn--block"
+          >
             <span className="v-btn__icon" aria-hidden="true">
               <Icon name={preorderMode ? 'calendar-clock' : 'shopping-cart'} size={18} />
             </span>

@@ -9,6 +9,7 @@ import { getCurrentUser } from '@/lib/auth-guards';
 import { listAddresses } from '@/lib/address-service';
 import { prisma } from '@/lib/prisma';
 import { CheckoutForm } from '@/components/storefront/checkout-form';
+import { TrackView } from '@/components/analytics/track-view';
 
 export default async function CheckoutPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -36,6 +37,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ local
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+      <TrackView name="checkout_step" props={{ step: 'start' }} />
       <h1 className="mb-6 text-3xl font-bold text-green-dark">{tp('title')}</h1>
       {hasPreorder && (
         <div className="mb-6 rounded-[12px] border border-[color:var(--gold)] bg-gold-wash px-4 py-3 text-sm text-ink" role="note">

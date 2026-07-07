@@ -24,11 +24,16 @@ export async function ordersBySource(days = 30) {
 
 export async function funnelCounts(days = 30) {
   const since = sinceDate(days);
+  // Event names must match the emitted clickstream vocabulary (events.ts):
+  // add_to_cart (buy box) and checkout_step (checkout page). The "orders" stage
+  // counts storefront (DIRECT) orders only, so the funnel measures the web
+  // journey — comparable to the clickstream stages, not polluted by manual /
+  // migrated / phone orders that never touched the funnel.
   const [views, carts, checkouts, orders] = await Promise.all([
     prisma.analyticsEvent.count({ where: { type: 'product_view', createdAt: { gte: since } } }),
-    prisma.analyticsEvent.count({ where: { type: 'cart_add', createdAt: { gte: since } } }),
-    prisma.analyticsEvent.count({ where: { type: { in: ['checkout_start', 'begin_checkout', 'checkout'] }, createdAt: { gte: since } } }),
-    prisma.order.count({ where: { placedAt: { gte: since } } }),
+    prisma.analyticsEvent.count({ where: { type: 'add_to_cart', createdAt: { gte: since } } }),
+    prisma.analyticsEvent.count({ where: { type: 'checkout_step', createdAt: { gte: since } } }),
+    prisma.order.count({ where: { placedAt: { gte: since }, source: 'DIRECT' } }),
   ]);
   return { views, carts, checkouts, orders };
 }
@@ -87,9 +92,10 @@ export async function commerceMetrics({ days = 30, months = 6, sellersLimit = 8 
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
 
-  const [delivered, orderCount, sessions, deliveredOrdersForRepeat, monthRows, sellerRows] = await Promise.all([
+  const [delivered, orderCount, webOrders, sessions, deliveredOrdersForRepeat, monthRows, sellerRows] = await Promise.all([
     prisma.order.aggregate({ where: { status: { in: [...DELIVERED] }, placedAt: { gte: since } }, _sum: { totalPiastres: true }, _count: true }),
     prisma.order.count({ where: { placedAt: { gte: since } } }),
+    prisma.order.count({ where: { placedAt: { gte: since }, source: 'DIRECT' } }), // storefront orders — comparable to web sessions
     prisma.analyticsSession.count({ where: { startedAt: { gte: since } } }),
     prisma.order.groupBy({ by: ['customerId'], where: { status: { in: [...DELIVERED] }, customerId: { not: null } }, _count: { _all: true } }),
     prisma.order.findMany({ where: { status: { in: [...DELIVERED] }, placedAt: { gte: monthStart } }, select: { placedAt: true, totalPiastres: true } }),
@@ -98,7 +104,10 @@ export async function commerceMetrics({ days = 30, months = 6, sellersLimit = 8 
 
   const revenue = Number(delivered._sum.totalPiastres ?? 0n);
   const aov = delivered._count > 0 ? Math.round(revenue / delivered._count) : 0;
-  const conversionRate = sessions > 0 ? orderCount / sessions : null;
+  // Conversion = storefront orders ÷ sessions, clamped to ≤100% (a session can
+  // yield multiple orders, and off-session orders exist, so the raw ratio can
+  // exceed 1 — never show >100%).
+  const conversionRate = sessions > 0 ? Math.min(1, webOrders / sessions) : null;
 
   const buyers = deliveredOrdersForRepeat.length;
   const repeatBuyers = deliveredOrdersForRepeat.filter((c) => c._count._all > 1).length;

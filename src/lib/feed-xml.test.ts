@@ -30,11 +30,11 @@ describe('feed-xml', () => {
 });
 
 describe('analytics funnel', () => {
-  it('computes step-over-step conversion', () => {
+  it('computes each stage as a share of the top of the funnel', () => {
     const f = buildFunnel({ views: 1000, carts: 200, checkouts: 120, orders: 90 });
     expect(f.map((s) => s.count)).toEqual([1000, 200, 120, 90]);
-    expect(f[1].rate).toBeCloseTo(0.2);
-    expect(f[3].rate).toBeCloseTo(0.75);
+    expect(f[1].rate).toBeCloseTo(0.2); // 200 / 1000
+    expect(f[3].rate).toBeCloseTo(0.09); // 90 / 1000 (relative to top, not previous stage)
   });
   it('conversionRate guards divide-by-zero', () => {
     expect(conversionRate(90, 1000)).toBeCloseTo(0.09);

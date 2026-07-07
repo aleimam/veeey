@@ -1,6 +1,9 @@
 /**
  * Behavioral funnel math (FR-ANL-01). Pure — turns raw stage counts into a funnel
- * with step-over-step conversion rates. Unit-tested.
+ * where each stage's rate is its share of the TOP of the funnel (0–100%), which
+ * is the correct way to read a conversion funnel. The rate is clamped to ≤100%
+ * so a downstream stage that exceeds views (e.g. off-session / migrated orders)
+ * can never render an impossible percentage like the old 29500%. Unit-tested.
  */
 export type FunnelCounts = { views: number; carts: number; checkouts: number; orders: number };
 export type FunnelStep = { label: string; count: number; rate: number };
@@ -12,10 +15,11 @@ export function buildFunnel(c: FunnelCounts): FunnelStep[] {
     ['Checkout', c.checkouts],
     ['Orders', c.orders],
   ];
+  const top = steps[0][1] || 0;
   return steps.map(([label, count], i) => ({
     label,
     count,
-    rate: i === 0 ? 1 : count / (steps[i - 1][1] || 1),
+    rate: i === 0 ? 1 : top > 0 ? Math.min(1, count / top) : 0,
   }));
 }
 
