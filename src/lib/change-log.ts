@@ -27,11 +27,12 @@ export const TRACKED_MODELS = new Set([
  *  stock intake) — their creation is recorded elsewhere, only edits are logged. */
 export const CREATE_SKIP_MODELS = new Set(['OrderItem', 'Address', 'Lot']);
 
-const GLOBAL_SKIP = new Set(['updatedAt', 'createdAt', 'syncedAt']);
+const GLOBAL_SKIP = new Set(['updatedAt', 'createdAt', 'syncedAt', 'lastUsedAt']);
 const MODEL_SKIP: Record<string, readonly string[]> = {
   Lot: ['qtyReserved', 'qtyOnHand'], // MovementLedger is the stock ledger
   Customer: ['pointsBalance', 'lifetimeSpendPiastres'], // LoyaltyTransaction / orders are the ledger
   Product: ['ratingAvg', 'ratingCount'], // derived from reviews
+  IntegrationClient: ['lastUsedAt'], // touched on every API call — never audit-log
 };
 
 const MAX_VALUE_LEN = 400;

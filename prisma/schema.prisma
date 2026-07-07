@@ -1453,16 +1453,50 @@ model AuditLog {
   @@index([entityType, entityId])
 }
 
-// Scoped API clients for YeldnIN integration + Claude MCP (FR-MCP-01, FR-INT-01).
+// Scoped API clients for YeldnIN integration + Claude/ChatGPT MCP (FR-MCP-01,
+// FR-INT-01). For AI_MCP clients this is the "API key": secretHash = sha256 of
+// the bearer token (shown once), scopesJson = granted scopes, keyPrefix = a
+// non-secret head for display.
 model IntegrationClient {
-  id         String          @id @default(cuid())
-  clientId   String          @unique
-  name       String
-  secretHash String
-  kind       IntegrationKind
-  scopesJson Json?
-  active     Boolean         @default(false)
-  createdAt  DateTime        @default(now())
+  id          String          @id @default(cuid())
+  clientId    String          @unique
+  name        String
+  secretHash  String
+  kind        IntegrationKind
+  scopesJson  Json?
+  keyPrefix   String? // non-secret leading chars of the token, for identification
+  active      Boolean         @default(false)
+  lastUsedAt  DateTime?
+  createdById String?
+  createdAt   DateTime        @default(now())
+}
+
+// Staged AI writes (FR-MCP-03). The MCP write endpoint never mutates live data;
+// it records a proposal here for a human to approve (→ applied) or reject.
+enum AiProposalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  APPLIED
+  FAILED
+}
+
+model AiProposal {
+  id           String           @id @default(cuid())
+  clientId     String? // IntegrationClient.id that proposed it (soft ref)
+  clientName   String?
+  action       String // whitelisted action key, e.g. "product.update"
+  entityType   String
+  entityId     String?
+  payloadJson  Json
+  status       AiProposalStatus @default(PENDING)
+  reviewedById String?
+  reviewedAt   DateTime?
+  resultJson   Json? // applied summary or failure reason
+  note         String?
+  createdAt    DateTime         @default(now())
+
+  @@index([status])
 }
 
 // YeldnIN integration plumbing (P14, INTEGRATION_CONTRACT). Outbound events use

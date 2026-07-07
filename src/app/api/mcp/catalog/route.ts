@@ -1,11 +1,13 @@
-import { mcpEnabled, verifyMcp } from '@/lib/mcp-auth';
+import { authenticateMcp } from '@/lib/mcp-auth';
 import { prisma } from '@/lib/prisma';
 import { visibleProductWhere } from '@/lib/storefront';
 
-/** AI-MCP read endpoint (FR-MCP-01): HMAC-gated catalog + live stock summary. */
+/** AI-MCP read endpoint (FR-MCP-01): key/HMAC-gated catalog + live stock summary.
+ *  Requires the `catalog:read` scope. */
 export async function GET(req: Request) {
-  if (!mcpEnabled()) return Response.json({ error: 'mcp_disabled' }, { status: 503 });
-  if (!verifyMcp(req.headers, '')) return Response.json({ error: 'unauthorized' }, { status: 401 });
+  const auth = await authenticateMcp(req, '');
+  if (!auth) return Response.json({ error: 'unauthorized' }, { status: 401 });
+  if (!auth.scopes.includes('catalog:read')) return Response.json({ error: 'forbidden', need: 'catalog:read' }, { status: 403 });
 
   const products = await prisma.product.findMany({
     where: { status: 'PUBLISHED', AND: [visibleProductWhere] },

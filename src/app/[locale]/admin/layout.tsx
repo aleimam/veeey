@@ -79,6 +79,8 @@ const NAV_SECTIONS: RawSection[] = [
   // Integrations & API — every external connection/API EXCEPT the Egypt Vitamins
   // migration link, which stays in its own group (req: gather integrations here).
   { title: ['Integrations & API', 'التكاملات والواجهات'], items: [
+    { href: '/admin/ai-keys', key: 'aiKeys', permission: 'settings.manage' },
+    { href: '/admin/ai-approvals', key: 'aiApprovals', permission: 'settings.manage' },
     { href: '/admin/payments', key: 'payments', permission: 'settings.manage' },
     { href: '/admin/providers', key: 'providers', permission: 'settings.manage' },
     { href: '/admin/login-providers', key: 'loginProviders', permission: 'settings.manage' },
