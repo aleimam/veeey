@@ -34,9 +34,9 @@ export function ListPagination({
       {pages > 1 && (
         <div className="flex items-center gap-1.5">
           <a href={link(1)} className={`${btn} ${cur <= 1 ? disabled : ''}`} aria-disabled={cur <= 1}>« {t('First', 'الأولى')}</a>
-          <a href={link(cur - 1)} className={`${btn} ${cur <= 1 ? disabled : ''}`} aria-disabled={cur <= 1}>‹ {t('Prev', 'السابق')}</a>
+          <a href={link(Math.max(1, cur - 1))} className={`${btn} ${cur <= 1 ? disabled : ''}`} aria-disabled={cur <= 1}>‹ {t('Prev', 'السابق')}</a>
           <span className="px-2">{t(`Page ${cur} / ${pages}`, `صفحة ${cur} / ${pages}`)}</span>
-          <a href={link(cur + 1)} className={`${btn} ${cur >= pages ? disabled : ''}`} aria-disabled={cur >= pages}>{t('Next', 'التالي')} ›</a>
+          <a href={link(Math.min(pages, cur + 1))} className={`${btn} ${cur >= pages ? disabled : ''}`} aria-disabled={cur >= pages}>{t('Next', 'التالي')} ›</a>
           <a href={link(pages)} className={`${btn} ${cur >= pages ? disabled : ''}`} aria-disabled={cur >= pages}>{t('Last', 'الأخيرة')} »</a>
         </div>
       )}

@@ -60,8 +60,20 @@ function orderWhere(opts: OrderListOpts): Prisma.OrderWhereInput {
         : {}),
     ...(opts.payment ? { paymentMethod: opts.payment as Prisma.OrderWhereInput['paymentMethod'] } : {}),
     ...(opts.payCheck ? { payCheck: opts.payCheck as 'NO' | 'YES' | 'PROBLEM' } : {}),
-    ...(opts.q ? { number: { contains: opts.q, mode: 'insensitive' } } : {}),
-    ...(opts.search ? { OR: [{ number: { contains: opts.search, mode: 'insensitive' } }, { guestEmail: { contains: opts.search, mode: 'insensitive' } }] } : {}),
+    // Order-number search now also matches the customer (email / name / phone)
+    // and guest email, so staff can look up an order by who placed it.
+    ...(opts.q
+      ? { OR: [
+          { number: { contains: opts.q, mode: 'insensitive' } },
+          { guestEmail: { contains: opts.q, mode: 'insensitive' } },
+          { customer: { firstName: { contains: opts.q, mode: 'insensitive' } } },
+          { customer: { lastName: { contains: opts.q, mode: 'insensitive' } } },
+          { customer: { user: { email: { contains: opts.q, mode: 'insensitive' } } } },
+          { customer: { user: { phone: { contains: opts.q, mode: 'insensitive' } } } },
+        ] }
+      : opts.search
+        ? { OR: [{ number: { contains: opts.search, mode: 'insensitive' } }, { guestEmail: { contains: opts.search, mode: 'insensitive' } }] }
+        : {}),
     ...(opts.from || opts.to
       ? { placedAt: { ...(opts.from ? { gte: new Date(opts.from) } : {}), ...(opts.to ? { lte: new Date(`${opts.to}T23:59:59`) } : {}) } }
       : {}),
@@ -73,6 +85,9 @@ function orderOrderBy(sort?: string, dir: 'asc' | 'desc' = 'desc'): Prisma.Order
     case 'number': return { number: dir };
     case 'total': return { totalPiastres: dir };
     case 'status': return { status: dir };
+    case 'customer': return { customer: { user: { email: dir } } };
+    case 'payment': return { paymentMethod: dir };
+    case 'items': return { items: { _count: dir } };
     default: return { placedAt: dir };
   }
 }

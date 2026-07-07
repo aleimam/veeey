@@ -5,6 +5,7 @@ import { listOrders, countOrders } from '@/lib/order-service';
 import { ORDER_STATUSES } from '@/lib/order-status';
 import { listStatusConfigs } from '@/lib/order-status-service';
 import { CHANNELS, channelLabel } from '@/lib/channels';
+import { customerLabel } from '@/lib/payment-method-service';
 import { formatEGP } from '@/lib/format';
 import { StatusBadge } from '@/components/admin/ui';
 import { ExportBar, exportQs } from '@/components/admin/export-bar';
@@ -18,7 +19,7 @@ import { parseListParams, listQs, type SP } from '@/lib/admin-list';
 import { pick } from '@/lib/admin-i18n';
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
-const SORTABLE = ['number', 'status', 'total', 'placedAt'] as const;
+const SORTABLE = ['number', 'customer', 'payment', 'status', 'items', 'total', 'placedAt'] as const;
 
 export default async function OrdersPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<SP> }) {
   const { locale } = await params;
@@ -54,6 +55,16 @@ export default async function OrdersPage({ params, searchParams }: { params: Pro
   const back = `${basePath}${listQs(sp, { done: undefined, skip: undefined, error: undefined })}`;
   const done = one(sp.done);
 
+  // Active-filter chips — each removes just its own filter; a "Clear all" resets.
+  const chips = ([
+    q ? { name: 'q', label: `${tb('Search', 'بحث')}: ${q}` } : null,
+    status ? { name: 'status', label: `${tb('Status', 'الحالة')}: ${status === 'attention' ? tb('Needs attention', 'تحتاج متابعة') : status}` } : null,
+    payment ? { name: 'payment', label: `${tb('Payment', 'الدفع')}: ${customerLabel(payment, locale)}` } : null,
+    payCheck ? { name: 'payCheck', label: `${tb('Check', 'مراجعة')}: ${payCheck}` } : null,
+    from ? { name: 'from', label: `${tb('From', 'من')}: ${from}` } : null,
+    to ? { name: 'to', label: `${tb('To', 'إلى')}: ${to}` } : null,
+  ].filter(Boolean) as { name: string; label: string }[]);
+
   const ops: BulkOp[] = [
     { value: 'status', label: tb('Set status', 'تعيين الحالة'), values: ORDER_STATUSES.map((s) => ({ value: s, label: s.replaceAll('_', ' ') })) },
     { value: 'payCheck', label: tb('Set payment check', 'مراجعة الدفع'), values: ['NO', 'YES', 'PROBLEM'].map((p) => ({ value: p, label: p })) },
@@ -64,7 +75,10 @@ export default async function OrdersPage({ params, searchParams }: { params: Pro
     <div className="p-6">
       <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <h1 className="font-heading text-xl font-semibold">{tb('Orders', 'الطلبات')} ({total})</h1>
+          <h1 className="font-heading text-xl font-semibold">
+            {tb('Orders', 'الطلبات')} ({total})
+            {chips.length > 0 && <span className="ms-1 text-sm font-normal text-muted-foreground">· {tb('filtered', 'مُصفّى')}</span>}
+          </h1>
           <Link href="/admin/orders/new" className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">{tb('New order', 'طلب جديد')}</Link>
           <ExportBar entity="orders" locale={locale} query={exportQs(sp)} />
         </div>
@@ -82,7 +96,7 @@ export default async function OrdersPage({ params, searchParams }: { params: Pro
         path="orders"
         values={{ q, status, payment, payCheck, from, to }}
         fields={[
-          { name: 'q', label: tb('Order number', 'رقم الطلب'), type: 'text', placeholder: tb('Order number', 'رقم الطلب') },
+          { name: 'q', label: tb('Search', 'بحث'), type: 'text', placeholder: tb('Order # or customer', 'رقم الطلب أو العميل') },
           { name: 'status', label: tb('Status', 'الحالة'), type: 'select', options: ORDER_STATUSES.map((s) => ({ value: s, label: s })) },
           { name: 'payment', label: tb('Payment', 'الدفع'), type: 'select', options: ['COD', 'POS_ON_DELIVERY', 'KASHIER', 'BANK_TRANSFER', 'WALLET'].map((p) => ({ value: p, label: p })) },
           { name: 'payCheck', label: tb('Payment check', 'مراجعة الدفع'), type: 'select', options: ['NO', 'YES', 'PROBLEM'].map((p) => ({ value: p, label: p })) },
@@ -90,6 +104,18 @@ export default async function OrdersPage({ params, searchParams }: { params: Pro
           { name: 'to', label: tb('To', 'إلى'), type: 'date' },
         ]}
       />
+
+      {chips.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted-foreground">{tb('Filtered by', 'مُصفّى حسب')}:</span>
+          {chips.map((c) => (
+            <Link key={c.name} href={`/admin/orders${listQs(sp, { [c.name]: undefined, page: undefined })}`} className="inline-flex items-center gap-1 rounded-full border border-border bg-surface px-2.5 py-0.5 text-xs hover:border-primary">
+              {c.label} <span aria-hidden>×</span>
+            </Link>
+          ))}
+          <Link href="/admin/orders" className="text-xs text-primary hover:underline">{tb('Clear all', 'مسح الكل')}</Link>
+        </div>
+      )}
 
       <BulkBar
         formId="bulk-orders"
@@ -107,12 +133,13 @@ export default async function OrdersPage({ params, searchParams }: { params: Pro
             <tr>
               <th className="w-8 p-3" />
               <SortableTh col="number" label={tb('Order', 'الطلب')} sort={sort} dir={dir} sp={sp} basePath={basePath} />
-              <th className="p-3 text-start">{tb('Customer', 'العميل')}</th>
+              <SortableTh col="customer" label={tb('Customer', 'العميل')} sort={sort} dir={dir} sp={sp} basePath={basePath} />
               <th className="p-3 text-start">{tb('Pharmacist', 'الصيدلي')}</th>
               <th className="p-3 text-start">{tb('Channel', 'القناة')}</th>
-              <th className="p-3 text-start">{tb('Payment', 'الدفع')}</th>
+              <SortableTh col="payment" label={tb('Payment', 'الدفع')} sort={sort} dir={dir} sp={sp} basePath={basePath} />
+              <th className="p-3 text-start">{tb('Check', 'مراجعة')}</th>
               <SortableTh col="status" label={tb('Status', 'الحالة')} sort={sort} dir={dir} sp={sp} basePath={basePath} />
-              <th className="p-3 text-start">{tb('Items', 'العناصر')}</th>
+              <SortableTh col="items" label={tb('Items', 'العناصر')} sort={sort} dir={dir} sp={sp} basePath={basePath} />
               <SortableTh col="total" label={tb('Total', 'الإجمالي')} sort={sort} dir={dir} sp={sp} basePath={basePath} />
               <SortableTh col="placedAt" label={tb('Placed', 'التاريخ')} sort={sort} dir={dir} sp={sp} basePath={basePath} />
               <th className="p-3" />
@@ -122,15 +149,29 @@ export default async function OrdersPage({ params, searchParams }: { params: Pro
             {orders.map((o) => (
               <tr key={o.id} className="border-t border-border">
                 <td className="p-3"><input type="checkbox" name="ids" value={o.id} form="bulk-orders" className="size-4" aria-label={o.number} /></td>
-                <td className="p-3 font-medium">{o.number}</td>
-                <td className="p-3 text-muted-foreground">{o.customer?.user.email ?? o.guestEmail ?? tb('Guest', 'زائر')}</td>
+                <td className="p-3"><Link href={`/admin/orders/${o.id}`} className="font-medium text-primary hover:underline">{o.number}</Link></td>
+                <td className="p-3 text-muted-foreground">
+                  {o.customer?.user.email
+                    ? <Link href={`/admin/orders?q=${encodeURIComponent(o.customer.user.email)}`} className="hover:text-primary hover:underline">{o.customer.user.email}</Link>
+                    : o.guestEmail
+                      ? <Link href={`/admin/orders?q=${encodeURIComponent(o.guestEmail)}`} className="hover:text-primary hover:underline">{o.guestEmail}</Link>
+                      : tb('Guest', 'زائر')}
+                </td>
                 <td className="p-3 text-muted-foreground">{o.pharmacist?.name ?? '—'}</td>
                 <td className="p-3 text-muted-foreground">{channelLabel(o.source, locale)}</td>
-                <td className="p-3">{o.payCheck}</td>
+                <td className="p-3">{customerLabel(o.paymentMethod, locale)}</td>
+                <td className="p-3"><span className={o.payCheck === 'PROBLEM' ? 'text-destructive' : o.payCheck === 'YES' ? 'text-primary' : 'text-muted-foreground'}>{o.payCheck}</span></td>
                 <td className="p-3"><StatusBadge status={o.status} /></td>
-                <td className="p-3">{o._count.items}</td>
+                <td className="p-3">
+                  {o._count.items}
+                  {o._count.items === 0 && Number(o.totalPiastres) > 0 && (
+                    <span title={tb('No items but a non-zero total — please review', 'لا عناصر مع إجمالي غير صفري — يُرجى المراجعة')} className="ms-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">!</span>
+                  )}
+                </td>
                 <td className="p-3">{formatEGP(Number(o.totalPiastres))}</td>
-                <td className="p-3 text-muted-foreground">{new Date(o.placedAt).toISOString().slice(0, 10)}</td>
+                <td className="p-3 text-muted-foreground" title={new Date(o.placedAt).toISOString()}>
+                  {new Date(o.placedAt).toISOString().slice(0, 10)} <span className="text-xs">{new Date(o.placedAt).toISOString().slice(11, 16)}</span>
+                </td>
                 <td className="p-3">
                   <div className="flex items-center justify-end gap-2">
                     <OrderQuickActions
@@ -147,7 +188,12 @@ export default async function OrdersPage({ params, searchParams }: { params: Pro
                 </td>
               </tr>
             ))}
-            {orders.length === 0 && <tr><td colSpan={11} className="p-6 text-center text-muted-foreground">{tb('No orders match.', 'لا توجد طلبات مطابقة.')}</td></tr>}
+            {orders.length === 0 && (
+              <tr><td colSpan={12} className="p-8 text-center text-muted-foreground">
+                {tb('No orders match your filters.', 'لا توجد طلبات مطابقة للتصفية.')}
+                {chips.length > 0 && <> · <Link href="/admin/orders" className="text-primary hover:underline">{tb('Clear filters', 'مسح التصفية')}</Link></>}
+              </td></tr>
+            )}
           </tbody>
         </table>
       </div>
