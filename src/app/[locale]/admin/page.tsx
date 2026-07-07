@@ -58,11 +58,17 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
   const maxBucket = Math.max(1, ...buckets.map((b) => b.total));
   const weekTotal = buckets.reduce((s, b) => s + b.total, 0);
 
+  // Local YYYY-MM-DD for the orders/customers date-range drill-downs.
+  const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const todayStr = ymd(startOfDay);
+  const monthStr = ymd(startOfMonth);
+  const weekAgoStr = ymd(weekAgo);
+
   const kpis = [
-    { label: tb('Revenue today', 'إيرادات اليوم'), value: formatEGP(revToday), d: delta(revToday, revYest), icon: TrendingUp },
-    { label: tb('Orders today', 'طلبات اليوم'), value: String(ordToday), d: delta(ordToday, ordYest), icon: ShoppingCart },
-    { label: tb('New customers (month)', 'عملاء جدد (الشهر)'), value: String(newCustomers), d: null, icon: UserPlus },
-    { label: tb('Low-stock lots (≤5)', 'دفعات منخفضة (≤5)'), value: String(lowStockLots), d: null, icon: PackageX, warn: lowStockLots > 0 },
+    { label: tb('Revenue today', 'إيرادات اليوم'), value: formatEGP(revToday), d: delta(revToday, revYest), icon: TrendingUp, href: `/admin/orders?from=${todayStr}&to=${todayStr}` },
+    { label: tb('Orders today', 'طلبات اليوم'), value: String(ordToday), d: delta(ordToday, ordYest), icon: ShoppingCart, href: `/admin/orders?from=${todayStr}&to=${todayStr}` },
+    { label: tb('New customers (month)', 'عملاء جدد (الشهر)'), value: String(newCustomers), d: null, icon: UserPlus, href: `/admin/customers?from=${monthStr}` },
+    { label: tb('Low-stock lots (≤5)', 'دفعات منخفضة (≤5)'), value: String(lowStockLots), d: null, icon: PackageX, warn: lowStockLots > 0, href: '/admin/inventory/lots?stock=low&status=LIVE' },
   ];
 
   const quickLinks = [
@@ -82,7 +88,7 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
           <p className="mt-0.5 text-sm text-muted-foreground">{tb('Here is today at Veeey.', 'هذه نظرة على يومك في فيي.')}</p>
         </div>
         {pendingOrders > 0 && (
-          <Link href="/admin/orders" className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm hover:border-primary">
+          <Link href="/admin/orders?status=attention" className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm hover:border-primary">
             <span className="flex size-2 rounded-full bg-gold" /> {tb(`${pendingOrders} orders need attention`, `${pendingOrders} طلبات تحتاج متابعة`)}
             <ArrowRight size={15} className="text-muted-foreground" />
           </Link>
@@ -93,7 +99,7 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
         {kpis.map((k) => {
           const Ic = k.icon;
           return (
-            <div key={k.label} className="rounded-xl border border-border bg-card p-4">
+            <Link key={k.label} href={k.href} className="block rounded-xl border border-border bg-card p-4 transition hover:border-primary hover:shadow-sm">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">{k.label}</span>
                 <span className={`flex size-8 items-center justify-center rounded-lg ${k.warn ? 'bg-gold/15 text-gold' : 'bg-primary/10 text-primary'}`}><Ic size={17} /></span>
@@ -104,7 +110,7 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
                   {k.d >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />} {Math.abs(k.d)}% {tb('vs yesterday', 'مقابل أمس')}
                 </div>
               )}
-            </div>
+            </Link>
           );
         })}
       </div>
@@ -113,7 +119,7 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
         <div className="rounded-xl border border-border bg-card p-4">
           <div className="mb-3 flex items-baseline justify-between">
             <h2 className="text-sm font-semibold text-foreground">{tb('Revenue · last 7 days', 'الإيرادات · آخر ٧ أيام')}</h2>
-            <span className="text-sm text-muted-foreground">{formatEGP(weekTotal)}</span>
+            <Link href={`/admin/orders?from=${weekAgoStr}&to=${todayStr}`} className="text-sm text-muted-foreground hover:text-primary hover:underline">{formatEGP(weekTotal)}</Link>
           </div>
           <div className="flex h-40 items-end gap-2">
             {buckets.map((b, i) => (
@@ -163,7 +169,7 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
               <tbody>
                 {recentOrders.map((o) => (
                   <tr key={o.id} className="border-t border-border first:border-t-0">
-                    <td className="py-2.5 font-medium text-foreground">{o.number}</td>
+                    <td className="py-2.5"><Link href={`/admin/orders/${o.id}`} className="font-medium text-foreground hover:text-primary hover:underline">{o.number}</Link></td>
                     <td className="py-2.5 text-muted-foreground">{[o.customer?.firstName, o.customer?.lastName].filter(Boolean).join(' ') || tb('Guest', 'زائر')}</td>
                     <td className="py-2.5 text-foreground">{formatEGP(Number(o.totalPiastres))}</td>
                     <td className="py-2.5"><StatusBadge status={o.status} /></td>

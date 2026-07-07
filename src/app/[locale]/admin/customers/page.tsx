@@ -33,10 +33,14 @@ export default async function CustomersPage({ params, searchParams }: { params: 
   const tb = pick(locale);
   const q = one(sp.q);
   const tier = one(sp.tier);
+  const from = one(sp.from);
+  const to = one(sp.to);
   const { sort, dir, page, perPage } = parseListParams(sp, { sortable: SORTABLE, defaultSort: 'createdAt' });
 
   const where: Prisma.CustomerWhereInput = {
     ...(tier ? { tierId: tier } : {}),
+    // Join-date range (drives the dashboard "New customers (month)" drill-down).
+    ...(from || to ? { createdAt: { ...(from ? { gte: new Date(from) } : {}), ...(to ? { lte: new Date(`${to}T23:59:59`) } : {}) } } : {}),
     ...(q
       ? { OR: [
           { firstName: { contains: q, mode: 'insensitive' } },
@@ -76,8 +80,10 @@ export default async function CustomersPage({ params, searchParams }: { params: 
         fields={[
           { name: 'q', label: tb('Search', 'بحث'), type: 'text', placeholder: tb('Name / email / phone', 'الاسم / البريد / الهاتف') },
           { name: 'tier', label: tb('Tier', 'الفئة'), type: 'select', options: tiers.map((t) => ({ value: t.id, label: t.nameEn })) },
+          { name: 'from', label: tb('Joined from', 'انضم من'), type: 'date' },
+          { name: 'to', label: tb('Joined to', 'انضم إلى'), type: 'date' },
         ]}
-        values={{ q, tier }}
+        values={{ q, tier, from, to }}
         locale={locale}
         path="customers"
       />

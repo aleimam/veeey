@@ -55,6 +55,7 @@ export default async function LotsPage({ params, searchParams }: { params: Promi
           { name: 'location', label: tb('Location', 'الموقع'), type: 'select', options: locations.map((l) => ({ value: l.id, label: l.name })) },
           { name: 'stock', label: tb('Stock', 'المخزون'), type: 'select', options: [
             { value: 'in', label: tb('In stock', 'متوفر') },
+            { value: 'low', label: tb('Low stock (≤5)', 'مخزون منخفض (≤5)') },
             { value: 'zero', label: tb('Out of stock', 'غير متوفر') },
           ] },
           { name: 'sale', label: tb('Sale', 'التخفيض'), type: 'select', options: [{ value: '1', label: tb('On sale', 'عليه تخفيض') }] },

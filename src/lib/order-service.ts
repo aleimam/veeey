@@ -53,7 +53,11 @@ export type OrderListOpts = {
 
 function orderWhere(opts: OrderListOpts): Prisma.OrderWhereInput {
   return {
-    ...(opts.status ? { status: opts.status as OrderStatus } : {}),
+    ...(opts.status === 'attention'
+      ? { status: { in: ['PENDING', 'CONFIRMED', 'HOLD'] as OrderStatus[] } } // matches the dashboard "orders need attention" KPI
+      : opts.status
+        ? { status: opts.status as OrderStatus }
+        : {}),
     ...(opts.payment ? { paymentMethod: opts.payment as Prisma.OrderWhereInput['paymentMethod'] } : {}),
     ...(opts.payCheck ? { payCheck: opts.payCheck as 'NO' | 'YES' | 'PROBLEM' } : {}),
     ...(opts.q ? { number: { contains: opts.q, mode: 'insensitive' } } : {}),

@@ -39,7 +39,7 @@ function lotWhere(o: LotListOpts): Prisma.LotWhereInput {
     ...(o.locationId ? { locationId: o.locationId } : {}),
     ...(o.productId ? { productId: o.productId } : {}),
     ...(o.sale === '1' ? { saleFlag: true } : {}),
-    ...(o.stock === 'in' ? { qtyOnHand: { gt: 0 } } : o.stock === 'zero' ? { qtyOnHand: { lte: 0 } } : {}),
+    ...(o.stock === 'in' ? { qtyOnHand: { gt: 0 } } : o.stock === 'zero' ? { qtyOnHand: { lte: 0 } } : o.stock === 'low' ? { qtyOnHand: { lte: 5 } } : {}), // 'low' (≤5) matches the dashboard low-stock KPI
     ...(o.search
       ? { product: { OR: [{ nameEn: { contains: o.search, mode: 'insensitive' } }, { sku: { contains: o.search, mode: 'insensitive' } }] } }
       : {}),
