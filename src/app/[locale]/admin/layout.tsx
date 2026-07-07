@@ -49,17 +49,22 @@ const NAV_SECTIONS: RawSection[] = [
     { href: '/admin/coupons', key: 'coupons', permission: 'coupons.manage' },
     { href: '/admin/reviews', key: 'reviews', permission: 'reviews.moderate' },
   ] },
-  { title: ['Website', 'الموقع'], items: [
+  // Appearance — theming, page-building & site chrome (req: one "Appearance" group).
+  { title: ['Appearance', 'المظهر'], items: [
+    { href: '/admin/appearance', key: 'appearance', permission: 'settings.manage' },
     { href: '/admin/homepage', key: 'homepage', permission: 'content.manage' },
     { href: '/admin/navigation', key: 'navigation', permission: 'settings.manage' },
     { href: '/admin/landing', key: 'landing', permission: 'content.manage' },
     { href: '/admin/page-sections', key: 'pageSections', permission: 'content.manage' },
+  ] },
+  // Content — static/policy pages, the medical blog & other content (req: one "Content" group).
+  { title: ['Content', 'المحتوى'], items: [
     { href: '/admin/content/pages', key: 'cmsPages', permission: 'content.manage' },
     { href: '/admin/content/blog', key: 'blog', permission: 'content.manage' },
     { href: '/admin/social', key: 'social', permission: 'content.manage' },
+    { href: '/admin/quizzes', key: 'quizzes', permission: 'content.manage' },
   ] },
   { title: ['Tools', 'الأدوات'], items: [
-    { href: '/admin/quizzes', key: 'quizzes', permission: 'content.manage' },
     { href: '/admin/notifications', key: 'notifications', permission: 'content.manage' },
   ] },
   { title: ['Users & roles', 'المستخدمون والأدوار'], items: [
@@ -68,12 +73,16 @@ const NAV_SECTIONS: RawSection[] = [
   ] },
   { title: ['Administration', 'الإدارة'], items: [
     { href: '/admin/settings', key: 'settings', permission: 'settings.manage' },
-    { href: '/admin/payments', key: 'payments', permission: 'settings.manage' },
     { href: '/admin/order-statuses', key: 'orderStatuses', permission: 'settings.manage' },
-    { href: '/admin/providers', key: 'providers', permission: 'settings.manage' },
-    { href: '/admin/appearance', key: 'appearance', permission: 'settings.manage' },
-    { href: '/admin/login-providers', key: 'loginProviders', permission: 'settings.manage' },
     { href: '/admin/change-log', key: 'changeLog', permission: 'settings.manage' },
+  ] },
+  // Integrations & API — every external connection/API EXCEPT the Egypt Vitamins
+  // migration link, which stays in its own group (req: gather integrations here).
+  { title: ['Integrations & API', 'التكاملات والواجهات'], items: [
+    { href: '/admin/payments', key: 'payments', permission: 'settings.manage' },
+    { href: '/admin/providers', key: 'providers', permission: 'settings.manage' },
+    { href: '/admin/login-providers', key: 'loginProviders', permission: 'settings.manage' },
+    { href: '/admin/integration', key: 'integration', permission: 'settings.manage' },
   ] },
   { title: ['Egypt Vitamins', 'إيجيبت فيتامينز'], items: [
     { href: '/admin/woocommerce', key: 'wooConnection', permission: 'settings.manage' },
@@ -83,9 +92,6 @@ const NAV_SECTIONS: RawSection[] = [
     { href: '/admin/woocommerce/import', key: 'wooImport', permission: 'settings.manage' },
     { href: '/admin/woocommerce/sync', key: 'wooSync', permission: 'settings.manage' },
     { href: '/admin/woocommerce/cleanup', key: 'wooCleanup', permission: 'settings.manage' },
-  ] },
-  { title: ['API', 'الواجهة البرمجية'], items: [
-    { href: '/admin/integration', key: 'integration', permission: 'settings.manage' },
   ] },
 ];
 
