@@ -728,6 +728,22 @@ model Product {
   faqJson     Json?
   jsonLd      Json?
 
+  // Full SEO module (RankMath-style editor) — bilingual focus keywords, social
+  // meta, indexing controls, and editable Product JSON-LD overrides.
+  focusKeywordEn      String?
+  focusKeywordAr      String?
+  secondaryKeywordsEn String? // comma-separated
+  secondaryKeywordsAr String?
+  ogTitleEn           String?
+  ogTitleAr           String?
+  ogDescEn            String?
+  ogDescAr            String?
+  ogImage             String? // social share image URL (falls back to the first product image)
+  canonicalUrl        String?
+  robotsIndex         Boolean @default(true)
+  robotsFollow        Boolean @default(true)
+  schemaOverridesJson Json? // merged over the auto-generated Product schema
+
   // Aggregates (denormalized for listing perf; recomputed on review write)
   ratingAvg   Float? @default(0)
   ratingCount Int    @default(0)
