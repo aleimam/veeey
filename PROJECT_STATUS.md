@@ -6,7 +6,7 @@
 > `VEEEY_SPEC.md`, `BUILD_PLAN.md`, `AGENTS.md`, `DEPLOYMENT.md`.
 
 ## Current state
-- **Live** at **veeey.com**. Latest deployed commit: **`11afa70`** (2026-07-08). All
+- **Live** at **veeey.com**. Latest deployed commit: **`ca87b1e`** (2026-07-08). All
   **30 Prisma migrations applied**; `pm2` processes `veeey` + `veeey-worker` healthy; `/api/health` → `{"status":"ok"}`.
 - Stack: Next.js 16 (App Router, Turbopack) · TypeScript · Prisma 7 + Postgres ·
   next-intl (AR/EN, RTL) · Tailwind v4. Verify gate: `npm run typecheck && npm run lint && npm run test && npm run build` (214 unit tests green).
@@ -36,9 +36,9 @@
 - **Variant selector** (size/flavor/count) — catalog is single-SKU; needs owner **OK for a schema change**.
 - **YeldnIN integration** (epic V) — gated; needs `INTEGRATION_CONTRACT.md` re-baselined.
 
-### Buildable now (no blocker — just not scheduled)
-- **Real Autoship/Refill subscriptions** with recurring billing (epic #119; currently visual-only). Design-discuss with the owner first (recurring card billing effectively waits on Payments Stage B; COD-cycle variant possible sooner).
-- Extensions to shipped features: more **AI apply-actions** (only `product.update` + `review.moderate` today); **always-on GTM w/ Consent Mode** toggle; **scheduled audit reports + retention policy**.
+### Deprioritized by owner (do not re-propose unless asked)
+- **Real Autoship/Refill subscriptions** (epic #119) — owner said "ignore refill epic" (2026-07-08); buy-box subscribe-&-save stays visual-only.
+- **TEAM departments epic** — postponed by owner.
 
 ### Owner in-admin / content actions (not code)
 Run **Reviews sync** (seed from Egypt Vitamins); backfill product/deal/hero **images**; populate product
@@ -64,6 +64,9 @@ Optional: create an **AI key** in `/admin/ai-keys`; paste GA4/GTM/Search-Console
 | **Staff orders — customer layer (A)** | `9d36718` | order form: customer search (name/email/phone) + quick-create + saved-address pick; `/admin/customers/[id]` profile w/ details + address CRUD |
 | **Staff orders — product picker (B)** | `7072a82` | live search (name/SKU/ID/legacy) → per-expiry lot pick (stock+price+condition) or FEFO; over-stock → deduct available + PRE-ORDER shortfall line + `isPreorder` flag + auto-linked SpecialOrder; suggested deposit shown (display-only) |
 | **Staff orders — gifts polish (C)** | `2aa5ddf` `e9c5ab5` | gifts at order creation (stock-checked, hidden from customer); Cancel/Refund restocks gifts; remove-&-restock per line; **`GiftMovement` audit migration**; /admin/gifts Low/Out badges + Movements panel; `gifts.lowStockThreshold` setting |
+| **GTM Consent Mode v2 option** | `81bd91b` | /admin/google "Tag loading" toggle: gated (default) or always-on with consent defaults denied → auto-upgrade on accept |
+| **More AI apply-actions** | `10c092a` | approval inbox can now apply `question.answer`, `cms.update`, `blog.update` (+ scope mapping); review.reply skipped (no reply column) |
+| **Audit reports + retention** | `ca87b1e` | worker crons: weekly staff activity email (Mon 06:00 UTC) + daily change-log purge (04:30 UTC); Settings: `audit.weeklyReport` (on), `audit.reportRecipients`, `audit.retentionDays` (365, 0=forever) |
 
 ## Notes for whoever picks this up
 - Assistant memory (per-Windows-user, at `~/.claude/projects/C--Claude-eCommerce/memory/`) has deeper
