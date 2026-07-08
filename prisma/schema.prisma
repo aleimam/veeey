@@ -276,6 +276,7 @@ model User {
   pharmacistOrders Order[]          @relation("OrderPharmacist")
   stocktakeCounts  StocktakeCount[]
   reviewsModerated Review[]         @relation("ReviewModerator")
+  departments      DepartmentMember[]
 }
 
 model Account {
@@ -336,10 +337,39 @@ model Role {
 }
 
 model Permission {
-  id          String  @id @default(cuid())
-  key         String  @unique
+  id          String       @id @default(cuid())
+  key         String       @unique
   description String?
-  roles       Role[]  @relation("RolePermissions")
+  roles       Role[]       @relation("RolePermissions")
+  departments Department[] @relation("DepartmentPermissions")
+}
+
+// Departments/Teams REPLACE the single-role model (TEAM epic, owner-locked
+// 2026-06-27): each department has an editable permission set; staff belong to
+// one or many; effective permissions = UNION across memberships. Existing
+// Roles were copied into Departments by the migration (Role/User.roleId kept
+// in the DB as a non-destructive legacy fallback, no longer written).
+model Department {
+  id          String             @id @default(cuid())
+  key         String             @unique // e.g. 'sales' drives the pharmacist picker
+  nameEn      String
+  nameAr      String?
+  description String?
+  permissions Permission[]       @relation("DepartmentPermissions")
+  members     DepartmentMember[]
+  createdAt   DateTime           @default(now())
+}
+
+model DepartmentMember {
+  id           String     @id @default(cuid())
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@unique([departmentId, userId])
+  @@index([userId])
 }
 
 // Storefront customer profile (FR-ACC-*). 1:1 with an Auth.js User.
