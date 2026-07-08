@@ -599,6 +599,7 @@ model CouponRedemption {
 model Brand {
   id            String    @id @default(cuid())
   slug          String    @unique
+  slugAr        String?   @unique
   nameEn        String
   nameAr        String?
   descriptionEn String?
@@ -610,6 +611,20 @@ model Brand {
   metaTitleAr   String?
   metaDescEn    String?
   metaDescAr    String?
+  // Full SEO module (RankMath-style editor — same set as Product)
+  focusKeywordEn      String?
+  focusKeywordAr      String?
+  secondaryKeywordsEn String?
+  secondaryKeywordsAr String?
+  ogTitleEn           String?
+  ogTitleAr           String?
+  ogDescEn            String?
+  ogDescAr            String?
+  ogImage             String?
+  canonicalUrl        String?
+  robotsIndex         Boolean @default(true)
+  robotsFollow        Boolean @default(true)
+  schemaOverridesJson Json?
   legacyName    String?
   products      Product[]
   archivedAt    DateTime?
@@ -619,6 +634,7 @@ model Brand {
 model Category {
   id            String     @id @default(cuid())
   slug          String     @unique
+  slugAr        String?    @unique
   nameEn        String
   nameAr        String?
   descriptionEn String?
@@ -631,6 +647,20 @@ model Category {
   metaTitleAr   String?
   metaDescEn    String?
   metaDescAr    String?
+  // Full SEO module (RankMath-style editor — same set as Product)
+  focusKeywordEn      String?
+  focusKeywordAr      String?
+  secondaryKeywordsEn String?
+  secondaryKeywordsAr String?
+  ogTitleEn           String?
+  ogTitleAr           String?
+  ogDescEn            String?
+  ogDescAr            String?
+  ogImage             String?
+  canonicalUrl        String?
+  robotsIndex         Boolean @default(true)
+  robotsFollow        Boolean @default(true)
+  schemaOverridesJson Json?
   products      Product[]  @relation("ProductCategories")
   archivedAt    DateTime?
   createdAt     DateTime   @default(now())
