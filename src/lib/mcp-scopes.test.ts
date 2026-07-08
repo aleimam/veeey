@@ -11,7 +11,9 @@ describe('mcp scopes', () => {
   it('requiredWriteScope maps an action to the scope it needs', () => {
     expect(requiredWriteScope('product.update')).toBe('catalog:write');
     expect(requiredWriteScope('review.moderate')).toBe('reviews:moderate');
+    expect(requiredWriteScope('question.answer')).toBe('reviews:moderate');
     expect(requiredWriteScope('content.page.update')).toBe('content:write');
+    expect(requiredWriteScope('cms.update')).toBe('content:write');
     expect(requiredWriteScope('blog.publish')).toBe('content:write');
     expect(requiredWriteScope('anything.else')).toBe('catalog:write');
   });

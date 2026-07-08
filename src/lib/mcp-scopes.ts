@@ -25,7 +25,7 @@ export function sanitizeScopes(raw: unknown): McpScope[] {
 /** The scope a proposed write action requires (by action prefix). */
 export function requiredWriteScope(action: string): McpScope {
   const a = (action || '').toLowerCase();
-  if (a.startsWith('review')) return 'reviews:moderate';
+  if (a.startsWith('review') || a.startsWith('question')) return 'reviews:moderate'; // community-content moderation
   if (a.startsWith('content') || a.startsWith('page') || a.startsWith('blog') || a.startsWith('cms')) return 'content:write';
   return 'catalog:write'; // product.* and anything else defaults to catalog write
 }
