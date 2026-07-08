@@ -15,7 +15,13 @@ describe('sanitizeGoogleConfig', () => {
   });
 
   it('leaves unknown-shaped ids as trimmed text and empty as empty', () => {
-    expect(sanitizeGoogleConfig({ ga4Id: '  ', gtmId: '' })).toEqual({ ga4Id: '', gtmId: '', searchConsole: '', adsId: '' });
+    expect(sanitizeGoogleConfig({ ga4Id: '  ', gtmId: '' })).toEqual({ ga4Id: '', gtmId: '', searchConsole: '', adsId: '', consentMode: 'gated' });
     expect(sanitizeGoogleConfig({ ga4Id: 'weird' }).ga4Id).toBe('weird');
+  });
+
+  it('normalizes consentMode to gated unless explicitly always', () => {
+    expect(sanitizeGoogleConfig({}).consentMode).toBe('gated');
+    expect(sanitizeGoogleConfig({ consentMode: 'always' }).consentMode).toBe('always');
+    expect(sanitizeGoogleConfig({ consentMode: 'nonsense' as never }).consentMode).toBe('gated');
   });
 });

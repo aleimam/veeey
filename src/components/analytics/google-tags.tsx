@@ -7,12 +7,12 @@ import { GoogleLoader } from '@/components/analytics/google-loader';
  * Next hoists it to <head>), plus the consent-gated GA4/GTM loader.
  */
 export async function GoogleTags() {
-  const { ga4Id, gtmId, searchConsole } = await getGoogleConfig();
+  const { ga4Id, gtmId, searchConsole, consentMode } = await getGoogleConfig();
   if (!ga4Id && !gtmId && !searchConsole) return null;
   return (
     <>
       {searchConsole && <meta name="google-site-verification" content={searchConsole} />}
-      <GoogleLoader ga4Id={ga4Id} gtmId={gtmId} />
+      <GoogleLoader ga4Id={ga4Id} gtmId={gtmId} consentMode={consentMode} />
     </>
   );
 }

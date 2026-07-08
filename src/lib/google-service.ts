@@ -18,6 +18,7 @@ export async function getGoogleConfig(): Promise<GoogleConfig> {
     gtmId: map.get(KEYS.gtmId) ?? '',
     searchConsole: map.get(KEYS.searchConsole) ?? '',
     adsId: map.get(KEYS.adsId) ?? '',
+    consentMode: map.get(KEYS.consentMode) === 'always' ? 'always' : 'gated',
   };
 }
 
@@ -29,5 +30,5 @@ export async function saveGoogleConfig(raw: Partial<GoogleConfig>): Promise<void
       prisma.setting.upsert({ where: { key: KEYS[k] }, update: { value: cfg[k] }, create: { key: KEYS[k], value: cfg[k] } }),
     ),
   );
-  await audit({ actorType: 'USER', actorId: user.id, action: 'google.config.update', entityType: 'Setting', entityId: 'google.*', data: { ga4: !!cfg.ga4Id, gtm: !!cfg.gtmId, searchConsole: !!cfg.searchConsole, ads: !!cfg.adsId } });
+  await audit({ actorType: 'USER', actorId: user.id, action: 'google.config.update', entityType: 'Setting', entityId: 'google.*', data: { ga4: !!cfg.ga4Id, gtm: !!cfg.gtmId, searchConsole: !!cfg.searchConsole, ads: !!cfg.adsId, consentMode: cfg.consentMode } });
 }

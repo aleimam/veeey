@@ -6,9 +6,15 @@ export const GOOGLE_KEYS = {
   gtmId: 'google.gtmId',
   searchConsole: 'google.searchConsole',
   adsId: 'google.adsConversionId',
+  consentMode: 'google.consentMode',
 } as const;
 
-export type GoogleConfig = { ga4Id: string; gtmId: string; searchConsole: string; adsId: string };
+/** 'gated' (default): GA4/GTM load only after full cookie consent.
+ *  'always': tags load for everyone with Google Consent Mode v2 defaults set to
+ *  "denied" until the visitor accepts — better measurement, still privacy-safe. */
+export type GoogleConsentMode = 'gated' | 'always';
+
+export type GoogleConfig = { ga4Id: string; gtmId: string; searchConsole: string; adsId: string; consentMode: GoogleConsentMode };
 
 /** Trim + light-normalize each id to its expected shape (empty = not set). */
 export function sanitizeGoogleConfig(raw: Partial<GoogleConfig>): GoogleConfig {
@@ -19,5 +25,6 @@ export function sanitizeGoogleConfig(raw: Partial<GoogleConfig>): GoogleConfig {
     // Accept either the raw token or the full <meta> content value.
     searchConsole: s(raw.searchConsole).replace(/^.*content=["']?/, '').replace(/["'].*$/, ''),
     adsId: s(raw.adsId).toUpperCase().startsWith('AW-') ? s(raw.adsId).toUpperCase() : s(raw.adsId),
+    consentMode: raw.consentMode === 'always' ? 'always' : 'gated',
   };
 }

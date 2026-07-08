@@ -58,6 +58,16 @@ export default async function AdminGooglePage({ params, searchParams }: { params
             {tb('Google Ads conversion ID (optional)', 'معرّف تحويل Google Ads (اختياري)')}
             <input name="adsId" defaultValue={cfg.adsId} placeholder="AW-XXXXXXXXX" className={inputCls} />
           </label>
+          <label className={labelCls}>
+            {tb('Tag loading', 'تحميل الوسوم')}
+            <select name="consentMode" defaultValue={cfg.consentMode} className={inputCls}>
+              <option value="gated">{tb('Only after full cookie consent (default)', 'فقط بعد الموافقة الكاملة على ملفات الارتباط (افتراضي)')}</option>
+              <option value="always">{tb('Always — Consent Mode v2 (denied until visitor accepts)', 'دائمًا — وضع الموافقة v2 (مرفوض حتى يقبل الزائر)')}</option>
+            </select>
+            <span className="text-xs font-normal text-muted-foreground">
+              {tb('"Always" loads GA4/GTM for every visitor with Google Consent Mode defaults set to denied (no cookies or identifiers), upgrading automatically when the visitor accepts — better conversion modeling, still privacy-safe.', '«دائمًا» يحمّل GA4/GTM لكل زائر مع ضبط وضع الموافقة على «مرفوض» (بدون ملفات ارتباط أو معرّفات)، ويُرقّى تلقائيًا عند قبول الزائر — قياس أفضل مع الحفاظ على الخصوصية.')}
+            </span>
+          </label>
           <button className="rounded-md bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground">{tb('Save', 'حفظ')}</button>
         </form>
 
@@ -69,7 +79,7 @@ export default async function AdminGooglePage({ params, searchParams }: { params
           </div>
           <div className={`${card} text-xs leading-relaxed text-muted-foreground`}>
             <p className="mb-1 font-semibold text-foreground">{tb('Notes', 'ملاحظات')}</p>
-            <p>{tb('GA4 & Tag Manager load only after a visitor accepts cookies (privacy-safe). Search Console verification loads for everyone.', 'يتم تحميل GA4 و Tag Manager فقط بعد قبول الزائر لملفات تعريف الارتباط (حفاظًا على الخصوصية). أما تحقّق Search Console فيُحمَّل للجميع.')}</p>
+            <p>{tb('By default GA4 & Tag Manager load only after a visitor accepts cookies. Switch "Tag loading" to Always for Consent Mode v2 (loads for everyone, denied until accepted). Search Console verification loads for everyone.', 'افتراضيًا يتم تحميل GA4 و Tag Manager فقط بعد قبول الزائر لملفات تعريف الارتباط. بدّل «تحميل الوسوم» إلى «دائمًا» لوضع الموافقة v2 (يُحمَّل للجميع، مرفوض حتى القبول). أما تحقّق Search Console فيُحمَّل للجميع.')}</p>
           </div>
         </aside>
       </div>

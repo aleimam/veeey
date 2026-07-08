@@ -13,6 +13,7 @@ export async function saveGoogleAction(fd: FormData): Promise<void> {
     gtmId: str(fd, 'gtmId'),
     searchConsole: str(fd, 'searchConsole'),
     adsId: str(fd, 'adsId'),
+    consentMode: str(fd, 'consentMode') === 'always' ? 'always' : 'gated',
   });
   revalidatePath('/', 'layout'); // tags render in the root layout
   redirect(`/${locale}/admin/google?saved=1`);
