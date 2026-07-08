@@ -1,7 +1,7 @@
 import { setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { prisma } from '@/lib/prisma';
 import { listOrders, countOrders } from '@/lib/order-service';
+import { salesStaff } from '@/lib/department-service';
 import { ORDER_STATUSES } from '@/lib/order-status';
 import { listStatusConfigs } from '@/lib/order-status-service';
 import { CHANNELS, channelLabel } from '@/lib/channels';
@@ -39,7 +39,7 @@ export default async function OrdersPage({ params, searchParams }: { params: Pro
     listOrders({ ...filters, sort, dir, page, perPage }),
     countOrders(filters),
     listStatusConfigs(),
-    prisma.user.findMany({ where: { roleId: { not: null } }, select: { id: true, name: true, email: true } }),
+    salesStaff(), // pharmacist/handler picker = Sales department members (TEAM epic)
   ]);
 
   // Quick-edit props (serializable).

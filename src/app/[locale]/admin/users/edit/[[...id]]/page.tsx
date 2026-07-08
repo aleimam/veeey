@@ -1,6 +1,6 @@
 import { setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { getStaff, listRolesForAssign } from '@/lib/staff-service';
+import { getStaff, listDepartmentsForAssign } from '@/lib/staff-service';
 import { StaffForm } from '@/components/admin/staff-form';
 import { pick } from '@/lib/admin-i18n';
 
@@ -9,7 +9,7 @@ export default async function StaffEditPage({ params }: { params: Promise<{ loca
   setRequestLocale(locale);
   const tb = pick(locale);
   const uid = id?.[0];
-  const [user, roles] = await Promise.all([uid ? getStaff(uid) : null, listRolesForAssign()]);
+  const [user, departments] = await Promise.all([uid ? getStaff(uid) : null, listDepartmentsForAssign()]);
 
   return (
     <div className="p-6">
@@ -18,8 +18,8 @@ export default async function StaffEditPage({ params }: { params: Promise<{ loca
       <StaffForm
         id={uid}
         locale={locale}
-        roles={roles.map((r) => ({ id: r.id, name: r.name, key: r.key }))}
-        defaults={user ? { name: user.name ?? '', email: user.email ?? '', roleId: user.roleId ?? '' } : {}}
+        departments={departments}
+        defaults={user ? { name: user.name ?? '', email: user.email ?? '', departmentIds: user.departments.map((m) => m.department.id) } : {}}
       />
     </div>
   );

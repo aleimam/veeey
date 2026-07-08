@@ -55,7 +55,7 @@ export async function sendWeeklyAuditReport(): Promise<{ sent: number; skipped?:
     .filter((s) => s.includes('@'));
   const recipients = configured.length
     ? configured
-    : (await prisma.user.findMany({ where: { roleId: { not: null }, email: { not: null } }, select: { email: true } }))
+    : (await prisma.user.findMany({ where: { AND: [{ email: { not: null } }, { OR: [{ departments: { some: {} } }, { roleId: { not: null } }] }] }, select: { email: true } }))
         .map((u) => u.email!)
         .filter(Boolean);
   if (!recipients.length) return { sent: 0, skipped: 'no recipients' };

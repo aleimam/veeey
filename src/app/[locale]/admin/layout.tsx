@@ -69,9 +69,9 @@ const NAV_SECTIONS: RawSection[] = [
   { title: ['Tools', 'الأدوات'], items: [
     { href: '/admin/notifications', key: 'notifications', permission: 'content.manage' },
   ] },
-  { title: ['Users & roles', 'المستخدمون والأدوار'], items: [
+  { title: ['Users & departments', 'المستخدمون والأقسام'], items: [
     { href: '/admin/users', key: 'users', permission: 'rbac.manage' },
-    { href: '/admin/roles', key: 'roles', permission: 'rbac.manage' },
+    { href: '/admin/departments', key: 'departments', permission: 'rbac.manage' },
   ] },
   { title: ['Administration', 'الإدارة'], items: [
     { href: '/admin/settings', key: 'settings', permission: 'settings.manage' },

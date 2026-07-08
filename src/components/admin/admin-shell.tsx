@@ -24,7 +24,7 @@ const ICONS: Record<string, LucideIcon> = {
   tags: Tags, attributes: SlidersHorizontal, collections: LayoutGrid, inventory: Boxes,
   stocktake: ClipboardCheck, shipping: Truck, customers: Users, tiers: Crown, coupons: Ticket,
   reviews: Star, questions: MessageCircleQuestion, homepage: Home, navigation: Menu, landing: LayoutTemplate, pageSections: LayoutGrid, cmsPages: FileText, blog: Newspaper, social: Share2,
-  quizzes: HelpCircle, notifications: Bell, users: UserCog, roles: ShieldCheck, settings: Settings,
+  quizzes: HelpCircle, notifications: Bell, users: UserCog, roles: ShieldCheck, departments: ShieldCheck, settings: Settings,
   providers: Plug, appearance: Palette, loginProviders: KeyRound, integration: Webhook, payments: CreditCard, orderStatuses: ListChecks, goLive: Rocket, seoHealth: Gauge, changeLog: History, aiKeys: Bot, aiApprovals: Inbox, google: LineChart,
   wooConnection: Cable, wooProducts: Package, wooCustomers: Users, wooOrders: ShoppingCart, wooImport: DatabaseZap, wooSync: RefreshCw, wooCleanup: Trash2,
 };

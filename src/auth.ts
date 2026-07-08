@@ -98,11 +98,21 @@ const baseConfig: Omit<NextAuthConfig, 'providers'> = {
       if (user?.id) {
         const dbUser = await prisma.user.findUnique({
           where: { id: user.id },
-          include: { role: { include: { permissions: true } }, customer: true },
+          include: {
+            departments: { include: { department: { include: { permissions: true } } } },
+            role: { include: { permissions: true } }, // legacy fallback (pre-department accounts)
+            customer: true,
+          },
         });
+        // Effective permissions = UNION across department memberships (TEAM
+        // epic); accounts without any membership fall back to the legacy role.
+        const depts = dbUser?.departments.map((m) => m.department) ?? [];
+        const unionPerms = [...new Set(depts.flatMap((d) => d.permissions.map((p) => p.key)))];
         token.uid = user.id;
-        token.roleKey = dbUser?.role?.key ?? null;
-        token.permissions = dbUser?.role?.permissions.map((p) => p.key) ?? [];
+        token.roleKey = depts.length
+          ? depts.map((d) => d.key).join('+')
+          : (dbUser?.role?.key ?? null);
+        token.permissions = unionPerms.length ? unionPerms : (dbUser?.role?.permissions.map((p) => p.key) ?? []);
         token.customerId = dbUser?.customer?.id ?? null;
       }
       return token;

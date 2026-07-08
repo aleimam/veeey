@@ -20,7 +20,7 @@ export default async function UsersPage({ params, searchParams }: { params: Prom
       title={tb('Users', 'المستخدمون')}
       newHref="/admin/users/edit"
       newLabel={tb('New user', 'مستخدم جديد')}
-      head={[tb('Name', 'الاسم'), tb('Email', 'البريد الإلكتروني'), tb('Role', 'الدور')]}
+      head={[tb('Name', 'الاسم'), tb('Email', 'البريد الإلكتروني'), tb('Departments', 'الأقسام')]}
       editLabel={tb('Edit', 'تعديل')}
       notice={selfError ? (
         <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -29,7 +29,7 @@ export default async function UsersPage({ params, searchParams }: { params: Prom
       ) : undefined}
       rows={staff.map((u) => ({
         key: u.id,
-        cells: [u.name ?? '—', u.email ?? '—', u.role?.name ?? '—'],
+        cells: [u.name ?? '—', u.email ?? '—', u.departments.length ? u.departments.map((m) => m.department.nameEn).join(', ') : '—'],
         editHref: `/admin/users/edit/${u.id}`,
         actions: (
           <form action={revokeStaffAction}>

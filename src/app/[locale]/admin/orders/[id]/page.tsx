@@ -1,10 +1,10 @@
 import { notFound } from 'next/navigation';
 import { setRequestLocale } from 'next-intl/server';
-import { prisma } from '@/lib/prisma';
 import { getOrder } from '@/lib/order-service';
 import { listGifts } from '@/lib/gift-service';
 import { listStatusConfigs } from '@/lib/order-status-service';
 import { getNumberSetting } from '@/lib/settings-service';
+import { salesStaff } from '@/lib/department-service';
 import { formatEGP } from '@/lib/format';
 import { StatusBadge, inputCls } from '@/components/admin/ui';
 import { aramexConfigured, smsaConfigured } from '@/lib/provider-config';
@@ -35,7 +35,7 @@ export default async function OrderDetailPage({ params, searchParams }: { params
   if (!order) notFound();
 
   const [staff, gifts, aramexOn, smsaOn, systemMethods, statusCfgs, depositPercent] = await Promise.all([
-    prisma.user.findMany({ where: { roleId: { not: null } }, select: { id: true, name: true, email: true } }),
+    salesStaff(), // pharmacist/handler picker = Sales department members (TEAM epic)
     listGifts(),
     aramexConfigured(),
     smsaConfigured(),

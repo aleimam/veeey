@@ -8,21 +8,22 @@ import type { AdminFormState } from '@/server/admin-actions';
 import { Field, FormError, SubmitButton, inputCls } from './ui';
 import { pick } from '@/lib/admin-i18n';
 
-type RoleOpt = { id: string; name: string; key: string };
+type DeptOpt = { id: string; nameEn: string; nameAr?: string | null; key: string };
 
 export function StaffForm({
   id,
   locale,
-  roles,
+  departments,
   defaults = {},
 }: {
   id?: string;
   locale: string;
-  roles: RoleOpt[];
-  defaults?: { name?: string; email?: string; roleId?: string };
+  departments: DeptOpt[];
+  defaults?: { name?: string; email?: string; departmentIds?: string[] };
 }) {
   const [state, action] = useActionState<AdminFormState, FormData>(saveStaffAction, {});
   const tb = pick(useLocale());
+  const member = new Set(defaults.departmentIds ?? []);
 
   return (
     <form action={action} className="max-w-xl space-y-5">
@@ -44,11 +45,18 @@ export function StaffForm({
         </Field>
       )}
 
-      <Field label={tb('Role', 'الدور')}>
-        <select name="roleId" required defaultValue={defaults.roleId ?? ''} className={inputCls}>
-          <option value="" disabled>{tb('Choose a role…', 'اختر دورًا…')}</option>
-          {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-        </select>
+      <Field
+        label={tb('Departments', 'الأقسام')}
+        hint={tb('One or many — permissions are the UNION of all selected departments (applied at next sign-in).', 'قسم واحد أو أكثر — الصلاحيات هي اتحاد صلاحيات الأقسام المختارة (تسري عند تسجيل الدخول التالي).')}
+      >
+        <div className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-2">
+          {departments.map((d) => (
+            <label key={d.id} className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="departmentIds" value={d.id} defaultChecked={member.has(d.id)} className="size-4" />
+              {tb(d.nameEn, d.nameAr ?? d.nameEn)} <span className="font-mono text-xs text-muted-foreground">({d.key})</span>
+            </label>
+          ))}
+        </div>
       </Field>
 
       <Field label={id ? tb('New password', 'كلمة مرور جديدة') : tb('Password', 'كلمة المرور')} hint={id ? tb('Leave empty to keep the current password.', 'اتركها فارغة للإبقاء على كلمة المرور الحالية.') : tb('At least 8 characters.', '8 أحرف على الأقل.')}>

@@ -3,8 +3,7 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { createStaff, updateStaff, revokeStaff } from '@/lib/staff-service';
-import { saveRole, deleteRole } from '@/lib/role-service';
-import { InUseError } from '@/lib/soft-delete-service';
+import { saveDepartment, deleteDepartment } from '@/lib/department-service';
 import type { AdminFormState } from '@/server/admin-actions';
 
 const localeOf = (fd: FormData) => (fd.get('locale') === 'ar' ? 'ar' : 'en');
@@ -25,11 +24,12 @@ function fail(e: unknown): AdminFormState {
 export async function saveStaffAction(_p: AdminFormState, fd: FormData): Promise<AdminFormState> {
   const locale = localeOf(fd);
   const id = str(fd, 'id');
+  const departmentIds = fd.getAll('departmentIds').filter((v): v is string => typeof v === 'string' && v !== '');
   try {
     if (id) {
       await updateStaff(id, {
         name: str(fd, 'name') ?? '',
-        roleId: str(fd, 'roleId') ?? '',
+        departmentIds,
         password: str(fd, 'password') ?? '',
       });
     } else {
@@ -37,7 +37,7 @@ export async function saveStaffAction(_p: AdminFormState, fd: FormData): Promise
         name: str(fd, 'name') ?? '',
         email: str(fd, 'email') ?? '',
         password: str(fd, 'password') ?? '',
-        roleId: str(fd, 'roleId') ?? '',
+        departmentIds,
       });
     }
   } catch (e) {
@@ -65,37 +65,38 @@ export async function revokeStaffAction(fd: FormData): Promise<void> {
   redirect(`/${locale}/admin/users`);
 }
 
-// ---- Roles -----------------------------------------------------------------
-export async function saveRoleAction(_p: AdminFormState, fd: FormData): Promise<AdminFormState> {
+// ---- Departments (replace Roles — TEAM epic) --------------------------------
+export async function saveDepartmentAction(_p: AdminFormState, fd: FormData): Promise<AdminFormState> {
   const locale = localeOf(fd);
   try {
-    await saveRole(str(fd, 'id') ?? null, {
+    await saveDepartment(str(fd, 'id') ?? null, {
       key: str(fd, 'key') ?? '',
-      name: str(fd, 'name') ?? '',
+      nameEn: str(fd, 'nameEn') ?? '',
+      nameAr: str(fd, 'nameAr') ?? null,
       description: str(fd, 'description') ?? null,
       permissionKeys: fd.getAll('permissions').filter((v): v is string => typeof v === 'string'),
     });
   } catch (e) {
     return fail(e);
   }
-  revalidatePath(`/${locale}/admin/roles`);
-  redirect(`/${locale}/admin/roles`);
+  revalidatePath(`/${locale}/admin/departments`);
+  redirect(`/${locale}/admin/departments`);
 }
 
-export async function deleteRoleAction(fd: FormData): Promise<void> {
+export async function deleteDepartmentAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
   const id = str(fd, 'id');
   if (id) {
     try {
-      await deleteRole(id);
+      await deleteDepartment(id);
     } catch (e) {
-      if (e instanceof InUseError) {
-        revalidatePath(`/${locale}/admin/roles`);
-        redirect(`/${locale}/admin/roles?error=in_use`);
+      if (e instanceof Error && e.message === 'IN_USE') {
+        revalidatePath(`/${locale}/admin/departments`);
+        redirect(`/${locale}/admin/departments?error=in_use`);
       }
       fail(e);
     }
   }
-  revalidatePath(`/${locale}/admin/roles`);
-  redirect(`/${locale}/admin/roles`);
+  revalidatePath(`/${locale}/admin/departments`);
+  redirect(`/${locale}/admin/departments`);
 }
