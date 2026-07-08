@@ -4,8 +4,12 @@ import { getReturn } from '@/lib/return-service';
 import { processReturnAction } from '@/server/order-actions';
 import { StatusBadge, inputCls } from '@/components/admin/ui';
 import { pick } from '@/lib/admin-i18n';
+import { requirePermission } from '@/lib/auth-guards';
 
 export default async function ReturnDetailPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
+  // Page-level RBAC (matches the sidebar's permission key) — the sidebar only
+  // HIDES the link; without this any staffer with one permission could read it.
+  await requirePermission('returns.manage');
   const { locale, id } = await params;
   setRequestLocale(locale);
   const tb = pick(locale);

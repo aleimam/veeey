@@ -17,11 +17,13 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
   return (session?.user as SessionUser | undefined) ?? null;
 }
 
-/** Throwable guard for server actions: ensures a permission is held. */
+/** Throwable guard for server actions: ensures a permission is held.
+ *  The custom `digest` survives Next's prod error redaction, so the admin
+ *  error boundary can still recognize a permission denial. */
 export async function requirePermission(key: PermissionKey): Promise<SessionUser> {
   const user = await getCurrentUser();
   if (!user || !hasPermission(user.permissions, key)) {
-    throw new Error('FORBIDDEN');
+    throw Object.assign(new Error('FORBIDDEN'), { digest: 'FORBIDDEN' });
   }
   return user;
 }

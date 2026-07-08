@@ -112,7 +112,11 @@ const baseConfig: Omit<NextAuthConfig, 'providers'> = {
         token.roleKey = depts.length
           ? depts.map((d) => d.key).join('+')
           : (dbUser?.role?.key ?? null);
-        token.permissions = unionPerms.length ? unionPerms : (dbUser?.role?.permissions.map((p) => p.key) ?? []);
+        // Gate on MEMBERSHIP (not on the union being non-empty): once a user is
+        // in any department, that's the authority — falling back to the legacy
+        // role when the departments grant zero permissions would silently
+        // un-revoke access stripped by moving someone to a low-permission dept.
+        token.permissions = depts.length ? unionPerms : (dbUser?.role?.permissions.map((p) => p.key) ?? []);
         token.customerId = dbUser?.customer?.id ?? null;
       }
       return token;

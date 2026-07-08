@@ -8,6 +8,7 @@ import { hashPassword } from '@/lib/password';
 import { ensureCustomerProfile } from '@/lib/customer';
 import { verifyRecaptcha } from '@/lib/recaptcha';
 import { requestOtp } from '@/lib/otp-service';
+import { rateLimit, clientIp } from '@/lib/rate-limit';
 import { audit } from '@/lib/audit';
 
 export type AuthFormState = {
@@ -47,6 +48,10 @@ export async function registerCustomer(
     phone: formData.get('phone'),
   });
   if (!parsed.success) return { error: 'invalid' };
+
+  // Throttle regardless of reCAPTCHA (which fails OPEN when the secret is not
+  // configured) — otherwise registration can be scripted without limit.
+  if (!rateLimit(`register:${await clientIp()}`, 10, 3_600_000)) return { error: 'invalid' };
 
   const recaptchaOk = await verifyRecaptcha(
     (formData.get('recaptchaToken') as string) || undefined,
@@ -122,6 +127,13 @@ export async function loginCustomer(
     password: formData.get('password'),
   });
   if (!parsed.success) return { error: 'invalid' };
+
+  // Brute-force control independent of reCAPTCHA (which fails OPEN when the
+  // secret is unset): per-account and per-IP fixed windows.
+  const ident = parsed.data.identifier.toLowerCase();
+  if (!rateLimit(`login:id:${ident}`, 10, 900_000) || !rateLimit(`login:ip:${await clientIp()}`, 30, 900_000)) {
+    return { error: 'credentials' };
+  }
 
   const recaptchaOk = await verifyRecaptcha(
     (formData.get('recaptchaToken') as string) || undefined,

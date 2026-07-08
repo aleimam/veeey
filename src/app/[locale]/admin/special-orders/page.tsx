@@ -8,11 +8,15 @@ import { ListPagination } from '@/components/admin/list-pagination';
 import { BulkBar, type BulkOp } from '@/components/admin/bulk-bar';
 import { parseListParams, listQs, clientPage, type SP } from '@/lib/admin-list';
 import { pick } from '@/lib/admin-i18n';
+import { requirePermission } from '@/lib/auth-guards';
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 const STATUSES = ['REQUESTED', 'DEPOSIT_PAID', 'SOURCING', 'PURCHASED', 'IN_TRANSIT', 'RECEIVED', 'FULFILLED', 'CANCELLED'];
 
 export default async function SpecialOrdersPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<SP> }) {
+  // Page-level RBAC (matches the sidebar's permission key) — the sidebar only
+  // HIDES the link; without this any staffer with one permission could read it.
+  await requirePermission('orders.read');
   const { locale } = await params;
   const sp = await searchParams;
   setRequestLocale(locale);

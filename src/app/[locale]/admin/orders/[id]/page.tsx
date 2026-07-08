@@ -20,6 +20,7 @@ import {
   setTrackingAction, addOrderItemAction, removeOrderItemAction, addGiftToOrderAction, removeGiftFromOrderAction, markOrderItemLostAction,
 } from '@/server/order-actions';
 import { createAramexShipmentAction, trackAramexAction, createSmsaShipmentAction, trackSmsaAction } from '@/server/carrier-actions';
+import { requirePermission } from '@/lib/auth-guards';
 
 type SP = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
@@ -27,6 +28,9 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 const monthYear = (d: Date | null) => (d ? `${String(d.getUTCMonth() + 1).padStart(2, '0')}/${d.getUTCFullYear()}` : '—');
 
 export default async function OrderDetailPage({ params, searchParams }: { params: Promise<{ locale: string; id: string }>; searchParams: Promise<SP> }) {
+  // Page-level RBAC (matches the sidebar's permission key) — the sidebar only
+  // HIDES the link; without this any staffer with one permission could read it.
+  await requirePermission('orders.read');
   const { locale, id } = await params;
   const sp = await searchParams;
   setRequestLocale(locale);

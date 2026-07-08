@@ -3,8 +3,12 @@ import { Link } from '@/i18n/navigation';
 import { getStaff, listDepartmentsForAssign } from '@/lib/staff-service';
 import { StaffForm } from '@/components/admin/staff-form';
 import { pick } from '@/lib/admin-i18n';
+import { requirePermission } from '@/lib/auth-guards';
 
 export default async function StaffEditPage({ params }: { params: Promise<{ locale: string; id?: string[] }> }) {
+  // Page-level RBAC (matches the sidebar's permission key) — the sidebar only
+  // HIDES the link; without this any staffer with one permission could read it.
+  await requirePermission('rbac.manage');
   const { locale, id } = await params;
   setRequestLocale(locale);
   const tb = pick(locale);

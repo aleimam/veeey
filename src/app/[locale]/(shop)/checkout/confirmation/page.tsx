@@ -1,5 +1,7 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
+import { cookies } from 'next/headers';
 import { Link } from '@/i18n/navigation';
+import { getCurrentUser } from '@/lib/auth-guards';
 import { getOrderByNumber } from '@/lib/checkout-service';
 import { customerLabel, isOnlineMethod } from '@/lib/payment-method-service';
 import { formatEGP } from '@/lib/format';
@@ -20,7 +22,17 @@ export default async function ConfirmationPage({
   const t = await getTranslations('storefront.confirmation');
   const number = Array.isArray(sp.order) ? sp.order[0] : sp.order;
   const cancelled = (Array.isArray(sp.cancelled) ? sp.cancelled[0] : sp.cancelled) === '1';
-  const order = number ? await getOrderByNumber(number) : null;
+  let order = number ? await getOrderByNumber(number) : null;
+
+  // Order numbers are semi-predictable, so gate the page: the browser that
+  // placed the order (vy_orders cookie) or the logged-in owner may view it.
+  if (order) {
+    const mine = ((await cookies()).get('vy_orders')?.value ?? '').split(',');
+    if (!mine.includes(order.number)) {
+      const user = await getCurrentUser();
+      if (!user?.customerId || user.customerId !== order.customerId) order = null;
+    }
+  }
 
   if (!order) {
     return (

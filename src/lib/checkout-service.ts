@@ -72,7 +72,14 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
   }
   const shipping = await getShippingFee(data.shippingType as ShippingTypeKey);
 
-  const isFirstOrder = customerId ? (await prisma.order.count({ where: { customerId } })) === 0 : true;
+  // Guests are NOT "first order" — otherwise firstOrderOnly coupons are
+  // infinitely reusable by checking out logged-out.
+  const isFirstOrder = customerId ? (await prisma.order.count({ where: { customerId } })) === 0 : false;
+
+  // Per-item earned points use the customer's tier rate — must match what
+  // creditOrderPoints will actually credit, or LOST-item clawbacks under-claw.
+  const custTier = customerId ? await prisma.customer.findUnique({ where: { id: customerId }, select: { tier: { select: { earnRatePerEgp: true } } } }) : null;
+  const earnRate = custTier?.tier?.earnRatePerEgp ?? 1;
 
   // Coupon (stacks with points + tier discount).
   let couponDiscount = 0n;
@@ -170,7 +177,7 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
           unitPricePiastres: unit,
           lineExpiry: r.lot.expiryDate,
           condition: r.lot.condition,
-          pointsEarned: Math.floor((Number(unit) / 100) * r.qty),
+          pointsEarned: Math.floor((Number(unit) / 100) * r.qty * earnRate),
         },
       });
       await tx.lot.update({ where: { id: r.lotId }, data: { qtyOnHand: { decrement: r.qty }, qtyReserved: { decrement: r.qty } } });
@@ -208,6 +215,13 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
   });
 
   await clearCartCookie();
+  // Remember this browser's recent order numbers so the (public) confirmation
+  // page can gate access — order numbers alone are guessable.
+  try {
+    const jar = await cookies();
+    const prev = (jar.get('vy_orders')?.value ?? '').split(',').filter(Boolean);
+    jar.set('vy_orders', [...prev, number].slice(-5).join(','), { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 30 });
+  } catch { /* cookie best-effort */ }
   await audit({ actorType: customerId ? 'CUSTOMER' : 'SYSTEM', actorId: customerId, action: 'order.placed', entityType: 'Order', entityId: order.id, data: { number, risk } });
 
   // Order-confirmation email (FR-NOT-01) — best effort, off the critical path.

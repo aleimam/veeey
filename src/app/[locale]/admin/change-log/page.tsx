@@ -6,6 +6,7 @@ import { FilterBar } from '@/components/admin/filter-bar';
 import { ListPagination } from '@/components/admin/list-pagination';
 import { one, type SP } from '@/lib/admin-list';
 import { pick } from '@/lib/admin-i18n';
+import { requirePermission } from '@/lib/auth-guards';
 
 const fmtTime = (d: Date) => d.toISOString().slice(0, 16).replace('T', ' ');
 
@@ -15,6 +16,9 @@ const fmtTime = (d: Date) => d.toISOString().slice(0, 16).replace('T', ' ');
  * entity id and action. Per-entity panels embed the same data on edit pages.
  */
 export default async function ChangeLogPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<SP> }) {
+  // Page-level RBAC (matches the sidebar's permission key) — the sidebar only
+  // HIDES the link; without this any staffer with one permission could read it.
+  await requirePermission('settings.manage');
   const { locale } = await params;
   const sp = await searchParams;
   setRequestLocale(locale);

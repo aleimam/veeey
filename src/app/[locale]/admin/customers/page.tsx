@@ -13,6 +13,7 @@ import { ListPagination } from '@/components/admin/list-pagination';
 import { BulkBar, type BulkOp } from '@/components/admin/bulk-bar';
 import { parseListParams, listQs, type SP } from '@/lib/admin-list';
 import { pick } from '@/lib/admin-i18n';
+import { requirePermission } from '@/lib/auth-guards';
 
 const one = (v: string | string[] | undefined): string | undefined => (Array.isArray(v) ? v[0] : v) || undefined;
 const SORTABLE = ['email', 'tier', 'points', 'spend', 'createdAt'] as const;
@@ -28,6 +29,9 @@ function customerOrderBy(sort: string, dir: 'asc' | 'desc'): Prisma.CustomerOrde
 }
 
 export default async function CustomersPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<SP> }) {
+  // Page-level RBAC (matches the sidebar's permission key) — the sidebar only
+  // HIDES the link; without this any staffer with one permission could read it.
+  await requirePermission('customers.read');
   const { locale } = await params;
   const sp = await searchParams;
   setRequestLocale(locale);

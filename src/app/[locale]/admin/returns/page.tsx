@@ -8,11 +8,15 @@ import { ExportBar, exportQs } from '@/components/admin/export-bar';
 import { FilterBar } from '@/components/admin/filter-bar';
 import { parseListParams, clientPage, type SP } from '@/lib/admin-list';
 import { pick } from '@/lib/admin-i18n';
+import { requirePermission } from '@/lib/auth-guards';
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) || undefined;
 const RETURN_STATUSES = ['REQUESTED', 'APPROVED', 'QUARANTINE', 'RESTOCKED', 'WRITTEN_OFF', 'REFUNDED', 'REJECTED'];
 
 export default async function ReturnsPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<SP> }) {
+  // Page-level RBAC (matches the sidebar's permission key) — the sidebar only
+  // HIDES the link; without this any staffer with one permission could read it.
+  await requirePermission('returns.manage');
   const { locale } = await params;
   const sp = await searchParams;
   setRequestLocale(locale);

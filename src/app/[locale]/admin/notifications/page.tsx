@@ -5,8 +5,12 @@ import { loadDefaultTemplatesAction } from '@/server/notification-actions';
 import { emailEnabled, pushEnabled } from '@/lib/notification-dispatch';
 import { StatusBadge } from '@/components/admin/ui';
 import { pick } from '@/lib/admin-i18n';
+import { requirePermission } from '@/lib/auth-guards';
 
 export default async function AdminNotificationsPage({ params }: { params: Promise<{ locale: string }> }) {
+  // Page-level RBAC (matches the sidebar's permission key) — the sidebar only
+  // HIDES the link; without this any staffer with one permission could read it.
+  await requirePermission('content.manage');
   const { locale } = await params;
   setRequestLocale(locale);
   const tb = pick(locale);

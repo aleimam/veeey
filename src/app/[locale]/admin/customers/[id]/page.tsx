@@ -8,12 +8,16 @@ import { formatEGP } from '@/lib/format';
 import { GOVERNORATES } from '@/lib/governorates';
 import { StatusBadge, Field, inputCls } from '@/components/admin/ui';
 import { pick } from '@/lib/admin-i18n';
+import { requirePermission } from '@/lib/auth-guards';
 
 type SP = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 const cell = 'p-2 align-top';
 
 export default async function CustomerProfilePage({ params, searchParams }: { params: Promise<{ locale: string; id: string }>; searchParams: Promise<SP> }) {
+  // Page-level RBAC (matches the sidebar's permission key) — the sidebar only
+  // HIDES the link; without this any staffer with one permission could read it.
+  await requirePermission('customers.read');
   const { locale, id } = await params;
   const sp = await searchParams;
   setRequestLocale(locale);

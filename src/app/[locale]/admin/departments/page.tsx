@@ -3,6 +3,7 @@ import { listDepartments } from '@/lib/department-service';
 import { AdminList } from '@/components/admin/resource-list';
 import { deleteDepartmentAction } from '@/server/staff-actions';
 import { pick } from '@/lib/admin-i18n';
+import { requirePermission } from '@/lib/auth-guards';
 
 type SP = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
@@ -10,6 +11,9 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 /** Departments/Teams (TEAM epic) — replace Roles: editable permission sets,
  *  staff belong to one or many, effective permissions = union. */
 export default async function DepartmentsPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<SP> }) {
+  // Page-level RBAC (matches the sidebar's permission key) — the sidebar only
+  // HIDES the link; without this any staffer with one permission could read it.
+  await requirePermission('rbac.manage');
   const { locale } = await params;
   const sp = await searchParams;
   setRequestLocale(locale);

@@ -6,6 +6,7 @@ import { recordPlayEntry } from '@/lib/play-service';
 import { recommendFromAnswers } from '@/lib/guided-selling';
 import { submitReview } from '@/lib/review-service';
 import { askQuestion } from '@/lib/qa-service';
+import { rateLimit, clientIp } from '@/lib/rate-limit';
 
 const localeOf = (fd: FormData) => (fd.get('locale') === 'ar' ? 'ar' : 'en');
 const str = (fd: FormData, k: string) => {
@@ -33,6 +34,8 @@ export async function submitQuizAction(fd: FormData): Promise<void> {
 export async function submitReviewAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
   const slug = str(fd, 'slug') ?? '';
+  // Public + unauthenticated → throttle per IP or the moderation queue gets flooded.
+  if (!rateLimit(`review:${await clientIp()}`, 5, 3_600_000)) redirect(`/${locale}/products/${slug}?review=submitted`);
   try {
     await submitReview({
       productId: str(fd, 'productId') ?? '',
@@ -50,6 +53,7 @@ export async function submitReviewAction(fd: FormData): Promise<void> {
 export async function askQuestionAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
   const slug = str(fd, 'slug') ?? '';
+  if (!rateLimit(`question:${await clientIp()}`, 5, 3_600_000)) redirect(`/${locale}/products/${slug}?question=submitted#qa`);
   try {
     await askQuestion({
       productId: str(fd, 'productId') ?? '',

@@ -5,6 +5,7 @@ import { buildFunnel } from '@/lib/analytics';
 import { formatEGP } from '@/lib/format';
 import { pick } from '@/lib/admin-i18n';
 import { sourceLabel } from '@/lib/attribution';
+import { requirePermission } from '@/lib/auth-guards';
 
 const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
@@ -14,6 +15,9 @@ const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'
 const MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
 
 export default async function AnalyticsPage({ params }: { params: Promise<{ locale: string }> }) {
+  // Page-level RBAC (matches the sidebar's permission key) — the sidebar only
+  // HIDES the link; without this any staffer with one permission could read it.
+  await requirePermission('finance.read');
   const { locale } = await params;
   setRequestLocale(locale);
   const [counts, searches, products, k, m, sources] = await Promise.all([funnelCounts(), topSearches(), topViewedProducts(), kpis(), commerceMetrics(), ordersBySource()]);

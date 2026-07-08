@@ -3,11 +3,15 @@ import { listStaff } from '@/lib/staff-service';
 import { AdminList } from '@/components/admin/resource-list';
 import { revokeStaffAction } from '@/server/staff-actions';
 import { pick } from '@/lib/admin-i18n';
+import { requirePermission } from '@/lib/auth-guards';
 
 type SP = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
 export default async function UsersPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<SP> }) {
+  // Page-level RBAC (matches the sidebar's permission key) — the sidebar only
+  // HIDES the link; without this any staffer with one permission could read it.
+  await requirePermission('rbac.manage');
   const { locale } = await params;
   const sp = await searchParams;
   setRequestLocale(locale);

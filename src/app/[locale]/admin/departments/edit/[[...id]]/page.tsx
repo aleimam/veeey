@@ -4,8 +4,12 @@ import { getDepartment } from '@/lib/department-service';
 import { PERMISSION_CATALOG } from '@/lib/permissions';
 import { DepartmentForm } from '@/components/admin/department-form';
 import { pick } from '@/lib/admin-i18n';
+import { requirePermission } from '@/lib/auth-guards';
 
 export default async function DepartmentEditPage({ params }: { params: Promise<{ locale: string; id?: string[] }> }) {
+  // Page-level RBAC (matches the sidebar's permission key) — the sidebar only
+  // HIDES the link; without this any staffer with one permission could read it.
+  await requirePermission('rbac.manage');
   const { locale, id } = await params;
   setRequestLocale(locale);
   const tb = pick(locale);

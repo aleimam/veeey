@@ -4,11 +4,15 @@ import { listReturnReasons } from '@/lib/return-reason-service';
 import { saveReturnReasonAction, toggleReturnReasonAction } from '@/server/return-reason-actions';
 import { inputCls } from '@/components/admin/ui';
 import { pick } from '@/lib/admin-i18n';
+import { requirePermission } from '@/lib/auth-guards';
 
 export const dynamic = 'force-dynamic';
 
 /** Manage the bilingual return-reason list (V1 Admin Panel §4, Task 5). */
 export default async function ReturnReasonsPage({ params }: { params: Promise<{ locale: string }> }) {
+  // Page-level RBAC (matches the sidebar's permission key) — the sidebar only
+  // HIDES the link; without this any staffer with one permission could read it.
+  await requirePermission('returns.manage');
   const { locale } = await params;
   setRequestLocale(locale);
   const tb = pick(locale);

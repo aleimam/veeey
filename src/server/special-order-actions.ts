@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { createSpecialOrderRequest, createSpecialOrderByAdmin, advanceSpecialOrder, setSpecialOrderDetails, SPECIAL_ORDER_STATUSES } from '@/lib/special-order-service';
 import { getCurrentUser } from '@/lib/auth-guards';
+import { rateLimit, clientIp } from '@/lib/rate-limit';
 import type { SpecialOrderStatus } from '@/generated/prisma/client';
 
 export type SpecialOrderFormState = { error?: string; ok?: boolean };
@@ -17,6 +18,8 @@ const str = (fd: FormData, k: string) => {
 // ---- Customer (public) -----------------------------------------------------
 export async function createSpecialOrderRequestAction(_p: SpecialOrderFormState, fd: FormData): Promise<SpecialOrderFormState> {
   const locale = localeOf(fd);
+  // Public + guest-allowed → throttle per IP against automated spam.
+  if (!rateLimit(`special-order:${await clientIp()}`, 5, 3_600_000)) return { error: 'invalid' };
   let user = null;
   try { user = await getCurrentUser(); } catch { /* guest */ }
   try {
