@@ -13,7 +13,7 @@ import {
   Bold, Italic, Underline, Strikethrough, Heading1, Heading2, Heading3,
   AlignLeft, AlignCenter, AlignRight, AlignJustify, List, ListOrdered, Quote,
   Link2, ImagePlus, Table as TableIcon, Undo2, Redo2, RemoveFormatting,
-  Highlighter, Baseline, Plus, Minus, Trash2,
+  Highlighter, Baseline, Plus, Minus, Trash2, Code2,
 } from 'lucide-react';
 
 /**
@@ -67,7 +67,7 @@ const FONT_FAMILIES: { label: string; value: string }[] = [
   { label: 'Courier New', value: '"Courier New", monospace' },
 ];
 
-function Toolbar({ editor, uploadImage }: { editor: Editor; uploadImage?: (f: File) => Promise<string> }) {
+function Toolbar({ editor, uploadImage, extra }: { editor: Editor; uploadImage?: (f: File) => Promise<string>; extra?: ReactNode }) {
   const [busy, setBusy] = useState(false);
   const inTable = editor.isActive('table');
   const textColor = (editor.getAttributes('textStyle').color as string) || '#33424f';
@@ -165,11 +165,19 @@ function Toolbar({ editor, uploadImage }: { editor: Editor; uploadImage?: (f: Fi
       <Btn title="Clear formatting" onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}><RemoveFormatting size={ICON} /></Btn>
       <Btn title="Undo" disabled={!editor.can().undo()} onClick={() => editor.chain().focus().undo().run()}><Undo2 size={ICON} /></Btn>
       <Btn title="Redo" disabled={!editor.can().redo()} onClick={() => editor.chain().focus().redo().run()}><Redo2 size={ICON} /></Btn>
+      {extra}
     </div>
   );
 }
 
 export function RichTextEditor({ value, onChange, placeholder = 'Start writing…', compact, dir = 'ltr', name, uploadImage }: RichTextEditorProps) {
+  // </> Code mode: raw HTML source editing. The raw text is the source of truth
+  // while active — it is NOT round-tripped through Tiptap, so hand-written HTML
+  // (inline CSS, <style> blocks) survives saving as long as you stay in code
+  // mode. Switching back to Visual parses it (Tiptap may simplify custom markup).
+  const [codeMode, setCodeMode] = useState(false);
+  const [raw, setRaw] = useState(value || '');
+
   const extensions = useMemo(() => [
     StarterKit,
     TableKit,
@@ -199,18 +207,50 @@ export function RichTextEditor({ value, onChange, placeholder = 'Start writing�
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<{ name: string; html: string }>).detail;
       if (!detail || detail.name !== name) return;
+      setRaw(detail.html || '');
       editor.commands.setContent(detail.html || '');
-      onChange(editor.getHTML());
+      onChange(codeMode ? detail.html || '' : editor.getHTML());
     };
     window.addEventListener('veeey:rich-set', handler);
     return () => window.removeEventListener('veeey:rich-set', handler);
-  }, [editor, name, onChange]);
+  }, [editor, name, onChange, codeMode]);
+
+  const toggleCode = () => {
+    if (!editor) return;
+    if (!codeMode) {
+      setRaw(editor.getHTML());
+      setCodeMode(true);
+    } else {
+      if (/<style\b/i.test(raw) && !confirm('Visual mode may simplify custom HTML and removes <style> blocks from the visual view. Your code is kept only if you save from Code mode. Switch to Visual?')) return;
+      editor.commands.setContent(raw);
+      setCodeMode(false);
+      onChange(editor.getHTML());
+    }
+  };
 
   if (!editor) return <div className="rounded-lg border border-border p-4 text-sm text-muted-foreground">Loading…</div>;
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card">
-      <Toolbar editor={editor} uploadImage={uploadImage} />
-      <EditorContent editor={editor} />
+      {codeMode ? (
+        <div className="flex items-center justify-between border-b border-border bg-card p-1.5">
+          <span className="px-2 text-xs text-muted-foreground">HTML source — inline CSS + scoped &lt;style&gt; allowed (sanitized on render)</span>
+          <Btn title="Back to visual editor" active onClick={toggleCode}><Code2 size={ICON} /></Btn>
+        </div>
+      ) : (
+        <Toolbar editor={editor} uploadImage={uploadImage} extra={<><Sep /><Btn title="Edit HTML source" onClick={toggleCode}><Code2 size={ICON} /></Btn></>} />
+      )}
+      {codeMode ? (
+        <textarea
+          value={raw}
+          onChange={(e) => { setRaw(e.target.value); onChange(e.target.value); }}
+          dir="ltr"
+          spellCheck={false}
+          className={`${compact ? 'min-h-[160px]' : 'min-h-[340px]'} w-full resize-y bg-[#0f172a] p-4 font-mono text-[13px] leading-relaxed text-emerald-100 outline-none`}
+          aria-label="HTML source"
+        />
+      ) : (
+        <EditorContent editor={editor} />
+      )}
     </div>
   );
 }
