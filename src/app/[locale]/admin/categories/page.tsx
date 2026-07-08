@@ -13,7 +13,8 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
 type Cat = Awaited<ReturnType<typeof listCategories>>[number];
 
-/** Order categories parent-first with children directly beneath (2-level tree). */
+/** Order categories parent-first with descendants indented beneath (recursive —
+ *  handles the nested children like Men's Health → Prostate Support). */
 function treeOrder(rows: Cat[]): { cat: Cat; depth: number }[] {
   const byParent = new Map<string | null, Cat[]>();
   for (const c of rows) {
@@ -22,12 +23,12 @@ function treeOrder(rows: Cat[]): { cat: Cat; depth: number }[] {
   }
   const ids = new Set(rows.map((c) => c.id));
   const out: { cat: Cat; depth: number }[] = [];
+  const walk = (cat: Cat, depth: number) => {
+    out.push({ cat, depth });
+    for (const child of byParent.get(cat.id) ?? []) walk(child, depth + 1);
+  };
   // Roots = no parent OR parent not in this view (e.g. archived filter).
-  const roots = rows.filter((c) => !c.parentId || !ids.has(c.parentId));
-  for (const root of roots) {
-    out.push({ cat: root, depth: 0 });
-    for (const child of byParent.get(root.id) ?? []) out.push({ cat: child, depth: 1 });
-  }
+  for (const root of rows.filter((c) => !c.parentId || !ids.has(c.parentId))) walk(root, 0);
   return out;
 }
 
@@ -100,7 +101,7 @@ export default async function CategoriesPage({ params, searchParams }: { params:
         count={total}
         head={[{ label: tf('name'), col: 'name' }, tf('parent'), { label: tf('slug'), col: 'slug' }, tb('Products', 'المنتجات')]}
         sortCtx={{ sort, dir, sp, basePath }}
-        toolbar={<div className="flex items-center gap-3"><ExportBar entity="categories" locale={locale} query={exportQs(sp)} /><ArchivedToggle path="categories" showingArchived={showingArchived} /></div>}
+        toolbar={<div className="flex items-center gap-3"><a href={`${basePath}/restructure`} className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface">🗂 {tb('Restructure tool', 'أداة إعادة الهيكلة')}</a><ExportBar entity="categories" locale={locale} query={exportQs(sp)} /><ArchivedToggle path="categories" showingArchived={showingArchived} /></div>}
         notice={<>
           <InUseNotice show={one(sp.error) === 'in_use'} />
           {done != null && <p className="mb-4 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">{tb(`Done — ${done} updated`, `تم — ${done}`)}{Number(one(sp.skip)) > 0 ? tb(`, ${one(sp.skip)} skipped (in use)`, `، ${one(sp.skip)} متخطّى`) : ''}.</p>}

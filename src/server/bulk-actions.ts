@@ -65,6 +65,24 @@ export async function startBrandTranslateAction(fd: FormData): Promise<void> {
   redirect(`${target}${sep}tjob=started`);
 }
 
+/** Apply the category-taxonomy restructure plan (V2 CAT-4; dry-run page). */
+export async function applyRestructureAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const target = `/${locale}/admin/categories/restructure`;
+  const { applyRestructure } = await import('@/lib/taxonomy-restructure-service');
+  let summary = '';
+  try {
+    const r = await applyRestructure();
+    summary = `${r.created}c-${r.renamed}r-${r.merged}m-${r.movedProducts}p-${r.adopted}a-${r.redirects}rd`;
+  } catch (e) {
+    console.error('taxonomy restructure failed', e);
+    revalidatePath(`/${locale}/admin/categories`);
+    redirect(`${target}?error=1`);
+  }
+  revalidatePath(`/${locale}/admin/categories`);
+  redirect(`${target}?applied=${summary}`);
+}
+
 /** Catalog-wide price adjustment (the "adjust ALL prices" panel). */
 export async function adjustAllPricesAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);

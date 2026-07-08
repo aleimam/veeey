@@ -16,9 +16,16 @@ import { AdminEditLink } from '@/components/storefront/admin-edit-link';
 
 const oneOf = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
-/** Resolve the active category filter (id, EN slug, or AR slug) to its record. */
-const loadCategoryByKey = (key: string) =>
-  prisma.category.findFirst({ where: { archivedAt: null, OR: [{ id: key }, { slug: key }, { slugAr: key }] } });
+/** Resolve the active category filter (id, EN slug, or AR slug) to its record.
+ *  Old slugs from the taxonomy restructure keep resolving via Redirect rows. */
+async function loadCategoryByKey(key: string) {
+  const direct = await prisma.category.findFirst({ where: { archivedAt: null, OR: [{ id: key }, { slug: key }, { slugAr: key }] } });
+  if (direct) return direct;
+  const r = await prisma.redirect.findUnique({ where: { fromPath: `/products?category=${key}` } });
+  const newKey = r?.toPath.split('category=')[1];
+  if (!newKey) return null;
+  return prisma.category.findFirst({ where: { archivedAt: null, OR: [{ slug: newKey }, { slugAr: newKey }] } });
+}
 
 /** Category-filtered listing pages carry the category's own SEO module (V2 CAT-2). */
 export async function generateMetadata({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<SP> }): Promise<Metadata> {
