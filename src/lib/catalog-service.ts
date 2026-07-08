@@ -6,6 +6,7 @@ import { audit } from '@/lib/audit';
 import { egpToPiastres } from '@/lib/format';
 import { uniqueSlug } from '@/lib/slug';
 import { brandCode, skuFromParts } from '@/lib/sku';
+import { getNumberSetting } from '@/lib/settings-service';
 
 /**
  * Catalog service (FR-CAT-*). All writes are RBAC-gated and audited. Business
@@ -118,15 +119,61 @@ function scalarFields(data: z.infer<typeof productWriteSchema>) {
 
 export type ProductListOpts = {
   search?: string; status?: string; kind?: string; brand?: string;
+  flag?: string; // data-completeness / sourcing / stock filter (PRODUCT_FLAGS)
+  origin?: string; // 'USA' | 'UK' | 'EU' | 'none'
   sort?: string; dir?: 'asc' | 'desc'; page?: number; perPage?: number;
 };
 
-function productWhere(opts: ProductListOpts): Prisma.ProductWhereInput {
+/** Data-quality filter codes for the products list (+ export). */
+export const PRODUCT_FLAGS = [
+  'missing_brand', 'missing_image', 'missing_category', 'price_zero',
+  'missing_purchase_price', 'missing_arabic', 'missing_purchase_url',
+  'out_of_stock', 'low_stock',
+] as const;
+
+/** Per-product sellable stock (sum of LIVE lots' onHand - reserved). */
+async function sellableByProduct(): Promise<Map<string, number>> {
+  const rows = await prisma.lot.groupBy({
+    by: ['productId'],
+    where: { status: 'LIVE' },
+    _sum: { qtyOnHand: true, qtyReserved: true },
+  });
+  return new Map(rows.map((r) => [r.productId, (r._sum.qtyOnHand ?? 0) - (r._sum.qtyReserved ?? 0)]));
+}
+
+async function flagWhere(flag: string): Promise<Prisma.ProductWhereInput> {
+  switch (flag) {
+    case 'missing_brand': return { brandId: null };
+    case 'missing_image': return { images: { none: {} } };
+    case 'missing_category': return { categories: { none: {} } };
+    case 'price_zero': return { basePricePiastres: 0 };
+    case 'missing_purchase_price': return { purchaseCostMinor: null };
+    case 'missing_arabic': return { OR: [{ nameAr: null }, { nameAr: '' }, { longDescAr: null }, { longDescAr: '' }] };
+    case 'missing_purchase_url': return { OR: [{ purchaseUrl: null }, { purchaseUrl: '' }] };
+    case 'out_of_stock': {
+      const sellable = await sellableByProduct();
+      const inStock = [...sellable.entries()].filter(([, n]) => n > 0).map(([id]) => id);
+      return { id: { notIn: inStock } };
+    }
+    case 'low_stock': {
+      const threshold = await getNumberSetting('catalog.lowStockThreshold');
+      const sellable = await sellableByProduct();
+      const low = [...sellable.entries()].filter(([, n]) => n > 0 && n <= Math.max(1, threshold)).map(([id]) => id);
+      return { id: { in: low } };
+    }
+    default: return {};
+  }
+}
+
+/** Admin list/export where-builder (async — stock flags aggregate live lots). */
+export async function productAdminWhere(opts: ProductListOpts): Promise<Prisma.ProductWhereInput> {
   return {
     ...(opts.search ? { OR: [{ nameEn: { contains: opts.search, mode: 'insensitive' } }, { sku: { contains: opts.search, mode: 'insensitive' } }] } : {}),
     ...(opts.status ? { status: opts.status as 'DRAFT' | 'PUBLISHED' | 'PRIVATE' | 'ARCHIVED' } : {}),
     ...(opts.kind ? { kind: opts.kind as 'SUPPLEMENT' | 'DEVICE' | 'INJECTION' } : {}),
     ...(opts.brand ? { brandId: opts.brand } : {}),
+    ...(opts.origin ? (opts.origin === 'none' ? { originCountry: null } : { originCountry: opts.origin }) : {}),
+    ...(opts.flag ? { AND: [await flagWhere(opts.flag)] } : {}),
   };
 }
 
@@ -150,7 +197,7 @@ export async function listProducts(opts: ProductListOpts = {}) {
   const take = opts.page != null ? perPage : 200;
   const skip = opts.page != null ? (Math.max(1, opts.page) - 1) * perPage : 0;
   return prisma.product.findMany({
-    where: productWhere(opts),
+    where: await productAdminWhere(opts),
     include: { brand: true, images: { take: 1, orderBy: { sortOrder: 'asc' } } },
     orderBy: productOrderBy(opts.sort, opts.dir),
     skip,
@@ -158,8 +205,8 @@ export async function listProducts(opts: ProductListOpts = {}) {
   });
 }
 
-export function countProducts(opts: ProductListOpts = {}) {
-  return prisma.product.count({ where: productWhere(opts) });
+export async function countProducts(opts: ProductListOpts = {}) {
+  return prisma.product.count({ where: await productAdminWhere(opts) });
 }
 
 export function getProduct(id: string) {

@@ -12,6 +12,7 @@ import { FilterBar } from '@/components/admin/filter-bar';
 import { SortableTh } from '@/components/admin/sortable-th';
 import { ListPagination } from '@/components/admin/list-pagination';
 import { BulkBar, type BulkOp } from '@/components/admin/bulk-bar';
+import { PriceTools } from '@/components/admin/price-tools';
 import { parseListParams, listQs, type SP } from '@/lib/admin-list';
 import { pick } from '@/lib/admin-i18n';
 
@@ -29,12 +30,15 @@ export default async function ProductsPage({ params, searchParams }: { params: P
   const kind = one(sp.kind);
   const status = one(sp.status);
   const brand = one(sp.brand);
+  const flag = one(sp.flag);
+  const origin = one(sp.origin);
   const { sort, dir, page, perPage } = parseListParams(sp, { sortable: SORTABLE, defaultSort: 'updated' });
-  const filters = { search: q, status, kind, brand };
+  const filters = { search: q, status, kind, brand, flag, origin };
 
-  const [products, total, brands, categories] = await Promise.all([
+  const [products, total, allCount, brands, categories] = await Promise.all([
     listProducts({ ...filters, sort, dir, page, perPage }),
     countProducts(filters),
+    countProducts({}),
     listBrands(),
     listCategories(),
   ]);
@@ -58,7 +62,15 @@ export default async function ProductsPage({ params, searchParams }: { params: P
     ] },
     { value: 'brand', label: tb('Set brand', 'تعيين العلامة'), values: [{ value: '__none__', label: tb('— None —', '— بدون —') }, ...brandOptions] },
     { value: 'category', label: tb('Add category', 'إضافة فئة'), values: categories.map((c) => ({ value: c.id, label: c.nameEn })) },
-    { value: 'delete', label: tb('Delete', 'حذف'), danger: true },
+    { value: 'price_percent', label: tb('Price: adjust by %', 'السعر: تعديل بنسبة ٪'), input: { placeholder: tb('e.g. 10 or -5', 'مثل 10 أو -5') } },
+    { value: 'price_fixed', label: tb('Price: adjust by ± EGP', 'السعر: تعديل بقيمة ± جنيه'), input: { placeholder: tb('e.g. 50 or -20', 'مثل 50 أو -20') } },
+    { value: 'price_set', label: tb('Price: set EGP', 'السعر: تعيين بالجنيه'), input: { placeholder: tb('e.g. 750', 'مثل 750') } },
+    { value: 'origin', label: tb('Set origin country', 'تعيين بلد المنشأ'), values: [
+      { value: 'USA', label: 'USA' }, { value: 'UK', label: 'UK' }, { value: 'EU', label: 'EU' },
+      { value: '__none__', label: tb('— None —', '— بدون —') },
+    ] },
+    { value: 'purchase_price', label: tb('Set purchase price (origin currency)', 'تعيين سعر الشراء (بعملة المنشأ)'), input: { placeholder: tb('e.g. 12.99', 'مثل 12.99') } },
+    { value: 'delete', label: tb('Delete', 'حذف'), danger: true, typedConfirm: true },
   ];
 
   return (
@@ -82,7 +94,7 @@ export default async function ProductsPage({ params, searchParams }: { params: P
       <FilterBar
         locale={locale}
         path="products"
-        values={{ q, kind, status, brand }}
+        values={{ q, kind, status, brand, flag, origin }}
         fields={[
           { name: 'q', label: tb('Search', 'بحث'), type: 'text', placeholder: tb('Name / SKU', 'الاسم / رمز المنتج') },
           { name: 'kind', label: tb('Kind', 'النوع'), type: 'select', options: [
@@ -97,8 +109,25 @@ export default async function ProductsPage({ params, searchParams }: { params: P
             { value: 'ARCHIVED', label: tb('Archived', 'مؤرشف') },
           ] },
           { name: 'brand', label: tb('Brand', 'العلامة التجارية'), type: 'select', options: brandOptions },
+          { name: 'flag', label: tb('Data filter', 'تصفية البيانات'), type: 'select', options: [
+            { value: 'missing_brand', label: tb('Missing brand', 'بدون علامة تجارية') },
+            { value: 'missing_image', label: tb('Missing image', 'بدون صورة') },
+            { value: 'missing_category', label: tb('Missing category', 'بدون فئة') },
+            { value: 'price_zero', label: tb('Price = 0', 'السعر = 0') },
+            { value: 'missing_purchase_price', label: tb('Missing purchase price', 'بدون سعر شراء') },
+            { value: 'missing_arabic', label: tb('Missing Arabic (name/desc)', 'بدون ترجمة عربية') },
+            { value: 'missing_purchase_url', label: tb('Missing purchase URL', 'بدون رابط شراء') },
+            { value: 'out_of_stock', label: tb('Out of stock', 'غير متوفر') },
+            { value: 'low_stock', label: tb('Low stock', 'مخزون منخفض') },
+          ] },
+          { name: 'origin', label: tb('Origin', 'المنشأ'), type: 'select', options: [
+            { value: 'USA', label: 'USA' }, { value: 'UK', label: 'UK' }, { value: 'EU', label: 'EU' },
+            { value: 'none', label: tb('No origin set', 'بدون منشأ') },
+          ] },
         ]}
       />
+
+      <PriceTools locale={locale} back={back} total={allCount} />
 
       <BulkBar
         formId="bulk-products"
@@ -153,7 +182,7 @@ export default async function ProductsPage({ params, searchParams }: { params: P
         </table>
       </div>
 
-      <ListPagination page={page} perPage={perPage} total={total} sp={sp} basePath={basePath} locale={locale} />
+      <ListPagination page={page} perPage={perPage} total={total} sp={sp} basePath={basePath} locale={locale} perPageOptions={[25, 50, 100, 200]} />
     </div>
   );
 }

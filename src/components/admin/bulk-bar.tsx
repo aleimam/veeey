@@ -15,7 +15,11 @@ export type BulkOp = {
   value: string;
   label: string;
   values?: { value: string; label: string }[];
+  /** Free-form value input instead of a select (e.g. bulk price amount). */
+  input?: { placeholder: string; step?: string };
   danger?: boolean;
+  /** Stronger guard for danger ops: user must type the selected count to proceed. */
+  typedConfirm?: boolean;
 };
 
 const selCls = 'h-9 rounded-md border border-border bg-card px-2.5 text-sm outline-none focus:ring-2 focus:ring-ring';
@@ -83,11 +87,17 @@ export function BulkBar({
 
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     if (count === 0) { e.preventDefault(); return; }
-    if (current?.values) {
+    if (current?.values || current?.input) {
       const sel = e.currentTarget.elements.namedItem('value');
-      if (sel instanceof HTMLSelectElement && !sel.value) { e.preventDefault(); alert(labels.needValue); return; }
+      if ((sel instanceof HTMLSelectElement || sel instanceof HTMLInputElement) && !sel.value) { e.preventDefault(); alert(labels.needValue); return; }
     }
-    if (current?.danger && !confirm(labels.confirmDanger)) e.preventDefault();
+    if (current?.danger) {
+      if (current.typedConfirm) {
+        // Catalog-size guard: the user must type the selected count to proceed.
+        const typed = prompt(`${labels.confirmDanger}\n\n→ ${count}`);
+        if (typed !== String(count)) { e.preventDefault(); return; }
+      } else if (!confirm(labels.confirmDanger)) e.preventDefault();
+    }
   };
 
   const exportSelected = () => {
@@ -117,6 +127,9 @@ export function BulkBar({
           <option value="" disabled>—</option>
           {current.values.map((v) => <option key={v.value} value={v.value}>{v.label}</option>)}
         </select>
+      )}
+      {current?.input && (
+        <input key={`${op}-in`} name="value" type="number" step={current.input.step ?? 'any'} placeholder={current.input.placeholder} className={`${selCls} w-40`} aria-label="value" />
       )}
       <ApplyButton disabled={count === 0} label={labels.apply} />
       {exportHref && (

@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { buildCsv } from '@/lib/csv-io';
+import { productAdminWhere } from '@/lib/catalog-service';
 import type { PermissionKey } from '@/lib/permissions';
 import type { Prisma } from '@/generated/prisma/client';
 
@@ -29,17 +30,16 @@ const ci = (q: string) => ({ contains: q, mode: 'insensitive' as const });
 type Built = { headers: string[]; rows: unknown[][] };
 
 async function products(sp: SP): Promise<Built> {
+  // Same where-builder as the list page, so the export honors every filter
+  // (incl. completeness / sourcing / stock flags); ids = export-selected.
   const where: Prisma.ProductWhereInput = {
+    ...(await productAdminWhere({ search: sp.q, kind: sp.kind, status: sp.status, brand: sp.brand, flag: sp.flag, origin: sp.origin })),
     ...(sp.ids ? { id: { in: sp.ids.split('~') } } : {}),
-    ...(sp.q ? { OR: [{ nameEn: ci(sp.q) }, { sku: ci(sp.q) }] } : {}),
-    ...(sp.kind ? { kind: sp.kind as 'SUPPLEMENT' | 'DEVICE' | 'INJECTION' } : {}),
-    ...(sp.status ? { status: sp.status as 'DRAFT' | 'PUBLISHED' | 'PRIVATE' | 'ARCHIVED' } : {}),
-    ...(sp.brand ? { brandId: sp.brand } : {}),
   };
   const rows = await prisma.product.findMany({ where, include: { brand: true }, orderBy: { nameEn: 'asc' } });
   return {
-    headers: ['sku', 'nameEn', 'nameAr', 'kind', 'status', 'brand', 'basePriceEgp', 'ratingAvg', 'ratingCount', 'createdAt'],
-    rows: rows.map((p) => [p.sku, p.nameEn, p.nameAr ?? '', p.kind, p.status, p.brand?.nameEn ?? '', egp(p.basePricePiastres), p.ratingAvg ?? 0, p.ratingCount, iso(p.createdAt)]),
+    headers: ['sku', 'nameEn', 'nameAr', 'kind', 'status', 'brand', 'basePriceEgp', 'originCountry', 'purchaseCost', 'purchaseCurrency', 'ratingAvg', 'ratingCount', 'createdAt'],
+    rows: rows.map((p) => [p.sku, p.nameEn, p.nameAr ?? '', p.kind, p.status, p.brand?.nameEn ?? '', egp(p.basePricePiastres), p.originCountry ?? '', p.purchaseCostMinor != null ? String(p.purchaseCostMinor / 100) : '', p.purchaseCurrency ?? '', p.ratingAvg ?? 0, p.ratingCount, iso(p.createdAt)]),
   };
 }
 

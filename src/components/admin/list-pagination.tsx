@@ -12,6 +12,7 @@ export function ListPagination({
   sp,
   basePath,
   locale,
+  perPageOptions,
 }: {
   page: number;
   perPage: number;
@@ -19,6 +20,8 @@ export function ListPagination({
   sp: SP;
   basePath: string;
   locale: string;
+  /** Optional page-size choices (e.g. [25, 50, 100, 200]) rendered as links. */
+  perPageOptions?: number[];
 }) {
   const t = pick(locale);
   const pages = totalPages(total, perPage);
@@ -30,7 +33,24 @@ export function ListPagination({
 
   return (
     <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
-      <span>{t(`Showing ${from}–${to} of ${total}`, `عرض ${from}–${to} من ${total}`)}</span>
+      <span className="flex flex-wrap items-center gap-2">
+        {t(`Showing ${from}–${to} of ${total}`, `عرض ${from}–${to} من ${total}`)}
+        {perPageOptions && perPageOptions.length > 0 && (
+          <span className="flex items-center gap-1">
+            · {t('Per page:', 'لكل صفحة:')}
+            {perPageOptions.map((n) => (
+              <a
+                key={n}
+                href={`${basePath}${listQs(sp, { per: n, page: 1 })}`}
+                className={n === perPage ? 'font-semibold text-foreground' : 'text-primary hover:underline'}
+                aria-current={n === perPage ? 'true' : undefined}
+              >
+                {n}
+              </a>
+            ))}
+          </span>
+        )}
+      </span>
       {pages > 1 && (
         <div className="flex items-center gap-1.5">
           <a href={link(1)} className={`${btn} ${cur <= 1 ? disabled : ''}`} aria-disabled={cur <= 1}>« {t('First', 'الأولى')}</a>

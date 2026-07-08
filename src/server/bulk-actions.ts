@@ -2,7 +2,7 @@
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { bulkProducts, bulkOrders, bulkCustomers, bulkReviews, bulkSpecialOrders, type BulkResult } from '@/lib/admin-bulk-service';
+import { bulkProducts, bulkOrders, bulkCustomers, bulkReviews, bulkSpecialOrders, adjustAllProductPrices, type BulkResult } from '@/lib/admin-bulk-service';
 import { bulkSoftDelete } from '@/lib/soft-delete-service';
 
 const localeOf = (fd: FormData) => (fd.get('locale') === 'ar' ? 'ar' : 'en');
@@ -34,6 +34,26 @@ export async function bulkProductsAction(fd: FormData): Promise<void> {
     r = await bulkProducts(str(fd, 'op'), idsOf(fd), str(fd, 'value'));
   } catch (e) {
     console.error('bulk products failed', e);
+    revalidatePath(`/${locale}/admin/products`);
+    fail(target);
+  }
+  if (!r) return;
+  revalidatePath(`/${locale}/admin/products`);
+  finish(target, r);
+}
+
+/** Catalog-wide price adjustment (the "adjust ALL prices" panel). */
+export async function adjustAllPricesAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const target = backTo(fd, locale, 'products');
+  const mode = str(fd, 'mode') === 'fixed' ? 'fixed' as const : 'percent' as const;
+  const value = Number(str(fd, 'value'));
+  if (!Number.isFinite(value) || value === 0 || fd.get('confirmAll') == null) fail(target);
+  let r: BulkResult | null = null;
+  try {
+    r = await adjustAllProductPrices(mode, value);
+  } catch (e) {
+    console.error('adjust all prices failed', e);
     revalidatePath(`/${locale}/admin/products`);
     fail(target);
   }

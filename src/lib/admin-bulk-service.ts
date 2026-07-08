@@ -50,6 +50,33 @@ export async function bulkProducts(op: string, ids: string[], value: string): Pr
       }
       break;
     }
+    case 'price_percent':
+    case 'price_fixed':
+    case 'price_set': {
+      const mode = op.replace('price_', '') as 'percent' | 'fixed' | 'set';
+      const res = await adjustProductPrices({ scope: 'ids', ids, mode, value: Number(value) }, user.id);
+      r.affected = res.affected; r.skipped = res.skipped;
+      return r; // adjustProductPrices writes its own audit summary (+ per-product diffs)
+    }
+    case 'origin': {
+      const origin = value === '__none__' ? null : value;
+      if (origin && !['USA', 'UK', 'EU'].includes(origin)) throw new Error('BAD_VALUE');
+      const currency = origin === 'USA' ? 'USD' : origin === 'UK' ? 'GBP' : origin === 'EU' ? 'EUR' : null;
+      r.affected = (await prisma.product.updateMany({ where: { id: { in: ids } }, data: { originCountry: origin, purchaseCurrency: currency } })).count;
+      break;
+    }
+    case 'purchase_price': {
+      const v = Number(value);
+      if (!Number.isFinite(v) || v < 0) throw new Error('BAD_VALUE');
+      // Purchase price is in the ORIGIN currency — products without an origin
+      // (no currency) are skipped rather than stored ambiguously.
+      r.affected = (await prisma.product.updateMany({
+        where: { id: { in: ids }, purchaseCurrency: { not: null } },
+        data: { purchaseCostMinor: Math.round(v * 100) },
+      })).count;
+      r.skipped = ids.length - r.affected;
+      break;
+    }
     case 'delete': {
       for (const id of ids) {
         try { await deleteProduct(id); r.affected++; } catch (e) { if (e instanceof InUseError) r.skipped++; else r.skipped++; }
@@ -59,8 +86,64 @@ export async function bulkProducts(op: string, ids: string[], value: string): Pr
     default:
       throw new Error('BAD_OP');
   }
-  await audit({ actorType: 'USER', actorId: user.id, action: `bulk.products.${op}`, entityType: 'Product', entityId: `${ids.length} selected` });
+  await audit({ actorType: 'USER', actorId: user.id, action: `bulk.products.${op}`, entityType: 'Product', entityId: `${ids.length} selected`, data: value ? { value } : undefined });
   return r;
+}
+
+// ---------------------------------------------------------------------------
+// Price tools — selected-products bulk ops above delegate here; the "adjust ALL
+// prices" panel calls adjustAllProductPrices. Per-product prisma.update is used
+// (not updateMany) so the field-level change log records every old → new price;
+// a summary audit entry captures the operation itself.
+// ---------------------------------------------------------------------------
+
+export type PriceAdjustInput = {
+  scope: 'ids' | 'all';
+  ids?: string[];
+  mode: 'percent' | 'fixed' | 'set'; // percent: ±%, fixed: ±EGP, set: absolute EGP
+  value: number;
+};
+
+export async function adjustProductPrices(input: PriceAdjustInput, actorId?: string): Promise<BulkResult> {
+  const user = actorId ? { id: actorId } : await requirePermission('catalog.write');
+  if (!Number.isFinite(input.value)) throw new Error('BAD_VALUE');
+  if (input.mode === 'set' && input.value < 0) throw new Error('BAD_VALUE');
+  if (input.scope === 'ids' && (!input.ids || input.ids.length === 0)) return empty();
+
+  const where = input.scope === 'ids' ? { id: { in: input.ids! } } : {};
+  const rows = await prisma.product.findMany({ where, select: { id: true, basePricePiastres: true } });
+
+  const targets: { id: string; next: bigint }[] = [];
+  for (const p of rows) {
+    const cur = Number(p.basePricePiastres);
+    const next =
+      input.mode === 'percent' ? Math.round(cur * (1 + input.value / 100))
+      : input.mode === 'fixed' ? cur + Math.round(input.value * 100)
+      : Math.round(input.value * 100);
+    const clamped = BigInt(Math.max(0, next));
+    if (clamped !== p.basePricePiastres) targets.push({ id: p.id, next: clamped });
+  }
+
+  // Chunked per-product updates → change-log extension records each diff.
+  const CHUNK = 50;
+  let affected = 0;
+  for (let i = 0; i < targets.length; i += CHUNK) {
+    const chunk = targets.slice(i, i + CHUNK);
+    await Promise.all(chunk.map((t) => prisma.product.update({ where: { id: t.id }, data: { basePricePiastres: t.next } })));
+    affected += chunk.length;
+  }
+
+  await audit({
+    actorType: 'USER', actorId: user.id, action: 'price.adjust', entityType: 'Product',
+    entityId: input.scope === 'all' ? 'ALL products' : `${input.ids!.length} selected`,
+    data: { mode: input.mode, value: input.value, scope: input.scope, changed: affected, unchanged: rows.length - affected },
+  });
+  return { affected, skipped: rows.length - affected };
+}
+
+/** Catalog-wide price adjustment (percent or ±EGP) — logged per product + summary. */
+export async function adjustAllProductPrices(mode: 'percent' | 'fixed', value: number): Promise<BulkResult> {
+  return adjustProductPrices({ scope: 'all', mode, value });
 }
 
 export async function bulkOrders(op: string, ids: string[], value: string): Promise<BulkResult> {
