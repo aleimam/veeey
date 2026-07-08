@@ -1,15 +1,21 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useLocale } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { createManualOrderAction } from '@/server/order-actions';
+import { searchCustomersAction, quickCreateCustomerAction } from '@/server/customer-admin-actions';
+import type { CustomerHit } from '@/lib/customer-admin-service';
 import type { AdminFormState } from '@/server/admin-actions';
+import { useActionState } from 'react';
 import { Field, FormError, SubmitButton, inputCls } from './ui';
 import { GOVERNORATES } from '@/lib/governorates';
 import { pick } from '@/lib/admin-i18n';
 
 type Opt = { value: string; label: string };
+
+const addrLabel = (a: CustomerHit['addresses'][number]) =>
+  [a.governorate, a.city, a.area, a.street].filter(Boolean).join(' · ');
 
 export function ManualOrderForm({
   locale,
@@ -29,31 +35,150 @@ export function ManualOrderForm({
   const [rows, setRows] = useState<number[]>([0]);
   const [seq, setSeq] = useState(1);
 
+  // ---- Customer picker ------------------------------------------------------
+  const [q, setQ] = useState('');
+  const [hits, setHits] = useState<CustomerHit[]>([]);
+  const [selected, setSelected] = useState<CustomerHit | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [nc, setNc] = useState({ name: '', phone: '', email: '' });
+  const [createErr, setCreateErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const searchSeq = useRef(0);
+
+  // Delivery fields are controlled so a picked customer/address can fill them.
+  const [addressId, setAddressId] = useState('');
+  const [deliv, setDeliv] = useState({ name: '', phone: '', governorate: '', city: '', area: '', street: '' });
+  const setD = (k: keyof typeof deliv, v: string, clearsAddress = false) => {
+    setDeliv((d) => ({ ...d, [k]: v }));
+    if (clearsAddress) setAddressId(''); // edited location → treat as a new address
+  };
+
+  async function runSearch(term: string) {
+    setQ(term);
+    const my = ++searchSeq.current;
+    if (term.trim().length < 2) { setHits([]); return; }
+    const res = await searchCustomersAction(term);
+    if (my === searchSeq.current) setHits(res);
+  }
+
+  function applyAddress(c: CustomerHit, aid: string) {
+    setAddressId(aid);
+    const a = c.addresses.find((x) => x.id === aid);
+    if (a) setDeliv((d) => ({ ...d, governorate: a.governorate, city: a.city, area: a.area, street: a.street ?? '', phone: a.phone || d.phone }));
+  }
+
+  function selectCustomer(c: CustomerHit) {
+    setSelected(c);
+    setHits([]);
+    setQ('');
+    setDeliv((d) => ({ ...d, name: c.name || d.name, phone: c.phone || d.phone }));
+    const def = c.addresses.find((a) => a.isDefaultShipping) ?? c.addresses[0];
+    if (def) applyAddress(c, def.id);
+  }
+
+  async function createCustomer() {
+    setCreateErr('');
+    if (!nc.name.trim() || nc.phone.trim().length < 6) { setCreateErr(tb('Name and a valid phone are required.', 'الاسم ورقم هاتف صحيح مطلوبان.')); return; }
+    setBusy(true);
+    try {
+      const res = await quickCreateCustomerAction({ name: nc.name, phone: nc.phone, email: nc.email || undefined });
+      if ('error' in res) {
+        setCreateErr(res.error === 'email_taken' ? tb('That email is already used.', 'هذا البريد مستخدم بالفعل.') : tb('Could not create the customer.', 'تعذّر إنشاء العميل.'));
+      } else {
+        selectCustomer(res);
+        setShowCreate(false);
+        setNc({ name: '', phone: '', email: '' });
+      }
+    } finally { setBusy(false); }
+  }
+
   return (
     <form action={action} className="max-w-3xl space-y-6">
       <FormError error={state.error} />
       <input type="hidden" name="locale" value={locale} />
+      <input type="hidden" name="customerId" value={selected?.id ?? ''} />
+      <input type="hidden" name="addressId" value={addressId} />
 
       <section>
         <h2 className="mb-3 font-heading text-lg font-semibold">{tb('Customer', 'العميل')}</h2>
-        <Field label={tb('Customer email', 'بريد العميل الإلكتروني')} hint={tb('Link to an existing account, or leave blank / enter a new email for a guest order.', 'اربطه بحساب موجود، أو اتركه فارغًا / أدخل بريدًا جديدًا لطلب زائر.')}>
-          <input name="customerEmail" type="email" className={inputCls} />
-        </Field>
+
+        {selected ? (
+          <div className="flex flex-wrap items-center gap-3 rounded-lg border border-primary/40 bg-primary/5 p-3 text-sm">
+            <div className="flex-1">
+              <span className="font-semibold">{selected.name || tb('Customer', 'عميل')}</span>
+              <span className="ms-2 text-muted-foreground">{[selected.email, selected.phone].filter(Boolean).join(' · ')}</span>
+            </div>
+            <Link href={`/admin/customers/${selected.id}`} target="_blank" className="text-primary hover:underline">{tb('Open profile ↗', 'فتح الملف ↗')}</Link>
+            <button type="button" onClick={() => { setSelected(null); setAddressId(''); }} className="text-muted-foreground hover:text-destructive">{tb('Change', 'تغيير')}</button>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <div className="relative">
+              <input
+                value={q}
+                onChange={(e) => runSearch(e.target.value)}
+                placeholder={tb('Search by name, email or phone…', 'ابحث بالاسم أو البريد أو الهاتف…')}
+                className={inputCls}
+              />
+              {hits.length > 0 && (
+                <div className="absolute z-20 mt-1 w-full rounded-md border border-border bg-card shadow-md">
+                  {hits.map((c) => (
+                    <button key={c.id} type="button" onClick={() => selectCustomer(c)} className="block w-full px-3 py-2 text-start text-sm hover:bg-surface">
+                      <span className="font-medium">{c.name || tb('(no name)', '(بدون اسم)')}</span>
+                      <span className="ms-2 text-xs text-muted-foreground">{[c.email, c.phone].filter(Boolean).join(' · ')}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-3 text-sm">
+              <button type="button" onClick={() => setShowCreate((v) => !v)} className="text-primary hover:underline">+ {tb('New customer', 'عميل جديد')}</button>
+              <span className="text-xs text-muted-foreground">{tb('…or leave unselected for a guest order (optional email below).', '…أو اتركه بدون اختيار لطلب زائر (بريد اختياري بالأسفل).')}</span>
+            </div>
+            {showCreate && (
+              <div className="grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-3">
+                <input value={nc.name} onChange={(e) => setNc({ ...nc, name: e.target.value })} placeholder={tb('Full name *', 'الاسم بالكامل *')} className={inputCls} />
+                <input value={nc.phone} onChange={(e) => setNc({ ...nc, phone: e.target.value })} placeholder={tb('Phone *', 'الهاتف *')} className={inputCls} />
+                <input value={nc.email} onChange={(e) => setNc({ ...nc, email: e.target.value })} placeholder={tb('Email (optional)', 'البريد (اختياري)')} type="email" className={inputCls} />
+                <div className="sm:col-span-3 flex items-center gap-3">
+                  <button type="button" onClick={createCustomer} disabled={busy} className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50">
+                    {busy ? tb('Creating…', 'جارٍ الإنشاء…') : tb('Create & select', 'إنشاء واختيار')}
+                  </button>
+                  {createErr && <span className="text-xs text-destructive">{createErr}</span>}
+                </div>
+              </div>
+            )}
+            <Field label={tb('Guest email (optional)', 'بريد الزائر (اختياري)')} hint={tb('Links the order to an account if the email matches one.', 'يربط الطلب بحساب إذا طابق البريد حسابًا.')}>
+              <input name="customerEmail" type="email" className={inputCls} />
+            </Field>
+          </div>
+        )}
       </section>
 
       <section>
         <h2 className="mb-3 font-heading text-lg font-semibold">{tb('Delivery', 'التوصيل')}</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label={tb('Full name', 'الاسم بالكامل')}><input name="name" required className={inputCls} /></Field>
-          <Field label={tb('Phone', 'الهاتف')}><input name="phone" required className={inputCls} /></Field>
+        {selected && selected.addresses.length > 0 && (
+          <Field label={tb('Saved address', 'عنوان محفوظ')} hint={tb('Pick one to fill the fields — edits below become a new address.', 'اختر عنوانًا لملء الحقول — التعديلات أدناه تُنشئ عنوانًا جديدًا.')}>
+            <select value={addressId} onChange={(e) => (e.target.value ? applyAddress(selected, e.target.value) : setAddressId(''))} className={inputCls}>
+              <option value="">{tb('— New address —', '— عنوان جديد —')}</option>
+              {selected.addresses.map((a) => (
+                <option key={a.id} value={a.id}>{addrLabel(a)}{a.isDefaultShipping ? ` · ${tb('default', 'افتراضي')}` : ''}</option>
+              ))}
+            </select>
+          </Field>
+        )}
+        <div className="mt-3 grid gap-4 sm:grid-cols-2">
+          <Field label={tb('Full name', 'الاسم بالكامل')}><input name="name" required value={deliv.name} onChange={(e) => setD('name', e.target.value)} className={inputCls} /></Field>
+          <Field label={tb('Phone', 'الهاتف')}><input name="phone" required value={deliv.phone} onChange={(e) => setD('phone', e.target.value)} className={inputCls} /></Field>
           <Field label={tb('Governorate', 'المحافظة')}>
-            <select name="governorate" required defaultValue="" className={inputCls}>
+            <select name="governorate" required value={deliv.governorate} onChange={(e) => setD('governorate', e.target.value, true)} className={inputCls}>
               <option value="" disabled>—</option>
               {GOVERNORATES.map((g) => <option key={g.en} value={g.en}>{locale === 'ar' ? g.ar : g.en}</option>)}
             </select>
           </Field>
-          <Field label={tb('City', 'المدينة')}><input name="city" required className={inputCls} /></Field>
-          <Field label={tb('Street address', 'عنوان الشارع')}><input name="street" required className={inputCls} /></Field>
+          <Field label={tb('City', 'المدينة')}><input name="city" required value={deliv.city} onChange={(e) => setD('city', e.target.value, true)} className={inputCls} /></Field>
+          <Field label={tb('Area', 'المنطقة')}><input name="area" value={deliv.area} onChange={(e) => setD('area', e.target.value, true)} className={inputCls} /></Field>
+          <Field label={tb('Street address', 'عنوان الشارع')}><input name="street" required value={deliv.street} onChange={(e) => setD('street', e.target.value, true)} className={inputCls} /></Field>
         </div>
       </section>
 

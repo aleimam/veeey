@@ -50,6 +50,8 @@ export async function createManualOrderAction(_p: AdminFormState, fd: FormData):
   let order;
   try {
     order = await createManualOrder({
+      customerId: str(fd, 'customerId') ?? '',
+      addressId: str(fd, 'addressId') ?? '',
       customerEmail: str(fd, 'customerEmail') ?? '',
       name: str(fd, 'name') ?? '',
       phone: str(fd, 'phone') ?? '',

@@ -338,6 +338,8 @@ export async function markOrderItemLost(orderItemId: string, lost: boolean, reas
  *  snapshot the address. Created in PENDING, attributed to the staff
  *  member (pharmacist) with source = "manual". */
 const manualOrderSchema = z.object({
+  customerId: z.string().trim().optional().or(z.literal('')), // picked via the staff customer search
+  addressId: z.string().trim().optional().or(z.literal('')), // reuse this saved address instead of creating one
   customerEmail: z.string().trim().email().optional().or(z.literal('')),
   name: z.string().trim().min(1),
   phone: z.string().trim().min(6),
@@ -360,7 +362,12 @@ export async function createManualOrder(raw: ManualOrderInput) {
 
   let customerId: string | null = null;
   let guestEmail: string | undefined;
-  if (d.customerEmail) {
+  if (d.customerId) {
+    // Picked in the customer search — must exist.
+    const c = await prisma.customer.findUnique({ where: { id: d.customerId }, select: { id: true } });
+    if (!c) throw new Error('CUSTOMER_NOT_FOUND');
+    customerId = c.id;
+  } else if (d.customerEmail) {
     const email = d.customerEmail.toLowerCase();
     const u = await prisma.user.findUnique({ where: { email }, include: { customer: true } });
     if (u?.customer) customerId = u.customer.id;
@@ -372,7 +379,12 @@ export async function createManualOrder(raw: ManualOrderInput) {
 
   const order = await prisma.$transaction(async (tx) => {
     let shippingAddressId: string | null = null;
-    if (customerId) {
+    if (customerId && d.addressId) {
+      // Reuse the picked saved address (must belong to this customer).
+      const existing = await tx.address.findFirst({ where: { id: d.addressId, customerId }, select: { id: true } });
+      if (existing) shippingAddressId = existing.id;
+    }
+    if (customerId && !shippingAddressId) {
       const addr = await tx.address.create({ data: { customerId, governorate: d.governorate, city: d.city, area: d.area, street: d.street, phone: d.phone } });
       shippingAddressId = addr.id;
     }

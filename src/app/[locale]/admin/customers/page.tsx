@@ -1,4 +1,5 @@
 import { setRequestLocale } from 'next-intl/server';
+import { Link } from '@/i18n/navigation';
 import type { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/lib/prisma';
 import { assignTierAction } from '@/server/loyalty-actions';
@@ -103,6 +104,7 @@ export default async function CustomersPage({ params, searchParams }: { params: 
           <thead className="bg-surface text-xs uppercase text-muted-foreground">
             <tr>
               <th className="w-8 p-3" />
+              <th className="p-3 text-start">{tb('Name', 'الاسم')}</th>
               <SortableTh col="email" label={tb('Email', 'البريد الإلكتروني')} sort={sort} dir={dir} sp={sp} basePath={basePath} />
               <SortableTh col="tier" label={tb('Tier', 'الفئة')} sort={sort} dir={dir} sp={sp} basePath={basePath} />
               <SortableTh col="points" label={tb('Points', 'النقاط')} sort={sort} dir={dir} sp={sp} basePath={basePath} />
@@ -113,7 +115,12 @@ export default async function CustomersPage({ params, searchParams }: { params: 
             {customers.map((c) => (
               <tr key={c.id} className="border-t border-border">
                 <td className="p-3"><input type="checkbox" name="ids" value={c.id} form="bulk-customers" className="size-4" aria-label={c.user.email ?? c.id} /></td>
-                <td className="p-3">{c.user.email}</td>
+                <td className="p-3">
+                  <Link href={`/admin/customers/${c.id}`} className="font-medium text-primary hover:underline">
+                    {[c.firstName, c.lastName].filter(Boolean).join(' ') || tb('Profile', 'الملف')}
+                  </Link>
+                </td>
+                <td className="p-3"><Link href={`/admin/customers/${c.id}`} className="hover:underline">{c.user.email}</Link></td>
                 <td className="p-3">
                   <form action={assignTierAction} className="flex items-center gap-2">
                     <input type="hidden" name="locale" value={locale} />
@@ -129,7 +136,7 @@ export default async function CustomersPage({ params, searchParams }: { params: 
                 <td className="p-3">{formatEGP(Number(c.lifetimeSpendPiastres))}</td>
               </tr>
             ))}
-            {customers.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">{tb('No customers match.', 'لا يوجد عملاء مطابقون.')}</td></tr>}
+            {customers.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">{tb('No customers match.', 'لا يوجد عملاء مطابقون.')}</td></tr>}
           </tbody>
         </table>
       </div>
