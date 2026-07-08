@@ -21,6 +21,8 @@ export const SETTINGS: SettingDef[] = [
   { key: 'specialOrder.compensationGraceDays', label: 'Compensation grace (days)', group: 'Special orders', type: 'days', default: '3', hint: 'Days past the promised date before auto-compensation applies.' },
   // Pre-orders (buy a product before it is back in stock)
   { key: 'preorder.depositPercent', label: 'Pre-order deposit (%)', group: 'Pre-orders', type: 'percent', default: '25', hint: 'Deposit charged up front to reserve a pre-order; the balance is due on delivery.' },
+  // Gifts
+  { key: 'gifts.lowStockThreshold', label: 'Gift low-stock threshold', group: 'Gifts', type: 'number', default: '5', hint: 'Gifts at or below this stock show a low-stock warning in the gifts list.' },
   // Shipping
   { key: 'shipping.freeThresholdEgp', label: 'Free-shipping threshold (EGP)', group: 'Shipping', type: 'number', default: '0', hint: '0 = shipping fees come from the per-type config.' },
   // Referrals

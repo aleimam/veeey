@@ -3,6 +3,7 @@ import { Link } from '@/i18n/navigation';
 import { listShippingTypes } from '@/lib/shipping-service';
 import { enabledCustomerMethods } from '@/lib/payment-method-service';
 import { getNumberSetting } from '@/lib/settings-service';
+import { listGifts } from '@/lib/gift-service';
 import { BACKEND_CHANNELS } from '@/lib/channels';
 import { ManualOrderForm } from '@/components/admin/manual-order-form';
 import { pick } from '@/lib/admin-i18n';
@@ -12,9 +13,10 @@ export default async function NewOrderPage({ params }: { params: Promise<{ local
   setRequestLocale(locale);
   const tb = pick(locale);
 
-  const [shippingTypes, depositPercent] = await Promise.all([
+  const [shippingTypes, depositPercent, gifts] = await Promise.all([
     listShippingTypes(),
     getNumberSetting('preorder.depositPercent'),
+    listGifts(),
   ]);
   const methods = enabledCustomerMethods(locale, { posAllowed: true }); // staff may pick any method
 
@@ -27,6 +29,7 @@ export default async function NewOrderPage({ params }: { params: Promise<{ local
         shippingTypes={shippingTypes.map((s) => ({ value: s.type, label: s.labelEn }))}
         paymentMethods={methods.map((m) => ({ value: m.code, label: m.label }))}
         channels={BACKEND_CHANNELS.map((c) => ({ value: c.code, label: locale === 'ar' ? c.ar : c.en }))}
+        gifts={gifts.filter((g) => !g.archivedAt).map((g) => ({ value: g.id, label: `${g.code} · ${g.internalName}`, stock: g.stock }))}
         depositPercent={depositPercent}
       />
     </div>

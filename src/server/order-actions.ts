@@ -15,6 +15,7 @@ import {
   removeOrderItem,
   markOrderItemLost,
   addGiftToOrder,
+  removeGiftFromOrder,
   createManualOrder,
   searchOrderProducts,
 } from '@/lib/order-service';
@@ -54,6 +55,12 @@ export async function createManualOrderAction(_p: AdminFormState, fd: FormData):
     .filter((it) => it.productId && it.qty > 0);
   if (items.length === 0) return { error: 'no_items' };
 
+  const giftIds = fd.getAll('giftId').filter((v): v is string => typeof v === 'string');
+  const giftQtys = fd.getAll('giftQty').filter((v): v is string => typeof v === 'string');
+  const gifts = giftIds
+    .map((giftId, i) => ({ giftId, qty: Number(giftQtys[i] ?? 0) }))
+    .filter((g) => g.giftId && g.qty > 0);
+
   let order;
   try {
     order = await createManualOrder({
@@ -71,9 +78,11 @@ export async function createManualOrderAction(_p: AdminFormState, fd: FormData):
       channel: str(fd, 'channel') ?? '', // backend channel (required; no Direct)
       discreetPackaging: fd.get('discreetPackaging') != null,
       items,
+      gifts,
     });
   } catch (e) {
     if (e instanceof Error && e.message === 'INSUFFICIENT_STOCK') return { error: 'insufficient_stock' };
+    if (e instanceof Error && e.message === 'NO_GIFT_STOCK') return { error: 'gift_stock' };
     if (e instanceof Error && e.message === 'FORBIDDEN') return { error: 'forbidden' };
     console.error('manual order failed', e);
     return { error: 'invalid' };
@@ -181,6 +190,15 @@ export async function addGiftToOrderAction(fd: FormData): Promise<void> {
   const id = str(fd, 'id');
   const giftId = str(fd, 'giftId');
   if (id && giftId) { try { await addGiftToOrder(id, giftId, num(fd, 'qty') ?? 1); } catch (e) { console.error(e); } backToOrder(locale, id); }
+  redirect(`/${locale}/admin/orders`);
+}
+
+export async function removeGiftFromOrderAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const id = str(fd, 'id');
+  const orderGiftId = str(fd, 'orderGiftId');
+  if (orderGiftId) { try { await removeGiftFromOrder(orderGiftId); } catch (e) { console.error(e); } }
+  if (id) backToOrder(locale, id);
   redirect(`/${locale}/admin/orders`);
 }
 

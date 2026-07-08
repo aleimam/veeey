@@ -14,6 +14,7 @@ import { GOVERNORATES } from '@/lib/governorates';
 import { pick } from '@/lib/admin-i18n';
 
 type Opt = { value: string; label: string };
+type GiftOpt = { value: string; label: string; stock: number };
 
 const addrLabel = (a: CustomerHit['addresses'][number]) =>
   [a.governorate, a.city, a.area, a.street].filter(Boolean).join(' · ');
@@ -23,18 +24,21 @@ export function ManualOrderForm({
   shippingTypes,
   paymentMethods,
   channels,
+  gifts = [],
   depositPercent = 25,
 }: {
   locale: string;
   shippingTypes: Opt[];
   paymentMethods: Opt[];
   channels: Opt[];
+  gifts?: GiftOpt[];
   depositPercent?: number;
 }) {
   const tb = pick(useLocale());
   const [state, action] = useActionState<AdminFormState, FormData>(createManualOrderAction, {});
   const [rows, setRows] = useState<number[]>([0]);
   const [seq, setSeq] = useState(1);
+  const [giftRows, setGiftRows] = useState<number[]>([]);
 
   // ---- Customer picker ------------------------------------------------------
   const [q, setQ] = useState('');
@@ -203,6 +207,47 @@ export function ManualOrderForm({
         </button>
         <p className="mt-2 text-xs text-muted-foreground">{tb('Pick an exact expiry per line or leave "Any" for FEFO; stock is deducted on creation and any shortfall becomes a pre-order (Special Order).', 'اختر صلاحية محددة لكل سطر أو اترك «أي» لنظام FEFO؛ يُخصم المخزون عند الإنشاء وأي عجز يصبح طلبًا مسبقًا (طلب خاص).')}</p>
       </section>
+
+      {gifts.length > 0 && (
+        <section>
+          <h2 className="mb-1 font-heading text-lg font-semibold">🎁 {tb('Gifts (internal)', 'الهدايا (داخلية)')}</h2>
+          <p className="mb-3 text-xs text-muted-foreground">{tb('Hidden from the customer invoice; visible to staff for dispatch. Deducted from gift stock on creation.', 'مخفية عن فاتورة العميل؛ ظاهرة للموظفين للتجهيز. تُخصم من مخزون الهدايا عند الإنشاء.')}</p>
+          <div className="space-y-3">
+            {giftRows.map((id) => (
+              <div key={id} className="flex items-end gap-3">
+                <label className="block flex-1 text-sm font-medium">{tb('Gift', 'الهدية')}
+                  <select name="giftId" className={inputCls} defaultValue="">
+                    <option value="" disabled>{tb('Choose a gift…', 'اختر هدية…')}</option>
+                    {gifts.map((g) => (
+                      <option key={g.value} value={g.value} disabled={g.stock <= 0}>
+                        {g.label} · {g.stock > 0 ? `${g.stock} ${tb('in stock', 'متوفر')}` : tb('out of stock', 'غير متوفر')}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block w-24 text-sm font-medium">{tb('Qty', 'الكمية')}
+                  <input name="giftQty" type="number" min={1} defaultValue={1} className={inputCls} />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setGiftRows((r) => r.filter((x) => x !== id))}
+                  className="mb-1 rounded-md border border-border px-3 py-2 text-sm text-muted-foreground hover:text-destructive"
+                  aria-label={tb('Remove gift', 'إزالة الهدية')}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => { setGiftRows((r) => [...r, seq]); setSeq((s) => s + 1); }}
+            className="mt-3 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface"
+          >
+            + {tb('Add gift', 'إضافة هدية')}
+          </button>
+        </section>
+      )}
 
       <section>
         <h2 className="mb-3 font-heading text-lg font-semibold">{tb('Shipping & payment', 'الشحن والدفع')}</h2>

@@ -45,6 +45,7 @@ const ERRORS: Record<string, string> = {
   self: 'You can’t change your own access here.',
   no_items: 'Add at least one product line.',
   insufficient_stock: 'Not enough stock for one of the products. Reduce the quantity or check inventory.',
+  gift_stock: 'Not enough gift stock for one of the selected gifts. Reduce the quantity or restock the gift.',
 };
 
 export function FormError({ error }: { error?: string }) {

@@ -17,7 +17,7 @@ import { ChangeHistory } from '@/components/admin/change-history';
 import { ProductLinePicker } from '@/components/admin/order-item-picker';
 import {
   transitionOrderAction, assignPharmacistAction, setPayCheckAction, setSystemPaymentMethodAction, setOrderMetaAction,
-  setTrackingAction, addOrderItemAction, removeOrderItemAction, addGiftToOrderAction, markOrderItemLostAction,
+  setTrackingAction, addOrderItemAction, removeOrderItemAction, addGiftToOrderAction, removeGiftFromOrderAction, markOrderItemLostAction,
 } from '@/server/order-actions';
 import { createAramexShipmentAction, trackAramexAction, createSmsaShipmentAction, trackSmsaAction } from '@/server/carrier-actions';
 
@@ -100,7 +100,20 @@ export default async function OrderDetailPage({ params, searchParams }: { params
             </table>
           </div>
           {order.gifts.length > 0 && (
-            <p className="mt-2 text-xs text-muted-foreground">🎁 {tb('Internal gifts (hidden from customer)', 'هدايا داخلية (مخفية عن العميل)')}: {order.gifts.map((g) => `${g.gift.code}×${g.qty}`).join(', ')}</p>
+            <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+              <p>🎁 {tb('Internal gifts (hidden from customer)', 'هدايا داخلية (مخفية عن العميل)')}:</p>
+              {order.gifts.map((g) => (
+                <div key={g.id} className="flex items-center gap-2 ps-5">
+                  <span>{g.gift.code} · {g.gift.internalName} × {g.qty}</span>
+                  {editable && (
+                    <form action={removeGiftFromOrderAction}>
+                      {hidden({ orderGiftId: g.id })}
+                      <button className="text-destructive hover:underline">{tb('Remove & restock', 'إزالة وإرجاع للمخزون')}</button>
+                    </form>
+                  )}
+                </div>
+              ))}
+            </div>
           )}
           <div className="mt-2 text-end text-sm">
             <span className="text-muted-foreground">{tb('Total', 'الإجمالي')} </span><span className="font-semibold">{formatEGP(Number(order.totalPiastres))}</span>

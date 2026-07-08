@@ -134,15 +134,25 @@ async function recomputeTotals(tx: Tx, orderId: string) {
 }
 
 /** Restock every non-lost, lot-bound line of an order (Cancelled/Refunded effect).
- *  Idempotent via a `status_restock` ledger marker so re-entry never double-counts. */
+ *  Idempotent via a `status_restock` ledger marker so re-entry never double-counts.
+ *  Gifts follow the same rule (own GiftMovement marker — gifts are counters, not lots). */
 async function restockOrder(orderId: string) {
   const marker = await prisma.movementLedger.findFirst({ where: { refType: 'status_restock', refId: orderId } });
-  if (marker) return; // already restocked by a prior status effect
-  const items = await prisma.order.findUnique({ where: { id: orderId }, select: { items: { where: { lost: false, lotId: { not: null } }, include: { lot: { select: { locationId: true } } } } } });
-  for (const it of items?.items ?? []) {
-    if (!it.lotId || !it.lot) continue;
-    await prisma.lot.update({ where: { id: it.lotId }, data: { qtyOnHand: { increment: it.qty } } });
-    await prisma.movementLedger.create({ data: { lotId: it.lotId, locationId: it.lot.locationId, type: 'RETURN', qtyDelta: it.qty, refType: 'status_restock', refId: orderId } });
+  if (!marker) {
+    const items = await prisma.order.findUnique({ where: { id: orderId }, select: { items: { where: { lost: false, lotId: { not: null } }, include: { lot: { select: { locationId: true } } } } } });
+    for (const it of items?.items ?? []) {
+      if (!it.lotId || !it.lot) continue;
+      await prisma.lot.update({ where: { id: it.lotId }, data: { qtyOnHand: { increment: it.qty } } });
+      await prisma.movementLedger.create({ data: { lotId: it.lotId, locationId: it.lot.locationId, type: 'RETURN', qtyDelta: it.qty, refType: 'status_restock', refId: orderId } });
+    }
+  }
+  const giftMarker = await prisma.giftMovement.findFirst({ where: { refType: 'status_restock', refId: orderId } });
+  if (!giftMarker) {
+    const orderGifts = await prisma.orderGift.findMany({ where: { orderId } });
+    for (const og of orderGifts) {
+      await prisma.gift.update({ where: { id: og.giftId }, data: { stock: { increment: og.qty } } });
+      await prisma.giftMovement.create({ data: { giftId: og.giftId, type: 'RETURN', qtyDelta: og.qty, refType: 'status_restock', refId: orderId } });
+    }
   }
 }
 
@@ -467,6 +477,10 @@ const manualOrderSchema = z.object({
     qty: z.coerce.number().int().positive(),
     lotId: z.string().optional().or(z.literal('')), // staff-picked expiry; empty = FEFO
   })).min(1),
+  gifts: z.array(z.object({
+    giftId: z.string().min(1),
+    qty: z.coerce.number().int().positive(),
+  })).optional().default([]), // hidden 0-value gifts, deducted from gift stock
 });
 export type ManualOrderInput = z.input<typeof manualOrderSchema>;
 
@@ -522,6 +536,9 @@ export async function createManualOrder(raw: ManualOrderInput) {
       if (res.shortfall > 0) shortfalls.push({ name: res.productName, sku: res.productSku, qty: res.shortfall });
     }
 
+    // Hidden gifts (0-value, never on the customer invoice) — stock-checked.
+    for (const g of d.gifts) await grantGift(tx, ord.id, g.giftId, g.qty);
+
     // Over-stock (owner decision): available units were deducted; the shortfall
     // flags the order as a pre-order and opens a Special Order for sourcing.
     if (shortfalls.length > 0) {
@@ -546,14 +563,31 @@ export async function createManualOrder(raw: ManualOrderInput) {
   return order;
 }
 
+/** Deduct gift stock and attach it to an order, with a GRANT movement (tx helper). */
+async function grantGift(tx: Tx, orderId: string, giftId: string, qty: number) {
+  const gift = await tx.gift.findUniqueOrThrow({ where: { id: giftId } });
+  if (gift.stock < qty) throw new Error('NO_GIFT_STOCK');
+  await tx.gift.update({ where: { id: giftId }, data: { stock: { decrement: qty } } });
+  await tx.orderGift.create({ data: { orderId, giftId, qty } });
+  await tx.giftMovement.create({ data: { giftId, type: 'GRANT', qtyDelta: -qty, refType: 'order', refId: orderId } });
+}
+
 /** Add a hidden 0-value gift (Gx-*) to an order (FR-ORD-10). */
 export async function addGiftToOrder(orderId: string, giftId: string, qty = 1) {
   const user = await requirePermission('orders.write');
-  await prisma.$transaction(async (tx) => {
-    const gift = await tx.gift.findUniqueOrThrow({ where: { id: giftId } });
-    if (gift.stock < qty) throw new Error('NO_GIFT_STOCK');
-    await tx.gift.update({ where: { id: giftId }, data: { stock: { decrement: qty } } });
-    await tx.orderGift.create({ data: { orderId, giftId, qty } });
-  });
+  await prisma.$transaction((tx) => grantGift(tx, orderId, giftId, qty));
   await audit({ actorType: 'USER', actorId: user.id, action: 'order.gift.add', entityType: 'Order', entityId: orderId });
+}
+
+/** Remove a gift line from an order and restock it (staff edit). */
+export async function removeGiftFromOrder(orderGiftId: string) {
+  const user = await requirePermission('orders.write');
+  const orderId = await prisma.$transaction(async (tx) => {
+    const og = await tx.orderGift.findUniqueOrThrow({ where: { id: orderGiftId } });
+    await tx.orderGift.delete({ where: { id: orderGiftId } });
+    await tx.gift.update({ where: { id: og.giftId }, data: { stock: { increment: og.qty } } });
+    await tx.giftMovement.create({ data: { giftId: og.giftId, type: 'RETURN', qtyDelta: og.qty, refType: 'order_edit', refId: og.orderId } });
+    return og.orderId;
+  });
+  await audit({ actorType: 'USER', actorId: user.id, action: 'order.gift.remove', entityType: 'Order', entityId: orderId });
 }
