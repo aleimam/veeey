@@ -6,8 +6,8 @@
 > `VEEEY_SPEC.md`, `BUILD_PLAN.md`, `AGENTS.md`, `DEPLOYMENT.md`.
 
 ## Current state
-- **Live** at **veeey.com**. Latest deployed commit: **`c89e899`** (2026-07-08). All
-  **32 Prisma migrations applied**; `pm2` processes `veeey` + `veeey-worker` healthy; `/api/health` → `{"status":"ok"}`.
+- **Live** at **veeey.com**. Latest deployed commit: **`c6209dc`** (2026-07-08). All
+  **33 Prisma migrations applied**; `pm2` processes `veeey` + `veeey-worker` healthy; `/api/health` → `{"status":"ok"}`.
 - Stack: Next.js 16 (App Router, Turbopack) · TypeScript · Prisma 7 + Postgres ·
   next-intl (AR/EN, RTL) · Tailwind v4. Verify gate: `npm run typecheck && npm run lint && npm run test && npm run build` (214 unit tests green).
 
@@ -73,6 +73,7 @@ Optional: create an **AI key** in `/admin/ai-keys`; paste GA4/GTM/Search-Console
 | **V2 — Go-Live page** | `e89a3b7` | layout fix (import panel never clipped), 6 clickable summary cards (+Ready/Published views), counter tooltips, checkbox bulk **Publish selected** + count-confirmed Publish all, combined Add stock + Publish |
 | **V2 — Brands** | `6027e4a` `7250a5c` `36b3465` | **migration `brand_category_seo`** (Brand+Category slugAr + full SEO); brand form AR description/slug + entity-aware SEO module (Brand schema); /brands/[slug] full head + JSON-LD; list product counts, completeness filters, **background AR-name translate job**, orphan-guarded delete/archive |
 | **V2 — Categories** | `25295df` `e9bb14f` `c89e899` | form AR desc/slug + image uploader + CollectionPage SEO; category-filtered PLP head/JSON-LD + slug URLs; tree view + counts + filters + orphan guards; **restructure dry-run tool at /admin/categories/restructure** (typed-APPLY apply, snapshot in change log, merged cats archived, slug redirects) — **owner: review & Apply in-app** |
+| **TEAM — departments replace roles** | `493d512` `c6209dc` | **migration `departments`** (Roles→Departments data copy + Sales seed); union-of-teams permissions at sign-in (legacy-role fallback, sessions unaffected); **/admin/departments** CRUD + permission editor + members; staff form = multi-department checkboxes; order pharmacist picker = Sales members; /admin/roles removed |
 
 ## Notes for whoever picks this up
 - Assistant memory (per-Windows-user, at `~/.claude/projects/C--Claude-eCommerce/memory/`) has deeper
