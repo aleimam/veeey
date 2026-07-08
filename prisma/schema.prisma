@@ -993,15 +993,34 @@ model OrderItem {
 
 // Gifts: separate inventory, hidden from customer everywhere (FR-ORD-10)
 model Gift {
-  id           String      @id @default(cuid())
-  code         String      @unique // Gx-*
+  id           String         @id @default(cuid())
+  code         String         @unique // Gx-*
   internalName String
-  stock        Int         @default(0)
+  stock        Int            @default(0)
   expiry       DateTime?
   costPiastres BigInt?
   archivedAt   DateTime?
-  createdAt    DateTime    @default(now())
+  createdAt    DateTime       @default(now())
   orderGifts   OrderGift[]
+  movements    GiftMovement[]
+}
+
+/// Gift stock movement audit (counter-based — gifts are NOT lot-tracked).
+/// GRANT = added to an order (negative), RETURN = restocked (positive),
+/// ADJUST = manual stock edit from the gift form (delta).
+model GiftMovement {
+  id        String   @id @default(cuid())
+  giftId    String
+  gift      Gift     @relation(fields: [giftId], references: [id], onDelete: Cascade)
+  type      String // GRANT | RETURN | ADJUST
+  qtyDelta  Int
+  refType   String? // 'order' | 'order_edit' | 'status_restock' | 'manual'
+  refId     String?
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([giftId, createdAt])
+  @@index([refType, refId])
 }
 
 model OrderGift {
