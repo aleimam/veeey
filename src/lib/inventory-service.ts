@@ -106,18 +106,26 @@ export async function saveLot(id: string | null, raw: LotInput) {
   };
 
   if (id) {
-    const before = await prisma.lot.findUnique({ where: { id } });
-    const lot = await prisma.lot.update({ where: { id }, data });
-    const delta = d.qtyOnHand - (before?.qtyOnHand ?? 0);
-    if (delta !== 0) {
-      await prisma.movementLedger.create({ data: { lotId: id, locationId: d.locationId, type: 'ADJUST', qtyDelta: delta, reason: 'manual edit' } });
-    }
+    // One transaction so the read, write and ADJUST ledger row agree — a sale
+    // landing between them used to be clobbered with a mismatched delta.
+    const lot = await prisma.$transaction(async (tx) => {
+      const before = await tx.lot.findUniqueOrThrow({ where: { id } });
+      const updated = await tx.lot.update({ where: { id }, data });
+      const delta = d.qtyOnHand - before.qtyOnHand;
+      if (delta !== 0) {
+        await tx.movementLedger.create({ data: { lotId: id, locationId: d.locationId, type: 'ADJUST', qtyDelta: delta, reason: 'manual edit' } });
+      }
+      return updated;
+    });
     await audit({ actorType: 'USER', actorId: user.id, action: 'lot.update', entityType: 'Lot', entityId: id });
     return lot;
   }
 
-  const lot = await prisma.lot.create({ data });
-  await prisma.movementLedger.create({ data: { lotId: lot.id, locationId: d.locationId, type: 'STOCK_IN', qtyDelta: d.qtyOnHand, reason: 'manual create' } });
+  const lot = await prisma.$transaction(async (tx) => {
+    const created = await tx.lot.create({ data });
+    await tx.movementLedger.create({ data: { lotId: created.id, locationId: d.locationId, type: 'STOCK_IN', qtyDelta: d.qtyOnHand, reason: 'manual create' } });
+    return created;
+  });
   await audit({ actorType: 'USER', actorId: user.id, action: 'lot.create', entityType: 'Lot', entityId: lot.id });
   return lot;
 }
@@ -183,7 +191,10 @@ export async function reserveStock(
       const avail = availableQty(lot);
       if (avail <= 0) continue;
       const take = Math.min(avail, remaining);
-      await tx.lot.update({ where: { id: lot.id }, data: { qtyReserved: lot.qtyReserved + take } });
+      // Atomic claim: the availability check must be INSIDE the UPDATE, or two
+      // concurrent carts both read the same counts and oversell the lot.
+      const claimed = await tx.$executeRaw`UPDATE "Lot" SET "qtyReserved" = "qtyReserved" + ${take} WHERE "id" = ${lot.id} AND "qtyOnHand" - "qtyReserved" >= ${take}`;
+      if (claimed === 0) continue; // raced by another cart — try the next lot
       const res = await tx.lotReservation.create({
         data: { lotId: lot.id, qty: take, sessionId: opts.sessionId, orderId: opts.orderId, expiresAt },
       });
@@ -200,7 +211,9 @@ export async function releaseReservation(reservationId: string) {
   return prisma.$transaction(async (tx) => {
     const res = await tx.lotReservation.findUnique({ where: { id: reservationId }, include: { lot: true } });
     if (!res) return;
-    await tx.lot.update({ where: { id: res.lotId }, data: { qtyReserved: Math.max(0, res.lot.qtyReserved - res.qty) } });
+    // Atomic decrement — a concurrent double-release is serialized by the
+    // reservation delete below (second tx hits P2025 and rolls back fully).
+    await tx.lot.update({ where: { id: res.lotId }, data: { qtyReserved: { decrement: res.qty } } });
     await tx.movementLedger.create({ data: { lotId: res.lotId, locationId: res.lot.locationId, type: 'RELEASE', qtyDelta: res.qty, refType: 'reservation', refId: res.id } });
     await tx.lotReservation.delete({ where: { id: reservationId } });
   });
@@ -209,7 +222,9 @@ export async function releaseReservation(reservationId: string) {
 /** Sweep expired soft-holds (run from a job in P12). */
 export async function releaseExpiredReservations(now = new Date()): Promise<number> {
   const expired = await prisma.lotReservation.findMany({ where: { expiresAt: { lt: now } }, select: { id: true } });
-  for (const r of expired) await releaseReservation(r.id);
+  // A concurrent sweep/user-release deleting the same row makes the tx throw
+  // P2025 (and roll back) — skip it and keep sweeping the rest.
+  for (const r of expired) { try { await releaseReservation(r.id); } catch { /* raced — already released */ } }
   return expired.length;
 }
 

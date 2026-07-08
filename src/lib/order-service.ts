@@ -130,20 +130,31 @@ async function recomputeTotals(tx: Tx, orderId: string) {
   const items = await tx.orderItem.findMany({ where: { orderId, lost: false } }); // LOST lines excluded from totals/revenue
   const subtotal = items.reduce((s, i) => s + i.unitPricePiastres * BigInt(i.qty), 0n);
   const order = await tx.order.findUniqueOrThrow({ where: { id: orderId } });
-  await tx.order.update({ where: { id: orderId }, data: { subtotalPiastres: subtotal, totalPiastres: subtotal + order.shippingPiastres - order.discountPiastres } });
+  // Clamp like checkout's orderTotal does — removing/losing enough items on a
+  // discounted order must not drive the total negative.
+  const total = subtotal + order.shippingPiastres - order.discountPiastres;
+  await tx.order.update({ where: { id: orderId }, data: { subtotalPiastres: subtotal, totalPiastres: total > 0n ? total : 0n } });
 }
 
-/** Restock every non-lost, lot-bound line of an order (Cancelled/Refunded effect).
+/** Restock every non-lost, lot-bound line of an order (Cancelled/Refunded effect;
+ *  also called before hard-deleting a PENDING order so its stock isn't leaked).
  *  Idempotent via a `status_restock` ledger marker so re-entry never double-counts.
  *  Gifts follow the same rule (own GiftMovement marker — gifts are counters, not lots). */
-async function restockOrder(orderId: string) {
+export async function restockOrder(orderId: string) {
   const marker = await prisma.movementLedger.findFirst({ where: { refType: 'status_restock', refId: orderId } });
   if (!marker) {
     const items = await prisma.order.findUnique({ where: { id: orderId }, select: { items: { where: { lost: false, lotId: { not: null } }, include: { lot: { select: { locationId: true } } } } } });
+    // Units that went through the returns module are ITS responsibility (they
+    // land in a quarantine lot or get written off) — restocking them here too
+    // would count the same physical units twice, straight into the LIVE lot.
+    const returned = await prisma.returnItem.groupBy({ by: ['orderItemId'], where: { return: { orderId } }, _sum: { qty: true } });
+    const returnedBy = new Map(returned.map((r) => [r.orderItemId, r._sum.qty ?? 0]));
     for (const it of items?.items ?? []) {
       if (!it.lotId || !it.lot) continue;
-      await prisma.lot.update({ where: { id: it.lotId }, data: { qtyOnHand: { increment: it.qty } } });
-      await prisma.movementLedger.create({ data: { lotId: it.lotId, locationId: it.lot.locationId, type: 'RETURN', qtyDelta: it.qty, refType: 'status_restock', refId: orderId } });
+      const qty = it.qty - (returnedBy.get(it.id) ?? 0);
+      if (qty <= 0) continue;
+      await prisma.lot.update({ where: { id: it.lotId }, data: { qtyOnHand: { increment: qty } } });
+      await prisma.movementLedger.create({ data: { lotId: it.lotId, locationId: it.lot.locationId, type: 'RETURN', qtyDelta: qty, refType: 'status_restock', refId: orderId } });
     }
   }
   const giftMarker = await prisma.giftMovement.findFirst({ where: { refType: 'status_restock', refId: orderId } });
@@ -191,14 +202,18 @@ export async function transitionOrder(id: string, to: OrderStatus, reason?: stri
   const from = order.status;
   if (!(await canTransition(from, to))) throw new Error('INVALID_TRANSITION');
   const cfg = await statusConfig(to);
-  await applyStatusEffects(order, from, cfg);
-  const updated = await prisma.order.update({
-    where: { id },
+  // Compare-and-swap claims the transition BEFORE running effects: a concurrent
+  // duplicate (double-click, two staff) matches 0 rows and stops here, so
+  // restock/points/revenue effects run exactly once per transition.
+  const claimed = await prisma.order.updateMany({
+    where: { id, status: from },
     data: { status: to, ...(cfg?.customerCode ? { customerStatus: cfg.customerCode } : {}) },
   });
+  if (claimed.count === 0) throw new Error('INVALID_TRANSITION');
+  await applyStatusEffects(order, from, cfg);
   await audit({ actorType: 'USER', actorId: user.id, action: `order.${to.toLowerCase()}`, entityType: 'Order', entityId: id, data: { reason } });
   await runStatusNotify(id, cfg);
-  return updated;
+  return prisma.order.findUniqueOrThrow({ where: { id } });
 }
 
 export async function assignPharmacist(id: string, pharmacistId: string | null) {
@@ -316,7 +331,11 @@ export async function addOrderItem(orderId: string, productId: string, qty: numb
 export async function removeOrderItem(orderItemId: string) {
   const user = await requirePermission('orders.write');
   const orderId = await prisma.$transaction(async (tx) => {
-    const item = await tx.orderItem.findUniqueOrThrow({ where: { id: orderItemId }, include: { lot: true } });
+    const item = await tx.orderItem.findUniqueOrThrow({ where: { id: orderItemId }, include: { lot: true, order: { select: { status: true } } } });
+    // Same guard as addOrderItem: a cancelled/refunded order was already
+    // restocked by its status effect — removing a line here would restock the
+    // same units a second time (and mutate realized totals on delivered orders).
+    if (!(['HOLD', 'EDIT', 'CONFIRMED', 'PENDING'] as string[]).includes(item.order.status)) throw new Error('NOT_EDITABLE');
     if (item.lot) {
       await tx.lot.update({ where: { id: item.lotId! }, data: { qtyOnHand: { increment: item.qty } } });
       await tx.movementLedger.create({ data: { lotId: item.lotId!, locationId: item.lot.locationId, type: 'RETURN', qtyDelta: item.qty, refType: 'order_edit', refId: item.orderId } });
@@ -427,6 +446,10 @@ async function allocateOrderLine(
     where: { id: item.productId },
     select: { basePricePiastres: true, weightG: true, nameEn: true, sku: true },
   });
+  // Tier earn rate so LOST-item clawbacks work on staff orders too (storefront
+  // checkout stamps the same way).
+  const ord = await tx.order.findUniqueOrThrow({ where: { id: orderId }, select: { customer: { select: { tier: { select: { earnRatePerEgp: true } } } } } });
+  const earnRate = ord.customer?.tier?.earnRatePerEgp ?? 1;
   let remaining = item.qty;
   let subtotal = 0n;
   let chosenUnit: bigint | null = null;
@@ -442,9 +465,13 @@ async function allocateOrderLine(
     if (avail <= 0) continue;
     const take = Math.min(avail, remaining);
     const unit = lot.priceOverridePiastres ?? lot.product.basePricePiastres;
+    // Atomic claim: availability re-checked INSIDE the UPDATE (respecting cart
+    // holds via qtyReserved) — a plain decrement on the stale read oversells
+    // when two staff orders (or a storefront checkout) race on the same lot.
+    const claimed = await tx.$executeRaw`UPDATE "Lot" SET "qtyOnHand" = "qtyOnHand" - ${take} WHERE "id" = ${lot.id} AND "qtyOnHand" - "qtyReserved" >= ${take}`;
+    if (claimed === 0) continue; // raced — try the next lot (or fall to shortfall)
     if (item.lotId) chosenUnit = unit;
-    await tx.orderItem.create({ data: { orderId, productId: item.productId, lotId: lot.id, qty: take, unitPricePiastres: unit, lineExpiry: lot.expiryDate, condition: lot.condition, weightG: lot.product.weightG } });
-    await tx.lot.update({ where: { id: lot.id }, data: { qtyOnHand: { decrement: take } } });
+    await tx.orderItem.create({ data: { orderId, productId: item.productId, lotId: lot.id, qty: take, unitPricePiastres: unit, lineExpiry: lot.expiryDate, condition: lot.condition, weightG: lot.product.weightG, pointsEarned: Math.floor((Number(unit) / 100) * take * earnRate) } });
     await tx.movementLedger.create({ data: { lotId: lot.id, locationId: lot.locationId, type: 'SALE', qtyDelta: -take, refType, refId: orderId } });
     subtotal += unit * BigInt(take);
     remaining -= take;
@@ -583,7 +610,10 @@ export async function addGiftToOrder(orderId: string, giftId: string, qty = 1) {
 export async function removeGiftFromOrder(orderGiftId: string) {
   const user = await requirePermission('orders.write');
   const orderId = await prisma.$transaction(async (tx) => {
-    const og = await tx.orderGift.findUniqueOrThrow({ where: { id: orderGiftId } });
+    const og = await tx.orderGift.findUniqueOrThrow({ where: { id: orderGiftId }, include: { order: { select: { status: true } } } });
+    // Cancelled/refunded orders already restocked their gifts via the status
+    // effect — removing the line here would restock the same units again.
+    if (!(['HOLD', 'EDIT', 'CONFIRMED', 'PENDING'] as string[]).includes(og.order.status)) throw new Error('NOT_EDITABLE');
     await tx.orderGift.delete({ where: { id: orderGiftId } });
     await tx.gift.update({ where: { id: og.giftId }, data: { stock: { increment: og.qty } } });
     await tx.giftMovement.create({ data: { giftId: og.giftId, type: 'RETURN', qtyDelta: og.qty, refType: 'order_edit', refId: og.orderId } });

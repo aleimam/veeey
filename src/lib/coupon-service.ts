@@ -25,6 +25,10 @@ export async function applyCoupon(
   );
   if (!check.valid) return { ok: false, reason: check.reason ?? 'invalid' };
 
+  if (coupon.singleUse) {
+    const used = await prisma.couponRedemption.count({ where: { couponId: coupon.id } });
+    if (used >= 1) return { ok: false, reason: 'usage_limit' };
+  }
   if (coupon.usageLimit != null) {
     const used = await prisma.couponRedemption.count({ where: { couponId: coupon.id } });
     if (used >= coupon.usageLimit) return { ok: false, reason: 'usage_limit' };

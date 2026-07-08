@@ -177,6 +177,34 @@ export async function removeFromCart(cartId: string, productId: string, conditio
 }
 
 export async function setCartQty(cartId: string, productId: string, qty: number, condition = 'NEW') {
-  await removeFromCart(cartId, productId, condition);
-  if (qty > 0) await addToCart(cartId, productId, qty, { condition });
+  if (qty <= 0) return removeFromCart(cartId, productId, condition);
+  // Adjust the delta instead of remove-then-re-add: the old approach destroyed
+  // the customer's existing hold when the new qty exceeded stock (the re-add
+  // threw AFTER the release, and another shopper could grab the freed units).
+  const res = await prisma.lotReservation.findMany({
+    where: { sessionId: cartId, lot: { productId, condition } },
+    include: { lot: { select: { locationId: true, expiryDate: true } } },
+  });
+  const current = res.reduce((s, r) => s + r.qty, 0);
+  if (qty > current) {
+    await addToCart(cartId, productId, qty - current, { condition }); // throws INSUFFICIENT_STOCK with the old hold intact
+    return;
+  }
+  // Decrease: give back from the latest-expiry holds first so FEFO units stay.
+  let toRemove = current - qty;
+  const byLatest = [...res].sort((a, b) => (b.lot.expiryDate?.getTime() ?? Infinity) - (a.lot.expiryDate?.getTime() ?? Infinity));
+  for (const r of byLatest) {
+    if (toRemove <= 0) break;
+    if (r.qty <= toRemove) {
+      await releaseReservation(r.id);
+      toRemove -= r.qty;
+    } else {
+      await prisma.$transaction([
+        prisma.lotReservation.update({ where: { id: r.id }, data: { qty: r.qty - toRemove } }),
+        prisma.lot.update({ where: { id: r.lotId }, data: { qtyReserved: { decrement: toRemove } } }),
+        prisma.movementLedger.create({ data: { lotId: r.lotId, locationId: r.lot.locationId, type: 'RELEASE', qtyDelta: toRemove, refType: 'reservation', refId: r.id } }),
+      ]);
+      toRemove = 0;
+    }
+  }
 }

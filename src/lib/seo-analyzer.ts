@@ -51,7 +51,11 @@ const includesKw = (haystack: string, kw: string): boolean =>
 function slugHasKeyword(slug: string, kw: string): boolean {
   const kwWords = words(kw);
   if (!kwWords.length) return false;
-  const slugNorm = normalizeText(decodeURIComponent(slug)).replace(/[-_]/g, ' ');
+  // A malformed escape (bare '%' from migrated slugs) makes decodeURIComponent
+  // throw — fall back to the raw slug rather than crash the editor/report.
+  let decoded = slug;
+  try { decoded = decodeURIComponent(slug); } catch { /* keep raw */ }
+  const slugNorm = normalizeText(decoded).replace(/[-_]/g, ' ');
   return kwWords.every((w) => slugNorm.includes(w));
 }
 

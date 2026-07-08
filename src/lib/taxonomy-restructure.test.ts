@@ -70,6 +70,16 @@ describe('taxonomy restructure planner', () => {
     expect(plan.adopt).toHaveLength(0);
   });
 
+  it('treats names shared by two nodes (bare "Treatments") as unmatched, not first-wins', () => {
+    const plan = buildRestructurePlan([cat({ id: 't1', nameEn: 'Treatments', slug: 'treatments', products: 9 })]);
+    expect(plan.unmatched.some((u) => u.id === 't1')).toBe(true); // skin vs hair is a human call
+    expect(plan.assign.some((a) => a.id === 't1')).toBe(false);
+    expect(plan.merge.some((m) => m.fromId === 't1')).toBe(false);
+    // The distinct slugs still match their own nodes.
+    const bySlug = buildRestructurePlan([cat({ id: 't2', nameEn: 'Skin Fixers', slug: 'skin-treatments', products: 4 })]);
+    expect(bySlug.assign.find((a) => a.id === 't2')?.nodeKey).toBe('skin-treatments');
+  });
+
   it('normName unifies & / Arabic forms for matching', () => {
     expect(normName('Bones & Joints')).toBe(normName('bones and joints'));
     expect(normName('أعشاب')).toBe(normName('اعشاب'));

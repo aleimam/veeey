@@ -172,13 +172,22 @@ export type RestructurePlan = {
 export function buildRestructurePlan(existing: ExistingCat[]): RestructurePlan {
   const nodes = flattenTree();
   const byNorm = new Map<string, FlatNode>();
+  const ambiguous = new Set<string>();
   for (const n of nodes) {
     const keys = [n.name, n.finalSlug, ...(n.aliases ?? []), ...(n.aliasesAr ?? []), ...(n.nameAr ? [n.nameAr] : [])];
     for (const k of keys) {
       const norm = normName(k);
-      if (norm && !byNorm.has(norm)) byNorm.set(norm, n);
+      if (!norm) continue;
+      const prev = byNorm.get(norm);
+      if (prev && prev !== n) ambiguous.add(norm); // e.g. bare "Treatments" (skin vs hair)
+      else if (!prev) byNorm.set(norm, n);
     }
   }
+  // A name shared by two different nodes can't be matched safely — a category
+  // named just "Treatments" would land under skin even if it's hair. Drop the
+  // key so such categories surface as UNMATCHED for a human call instead.
+  // (Slugs stay unique by construction, so slug matching is unaffected.)
+  for (const k of ambiguous) byNorm.delete(k);
 
   const active = existing.filter((c) => !c.archived);
   const assign: RestructurePlan['assign'] = [];

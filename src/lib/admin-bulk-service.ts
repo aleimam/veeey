@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
 import { deleteProduct, InUseError } from '@/lib/soft-delete-service';
-import { transitionOrder } from '@/lib/order-service';
+import { transitionOrder, restockOrder } from '@/lib/order-service';
 import { recomputeRating } from '@/lib/review-service';
 import type { OrderStatus } from '@/lib/order-status';
 import type { SpecialOrderStatus } from '@/generated/prisma/client';
@@ -165,10 +165,14 @@ export async function bulkOrders(op: string, ids: string[], value: string): Prom
     }
     case 'delete': {
       // Guarded hard delete: only non-financial statuses (Pending / Cancelled).
-      // To return stock, staff Cancel first (restock effect) then delete.
-      const deletable = await prisma.order.findMany({ where: { id: { in: ids }, status: { in: ['PENDING', 'CANCELLED'] } }, select: { id: true } });
+      const deletable = await prisma.order.findMany({ where: { id: { in: ids }, status: { in: ['PENDING', 'CANCELLED'] } }, select: { id: true, status: true } });
       const delIds = deletable.map((o) => o.id);
       r.skipped = ids.length - delIds.length;
+      // PENDING orders still hold deducted stock (checkout/staff SALE) —
+      // restock before deleting or those units leak forever. CANCELLED orders
+      // were already restocked by their status effect (marker keeps this
+      // idempotent either way).
+      for (const o of deletable) if (o.status === 'PENDING') await restockOrder(o.id);
       if (delIds.length) {
         await prisma.$transaction([
           // Detach loyalty ledger (orderId is optional) to preserve points history.

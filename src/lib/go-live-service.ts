@@ -114,19 +114,21 @@ type StockLot = { productId: string; qty: number; expiryDate: Date | null; price
 
 /** Create one LIVE lot (go-live bulk load bypasses quarantine). No permission check — callers gate. */
 async function createStockLot(it: StockLot) {
-  const wasOutOfStock = (await prisma.lot.count({ where: { productId: it.productId, ...inStockLot } })) === 0;
-  const lot = await prisma.lot.create({
-    data: {
-      productId: it.productId, locationId: it.locationId, qtyOnHand: it.qty, status: 'LIVE',
-      expiryDate: it.expiryDate,
-      priceOverridePiastres: it.priceEgp != null ? egpToPiastres(it.priceEgp) : null,
-      saleFlag: !!it.saleFlag,
-      sourceBatchId: it.batch || null,
-    },
-    select: { id: true },
+  await prisma.$transaction(async (tx) => {
+    const wasOutOfStock = (await tx.lot.count({ where: { productId: it.productId, ...inStockLot } })) === 0;
+    const lot = await tx.lot.create({
+      data: {
+        productId: it.productId, locationId: it.locationId, qtyOnHand: it.qty, status: 'LIVE',
+        expiryDate: it.expiryDate,
+        priceOverridePiastres: it.priceEgp != null ? egpToPiastres(it.priceEgp) : null,
+        saleFlag: !!it.saleFlag,
+        sourceBatchId: it.batch || null,
+      },
+      select: { id: true },
+    });
+    await tx.movementLedger.create({ data: { lotId: lot.id, locationId: it.locationId, type: 'STOCK_IN', qtyDelta: it.qty, refType: 'go-live' } });
+    if (wasOutOfStock) await tx.productChangeEvent.create({ data: { productId: it.productId, type: 'BACK_IN_STOCK' } });
   });
-  await prisma.movementLedger.create({ data: { lotId: lot.id, locationId: it.locationId, type: 'STOCK_IN', qtyDelta: it.qty, refType: 'go-live' } });
-  if (wasOutOfStock) await prisma.productChangeEvent.create({ data: { productId: it.productId, type: 'BACK_IN_STOCK' } });
 }
 
 export type StockImportReport = { created: number; skipped: number; invalid: { row: number; reason: string }[] };
