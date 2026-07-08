@@ -2,12 +2,12 @@
 
 > Living status/handoff doc. Repo-committed so it travels with the code (unlike
 > per-user assistant memory). Update it when features ship or the backlog changes.
-> **Last updated: 2026-07-08 (night — staff-orders epic Phases A/B/C complete; NOT yet deployed).** Authoritative product docs: `VEEEY_PRD.md`,
+> **Last updated: 2026-07-08 (night — staff-orders epic Phases A/B/C complete & DEPLOYED).** Authoritative product docs: `VEEEY_PRD.md`,
 > `VEEEY_SPEC.md`, `BUILD_PLAN.md`, `AGENTS.md`, `DEPLOYMENT.md`.
 
 ## Current state
-- **Live** at **veeey.com**. Latest deployed commit: **`66e9537`** (2026-07-07). All
-  **28 Prisma migrations applied**; `pm2` process `veeey` healthy; `/api/health` → `{"status":"ok"}`.
+- **Live** at **veeey.com**. Latest deployed commit: **`11afa70`** (2026-07-08). All
+  **30 Prisma migrations applied**; `pm2` processes `veeey` + `veeey-worker` healthy; `/api/health` → `{"status":"ok"}`.
 - Stack: Next.js 16 (App Router, Turbopack) · TypeScript · Prisma 7 + Postgres ·
   next-intl (AR/EN, RTL) · Tailwind v4. Verify gate: `npm run typecheck && npm run lint && npm run test && npm run build` (214 unit tests green).
 
@@ -47,7 +47,7 @@ Learn/Blog + trust-row sections in `/admin/homepage`; add **brand logos/stories*
 category-structure import + admin renames ("Contact Us"/"Veeey Rewards"); toggle **`preorderEnabled`** per product.
 Optional: create an **AI key** in `/admin/ai-keys`; paste GA4/GTM/Search-Console ids in `/admin/google`.
 
-## Recently shipped (this cycle — rows through `66e9537` are deployed; everything after is pushed but **awaiting deploy**, incl. 2 migrations: `product_questions`, `gift_movements`)
+## Recently shipped (this cycle, all deployed 2026-07-08)
 | Area | Commit | Notes |
 |---|---|---|
 | External-audit roadmap (P0–P3) + pre-order path | … `448647f` | P0 cart fix (loc_main), reviews, search autocomplete, PDP gallery, PLP facets, trust/content, pre-order deposit |
