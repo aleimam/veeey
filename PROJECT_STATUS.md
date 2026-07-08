@@ -2,7 +2,7 @@
 
 > Living status/handoff doc. Repo-committed so it travels with the code (unlike
 > per-user assistant memory). Update it when features ship or the backlog changes.
-> **Last updated: 2026-07-08 (evening — PDP per-unit/at-a-glance, Product Q&A, WhatsApp confirmations added; NOT yet deployed).** Authoritative product docs: `VEEEY_PRD.md`,
+> **Last updated: 2026-07-08 (night — staff-orders epic Phases A/B/C complete; NOT yet deployed).** Authoritative product docs: `VEEEY_PRD.md`,
 > `VEEEY_SPEC.md`, `BUILD_PLAN.md`, `AGENTS.md`, `DEPLOYMENT.md`.
 
 ## Current state
@@ -47,7 +47,7 @@ Learn/Blog + trust-row sections in `/admin/homepage`; add **brand logos/stories*
 category-structure import + admin renames ("Contact Us"/"Veeey Rewards"); toggle **`preorderEnabled`** per product.
 Optional: create an **AI key** in `/admin/ai-keys`; paste GA4/GTM/Search-Console ids in `/admin/google`.
 
-## Recently shipped (this cycle, all deployed)
+## Recently shipped (this cycle — rows through `66e9537` are deployed; everything after is pushed but **awaiting deploy**, incl. 2 migrations: `product_questions`, `gift_movements`)
 | Area | Commit | Notes |
 |---|---|---|
 | External-audit roadmap (P0–P3) + pre-order path | … `448647f` | P0 cart fix (loc_main), reviews, search autocomplete, PDP gallery, PLP facets, trust/content, pre-order deposit |
@@ -61,6 +61,9 @@ Optional: create an **AI key** in `/admin/ai-keys`; paste GA4/GTM/Search-Console
 | PDP per-unit price + At-a-glance | `404513e` | "≈ EGP X / serving" in the buy box (live per selected lot); auto-derived icon facts strip (type/pack/dose/supply/weight/origin/genuine) |
 | **Product Q&A** | `d9c2187` | PDP ask form + published pharmacist answers; `/admin/questions` moderation (answer / publish / hide); `ProductQuestion` **migration** |
 | **WhatsApp order confirmation** | `8917a53` | Meta Cloud API send via existing `/admin/providers` WhatsApp creds; order.placed/shipped WA templates (en/ar); Notification log records outcomes |
+| **Staff orders — customer layer (A)** | `9d36718` | order form: customer search (name/email/phone) + quick-create + saved-address pick; `/admin/customers/[id]` profile w/ details + address CRUD |
+| **Staff orders — product picker (B)** | `7072a82` | live search (name/SKU/ID/legacy) → per-expiry lot pick (stock+price+condition) or FEFO; over-stock → deduct available + PRE-ORDER shortfall line + `isPreorder` flag + auto-linked SpecialOrder; suggested deposit shown (display-only) |
+| **Staff orders — gifts polish (C)** | `2aa5ddf` `e9c5ab5` | gifts at order creation (stock-checked, hidden from customer); Cancel/Refund restocks gifts; remove-&-restock per line; **`GiftMovement` audit migration**; /admin/gifts Low/Out badges + Movements panel; `gifts.lowStockThreshold` setting |
 
 ## Notes for whoever picks this up
 - Assistant memory (per-Windows-user, at `~/.claude/projects/C--Claude-eCommerce/memory/`) has deeper
