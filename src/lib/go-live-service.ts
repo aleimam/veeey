@@ -40,16 +40,22 @@ export type GoLiveRow = {
   pricePiastres: bigint; images: number; inStock: boolean; ready: boolean;
 };
 
-export async function listGoLiveProducts(opts: { q?: string; only?: string; skip?: number; take?: number } = {}): Promise<GoLiveRow[]> {
-  const where = {
-    status: { in: [...PRELIVE] },
+/** Shared where-builder for the go-live list/count. `only` filters:
+ *  stock/price/image (missing X), ready (publishable now), published. */
+function goLiveWhere(opts: { q?: string; only?: string }) {
+  return {
+    ...(opts.only === 'published' ? { status: 'PUBLISHED' as const } : { status: { in: [...PRELIVE] } }),
     ...(opts.q ? { OR: [{ nameEn: { contains: opts.q, mode: 'insensitive' as const } }, { sku: { contains: opts.q, mode: 'insensitive' as const } }] } : {}),
     ...(opts.only === 'stock' ? { lots: { none: inStockLot } } : {}),
     ...(opts.only === 'price' ? { basePricePiastres: { lte: 0n } } : {}),
     ...(opts.only === 'image' ? { images: { none: {} } } : {}),
+    ...(opts.only === 'ready' ? { basePricePiastres: { gt: 0n }, images: { some: {} } } : {}),
   };
+}
+
+export async function listGoLiveProducts(opts: { q?: string; only?: string; skip?: number; take?: number } = {}): Promise<GoLiveRow[]> {
   const rows = await prisma.product.findMany({
-    where,
+    where: goLiveWhere(opts),
     select: {
       id: true, sku: true, nameEn: true, nameAr: true, status: true, basePricePiastres: true,
       _count: { select: { images: true } },
@@ -67,15 +73,7 @@ export async function listGoLiveProducts(opts: { q?: string; only?: string; skip
 }
 
 export function countGoLiveProducts(opts: { q?: string; only?: string } = {}) {
-  return prisma.product.count({
-    where: {
-      status: { in: [...PRELIVE] },
-      ...(opts.q ? { OR: [{ nameEn: { contains: opts.q, mode: 'insensitive' as const } }, { sku: { contains: opts.q, mode: 'insensitive' as const } }] } : {}),
-      ...(opts.only === 'stock' ? { lots: { none: inStockLot } } : {}),
-      ...(opts.only === 'price' ? { basePricePiastres: { lte: 0n } } : {}),
-      ...(opts.only === 'image' ? { images: { none: {} } } : {}),
-    },
-  });
+  return prisma.product.count({ where: goLiveWhere(opts) });
 }
 
 /** Not-live products with no live stock — rows for the stock-import CSV template. */

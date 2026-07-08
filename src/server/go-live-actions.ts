@@ -29,17 +29,25 @@ export async function importStockAction(_prev: StockImportState, fd: FormData): 
 
 export async function quickAddStockAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
+  const productId = str(fd, 'productId');
+  const andPublish = fd.get('andPublish') != null; // combined "Add stock + Publish" flow
   try {
     await quickAddStock({
-      productId: str(fd, 'productId'),
+      productId,
       qty: Number(str(fd, 'qty')),
       expiry: str(fd, 'expiry') || null,
       priceEgp: str(fd, 'priceEgp') ? Number(str(fd, 'priceEgp')) : null,
       saleFlag: fd.get('sale') != null,
     });
   } catch (e) { console.error('quick add stock failed', e); revalidatePath(PATH(locale)); redirect(`${PATH(locale)}?error=1`); }
+  let published = 0;
+  if (andPublish) {
+    // publishReady only flips ready products — an unpriced/imageless product is
+    // reported back as "not ready" instead of silently published.
+    try { published = (await publishReady([productId])).published; } catch (e) { console.error('add+publish failed', e); }
+  }
   revalidatePath(PATH(locale));
-  redirect(`${PATH(locale)}?added=1`);
+  redirect(`${PATH(locale)}?added=1${andPublish ? (published ? `&published=${published}` : '&notready=1') : ''}`);
 }
 
 export async function publishReadyAction(fd: FormData): Promise<void> {
