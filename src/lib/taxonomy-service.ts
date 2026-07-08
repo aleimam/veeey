@@ -209,12 +209,29 @@ const categorySchema = z.object({
 });
 export type CategoryInput = z.input<typeof categorySchema>;
 
+/** Data-completeness filters for the categories list (V2 CAT-3). */
+function categoryFlagWhere(flag?: string): Prisma.CategoryWhereInput {
+  switch (flag) {
+    case 'missing_ar_name': return { OR: [{ nameAr: null }, { nameAr: '' }] };
+    case 'missing_image': return { OR: [{ imageUrl: null }, { imageUrl: '' }] };
+    case 'missing_description': return { AND: [{ OR: [{ descriptionEn: null }, { descriptionEn: '' }] }, { OR: [{ descriptionAr: null }, { descriptionAr: '' }] }] };
+    case 'zero_products': return { products: { none: {} } };
+    default: return {};
+  }
+}
+
 const categoryWhere = (o: TaxoListOpts): Prisma.CategoryWhereInput => ({
   ...(o.q ? { nameEn: { contains: o.q, mode: 'insensitive' } } : {}),
   ...archivedWhere(o.archived),
+  ...(o.flag ? { AND: [categoryFlagWhere(o.flag)] } : {}),
 });
 export const listCategories = (o: TaxoListOpts = {}) =>
-  prisma.category.findMany({ where: categoryWhere(o), include: { parent: true }, orderBy: o.sort === 'slug' ? { slug: o.dir ?? 'asc' } : { nameEn: o.dir ?? 'asc' }, ...paging(o) });
+  prisma.category.findMany({
+    where: categoryWhere(o),
+    include: { parent: true, _count: { select: { products: true, children: true } } },
+    orderBy: o.sort === 'slug' ? { slug: o.dir ?? 'asc' } : { nameEn: o.dir ?? 'asc' },
+    ...paging(o),
+  });
 export const countCategories = (o: TaxoListOpts = {}) => prisma.category.count({ where: categoryWhere(o) });
 export const getCategory = (id: string) => prisma.category.findUnique({ where: { id } });
 
