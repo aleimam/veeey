@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { Prisma } from '@/generated/prisma/client';
+import { Prisma as PrismaRt, type Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
@@ -60,6 +60,20 @@ export const productWriteSchema = z.object({
   metaDescAr: z.string().optional().nullable(),
   aiSummaryEn: z.string().optional().nullable(),
   aiSummaryAr: z.string().optional().nullable(),
+  // Full SEO module (RankMath-style editor)
+  focusKeywordEn: z.string().optional().nullable(),
+  focusKeywordAr: z.string().optional().nullable(),
+  secondaryKeywordsEn: z.string().optional().nullable(),
+  secondaryKeywordsAr: z.string().optional().nullable(),
+  ogTitleEn: z.string().optional().nullable(),
+  ogTitleAr: z.string().optional().nullable(),
+  ogDescEn: z.string().optional().nullable(),
+  ogDescAr: z.string().optional().nullable(),
+  ogImage: z.string().optional().nullable(),
+  canonicalUrl: z.string().optional().nullable(),
+  robotsIndex: z.boolean().default(true),
+  robotsFollow: z.boolean().default(true),
+  schemaOverrides: z.string().optional().nullable(), // JSON text; invalid → stored as null
 });
 
 export type ProductWriteInput = z.input<typeof productWriteSchema>;
@@ -114,7 +128,31 @@ function scalarFields(data: z.infer<typeof productWriteSchema>) {
     metaDescAr: data.metaDescAr ?? null,
     aiSummaryEn: data.aiSummaryEn ?? null,
     aiSummaryAr: data.aiSummaryAr ?? null,
+    focusKeywordEn: data.focusKeywordEn?.trim() || null,
+    focusKeywordAr: data.focusKeywordAr?.trim() || null,
+    secondaryKeywordsEn: data.secondaryKeywordsEn?.trim() || null,
+    secondaryKeywordsAr: data.secondaryKeywordsAr?.trim() || null,
+    ogTitleEn: data.ogTitleEn?.trim() || null,
+    ogTitleAr: data.ogTitleAr?.trim() || null,
+    ogDescEn: data.ogDescEn?.trim() || null,
+    ogDescAr: data.ogDescAr?.trim() || null,
+    ogImage: data.ogImage?.trim() || null,
+    canonicalUrl: data.canonicalUrl?.trim() || null,
+    robotsIndex: data.robotsIndex,
+    robotsFollow: data.robotsFollow,
+    schemaOverridesJson: parseSchemaOverrides(data.schemaOverrides),
   };
+}
+
+/** Parse the editable Product-schema overrides (JSON text); invalid/empty → DbNull. */
+function parseSchemaOverrides(s: string | null | undefined): Prisma.InputJsonValue | typeof PrismaRt.DbNull {
+  if (!s || !s.trim()) return PrismaRt.DbNull;
+  try {
+    const v = JSON.parse(s);
+    return v && typeof v === 'object' ? (v as Prisma.InputJsonValue) : PrismaRt.DbNull;
+  } catch {
+    return PrismaRt.DbNull;
+  }
 }
 
 export type ProductListOpts = {

@@ -112,6 +112,19 @@ export async function saveProductAction(_p: AdminFormState, fd: FormData): Promi
     metaDescAr: str(fd, 'metaDescAr'),
     aiSummaryEn: str(fd, 'aiSummaryEn'),
     aiSummaryAr: str(fd, 'aiSummaryAr'),
+    focusKeywordEn: str(fd, 'focusKeywordEn'),
+    focusKeywordAr: str(fd, 'focusKeywordAr'),
+    secondaryKeywordsEn: str(fd, 'secondaryKeywordsEn'),
+    secondaryKeywordsAr: str(fd, 'secondaryKeywordsAr'),
+    ogTitleEn: str(fd, 'ogTitleEn'),
+    ogTitleAr: str(fd, 'ogTitleAr'),
+    ogDescEn: str(fd, 'ogDescEn'),
+    ogDescAr: str(fd, 'ogDescAr'),
+    ogImage: str(fd, 'ogImage'),
+    canonicalUrl: str(fd, 'canonicalUrl'),
+    robotsIndex: bool(fd, 'robotsIndex'),
+    robotsFollow: bool(fd, 'robotsFollow'),
+    schemaOverrides: str(fd, 'schemaOverrides'),
   };
   try {
     if (id) await updateProduct(id, input);

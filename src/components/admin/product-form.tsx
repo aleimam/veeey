@@ -11,6 +11,7 @@ import { CategoryPicker, type CategoryOpt } from './category-picker';
 import { AttributePicker, type AttrOpt } from './attribute-picker';
 import { quickCreateBrand, quickCreateTag } from '@/server/quick-actions';
 import { TranslateButton } from './translate-button';
+import { SeoEditor, type SeoDefaults, type SchemaInfo } from './seo-editor';
 import { pick } from '@/lib/admin-i18n';
 
 type Opt = { value: string; label: string };
@@ -41,9 +42,7 @@ export type ProductDefaults = {
   shortDescAr?: string;
   longDescEn?: string;
   longDescAr?: string;
-  metaTitleEn?: string;
-  metaDescEn?: string;
-  aiSummaryEn?: string;
+  seo?: SeoDefaults;
   categoryIds?: string[];
   tagIds?: string[];
   attributeValueIds?: string[];
@@ -72,6 +71,7 @@ export function ProductForm({
   categories,
   tags,
   attributes,
+  schemaInfo,
 }: {
   locale: string;
   defaults?: ProductDefaults;
@@ -79,6 +79,7 @@ export function ProductForm({
   categories: CategoryOpt[];
   tags: Opt[];
   attributes: AttrOpt[];
+  schemaInfo?: SchemaInfo;
 }) {
   const [state, action] = useActionState<AdminFormState, FormData>(saveProductAction, {});
   const tb = pick(useLocale());
@@ -132,6 +133,9 @@ export function ProductForm({
           { en: 'longDescEn', ar: 'longDescAr' },
           { en: 'metaTitleEn', ar: 'metaTitleAr' },
           { en: 'metaDescEn', ar: 'metaDescAr' },
+          { en: 'ogTitleEn', ar: 'ogTitleAr' },
+          { en: 'ogDescEn', ar: 'ogDescAr' },
+          { en: 'aiSummaryEn', ar: 'aiSummaryAr' },
         ]} />
       </div>
 
@@ -294,11 +298,10 @@ export function ProductForm({
         </div>
       </fieldset>
 
-      <section className="grid gap-4 sm:grid-cols-2">
-        <Field label={tb('SEO title (English)', 'عنوان SEO (بالإنجليزية)')}><input name="metaTitleEn" defaultValue={d.metaTitleEn ?? ''} className={inputCls} /></Field>
-        <Field label={tb('SEO description (English)', 'وصف SEO (بالإنجليزية)')}><input name="metaDescEn" defaultValue={d.metaDescEn ?? ''} className={inputCls} /></Field>
-        <Field label={tb('AI summary (English)', 'ملخص الذكاء الاصطناعي (بالإنجليزية)')} hint={tb('For AEO / AI engines.', 'لمحركات AEO / الذكاء الاصطناعي.')}><textarea name="aiSummaryEn" rows={2} defaultValue={d.aiSummaryEn ?? ''} className={inputCls} /></Field>
-      </section>
+      <SeoEditor
+        d={d.seo}
+        schemaInfo={schemaInfo ?? { name: d.nameEn ?? '', brand: '', priceEgp: d.basePriceEgp ?? 0, inStock: false, ratingAvg: null, ratingCount: 0, image: d.imageUrls?.[0] ?? '' }}
+      />
 
       <div className="flex items-center gap-3">
         <SubmitButton>{tb('Save product', 'حفظ المنتج')}</SubmitButton>

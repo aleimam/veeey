@@ -73,9 +73,19 @@ export default async function ProductEditPage({
         shortDescAr: product.shortDescAr ?? '',
         longDescEn: product.longDescEn ?? '',
         longDescAr: product.longDescAr ?? '',
-        metaTitleEn: product.metaTitleEn ?? '',
-        metaDescEn: product.metaDescEn ?? '',
-        aiSummaryEn: product.aiSummaryEn ?? '',
+        seo: {
+          metaTitleEn: product.metaTitleEn ?? '', metaTitleAr: product.metaTitleAr ?? '',
+          metaDescEn: product.metaDescEn ?? '', metaDescAr: product.metaDescAr ?? '',
+          aiSummaryEn: product.aiSummaryEn ?? '', aiSummaryAr: product.aiSummaryAr ?? '',
+          focusKeywordEn: product.focusKeywordEn ?? '', focusKeywordAr: product.focusKeywordAr ?? '',
+          secondaryKeywordsEn: product.secondaryKeywordsEn ?? '', secondaryKeywordsAr: product.secondaryKeywordsAr ?? '',
+          ogTitleEn: product.ogTitleEn ?? '', ogTitleAr: product.ogTitleAr ?? '',
+          ogDescEn: product.ogDescEn ?? '', ogDescAr: product.ogDescAr ?? '',
+          ogImage: product.ogImage ?? '',
+          canonicalUrl: product.canonicalUrl ?? '',
+          robotsIndex: product.robotsIndex, robotsFollow: product.robotsFollow,
+          schemaOverrides: product.schemaOverridesJson ? JSON.stringify(product.schemaOverridesJson, null, 2) : '',
+        },
         categoryIds: product.categories.map((c) => c.id),
         tagIds: product.tags.map((t) => t.id),
         attributeValueIds: product.attributeValues.map((av) => av.attributeValueId),
@@ -111,6 +121,15 @@ export default async function ProductEditPage({
         categories={categories.map((c) => ({ value: c.id, label: c.nameEn, parentId: c.parentId }))}
         tags={tags.map((t) => ({ value: t.id, label: t.nameEn }))}
         attributes={attributeOpts}
+        schemaInfo={product ? {
+          name: product.nameEn,
+          brand: product.brand?.nameEn ?? '',
+          priceEgp: piastresToEgp(product.basePricePiastres),
+          inStock: lots.some((l) => l.status === 'LIVE' && l.qtyOnHand - l.qtyReserved > 0),
+          ratingAvg: product.ratingAvg,
+          ratingCount: product.ratingCount,
+          image: product.images[0]?.url ?? '',
+        } : undefined}
       />
 
       {product && (
