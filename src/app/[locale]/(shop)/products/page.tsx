@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { pick } from '@/lib/admin-i18n';
 import { prisma } from '@/lib/prisma';
@@ -5,12 +6,45 @@ import { toCardProduct, cardProductInclude, visibleProductWhere } from '@/lib/st
 import { parsePlp, plpWhere, removeParamHref, type SP } from '@/lib/plp-filters';
 import { getZones } from '@/lib/page-zone-service';
 import { resolveHomeData, type HomeData } from '@/lib/home-layout-service';
+import { richToText } from '@/lib/rich-text';
 import { ChewyHome } from '@/components/storefront/chewy/chewy-home';
 import { ChewyProductCard } from '@/components/storefront/chewy/chewy-product-card';
 import { PlpFilters, type FacetAttribute } from '@/components/storefront/plp-filters';
 import { Icon } from '@/components/storefront/ui/icon';
 import { Link } from '@/i18n/navigation';
 import { AdminEditLink } from '@/components/storefront/admin-edit-link';
+
+const oneOf = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+
+/** Resolve the active category filter (id, EN slug, or AR slug) to its record. */
+const loadCategoryByKey = (key: string) =>
+  prisma.category.findFirst({ where: { archivedAt: null, OR: [{ id: key }, { slug: key }, { slugAr: key }] } });
+
+/** Category-filtered listing pages carry the category's own SEO module (V2 CAT-2). */
+export async function generateMetadata({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<SP> }): Promise<Metadata> {
+  const { locale } = await params;
+  const sp = await searchParams;
+  const key = oneOf(sp.category);
+  if (!key) return {};
+  const c = await loadCategoryByKey(key);
+  if (!c) return {};
+  const name = (locale === 'ar' ? c.nameAr : c.nameEn) ?? c.nameEn;
+  const title = ((locale === 'ar' ? c.metaTitleAr : c.metaTitleEn) || `${name} — Veeey`) as string;
+  const desc = ((locale === 'ar' ? c.metaDescAr : c.metaDescEn) ?? richToText((locale === 'ar' ? c.descriptionAr : c.descriptionEn) ?? c.descriptionEn)) || undefined;
+  const ogTitle = ((locale === 'ar' ? c.ogTitleAr : c.ogTitleEn) || title) as string;
+  const ogDesc = ((locale === 'ar' ? c.ogDescAr : c.ogDescEn) || desc) as string | undefined;
+  const ogImage = c.ogImage || c.imageUrl || undefined;
+  const canonical = c.canonicalUrl || `/${locale}/products?category=${(locale === 'ar' ? c.slugAr : c.slug) ?? c.slug}`;
+  return {
+    metadataBase: new URL('https://veeey.com'),
+    title,
+    description: desc,
+    alternates: { canonical },
+    robots: { index: c.robotsIndex, follow: c.robotsFollow },
+    openGraph: { title: ogTitle, description: ogDesc, url: canonical, siteName: 'Veeey', images: ogImage ? [ogImage] : undefined, type: 'website' },
+    twitter: { card: 'summary_large_image', title: ogTitle, description: ogDesc, images: ogImage ? [ogImage] : undefined },
+  };
+}
 
 export default async function ProductsPage({
   params,
@@ -26,6 +60,9 @@ export default async function ProductsPage({
   const nameOf = (en: string, arName?: string | null) => (ar ? (arName ?? en) : en);
 
   const state = parsePlp(sp);
+  // Category filter accepts an id OR a slug (SEO URLs use slugs); normalize to id.
+  const activeCategory = state.category ? await loadCategoryByKey(state.category) : null;
+  if (activeCategory) state.category = activeCategory.id;
   const { q } = state;
 
   const where = {
@@ -109,6 +146,23 @@ export default async function ProductsPage({
 
   return (
     <>
+    {activeCategory && (
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'CollectionPage',
+            name: (ar ? activeCategory.nameAr : activeCategory.nameEn) ?? activeCategory.nameEn,
+            image: activeCategory.ogImage || activeCategory.imageUrl || undefined,
+            url: `https://veeey.com/${locale}/products?category=${(ar ? activeCategory.slugAr : activeCategory.slug) ?? activeCategory.slug}`,
+            ...(activeCategory.schemaOverridesJson && typeof activeCategory.schemaOverridesJson === 'object' && !Array.isArray(activeCategory.schemaOverridesJson)
+              ? (activeCategory.schemaOverridesJson as Record<string, unknown>)
+              : {}),
+          }),
+        }}
+      />
+    )}
     {zones['category.top'].length > 0 && <ChewyHome locale={locale} blocks={zones['category.top']} data={zoneData} />}
     <div className="mx-auto max-w-[1440px] px-4 pb-12 pt-5 sm:px-6 lg:px-8">
       <div className="mb-3.5 flex items-center gap-2 text-[13px] text-[color:var(--text-muted)]">
