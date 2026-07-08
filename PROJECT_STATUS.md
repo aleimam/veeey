@@ -2,14 +2,34 @@
 
 > Living status/handoff doc. Repo-committed so it travels with the code (unlike
 > per-user assistant memory). Update it when features ship or the backlog changes.
-> **Last updated: 2026-07-08 (night — staff-orders epic Phases A/B/C complete & DEPLOYED).** Authoritative product docs: `VEEEY_PRD.md`,
+> **Last updated: 2026-07-08 (late night — full review/polish/harden pass complete & DEPLOYED).** Authoritative product docs: `VEEEY_PRD.md`,
 > `VEEEY_SPEC.md`, `BUILD_PLAN.md`, `AGENTS.md`, `DEPLOYMENT.md`.
 
 ## Current state
-- **Live** at **veeey.com**. Latest deployed commit: **`c6209dc`** (2026-07-08). All
-  **33 Prisma migrations applied**; `pm2` processes `veeey` + `veeey-worker` healthy; `/api/health` → `{"status":"ok"}`.
+- **Live** at **veeey.com**. Latest deployed commit: **`81da59e`** (2026-07-08). All
+  **33 Prisma migrations applied** (this batch adds none); `pm2` processes `veeey` + `veeey-worker` healthy; `/api/health` → `{"status":"ok"}`.
 - Stack: Next.js 16 (App Router, Turbopack) · TypeScript · Prisma 7 + Postgres ·
-  next-intl (AR/EN, RTL) · Tailwind v4. Verify gate: `npm run typecheck && npm run lint && npm run test && npm run build` (214 unit tests green).
+  next-intl (AR/EN, RTL) · Tailwind v4. Verify gate: `npm run typecheck && npm run lint && npm run test && npm run build` (243 unit tests green).
+
+## 2026-07-08 hardening pass (3 review agents: security / correctness / recent code)
+- **`09cd75a` media durability** — background job (`media-localize` queue) downloads all ~12.8k
+  old-CDN (egyptvitamin.b-cdn.net) catalog images → WebP in `public/uploads`, rewrites DB URLs,
+  prunes dead links. **Owner action: click "Localize images now" in `/admin/go-live` (Media durability card).**
+- **`1a90709` correctness** — atomic stock claims (cart reserve/release, staff-order allocation),
+  transitionOrder compare-and-swap (no double restock/points/revenue on double-click), returns-aware
+  refund restock (no double count), edit guards on item/gift removal, loyalty net clawback + REDEEM
+  refund on cancel, tier-rate pointsEarned, coupon singleUse enforced, non-destructive setCartQty,
+  PENDING bulk-delete restocks first, restructure apply = snapshot-first + one transaction + true-slug redirects.
+- **`81da59e` security** — 17 admin read pages now enforce the sidebar's permission server-side
+  (orders/customers/returns/special-orders/notifications/change-log/users/departments/analytics);
+  department permission fallback fixed (zero-perm dept no longer falls back to old role); friendly
+  bilingual admin "no access" error boundary; in-process rate limits on login/register/reviews/
+  questions/special-orders (reCAPTCHA fails open, so it can't be the only control); order-confirmation
+  page gated by `vy_orders` cookie or owning session (numbers were guessable).
+- Known accepted leftovers (low): revenue outbox payload uses EGP float (contract-compatible);
+  getCart line price shows first lot's price when a product spans differently-priced lots (display
+  only); coupon usage limits still check-then-act under extreme concurrency; lifetimeSpend reversal
+  uses current total if items were lost after credit.
 
 ## Deploy & server access
 - **Passwordless SSH is configured:** `ssh veeey` → `root@204.168.129.186`
