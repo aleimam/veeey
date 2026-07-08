@@ -3,6 +3,7 @@ import { getBoss, QUEUES } from '@/lib/jobs';
 import { processProductChangeEvents } from '@/lib/alert-service';
 import { notify, type NotifyInput } from '@/lib/notification-service';
 import { runScheduledSync, syncEntity, runFullSync } from '@/lib/migration/wc-sync';
+import { sendWeeklyAuditReport, purgeOldAuditLogs } from '@/lib/audit-report-service';
 
 /**
  * Standalone job worker (run: `npm run worker`). Registers pg-boss handlers and
@@ -22,6 +23,8 @@ async function main() {
   await boss.createQueue(QUEUES.notify);
   await boss.createQueue(QUEUES.alerts);
   await boss.createQueue(QUEUES.wooSync);
+  await boss.createQueue(QUEUES.auditReport);
+  await boss.createQueue(QUEUES.auditPurge);
 
   await boss.work(QUEUES.notify, async ([job]) => {
     await notify(job.data as NotifyInput);
@@ -50,11 +53,25 @@ async function main() {
     }
   });
 
+  // Audit/change-log maintenance: weekly staff report + daily retention purge
+  // (both gated by admin Settings — audit.weeklyReport / audit.retentionDays).
+  await boss.work(QUEUES.auditReport, async () => {
+    const r = await sendWeeklyAuditReport();
+    console.log(`[worker] audit report: ${r.skipped ? `skipped (${r.skipped})` : `sent to ${r.sent} recipient(s)`}`);
+  });
+  await boss.work(QUEUES.auditPurge, async () => {
+    const r = await purgeOldAuditLogs();
+    console.log(`[worker] audit purge: ${r.skipped ? `skipped (${r.skipped})` : `${r.deleted} old entries deleted`}`);
+  });
+
   // Recurring wishlist-alert sweep every 5 minutes.
   await boss.schedule(QUEUES.alerts, '*/5 * * * *', {});
   // WooCommerce incremental sync every 15 minutes (gated by woo.sync.enabled).
   await boss.schedule(QUEUES.wooSync, '*/15 * * * *', {});
-  console.log('[worker] started — notify + alerts + woo-sync queues registered, schedules set.');
+  // Weekly activity report Mondays 06:00 UTC; retention purge daily 04:30 UTC.
+  await boss.schedule(QUEUES.auditReport, '0 6 * * 1', {});
+  await boss.schedule(QUEUES.auditPurge, '30 4 * * *', {});
+  console.log('[worker] started — notify + alerts + woo-sync + audit queues registered, schedules set.');
 }
 
 void main();

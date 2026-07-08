@@ -23,6 +23,10 @@ export const SETTINGS: SettingDef[] = [
   { key: 'preorder.depositPercent', label: 'Pre-order deposit (%)', group: 'Pre-orders', type: 'percent', default: '25', hint: 'Deposit charged up front to reserve a pre-order; the balance is due on delivery.' },
   // Gifts
   { key: 'gifts.lowStockThreshold', label: 'Gift low-stock threshold', group: 'Gifts', type: 'number', default: '5', hint: 'Gifts at or below this stock show a low-stock warning in the gifts list.' },
+  // Audit / activity log
+  { key: 'audit.weeklyReport', label: 'Weekly activity report', group: 'Audit log', type: 'text', default: 'on', hint: 'on / off — email staff a weekly summary of admin activity (the change log).' },
+  { key: 'audit.reportRecipients', label: 'Report recipients', group: 'Audit log', type: 'text', default: '', hint: 'Comma-separated emails. Empty = every staff user with a role.' },
+  { key: 'audit.retentionDays', label: 'Change-log retention (days)', group: 'Audit log', type: 'days', default: '365', hint: '0 = keep forever. Entries older than this are purged daily.' },
   // Shipping
   { key: 'shipping.freeThresholdEgp', label: 'Free-shipping threshold (EGP)', group: 'Shipping', type: 'number', default: '0', hint: '0 = shipping fees come from the per-type config.' },
   // Referrals
