@@ -26,6 +26,7 @@ async function main() {
   await boss.createQueue(QUEUES.auditReport);
   await boss.createQueue(QUEUES.auditPurge);
   await boss.createQueue(QUEUES.brandTranslate);
+  await boss.createQueue(QUEUES.mediaLocalize);
 
   await boss.work(QUEUES.notify, async ([job]) => {
     await notify(job.data as NotifyInput);
@@ -70,6 +71,13 @@ async function main() {
     const { runBrandNameTranslation } = await import('@/lib/taxonomy-service');
     const r = await runBrandNameTranslation();
     console.log(`[worker] brand translate: ${r.state} — ${r.done}/${r.total} translated, ${r.failed} failed`);
+  });
+
+  // Catalog media localization (old-CDN images → local /uploads; from /admin/go-live).
+  await boss.work(QUEUES.mediaLocalize, async () => {
+    const { runMediaLocalization } = await import('@/lib/media-localize-service');
+    const r = await runMediaLocalization();
+    console.log(`[worker] media localize: ${r.state} — ${r.done}/${r.total} localized, ${r.failed} dead (${r.deleted} image rows pruned)`);
   });
 
   // Recurring wishlist-alert sweep every 5 minutes.

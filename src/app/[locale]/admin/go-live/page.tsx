@@ -5,8 +5,10 @@ import { hasPermission } from '@/lib/rbac';
 import { pick } from '@/lib/admin-i18n';
 import { formatEGP } from '@/lib/format';
 import { goLiveCounts, listGoLiveProducts, countGoLiveProducts } from '@/lib/go-live-service';
+import { getMediaLocalizeStatus, countRemoteMedia } from '@/lib/media-localize-service';
 import { quickAddStockAction, publishReadyAction } from '@/server/go-live-actions';
 import { StockImportForm } from '@/components/admin/stock-import-form';
+import { MediaLocalizeButton } from '@/components/admin/media-localize-button';
 import { GoLiveBulkBar, PublishAllReady } from '@/components/admin/go-live-bulk';
 import { ListPagination } from '@/components/admin/list-pagination';
 import { parseListParams, listQs, type SP } from '@/lib/admin-list';
@@ -30,10 +32,12 @@ export default async function GoLivePage({ params, searchParams }: { params: Pro
   const q = one(sp.q);
   const only = one(sp.only);
   const { page, perPage } = parseListParams(sp, { sortable: [], defaultSort: '' });
-  const [counts, rows, total] = await Promise.all([
+  const [counts, rows, total, remoteMedia, mediaJob] = await Promise.all([
     goLiveCounts(),
     listGoLiveProducts({ q, only, skip: (page - 1) * perPage, take: perPage }),
     countGoLiveProducts({ q, only }),
+    countRemoteMedia(),
+    getMediaLocalizeStatus(),
   ]);
   // Reconciliation: Not live = Ready + Not-ready. "No price"/"No image" overlap
   // (a product can miss both), so they don't sum to Not-ready — the tooltips say so.
@@ -153,7 +157,7 @@ export default async function GoLivePage({ params, searchParams }: { params: Pro
                     </td>
                   </tr>
                 ))}
-                {rows.length === 0 && <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">{tb('Nothing here — all caught up.', 'لا شيء هنا — كل شيء جاهز.')}</td></tr>}
+                {rows.length === 0 && <tr><td colSpan={only === 'published' ? 6 : 7} className="p-6 text-center text-muted-foreground">{tb('Nothing here — all caught up.', 'لا شيء هنا — كل شيء جاهز.')}</td></tr>}
               </tbody>
             </table>
           </div>
@@ -173,6 +177,18 @@ export default async function GoLivePage({ params, searchParams }: { params: Pro
               <StockImportForm locale={locale} />
             </>
           ) : <p className="text-sm text-muted-foreground">{tb('Requires inventory permission.', 'يتطلب صلاحية المخزون.')}</p>}
+
+          {/* Media durability — imported catalog images still live on the old
+              site's CDN; localize them so the storefront never depends on it. */}
+          <div className="mt-5 border-t border-border pt-4">
+            <h2 className="mb-2 text-base font-semibold text-foreground">{tb('Media durability', 'حماية الصور')}</h2>
+            <p className="mb-3 text-xs text-muted-foreground">{tb('Imported product/brand/category images still load from the old site’s CDN. Localizing downloads each one into Veeey’s own storage (as WebP) so they keep working even if the old CDN account expires. Dead links are pruned so those products appear in the "No image" filter.', 'صور المنتجات/العلامات/الفئات المستوردة ما زالت تُحمَّل من CDN الموقع القديم. التوطين ينزّل كل صورة إلى تخزين Veeey الخاص (بصيغة WebP) لتظل تعمل حتى لو انتهى حساب الـ CDN القديم. الروابط الميتة تُحذف لتظهر منتجاتها في فلتر «بدون صورة».')}</p>
+            {one(sp.mjob) === 'started' && <p className="mb-3 rounded-md bg-primary/10 px-3 py-2 text-xs text-primary">{tb('Localization job started — it runs in the background. Refresh to see progress.', 'بدأت مهمة التوطين — تعمل في الخلفية. حدّث الصفحة لمتابعة التقدم.')}</p>}
+            {one(sp.mjob) === 'offline' && <p className="mb-3 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">{tb('Could not start the job — the background worker is not reachable.', 'تعذّر بدء المهمة — عامل الخلفية غير متاح.')}</p>}
+            {mediaJob?.state === 'running' && <p className="mb-3 rounded-md bg-primary/10 px-3 py-2 text-xs text-primary">{tb(`Localizing… ${mediaJob.done}/${mediaJob.total} done${mediaJob.failed ? `, ${mediaJob.failed} dead link(s) pruned` : ''}.`, `جارٍ التوطين… ${mediaJob.done}/${mediaJob.total}${mediaJob.failed ? `، حُذف ${mediaJob.failed} رابط ميت` : ''}.`)}</p>}
+            {mediaJob?.state === 'done' && remoteMedia > 0 && <p className="mb-3 rounded-md bg-primary/10 px-3 py-2 text-xs text-primary">{tb(`Last run finished (${mediaJob.done}/${mediaJob.total} localized). ${remoteMedia} remote image(s) remain — run again to catch them.`, `انتهى آخر تشغيل (${mediaJob.done}/${mediaJob.total}). تبقّى ${remoteMedia} صورة خارجية — شغّل المهمة مجددًا.`)}</p>}
+            <MediaLocalizeButton locale={locale} remote={remoteMedia} />
+          </div>
         </aside>
       </div>
     </div>

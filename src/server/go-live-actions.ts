@@ -4,6 +4,9 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { parseCsvObjects } from '@/lib/csv-io';
 import { importStock, quickAddStock, publishReady, type StockImportReport } from '@/lib/go-live-service';
+import { requirePermission } from '@/lib/auth-guards';
+import { audit } from '@/lib/audit';
+import { getBoss, QUEUES } from '@/lib/jobs';
 
 const localeOf = (fd: FormData) => (fd.get('locale') === 'ar' ? 'ar' : 'en');
 const str = (fd: FormData, k: string) => { const v = fd.get(k); return typeof v === 'string' ? v.trim() : ''; };
@@ -48,6 +51,23 @@ export async function quickAddStockAction(fd: FormData): Promise<void> {
   }
   revalidatePath(PATH(locale));
   redirect(`${PATH(locale)}?added=1${andPublish ? (published ? `&published=${published}` : '&notready=1') : ''}`);
+}
+
+/** Start the background media-localization job (old-CDN images → /uploads). */
+export async function startMediaLocalizeAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const user = await requirePermission('catalog.write');
+  const boss = await getBoss();
+  if (!boss) redirect(`${PATH(locale)}?mjob=offline`);
+  try {
+    await boss.send(QUEUES.mediaLocalize, {});
+    await audit({ actorType: 'USER', actorId: user.id, action: 'media.localize.start' });
+  } catch (e) {
+    console.error('media localize enqueue failed', e);
+    redirect(`${PATH(locale)}?mjob=offline`);
+  }
+  revalidatePath(PATH(locale));
+  redirect(`${PATH(locale)}?mjob=started`);
 }
 
 export async function publishReadyAction(fd: FormData): Promise<void> {
