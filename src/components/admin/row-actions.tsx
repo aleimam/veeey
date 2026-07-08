@@ -1,9 +1,11 @@
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { archiveEntityAction, deleteEntityAction } from '@/server/admin-actions';
+import { ConfirmButton } from './confirm-button';
 
 /** Archive/Restore (+ optional guarded Delete) controls for an admin list row.
- *  Async server component — renders server-action forms. */
+ *  Async server component — renders server-action forms. With `warn` set (e.g.
+ *  "brand has 12 products"), Archive and Delete ask for confirmation first. */
 export async function RowActions({
   entity,
   id,
@@ -11,6 +13,7 @@ export async function RowActions({
   locale,
   archived,
   canDelete = true,
+  warn,
 }: {
   entity: string;
   id: string;
@@ -18,8 +21,10 @@ export async function RowActions({
   locale: string;
   archived: boolean;
   canDelete?: boolean;
+  warn?: string;
 }) {
   const t = await getTranslations('admin.common');
+  const archiveBtn = archived ? t('restore') : t('archive');
   return (
     <>
       <form action={archiveEntityAction}>
@@ -28,7 +33,9 @@ export async function RowActions({
         <input type="hidden" name="path" value={path} />
         <input type="hidden" name="locale" value={locale} />
         <input type="hidden" name="archived" value={archived ? '0' : '1'} />
-        <button className="text-muted-foreground hover:text-foreground">{archived ? t('restore') : t('archive')}</button>
+        {warn && !archived
+          ? <ConfirmButton warn={warn} className="text-muted-foreground hover:text-foreground">{archiveBtn}</ConfirmButton>
+          : <button className="text-muted-foreground hover:text-foreground">{archiveBtn}</button>}
       </form>
       {canDelete && (
         <form action={deleteEntityAction}>
@@ -36,7 +43,9 @@ export async function RowActions({
           <input type="hidden" name="id" value={id} />
           <input type="hidden" name="path" value={path} />
           <input type="hidden" name="locale" value={locale} />
-          <button className="text-destructive hover:underline">{t('delete')}</button>
+          {warn
+            ? <ConfirmButton warn={warn} className="text-destructive hover:underline">{t('delete')}</ConfirmButton>
+            : <button className="text-destructive hover:underline">{t('delete')}</button>}
         </form>
       )}
     </>

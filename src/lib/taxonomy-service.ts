@@ -11,7 +11,7 @@ import { parseSchemaOverrides } from '@/lib/catalog-service';
 // Shared admin-list options. `archived` undefined = no filter (used by pickers);
 // with `page` set the list paginates. Array return shape is kept for callers
 // that use these for dropdown options.
-export type TaxoListOpts = { q?: string; archived?: boolean; sort?: string; dir?: 'asc' | 'desc'; page?: number; perPage?: number };
+export type TaxoListOpts = { q?: string; archived?: boolean; flag?: string; sort?: string; dir?: 'asc' | 'desc'; page?: number; perPage?: number };
 const archivedWhere = (archived?: boolean) => (archived === undefined ? {} : archived ? { archivedAt: { not: null } } : { archivedAt: null });
 const paging = (o: TaxoListOpts) => ({
   skip: o.page != null ? (Math.max(1, o.page) - 1) * (o.perPage ?? 50) : 0,
@@ -80,12 +80,30 @@ const brandSchema = z.object({
 });
 export type BrandInput = z.input<typeof brandSchema>;
 
+/** Data-completeness filters for the brands list (V2 BR-3). */
+function brandFlagWhere(flag?: string): Prisma.BrandWhereInput {
+  switch (flag) {
+    case 'missing_ar_name': return { OR: [{ nameAr: null }, { nameAr: '' }] };
+    case 'missing_logo': return { OR: [{ logoUrl: null }, { logoUrl: '' }] };
+    case 'missing_banner': return { OR: [{ bannerUrl: null }, { bannerUrl: '' }] };
+    case 'missing_description': return { AND: [{ OR: [{ descriptionEn: null }, { descriptionEn: '' }] }, { OR: [{ descriptionAr: null }, { descriptionAr: '' }] }] };
+    case 'zero_products': return { products: { none: {} } };
+    default: return {};
+  }
+}
+
 const brandWhere = (o: TaxoListOpts): Prisma.BrandWhereInput => ({
   ...(o.q ? { nameEn: { contains: o.q, mode: 'insensitive' } } : {}),
   ...archivedWhere(o.archived),
+  ...(o.flag ? { AND: [brandFlagWhere(o.flag)] } : {}),
 });
 export const listBrands = (o: TaxoListOpts = {}) =>
-  prisma.brand.findMany({ where: brandWhere(o), orderBy: o.sort === 'slug' ? { slug: o.dir ?? 'asc' } : { nameEn: o.dir ?? 'asc' }, ...paging(o) });
+  prisma.brand.findMany({
+    where: brandWhere(o),
+    include: { _count: { select: { products: true } } },
+    orderBy: o.sort === 'slug' ? { slug: o.dir ?? 'asc' } : { nameEn: o.dir ?? 'asc' },
+    ...paging(o),
+  });
 export const countBrands = (o: TaxoListOpts = {}) => prisma.brand.count({ where: brandWhere(o) });
 export const getBrand = (id: string) => prisma.brand.findUnique({ where: { id } });
 
@@ -113,6 +131,70 @@ export async function saveBrand(id: string | null, raw: BrandInput) {
     : await prisma.brand.create({ data });
   await audit({ actorType: 'USER', actorId: user.id, action: id ? 'brand.update' : 'brand.create', entityType: 'Brand', entityId: brand.id });
   return brand;
+}
+
+// ---- Brand Arabic-name bulk translation (V2 BR-3) ---------------------------
+// Runs in the WORKER (no session): the enqueuing action is RBAC-gated. Progress
+// is written to the generic Setting KV so the brands page can show status.
+const TRANSLATE_STATUS_KEY = 'brands.translateJob';
+export type BrandTranslateStatus = { state: 'running' | 'done' | 'error'; done: number; total: number; failed: number; at: string };
+
+async function setTranslateStatus(v: BrandTranslateStatus) {
+  const value = JSON.stringify(v);
+  await prisma.setting.upsert({ where: { key: TRANSLATE_STATUS_KEY }, update: { value }, create: { key: TRANSLATE_STATUS_KEY, value } });
+}
+
+export async function getBrandTranslateStatus(): Promise<BrandTranslateStatus | null> {
+  const row = await prisma.setting.findUnique({ where: { key: TRANSLATE_STATUS_KEY } });
+  if (!row) return null;
+  try { return JSON.parse(row.value) as BrandTranslateStatus; } catch { return null; }
+}
+
+/** Translate every empty Arabic brand name via AI, in chunks. Each write goes
+ *  through prisma.brand.update so the field-level change log records it. */
+export async function runBrandNameTranslation(): Promise<BrandTranslateStatus> {
+  const { translateToArabic } = await import('@/lib/ai');
+  const brands = await prisma.brand.findMany({
+    where: { archivedAt: null, OR: [{ nameAr: null }, { nameAr: '' }] },
+    select: { id: true, nameEn: true },
+    orderBy: { nameEn: 'asc' },
+  });
+  const total = brands.length;
+  let done = 0;
+  let failed = 0;
+  const now = () => new Date().toISOString();
+  await setTranslateStatus({ state: 'running', done, total, failed, at: now() });
+
+  const CHUNK = 10;
+  for (let i = 0; i < brands.length; i += CHUNK) {
+    const chunk = brands.slice(i, i + CHUNK);
+    const out = await translateToArabic(Object.fromEntries(chunk.map((b) => [b.id, b.nameEn])));
+    if (!out) {
+      // AI off or the call failed — on the very first chunk treat as fatal.
+      failed += chunk.length;
+      if (i === 0) {
+        const status: BrandTranslateStatus = { state: 'error', done, total, failed, at: now() };
+        await setTranslateStatus(status);
+        return status;
+      }
+      continue;
+    }
+    for (const b of chunk) {
+      const ar = out[b.id]?.trim();
+      if (ar) {
+        await prisma.brand.update({ where: { id: b.id }, data: { nameAr: ar } });
+        done++;
+      } else {
+        failed++;
+      }
+    }
+    await setTranslateStatus({ state: 'running', done, total, failed, at: now() });
+  }
+
+  const status: BrandTranslateStatus = { state: 'done', done, total, failed, at: now() };
+  await setTranslateStatus(status);
+  await audit({ actorType: 'SYSTEM', action: 'brands.translate.run', entityType: 'Brand', entityId: `${done}/${total} translated`, data: { done, total, failed } });
+  return status;
 }
 
 // ---- Categories ------------------------------------------------------------

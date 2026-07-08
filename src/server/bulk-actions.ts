@@ -4,6 +4,9 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { bulkProducts, bulkOrders, bulkCustomers, bulkReviews, bulkSpecialOrders, adjustAllProductPrices, type BulkResult } from '@/lib/admin-bulk-service';
 import { bulkSoftDelete } from '@/lib/soft-delete-service';
+import { requirePermission } from '@/lib/auth-guards';
+import { audit } from '@/lib/audit';
+import { getBoss, QUEUES } from '@/lib/jobs';
 
 const localeOf = (fd: FormData) => (fd.get('locale') === 'ar' ? 'ar' : 'en');
 const str = (fd: FormData, k: string) => {
@@ -40,6 +43,26 @@ export async function bulkProductsAction(fd: FormData): Promise<void> {
   if (!r) return;
   revalidatePath(`/${locale}/admin/products`);
   finish(target, r);
+}
+
+/** Start the background job translating every empty Arabic brand name (V2 BR-3).
+ *  Owner decision: one click covers all ~700, chunked in the worker. */
+export async function startBrandTranslateAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const target = backTo(fd, locale, 'brands');
+  const user = await requirePermission('catalog.write');
+  const boss = await getBoss();
+  const sep = target.includes('?') ? '&' : '?';
+  if (!boss) redirect(`${target}${sep}tjob=offline`); // needs the worker process
+  try {
+    await boss.send(QUEUES.brandTranslate, {});
+    await audit({ actorType: 'USER', actorId: user.id, action: 'brands.translate.start', entityType: 'Brand' });
+  } catch (e) {
+    console.error('brand translate enqueue failed', e);
+    redirect(`${target}${sep}tjob=offline`);
+  }
+  revalidatePath(`/${locale}/admin/brands`);
+  redirect(`${target}${sep}tjob=started`);
 }
 
 /** Catalog-wide price adjustment (the "adjust ALL prices" panel). */

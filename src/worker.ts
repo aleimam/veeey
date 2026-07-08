@@ -25,6 +25,7 @@ async function main() {
   await boss.createQueue(QUEUES.wooSync);
   await boss.createQueue(QUEUES.auditReport);
   await boss.createQueue(QUEUES.auditPurge);
+  await boss.createQueue(QUEUES.brandTranslate);
 
   await boss.work(QUEUES.notify, async ([job]) => {
     await notify(job.data as NotifyInput);
@@ -62,6 +63,13 @@ async function main() {
   await boss.work(QUEUES.auditPurge, async () => {
     const r = await purgeOldAuditLogs();
     console.log(`[worker] audit purge: ${r.skipped ? `skipped (${r.skipped})` : `${r.deleted} old entries deleted`}`);
+  });
+
+  // Bulk brand Arabic-name translation (started from /admin/brands).
+  await boss.work(QUEUES.brandTranslate, async () => {
+    const { runBrandNameTranslation } = await import('@/lib/taxonomy-service');
+    const r = await runBrandNameTranslation();
+    console.log(`[worker] brand translate: ${r.state} — ${r.done}/${r.total} translated, ${r.failed} failed`);
   });
 
   // Recurring wishlist-alert sweep every 5 minutes.

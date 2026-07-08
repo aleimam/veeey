@@ -20,6 +20,8 @@ export type BulkOp = {
   danger?: boolean;
   /** Stronger guard for danger ops: user must type the selected count to proceed. */
   typedConfirm?: boolean;
+  /** Op-specific confirmation text (also applies to non-danger ops like Archive). */
+  confirm?: string;
 };
 
 const selCls = 'h-9 rounded-md border border-border bg-card px-2.5 text-sm outline-none focus:ring-2 focus:ring-ring';
@@ -91,13 +93,14 @@ export function BulkBar({
       const sel = e.currentTarget.elements.namedItem('value');
       if ((sel instanceof HTMLSelectElement || sel instanceof HTMLInputElement) && !sel.value) { e.preventDefault(); alert(labels.needValue); return; }
     }
-    if (current?.danger) {
-      if (current.typedConfirm) {
-        // Catalog-size guard: the user must type the selected count to proceed.
-        const typed = prompt(`${labels.confirmDanger}\n\n→ ${count}`);
-        if (typed !== String(count)) { e.preventDefault(); return; }
-      } else if (!confirm(labels.confirmDanger)) e.preventDefault();
+    if (current?.danger && current.typedConfirm) {
+      // Catalog-size guard: the user must type the selected count to proceed.
+      const typed = prompt(`${current.confirm ?? labels.confirmDanger}\n\n→ ${count}`);
+      if (typed !== String(count)) { e.preventDefault(); return; }
+      return;
     }
+    const msg = current?.confirm ?? (current?.danger ? labels.confirmDanger : undefined);
+    if (msg && !confirm(msg)) e.preventDefault();
   };
 
   const exportSelected = () => {
