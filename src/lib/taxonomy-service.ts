@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
 import { uniqueSlug } from '@/lib/slug';
+import { parseSchemaOverrides } from '@/lib/catalog-service';
 
 /** Taxonomy CRUD (FR-CAT-01/08). RBAC-gated + audited. */
 
@@ -22,6 +23,51 @@ const bilingual = {
   nameAr: z.string().trim().optional().nullable(),
 };
 
+// Full SEO module fields shared by Brand + Category (same set as Product).
+const seoSchemaFields = {
+  slugAr: z.string().trim().optional().nullable(),
+  metaTitleEn: z.string().optional().nullable(),
+  metaTitleAr: z.string().optional().nullable(),
+  metaDescEn: z.string().optional().nullable(),
+  metaDescAr: z.string().optional().nullable(),
+  focusKeywordEn: z.string().optional().nullable(),
+  focusKeywordAr: z.string().optional().nullable(),
+  secondaryKeywordsEn: z.string().optional().nullable(),
+  secondaryKeywordsAr: z.string().optional().nullable(),
+  ogTitleEn: z.string().optional().nullable(),
+  ogTitleAr: z.string().optional().nullable(),
+  ogDescEn: z.string().optional().nullable(),
+  ogDescAr: z.string().optional().nullable(),
+  ogImage: z.string().optional().nullable(),
+  canonicalUrl: z.string().optional().nullable(),
+  robotsIndex: z.boolean().default(true),
+  robotsFollow: z.boolean().default(true),
+  schemaOverrides: z.string().optional().nullable(),
+};
+type SeoParsed = z.infer<z.ZodObject<typeof seoSchemaFields>>;
+
+function seoData(d: SeoParsed) {
+  return {
+    metaTitleEn: d.metaTitleEn ?? null,
+    metaTitleAr: d.metaTitleAr ?? null,
+    metaDescEn: d.metaDescEn ?? null,
+    metaDescAr: d.metaDescAr ?? null,
+    focusKeywordEn: d.focusKeywordEn?.trim() || null,
+    focusKeywordAr: d.focusKeywordAr?.trim() || null,
+    secondaryKeywordsEn: d.secondaryKeywordsEn?.trim() || null,
+    secondaryKeywordsAr: d.secondaryKeywordsAr?.trim() || null,
+    ogTitleEn: d.ogTitleEn?.trim() || null,
+    ogTitleAr: d.ogTitleAr?.trim() || null,
+    ogDescEn: d.ogDescEn?.trim() || null,
+    ogDescAr: d.ogDescAr?.trim() || null,
+    ogImage: d.ogImage?.trim() || null,
+    canonicalUrl: d.canonicalUrl?.trim() || null,
+    robotsIndex: d.robotsIndex,
+    robotsFollow: d.robotsFollow,
+    schemaOverridesJson: parseSchemaOverrides(d.schemaOverrides),
+  };
+}
+
 // ---- Brands ----------------------------------------------------------------
 const brandSchema = z.object({
   ...bilingual,
@@ -30,8 +76,7 @@ const brandSchema = z.object({
   descriptionAr: z.string().optional().nullable(),
   logoUrl: z.string().optional().nullable(),
   bannerUrl: z.string().optional().nullable(),
-  metaTitleEn: z.string().optional().nullable(),
-  metaDescEn: z.string().optional().nullable(),
+  ...seoSchemaFields,
 });
 export type BrandInput = z.input<typeof brandSchema>;
 
@@ -51,10 +96,17 @@ export async function saveBrand(id: string | null, raw: BrandInput) {
     const found = await prisma.brand.findUnique({ where: { slug: s } });
     return !!found && found.id !== id;
   });
+  // Arabic slug auto-generates from the EN slug when blank (slugify is
+  // latin-only — same fallback the product form uses).
+  const slugAr = await uniqueSlug(d.slugAr || slug, async (s) => {
+    const found = await prisma.brand.findFirst({ where: { slugAr: s } });
+    return !!found && found.id !== id;
+  });
   const data = {
-    nameEn: d.nameEn, nameAr: d.nameAr ?? null, slug,
+    nameEn: d.nameEn, nameAr: d.nameAr ?? null, slug, slugAr,
     descriptionEn: d.descriptionEn ?? null, descriptionAr: d.descriptionAr ?? null,
-    logoUrl: d.logoUrl ?? null, bannerUrl: d.bannerUrl ?? null, metaTitleEn: d.metaTitleEn ?? null, metaDescEn: d.metaDescEn ?? null,
+    logoUrl: d.logoUrl ?? null, bannerUrl: d.bannerUrl ?? null,
+    ...seoData(d),
   };
   const brand = id
     ? await prisma.brand.update({ where: { id }, data })
@@ -69,9 +121,9 @@ const categorySchema = z.object({
   slug: z.string().trim().optional(),
   parentId: z.string().optional().nullable(),
   descriptionEn: z.string().optional().nullable(),
+  descriptionAr: z.string().optional().nullable(),
   imageUrl: z.string().optional().nullable(),
-  metaTitleEn: z.string().optional().nullable(),
-  metaDescEn: z.string().optional().nullable(),
+  ...seoSchemaFields,
 });
 export type CategoryInput = z.input<typeof categorySchema>;
 
@@ -91,10 +143,16 @@ export async function saveCategory(id: string | null, raw: CategoryInput) {
     const found = await prisma.category.findUnique({ where: { slug: s } });
     return !!found && found.id !== id;
   });
+  const slugAr = await uniqueSlug(d.slugAr || slug, async (s) => {
+    const found = await prisma.category.findFirst({ where: { slugAr: s } });
+    return !!found && found.id !== id;
+  });
   const data = {
-    nameEn: d.nameEn, nameAr: d.nameAr ?? null, slug,
-    parentId: d.parentId || null, descriptionEn: d.descriptionEn ?? null,
-    imageUrl: d.imageUrl ?? null, metaTitleEn: d.metaTitleEn ?? null, metaDescEn: d.metaDescEn ?? null,
+    nameEn: d.nameEn, nameAr: d.nameAr ?? null, slug, slugAr,
+    parentId: d.parentId || null,
+    descriptionEn: d.descriptionEn ?? null, descriptionAr: d.descriptionAr ?? null,
+    imageUrl: d.imageUrl ?? null,
+    ...seoData(d),
   };
   const category = id
     ? await prisma.category.update({ where: { id }, data })

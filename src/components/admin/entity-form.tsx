@@ -27,6 +27,7 @@ export function EntityForm({
   id,
   locale,
   listHref,
+  extra,
 }: {
   action: Action;
   fields: FieldSpec[];
@@ -34,6 +35,8 @@ export function EntityForm({
   id?: string;
   locale: string;
   listHref: string;
+  /** Rendered inside the form before the submit row (e.g. the SEO module). */
+  extra?: React.ReactNode;
 }) {
   const [state, formAction] = useActionState<AdminFormState, FormData>(action, {});
   const tc = useTranslations('admin.common');
@@ -112,6 +115,8 @@ export function EntityForm({
           </Field>
         );
       })}
+
+      {extra}
 
       <div className="flex items-center gap-3 pt-2">
         <SubmitButton />

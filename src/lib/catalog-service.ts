@@ -144,8 +144,9 @@ function scalarFields(data: z.infer<typeof productWriteSchema>) {
   };
 }
 
-/** Parse the editable Product-schema overrides (JSON text); invalid/empty → DbNull. */
-function parseSchemaOverrides(s: string | null | undefined): Prisma.InputJsonValue | typeof PrismaRt.DbNull {
+/** Parse editable schema overrides (JSON text); invalid/empty → DbNull. Shared
+ *  by the product/brand/category SEO modules. */
+export function parseSchemaOverrides(s: string | null | undefined): Prisma.InputJsonValue | typeof PrismaRt.DbNull {
   if (!s || !s.trim()) return PrismaRt.DbNull;
   try {
     const v = JSON.parse(s);

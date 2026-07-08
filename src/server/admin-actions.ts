@@ -155,11 +155,28 @@ export async function saveBrandAction(_p: AdminFormState, fd: FormData): Promise
   try {
     await saveBrand(str(fd, 'id') ?? null, {
       nameEn: str(fd, 'nameEn') ?? '', nameAr: str(fd, 'nameAr'), slug: str(fd, 'slug'),
-      descriptionEn: str(fd, 'descriptionEn'), logoUrl: str(fd, 'logoUrl'), bannerUrl: str(fd, 'bannerUrl'),
-      metaTitleEn: str(fd, 'metaTitleEn'), metaDescEn: str(fd, 'metaDescEn'),
+      descriptionEn: str(fd, 'descriptionEn'), descriptionAr: str(fd, 'descriptionAr'),
+      logoUrl: str(fd, 'logoUrl'), bannerUrl: str(fd, 'bannerUrl'),
+      ...seoFieldsOf(fd),
     });
   } catch (e) { return fail(e); }
   done(locale, 'brands');
+}
+
+/** Full-SEO-module fields shared by the brand/category save actions. */
+function seoFieldsOf(fd: FormData) {
+  return {
+    slugAr: str(fd, 'slugAr'),
+    metaTitleEn: str(fd, 'metaTitleEn'), metaTitleAr: str(fd, 'metaTitleAr'),
+    metaDescEn: str(fd, 'metaDescEn'), metaDescAr: str(fd, 'metaDescAr'),
+    focusKeywordEn: str(fd, 'focusKeywordEn'), focusKeywordAr: str(fd, 'focusKeywordAr'),
+    secondaryKeywordsEn: str(fd, 'secondaryKeywordsEn'), secondaryKeywordsAr: str(fd, 'secondaryKeywordsAr'),
+    ogTitleEn: str(fd, 'ogTitleEn'), ogTitleAr: str(fd, 'ogTitleAr'),
+    ogDescEn: str(fd, 'ogDescEn'), ogDescAr: str(fd, 'ogDescAr'),
+    ogImage: str(fd, 'ogImage'), canonicalUrl: str(fd, 'canonicalUrl'),
+    robotsIndex: bool(fd, 'robotsIndex'), robotsFollow: bool(fd, 'robotsFollow'),
+    schemaOverrides: str(fd, 'schemaOverrides'),
+  };
 }
 
 export async function saveCategoryAction(_p: AdminFormState, fd: FormData): Promise<AdminFormState> {
@@ -167,8 +184,10 @@ export async function saveCategoryAction(_p: AdminFormState, fd: FormData): Prom
   try {
     await saveCategory(str(fd, 'id') ?? null, {
       nameEn: str(fd, 'nameEn') ?? '', nameAr: str(fd, 'nameAr'), slug: str(fd, 'slug'),
-      parentId: str(fd, 'parentId') ?? null, descriptionEn: str(fd, 'descriptionEn'),
-      imageUrl: str(fd, 'imageUrl'), metaTitleEn: str(fd, 'metaTitleEn'), metaDescEn: str(fd, 'metaDescEn'),
+      parentId: str(fd, 'parentId') ?? null,
+      descriptionEn: str(fd, 'descriptionEn'), descriptionAr: str(fd, 'descriptionAr'),
+      imageUrl: str(fd, 'imageUrl'),
+      ...seoFieldsOf(fd),
     });
   } catch (e) { return fail(e); }
   done(locale, 'categories');

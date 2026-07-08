@@ -30,8 +30,18 @@ export type SeoDefaults = {
 };
 
 export type SchemaInfo = {
-  name: string; brand: string; priceEgp: number; inStock: boolean;
-  ratingAvg: number | null; ratingCount: number; image: string;
+  name: string; brand?: string; priceEgp?: number; inStock?: boolean;
+  ratingAvg?: number | null; ratingCount?: number; image?: string;
+};
+
+export type SeoEntity = 'product' | 'brand' | 'category';
+
+/** Where the live analysis reads the rest of the form from (input names) and
+ *  how the public URL is built. Per entity — Products keep their original map. */
+const ENTITY_CONF: Record<SeoEntity, { nameEn: string; nameAr: string; slugEn: string; slugAr: string; contentEn: string; contentAr: string; hideFeeds?: string; pathPrefix: string }> = {
+  product: { nameEn: 'nameEn', nameAr: 'nameAr', slugEn: 'slugEn', slugAr: 'slugAr', contentEn: 'longDescEn', contentAr: 'longDescAr', hideFeeds: 'restrictHideFeeds', pathPrefix: 'products' },
+  brand: { nameEn: 'nameEn', nameAr: 'nameAr', slugEn: 'slug', slugAr: 'slugAr', contentEn: 'descriptionEn', contentAr: 'descriptionAr', pathPrefix: 'brands' },
+  category: { nameEn: 'nameEn', nameAr: 'nameAr', slugEn: 'slug', slugAr: 'slugAr', contentEn: 'descriptionEn', contentAr: 'descriptionAr', pathPrefix: 'products?category=' },
 };
 
 type Lang = 'en' | 'ar';
@@ -55,8 +65,9 @@ function Counter({ value, px, pxLimit, min, max }: { value: string; px: number; 
   return <span className={`text-[11px] font-medium ${color}`}>{len} ch · ~{px}/{pxLimit}px</span>;
 }
 
-export function SeoEditor({ d = {}, schemaInfo, baseUrl = 'https://veeey.com' }: { d?: SeoDefaults; schemaInfo: SchemaInfo; baseUrl?: string }) {
+export function SeoEditor({ d = {}, schemaInfo, baseUrl = 'https://veeey.com', entity = 'product' }: { d?: SeoDefaults; schemaInfo: SchemaInfo; baseUrl?: string; entity?: SeoEntity }) {
   const tb = pick(useLocale());
+  const conf = ENTITY_CONF[entity];
   const [lang, setLang] = useState<Lang>('en');
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop');
 
@@ -93,24 +104,26 @@ export function SeoEditor({ d = {}, schemaInfo, baseUrl = 'https://veeey.com' }:
   const [ext, setExt] = useState({ nameEn: '', nameAr: '', slugEn: '', slugAr: '', longEn: '', longAr: '', hideFeeds: false });
   useEffect(() => {
     const readAll = () => setExt({
-      nameEn: readForm('nameEn'), nameAr: readForm('nameAr'),
-      slugEn: readForm('slugEn'), slugAr: readForm('slugAr'),
-      longEn: readForm('longDescEn'), longAr: readForm('longDescAr'),
-      hideFeeds: readCheck('restrictHideFeeds'),
+      nameEn: readForm(conf.nameEn), nameAr: readForm(conf.nameAr),
+      slugEn: readForm(conf.slugEn), slugAr: readForm(conf.slugAr),
+      longEn: readForm(conf.contentEn), longAr: readForm(conf.contentAr),
+      hideFeeds: conf.hideFeeds ? readCheck(conf.hideFeeds) : false,
     });
     readAll();
     const t = setInterval(readAll, 2500);
     return () => clearInterval(t);
-  }, []);
+  }, [conf]);
 
   const L = lang === 'en';
   const name = (L ? ext.nameEn : ext.nameAr) || ext.nameEn;
-  const slug = (L ? ext.slugEn : ext.slugAr) || ext.slugEn || 'product';
+  const slug = (L ? ext.slugEn : ext.slugAr) || ext.slugEn || entity;
   const title = (L ? f.metaTitleEn : f.metaTitleAr) || name;
   const metaDesc = L ? f.metaDescEn : f.metaDescAr;
   const keyword = L ? f.focusKeywordEn : f.focusKeywordAr;
   const content = L ? ext.longEn : ext.longAr;
-  const url = `${baseUrl}/${lang}/products/${slug}`;
+  const url = conf.pathPrefix.includes('?')
+    ? `${baseUrl}/${lang}/${conf.pathPrefix}${slug}`
+    : `${baseUrl}/${lang}/${conf.pathPrefix}/${slug}`;
 
   const analysis = useMemo(
     () => analyzeSeo({ keyword, title, metaDesc, slug, contentHtml: content }),
@@ -133,14 +146,23 @@ export function SeoEditor({ d = {}, schemaInfo, baseUrl = 'https://veeey.com' }:
     readability: ['Readability', 'سهولة القراءة'],
   };
 
-  // Structured data: auto schema + overrides preview.
-  const autoSchema = useMemo(() => ({
-    '@context': 'https://schema.org', '@type': 'Product',
-    name: schemaInfo.name || name, brand: schemaInfo.brand ? { '@type': 'Brand', name: schemaInfo.brand } : undefined,
-    image: f.ogImage || schemaInfo.image || undefined,
-    offers: { '@type': 'Offer', priceCurrency: 'EGP', price: schemaInfo.priceEgp, availability: schemaInfo.inStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock' },
-    ...(schemaInfo.ratingCount > 0 && schemaInfo.ratingAvg ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: schemaInfo.ratingAvg, reviewCount: schemaInfo.ratingCount } } : {}),
-  }), [schemaInfo, name, f.ogImage]);
+  // Structured data: auto schema (per entity type) + overrides preview.
+  const autoSchema = useMemo(() => {
+    const img = f.ogImage || schemaInfo.image || undefined;
+    if (entity === 'brand') {
+      return { '@context': 'https://schema.org', '@type': 'Brand', name: schemaInfo.name || name, logo: img, url };
+    }
+    if (entity === 'category') {
+      return { '@context': 'https://schema.org', '@type': 'CollectionPage', name: schemaInfo.name || name, image: img, url };
+    }
+    return {
+      '@context': 'https://schema.org', '@type': 'Product',
+      name: schemaInfo.name || name, brand: schemaInfo.brand ? { '@type': 'Brand', name: schemaInfo.brand } : undefined,
+      image: img,
+      offers: { '@type': 'Offer', priceCurrency: 'EGP', price: schemaInfo.priceEgp ?? 0, availability: schemaInfo.inStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock' },
+      ...((schemaInfo.ratingCount ?? 0) > 0 && schemaInfo.ratingAvg ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: schemaInfo.ratingAvg, reviewCount: schemaInfo.ratingCount } } : {}),
+    };
+  }, [schemaInfo, name, f.ogImage, entity, url]);
   const [schemaErr, setSchemaErr] = useState('');
   const mergedSchema = useMemo(() => {
     if (!f.schemaOverrides.trim()) return autoSchema;
@@ -197,9 +219,11 @@ export function SeoEditor({ d = {}, schemaInfo, baseUrl = 'https://veeey.com' }:
             <span className="flex items-center justify-between">{tb('Meta description', 'وصف الميتا')}<Counter value={metaDesc} px={descPixels(metaDesc)} pxLimit={DESC_PX_LIMIT} min={120} max={160} /></span>
             <textarea name={L ? 'metaDescEn' : 'metaDescAr'} rows={3} value={metaDesc} onChange={set(L ? 'metaDescEn' : 'metaDescAr')} dir={L ? 'ltr' : 'rtl'} className={inputCls} />
           </label>
-          <label className="block text-sm font-medium">{tb('AI summary (AEO)', 'ملخص الذكاء الاصطناعي (AEO)')}
-            <textarea name={L ? 'aiSummaryEn' : 'aiSummaryAr'} rows={2} value={L ? f.aiSummaryEn : f.aiSummaryAr} onChange={set(L ? 'aiSummaryEn' : 'aiSummaryAr')} dir={L ? 'ltr' : 'rtl'} className={inputCls} />
-          </label>
+          {entity === 'product' && (
+            <label className="block text-sm font-medium">{tb('AI summary (AEO)', 'ملخص الذكاء الاصطناعي (AEO)')}
+              <textarea name={L ? 'aiSummaryEn' : 'aiSummaryAr'} rows={2} value={L ? f.aiSummaryEn : f.aiSummaryAr} onChange={set(L ? 'aiSummaryEn' : 'aiSummaryAr')} dir={L ? 'ltr' : 'rtl'} className={inputCls} />
+            </label>
+          )}
         </div>
 
         {/* Right: snippet preview + checks */}
