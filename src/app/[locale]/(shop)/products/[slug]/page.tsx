@@ -47,8 +47,24 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   const p = await loadProduct(slug);
   if (!p) return {};
   const name = (locale === 'ar' ? p.nameAr : p.nameEn) ?? p.nameEn;
-  const desc = (locale === 'ar' ? p.metaDescAr : p.metaDescEn) ?? richToText((locale === 'ar' ? p.shortDescAr : p.shortDescEn) ?? p.shortDescEn) ?? undefined;
-  return { title: `${name} — Veeey`, description: desc ?? undefined };
+  const title = (locale === 'ar' ? p.metaTitleAr : p.metaTitleEn) || `${name} — Veeey`;
+  const desc = ((locale === 'ar' ? p.metaDescAr : p.metaDescEn) ?? richToText((locale === 'ar' ? p.shortDescAr : p.shortDescEn) ?? p.shortDescEn)) || undefined;
+  const ogTitle = ((locale === 'ar' ? p.ogTitleAr : p.ogTitleEn) || title) as string;
+  const ogDesc = ((locale === 'ar' ? p.ogDescAr : p.ogDescEn) || desc) as string | undefined;
+  const ogImage = p.ogImage || p.images[0]?.url || undefined;
+  const localSlug = (locale === 'ar' ? p.slugAr : p.slugEn) ?? p.slugEn;
+  const canonical = p.canonicalUrl || `/${locale}/products/${localSlug}`;
+  return {
+    metadataBase: new URL('https://veeey.com'),
+    title,
+    description: desc,
+    alternates: { canonical },
+    // Robots come from the SEO module; the product PAGE stays indexable even
+    // when the product is hidden from shopping FEEDS (separate restriction).
+    robots: { index: p.robotsIndex, follow: p.robotsFollow },
+    openGraph: { title: ogTitle, description: ogDesc, url: canonical, siteName: 'Veeey', images: ogImage ? [ogImage] : undefined, type: 'website' },
+    twitter: { card: 'summary_large_image', title: ogTitle, description: ogDesc, images: ogImage ? [ogImage] : undefined },
+  };
 }
 
 export default async function ProductPage({ params }: { params: Promise<{ locale: string; slug: string }> }) {
@@ -95,15 +111,21 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
   const bars = [5, 4, 3, 2, 1].map((s, i) => ({ stars: s, pct: totalReviews ? Math.round((counts[i] / totalReviews) * 100) : 0 }));
 
   const offerPrice = buyLots[0]?.pricePiastres ?? basePrice;
+  const schemaOverrides =
+    p.schemaOverridesJson && typeof p.schemaOverridesJson === 'object' && !Array.isArray(p.schemaOverridesJson)
+      ? (p.schemaOverridesJson as Record<string, unknown>)
+      : {};
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name,
     brand: p.brand?.nameEn,
     sku: p.sku,
-    image: images[0]?.url,
+    image: p.ogImage || images[0]?.url,
     offers: { '@type': 'Offer', price: piastresToEgp(BigInt(offerPrice)), priceCurrency: 'EGP', availability: buyLots.length ? 'https://schema.org/InStock' : p.preorderEnabled ? 'https://schema.org/PreOrder' : 'https://schema.org/OutOfStock' },
     ...(p.ratingCount > 0 ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: p.ratingAvg ?? 0, reviewCount: p.ratingCount } } : {}),
+    // Admin-edited overrides from the SEO module win over the auto values.
+    ...schemaOverrides,
   };
 
   const ORIGIN_BADGE: Record<string, { flag: string; en: string; ar: string }> = {
