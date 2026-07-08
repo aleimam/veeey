@@ -9,6 +9,7 @@ import type { CustomerHit } from '@/lib/customer-admin-service';
 import type { AdminFormState } from '@/server/admin-actions';
 import { useActionState } from 'react';
 import { Field, FormError, SubmitButton, inputCls } from './ui';
+import { ProductLinePicker } from './order-item-picker';
 import { GOVERNORATES } from '@/lib/governorates';
 import { pick } from '@/lib/admin-i18n';
 
@@ -19,16 +20,16 @@ const addrLabel = (a: CustomerHit['addresses'][number]) =>
 
 export function ManualOrderForm({
   locale,
-  products,
   shippingTypes,
   paymentMethods,
   channels,
+  depositPercent = 25,
 }: {
   locale: string;
-  products: Opt[];
   shippingTypes: Opt[];
   paymentMethods: Opt[];
   channels: Opt[];
+  depositPercent?: number;
 }) {
   const tb = pick(useLocale());
   const [state, action] = useActionState<AdminFormState, FormData>(createManualOrderAction, {});
@@ -186,25 +187,11 @@ export function ManualOrderForm({
         <h2 className="mb-3 font-heading text-lg font-semibold">{tb('Items', 'العناصر')}</h2>
         <div className="space-y-3">
           {rows.map((id) => (
-            <div key={id} className="flex items-end gap-3">
-              <label className="block flex-1 text-sm font-medium">{tb('Product', 'المنتج')}
-                <select name="productId" className={inputCls} defaultValue="">
-                  <option value="" disabled>{tb('Choose a product…', 'اختر منتجًا…')}</option>
-                  {products.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
-                </select>
-              </label>
-              <label className="block w-24 text-sm font-medium">{tb('Qty', 'الكمية')}
-                <input name="qty" type="number" min={1} defaultValue={1} className={inputCls} />
-              </label>
-              <button
-                type="button"
-                onClick={() => setRows((r) => (r.length > 1 ? r.filter((x) => x !== id) : r))}
-                className="mb-1 rounded-md border border-border px-3 py-2 text-sm text-muted-foreground hover:text-destructive"
-                aria-label={tb('Remove row', 'إزالة السطر')}
-              >
-                ✕
-              </button>
-            </div>
+            <ProductLinePicker
+              key={id}
+              depositPercent={depositPercent}
+              onRemove={rows.length > 1 ? () => setRows((r) => r.filter((x) => x !== id)) : undefined}
+            />
           ))}
         </div>
         <button
@@ -214,7 +201,7 @@ export function ManualOrderForm({
         >
           + {tb('Add row', 'إضافة سطر')}
         </button>
-        <p className="mt-2 text-xs text-muted-foreground">{tb('Lots closest to expiry are selected first (FEFO); stock is deducted on creation.', 'يتم اختيار الدفعات الأقرب انتهاءً أولًا (FEFO)؛ ويُخصم المخزون عند الإنشاء.')}</p>
+        <p className="mt-2 text-xs text-muted-foreground">{tb('Pick an exact expiry per line or leave "Any" for FEFO; stock is deducted on creation and any shortfall becomes a pre-order (Special Order).', 'اختر صلاحية محددة لكل سطر أو اترك «أي» لنظام FEFO؛ يُخصم المخزون عند الإنشاء وأي عجز يصبح طلبًا مسبقًا (طلب خاص).')}</p>
       </section>
 
       <section>

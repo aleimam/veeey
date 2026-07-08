@@ -16,6 +16,7 @@ import {
   markOrderItemLost,
   addGiftToOrder,
   createManualOrder,
+  searchOrderProducts,
 } from '@/lib/order-service';
 import { saveGift } from '@/lib/gift-service';
 import { processReturn } from '@/lib/return-service';
@@ -38,12 +39,18 @@ function backToOrder(locale: string, id: string): never {
   redirect(`/${locale}/admin/orders/${id}`);
 }
 
+/** Live product search for the staff order pickers (client-callable). */
+export async function searchOrderProductsAction(q: string) {
+  try { return await searchOrderProducts(q); } catch { return []; }
+}
+
 export async function createManualOrderAction(_p: AdminFormState, fd: FormData): Promise<AdminFormState> {
   const locale = localeOf(fd);
   const productIds = fd.getAll('productId').filter((v): v is string => typeof v === 'string');
   const qtys = fd.getAll('qty').filter((v): v is string => typeof v === 'string');
+  const lotIds = fd.getAll('lotId').filter((v): v is string => typeof v === 'string');
   const items = productIds
-    .map((productId, i) => ({ productId, qty: Number(qtys[i] ?? 0) }))
+    .map((productId, i) => ({ productId, qty: Number(qtys[i] ?? 0), lotId: lotIds[i] ?? '' }))
     .filter((it) => it.productId && it.qty > 0);
   if (items.length === 0) return { error: 'no_items' };
 
@@ -145,7 +152,8 @@ export async function addOrderItemAction(fd: FormData): Promise<void> {
   const id = str(fd, 'id');
   const productId = str(fd, 'productId');
   const qty = num(fd, 'qty') ?? 1;
-  if (id && productId) { try { await addOrderItem(id, productId, qty); } catch (e) { console.error(e); } backToOrder(locale, id); }
+  const lotId = str(fd, 'lotId') ?? null;
+  if (id && productId) { try { await addOrderItem(id, productId, qty, lotId); } catch (e) { console.error(e); } backToOrder(locale, id); }
   redirect(`/${locale}/admin/orders`);
 }
 

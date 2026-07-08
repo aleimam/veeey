@@ -3,8 +3,8 @@ import { setRequestLocale } from 'next-intl/server';
 import { prisma } from '@/lib/prisma';
 import { getOrder } from '@/lib/order-service';
 import { listGifts } from '@/lib/gift-service';
-import { listProducts } from '@/lib/catalog-service';
 import { listStatusConfigs } from '@/lib/order-status-service';
+import { getNumberSetting } from '@/lib/settings-service';
 import { formatEGP } from '@/lib/format';
 import { StatusBadge, inputCls } from '@/components/admin/ui';
 import { aramexConfigured, smsaConfigured } from '@/lib/provider-config';
@@ -14,6 +14,7 @@ import { pick } from '@/lib/admin-i18n';
 import { conditionLabel, isConditionVariant } from '@/lib/lot-condition';
 import { deriveSourceKey, sourceLabel, attributionDetail, type Attribution } from '@/lib/attribution';
 import { ChangeHistory } from '@/components/admin/change-history';
+import { ProductLinePicker } from '@/components/admin/order-item-picker';
 import {
   transitionOrderAction, assignPharmacistAction, setPayCheckAction, setSystemPaymentMethodAction, setOrderMetaAction,
   setTrackingAction, addOrderItemAction, removeOrderItemAction, addGiftToOrderAction, markOrderItemLostAction,
@@ -33,14 +34,14 @@ export default async function OrderDetailPage({ params, searchParams }: { params
   const order = await getOrder(id);
   if (!order) notFound();
 
-  const [staff, gifts, products, aramexOn, smsaOn, systemMethods, statusCfgs] = await Promise.all([
+  const [staff, gifts, aramexOn, smsaOn, systemMethods, statusCfgs, depositPercent] = await Promise.all([
     prisma.user.findMany({ where: { roleId: { not: null } }, select: { id: true, name: true, email: true } }),
     listGifts(),
-    listProducts(),
     aramexConfigured(),
     smsaConfigured(),
     listSystemMethods(),
     listStatusConfigs(),
+    getNumberSetting('preorder.depositPercent'),
   ]);
   const shipErr = one(sp.shiperr);
   const shipOk = one(sp.shipok) === '1';
@@ -111,15 +112,11 @@ export default async function OrderDetailPage({ params, searchParams }: { params
           )}
 
           {editable && (
-            <form action={addOrderItemAction} className="mt-4 flex flex-wrap items-end gap-2 rounded-lg border border-dashed border-border p-3">
+            <form action={addOrderItemAction} className="mt-4 space-y-2 rounded-lg border border-dashed border-border p-3">
               {hidden({})}
-              <span className="w-full text-xs font-medium uppercase text-muted-foreground">{tb('Edit during hold — add item', 'التعديل أثناء الانتظار — إضافة عنصر')}</span>
-              <select name="productId" className={`${inputCls} w-64`} required>
-                <option value="">{tb('— Product —', '— المنتج —')}</option>
-                {products.map((p) => <option key={p.id} value={p.id}>{p.nameEn} ({p.sku})</option>)}
-              </select>
-              <input type="number" name="qty" min="1" defaultValue={1} className={`${inputCls} w-20`} />
-              <button className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground">{tb('Add (FEFO)', 'إضافة (FEFO)')}</button>
+              <span className="block text-xs font-medium uppercase text-muted-foreground">{tb('Edit during hold — add item', 'التعديل أثناء الانتظار — إضافة عنصر')}</span>
+              <ProductLinePicker depositPercent={depositPercent} />
+              <button className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground">{tb('Add item', 'إضافة عنصر')}</button>
             </form>
           )}
         </section>

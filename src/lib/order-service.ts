@@ -9,6 +9,7 @@ import { canTransition, statusConfig } from '@/lib/order-status-service';
 import { deriveSystemMethod } from '@/lib/payment-method-service';
 import { availableQty } from '@/lib/inventory';
 import { getShippingFee, type ShippingTypeKey } from '@/lib/shipping-service';
+import { getNumberSetting } from '@/lib/settings-service';
 import { creditOrderPoints, creditReferralReward, reverseOrderPoints } from '@/lib/loyalty-service';
 import { enqueue, QUEUES } from '@/lib/jobs';
 import { notify, type NotifyInput } from '@/lib/notification-service';
@@ -122,7 +123,10 @@ export function getOrder(id: string) {
   });
 }
 
-async function recomputeTotals(tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0], orderId: string) {
+/** Interactive-transaction client of the (extended) prisma singleton. */
+type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+
+async function recomputeTotals(tx: Tx, orderId: string) {
   const items = await tx.orderItem.findMany({ where: { orderId, lost: false } }); // LOST lines excluded from totals/revenue
   const subtotal = items.reduce((s, i) => s + i.unitPricePiastres * BigInt(i.qty), 0n);
   const order = await tx.order.findUniqueOrThrow({ where: { id: orderId } });
@@ -263,28 +267,37 @@ export async function clearTracking(id: string) {
 }
 
 /** Edit-in-Hold: add a product to the order, FEFO-binding lot(s) + decrementing stock. */
-export async function addOrderItem(orderId: string, productId: string, qty: number) {
+export async function addOrderItem(orderId: string, productId: string, qty: number, lotId?: string | null) {
   const user = await requirePermission('orders.write');
   await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUniqueOrThrow({ where: { id: orderId } });
     if (!(['HOLD', 'EDIT', 'CONFIRMED', 'PENDING'] as string[]).includes(order.status)) throw new Error('NOT_EDITABLE');
-    const found = await tx.lot.findMany({ where: { productId, status: 'LIVE' }, orderBy: { expiryDate: 'asc' }, include: { product: true } });
-    // Prefer NEW units (FEFO); fall back to condition variants (Open-box/…)
-    // only when NEW stock runs out — the line snapshots the condition either way.
-    const lots = [...found].sort((a, b) => Number(a.condition !== 'NEW') - Number(b.condition !== 'NEW'));
-    let remaining = qty;
-    for (const lot of lots) {
-      if (remaining <= 0) break;
-      const avail = availableQty(lot);
-      if (avail <= 0) continue;
-      const take = Math.min(avail, remaining);
-      const unit = lot.priceOverridePiastres ?? lot.product.basePricePiastres;
-      await tx.orderItem.create({ data: { orderId, productId, lotId: lot.id, qty: take, unitPricePiastres: unit, lineExpiry: lot.expiryDate, condition: lot.condition, weightG: lot.product.weightG } });
-      await tx.lot.update({ where: { id: lot.id }, data: { qtyOnHand: { decrement: take } } });
-      await tx.movementLedger.create({ data: { lotId: lot.id, locationId: lot.locationId, type: 'SALE', qtyDelta: -take, refType: 'order_edit', refId: orderId } });
-      remaining -= take;
+
+    const res = await allocateOrderLine(tx, orderId, { productId, qty, lotId: lotId || null }, 'order_edit');
+
+    if (res.shortfall > 0) {
+      // Over-stock: mark the order pre-order + record/extend the Special Order.
+      await tx.order.update({ where: { id: orderId }, data: { isPreorder: true } });
+      const line = `${res.productName} (${res.productSku}) × ${res.shortfall}`;
+      const existing = await tx.specialOrder.findUnique({ where: { orderId } });
+      if (existing) {
+        await tx.specialOrder.update({ where: { id: existing.id }, data: { requestedProductText: `${existing.requestedProductText ?? ''}; ${line}` } });
+      } else {
+        const snap = (order.shippingAddressJson ?? {}) as { name?: string; phone?: string };
+        const leadDays = await getNumberSetting('specialOrder.defaultLeadDays');
+        await tx.specialOrder.create({
+          data: {
+            orderId,
+            customerId: order.customerId,
+            requestedProductText: `Stock shortfall — ${order.number}: ${line}`,
+            requesterName: snap.name || 'Staff order',
+            requesterPhone: snap.phone || '—',
+            status: 'REQUESTED',
+            deadlineAt: new Date(Date.now() + Math.max(1, leadDays) * 86_400_000),
+          },
+        });
+      }
     }
-    if (remaining > 0) throw new Error('INSUFFICIENT_STOCK');
     await recomputeTotals(tx, orderId);
   });
   await audit({ actorType: 'USER', actorId: user.id, action: 'order.item.add', entityType: 'Order', entityId: orderId });
@@ -337,6 +350,104 @@ export async function markOrderItemLost(orderItemId: string, lost: boolean, reas
  *  allocate each line across nearest-expiry lots, decrement stock + ledger, and
  *  snapshot the address. Created in PENDING, attributed to the staff
  *  member (pharmacist) with source = "manual". */
+// ---- Staff product picker (backend orders, Phase B) -------------------------
+export type OrderProductHit = {
+  id: string;
+  name: string;
+  sku: string;
+  basePricePiastres: number;
+  lots: { id: string; expiry: string | null; available: number; pricePiastres: number; condition: string }[];
+};
+
+const lotMonthYear = (d: Date | null) => (d ? `${String(d.getUTCMonth() + 1).padStart(2, '0')}/${d.getUTCFullYear()}` : null);
+
+/** Search products for the staff order pickers by name / SKU / id (also the
+ *  legacy Egypt-Vitamins SKU / WP id). Returns each product's LIVE lots with
+ *  per-expiry availability + price so staff pick an exact expiry. */
+export async function searchOrderProducts(q: string): Promise<OrderProductHit[]> {
+  await requirePermission('orders.write');
+  const term = q.trim();
+  if (term.length < 2) return [];
+  const wpId = Number(term);
+  const or: Prisma.ProductWhereInput[] = [
+    { nameEn: { contains: term, mode: 'insensitive' } },
+    { nameAr: { contains: term } },
+    { sku: { contains: term, mode: 'insensitive' } },
+    { legacySku: { contains: term, mode: 'insensitive' } },
+    { id: term },
+    ...(Number.isInteger(wpId) && wpId > 0 ? [{ legacyWpId: wpId }] : []),
+  ];
+  const rows = await prisma.product.findMany({
+    where: { status: { in: ['PUBLISHED', 'PRIVATE'] }, OR: or },
+    include: { lots: { where: { status: 'LIVE' }, orderBy: { expiryDate: 'asc' } } },
+    take: 10,
+  });
+  return rows.map((p) => ({
+    id: p.id,
+    name: p.nameEn,
+    sku: p.sku,
+    basePricePiastres: Number(p.basePricePiastres),
+    lots: p.lots
+      .map((l) => ({
+        id: l.id,
+        expiry: lotMonthYear(l.expiryDate),
+        available: Math.max(0, l.qtyOnHand - l.qtyReserved),
+        pricePiastres: Number(l.priceOverridePiastres ?? p.basePricePiastres),
+        condition: l.condition,
+      }))
+      .filter((l) => l.available > 0),
+  }));
+}
+
+type LineAlloc = { subtotal: bigint; shortfall: number; productName: string; productSku: string };
+
+/**
+ * Allocate one staff order line inside a transaction. With `lotId` the exact
+ * expiry the staff picked is used; otherwise FEFO (NEW units first). Any
+ * quantity beyond available stock becomes a PRE-ORDER line (no lot bound, no
+ * stock decrement — owner decision: deduct what exists, flag the shortfall).
+ */
+async function allocateOrderLine(
+  tx: Tx,
+  orderId: string,
+  item: { productId: string; qty: number; lotId?: string | null },
+  refType: string,
+): Promise<LineAlloc> {
+  const product = await tx.product.findUniqueOrThrow({
+    where: { id: item.productId },
+    select: { basePricePiastres: true, weightG: true, nameEn: true, sku: true },
+  });
+  let remaining = item.qty;
+  let subtotal = 0n;
+  let chosenUnit: bigint | null = null;
+
+  const lots = item.lotId
+    ? await tx.lot.findMany({ where: { id: item.lotId, productId: item.productId, status: 'LIVE' }, include: { product: true } })
+    : (await tx.lot.findMany({ where: { productId: item.productId, status: 'LIVE' }, orderBy: { expiryDate: 'asc' }, include: { product: true } }))
+        .sort((a, b) => Number(a.condition !== 'NEW') - Number(b.condition !== 'NEW')); // prefer NEW units, FEFO within
+
+  for (const lot of lots) {
+    if (remaining <= 0) break;
+    const avail = availableQty(lot);
+    if (avail <= 0) continue;
+    const take = Math.min(avail, remaining);
+    const unit = lot.priceOverridePiastres ?? lot.product.basePricePiastres;
+    if (item.lotId) chosenUnit = unit;
+    await tx.orderItem.create({ data: { orderId, productId: item.productId, lotId: lot.id, qty: take, unitPricePiastres: unit, lineExpiry: lot.expiryDate, condition: lot.condition, weightG: lot.product.weightG } });
+    await tx.lot.update({ where: { id: lot.id }, data: { qtyOnHand: { decrement: take } } });
+    await tx.movementLedger.create({ data: { lotId: lot.id, locationId: lot.locationId, type: 'SALE', qtyDelta: -take, refType, refId: orderId } });
+    subtotal += unit * BigInt(take);
+    remaining -= take;
+  }
+
+  if (remaining > 0) {
+    const unit = chosenUnit ?? product.basePricePiastres;
+    await tx.orderItem.create({ data: { orderId, productId: item.productId, qty: remaining, unitPricePiastres: unit, preorder: true, weightG: product.weightG } });
+    subtotal += unit * BigInt(remaining);
+  }
+  return { subtotal, shortfall: remaining, productName: product.nameEn, productSku: product.sku };
+}
+
 const manualOrderSchema = z.object({
   customerId: z.string().trim().optional().or(z.literal('')), // picked via the staff customer search
   addressId: z.string().trim().optional().or(z.literal('')), // reuse this saved address instead of creating one
@@ -351,7 +462,11 @@ const manualOrderSchema = z.object({
   paymentMethod: z.string().trim().min(1).default('COD'), // customer-facing method code (CUSTOMER_METHODS)
   channel: z.string().trim().min(1), // backend channel (Channel code); staff must choose (no Direct)
   discreetPackaging: z.boolean().default(false),
-  items: z.array(z.object({ productId: z.string().min(1), qty: z.coerce.number().int().positive() })).min(1),
+  items: z.array(z.object({
+    productId: z.string().min(1),
+    qty: z.coerce.number().int().positive(),
+    lotId: z.string().optional().or(z.literal('')), // staff-picked expiry; empty = FEFO
+  })).min(1),
 });
 export type ManualOrderInput = z.input<typeof manualOrderSchema>;
 
@@ -400,24 +515,31 @@ export async function createManualOrder(raw: ManualOrderInput) {
     });
 
     let subtotal = 0n;
+    const shortfalls: { name: string; sku: string; qty: number }[] = [];
     for (const it of d.items) {
-      const lots = await tx.lot.findMany({ where: { productId: it.productId, status: 'LIVE' }, orderBy: { expiryDate: 'asc' }, include: { product: true } });
-      let remaining = it.qty;
-      for (const lot of lots) {
-        if (remaining <= 0) break;
-        const avail = availableQty(lot);
-        if (avail <= 0) continue;
-        const take = Math.min(avail, remaining);
-        const unit = lot.priceOverridePiastres ?? lot.product.basePricePiastres;
-        await tx.orderItem.create({ data: { orderId: ord.id, productId: it.productId, lotId: lot.id, qty: take, unitPricePiastres: unit, lineExpiry: lot.expiryDate, weightG: lot.product.weightG } });
-        await tx.lot.update({ where: { id: lot.id }, data: { qtyOnHand: { decrement: take } } });
-        await tx.movementLedger.create({ data: { lotId: lot.id, locationId: lot.locationId, type: 'SALE', qtyDelta: -take, refType: 'order', refId: ord.id } });
-        subtotal += unit * BigInt(take);
-        remaining -= take;
-      }
-      if (remaining > 0) throw new Error('INSUFFICIENT_STOCK');
+      const res = await allocateOrderLine(tx, ord.id, { productId: it.productId, qty: it.qty, lotId: it.lotId || null }, 'order');
+      subtotal += res.subtotal;
+      if (res.shortfall > 0) shortfalls.push({ name: res.productName, sku: res.productSku, qty: res.shortfall });
     }
-    return tx.order.update({ where: { id: ord.id }, data: { subtotalPiastres: subtotal, totalPiastres: subtotal + shipping } });
+
+    // Over-stock (owner decision): available units were deducted; the shortfall
+    // flags the order as a pre-order and opens a Special Order for sourcing.
+    if (shortfalls.length > 0) {
+      const leadDays = await getNumberSetting('specialOrder.defaultLeadDays');
+      await tx.specialOrder.create({
+        data: {
+          orderId: ord.id,
+          customerId,
+          requestedProductText: `Stock shortfall — ${number}: ${shortfalls.map((s) => `${s.name} (${s.sku}) × ${s.qty}`).join('; ')}`,
+          requesterName: d.name,
+          requesterPhone: d.phone,
+          requesterEmail: guestEmail ?? null,
+          status: 'REQUESTED',
+          deadlineAt: new Date(Date.now() + Math.max(1, leadDays) * 86_400_000),
+        },
+      });
+    }
+    return tx.order.update({ where: { id: ord.id }, data: { subtotalPiastres: subtotal, totalPiastres: subtotal + shipping, isPreorder: shortfalls.length > 0 } });
   });
 
   await audit({ actorType: 'USER', actorId: user.id, action: 'order.manual.create', entityType: 'Order', entityId: order.id, data: { number } });
