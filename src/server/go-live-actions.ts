@@ -60,7 +60,10 @@ export async function startMediaLocalizeAction(fd: FormData): Promise<void> {
   const boss = await getBoss();
   if (!boss) redirect(`${PATH(locale)}?mjob=offline`);
   try {
-    await boss.send(QUEUES.mediaLocalize, {});
+    // ~13k images can take >30 min — past pg-boss's default 15-min visibility
+    // timeout, which would re-dispatch the (idempotent) job as overlapping runs.
+    // A 2h window + no auto-retry keeps it a single clean pass.
+    await boss.send(QUEUES.mediaLocalize, {}, { expireInSeconds: 7200, retryLimit: 0 });
     await audit({ actorType: 'USER', actorId: user.id, action: 'media.localize.start' });
   } catch (e) {
     console.error('media localize enqueue failed', e);

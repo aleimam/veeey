@@ -55,7 +55,10 @@ export async function startBrandTranslateAction(fd: FormData): Promise<void> {
   const sep = target.includes('?') ? '&' : '?';
   if (!boss) redirect(`${target}${sep}tjob=offline`); // needs the worker process
   try {
-    await boss.send(QUEUES.brandTranslate, {});
+    // Translating ~700 brand names via chunked AI calls can run long; match the
+    // media job — a 2h visibility window + no auto-retry so pg-boss doesn't
+    // re-dispatch overlapping runs past its default 15-min timeout.
+    await boss.send(QUEUES.brandTranslate, {}, { expireInSeconds: 7200, retryLimit: 0 });
     await audit({ actorType: 'USER', actorId: user.id, action: 'brands.translate.start', entityType: 'Brand' });
   } catch (e) {
     console.error('brand translate enqueue failed', e);
