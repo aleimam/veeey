@@ -26,6 +26,11 @@ enum ProductKind {
   INJECTION
 }
 
+enum AttributeInputType {
+  SINGLE_SELECT
+  MULTI_SELECT
+}
+
 enum ProductStatus {
   DRAFT
   PUBLISHED
@@ -708,13 +713,20 @@ model Tag {
 }
 
 model Attribute {
-  id         String           @id @default(cuid())
-  key        String           @unique
-  nameEn     String
-  nameAr     String?
-  kind       ProductKind      @default(SUPPLEMENT) // which product set it applies to
-  values     AttributeValue[]
-  archivedAt DateTime?
+  id            String             @id @default(cuid())
+  key           String             @unique
+  nameEn        String
+  nameAr        String?
+  kind          ProductKind        @default(SUPPLEMENT) // LEGACY single applies-to; superseded by `kinds`
+  kinds         ProductKind[]      @default([]) // multi-type "applies to" (V3-ATTR)
+  inputType     AttributeInputType @default(SINGLE_SELECT) // SINGLE_SELECT | MULTI_SELECT
+  descriptionEn String? // admin helper text / purpose
+  descriptionAr String?
+  unit          String? // optional unit for numeric/measured attributes (mg, ml, …)
+  isFilterable  Boolean            @default(false) // drives storefront PLP facets
+  isRequired    Boolean            @default(false)
+  values        AttributeValue[]
+  archivedAt    DateTime?
 }
 
 model AttributeValue {
@@ -723,6 +735,8 @@ model AttributeValue {
   attribute   Attribute               @relation(fields: [attributeId], references: [id], onDelete: Cascade)
   valueEn     String
   valueAr     String?
+  slug        String? // filter-URL slug (auto from valueEn, editable)
+  sortOrder   Int                     @default(0)
   products    ProductAttributeValue[]
 
   @@unique([attributeId, valueEn])
