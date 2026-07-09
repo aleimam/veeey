@@ -2,11 +2,11 @@
 
 > Living status/handoff doc. Repo-committed so it travels with the code (unlike
 > per-user assistant memory). Update it when features ship or the backlog changes.
-> **Last updated: 2026-07-09 (V3 admin epic — Tags + Collections + Attributes tracks complete & DEPLOYED; only COL-4 rule engine pending).** Authoritative product docs: `VEEEY_PRD.md`,
+> **Last updated: 2026-07-09 (V3 admin epic COMPLETE & DEPLOYED — all 3 tracks + rule engine).** Authoritative product docs: `VEEEY_PRD.md`,
 > `VEEEY_SPEC.md`, `BUILD_PLAN.md`, `AGENTS.md`, `DEPLOYMENT.md`.
 
 ## Current state
-- **Live** at **veeey.com**. Latest deployed commit: **`2fb466d`** (2026-07-09). All
+- **Live** at **veeey.com**. Latest deployed commit: **`1b1fbf9`** (2026-07-09). All
   **35 Prisma migrations applied** (V3 added `collection_v3` + `attribute_v3`); `pm2` processes `veeey` + `veeey-worker` healthy; `/api/health` → `{"status":"ok"}`.
 
 ## V3 admin epic (from `V3 admin.docx`) — in progress
@@ -21,7 +21,8 @@ Source doc: Tags / Attributes / Collections admin upgrades + collection storefro
   - **COL-5** storefront `/[locale]/collection/[slug]` + `/collections` index (published-only 404-guard, canonical/hreflang/JSON-LD) — **fixes the 404s**.
   - **COL-6** "Shop by Goal" mega-menu → `/collection/<slug>` + collection display-order + onboarding hint. **Seeded 13 published goal collections on prod** (AUTO, mapped to matching categories; all 12 menu targets return 200 EN+AR). No saved `nav.config` existed, so `defaultNav()` is live.
   - **ATTR-1..4** `2fb466d` (migration `attribute_v3`): Attribute gained inputType (single/multi), multi-kind `kinds` "applies to", description/unit, isFilterable + isRequired; AttributeValue gained slug + sortOrder (per-row slug edit + ↑/↓ reorder). Product picker filters by `kinds`, enforces single/multi + required (server-side, dormant until flagged); PLP facets driven by `isFilterable`. **Seeded 29 standard attributes + 109 values on prod** (`scripts/seed-attributes.ts`; 31 total, 16 filterable, 113 values).
-- **PENDING (not built):** **COL-4** — advanced attribute-based rule engine (Category/Tag/Brand/Attribute value/Price/Stock, operators, AND/OR, live "matches N" preview, persist in `ruleJson`). AUTO collections today still use single category + single tag slug.
+  - **COL-4** `1b1fbf9` (no migration) — attribute-based **rule engine**: pure `collection-rules.ts` (+tests) → RuleConfig (match ALL/ANY + conditions over Category/Tag/Brand/Attribute value/Price/Stock, operators is/is-not/>/</between/in-out-of-stock) compiled to a Prisma where; stored in `ruleJson`; resolved via shared `collectionRuleWhere` (falls back to legacy category+tag). Admin `CollectionRuleBuilder` with live "N products match + sample" preview replaces the old single-category+tag fields (existing AUTO collections seed the builder from their legacy rule).
+- **V3 admin epic is COMPLETE** — all 12 phases (P0, TAG-1/2, ATTR-1..4, COL-1..6) built, verified, deployed. Owner follow-ups (below) are optional catalog refinements.
 - **Owner follow-up:** the seeded goal collections are AUTO by category; open `/admin/collections` to refine (add banners, switch to Manual + hand-pick, fix `beauty`→Beauty Devices / empties like best-sellers/new-arrivals/bundles-stacks/testosterone).
 - Stack: Next.js 16 (App Router, Turbopack) · TypeScript · Prisma 7 + Postgres ·
   next-intl (AR/EN, RTL) · Tailwind v4. Verify gate: `npm run typecheck && npm run lint && npm run test && npm run build` (243 unit tests green).
