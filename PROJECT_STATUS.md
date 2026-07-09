@@ -2,12 +2,26 @@
 
 > Living status/handoff doc. Repo-committed so it travels with the code (unlike
 > per-user assistant memory). Update it when features ship or the backlog changes.
-> **Last updated: 2026-07-08 (late night — full review/polish/harden pass complete & DEPLOYED).** Authoritative product docs: `VEEEY_PRD.md`,
+> **Last updated: 2026-07-09 (V3 admin epic — Tags + Collections tracks complete & DEPLOYED; Attributes track + rule engine pending).** Authoritative product docs: `VEEEY_PRD.md`,
 > `VEEEY_SPEC.md`, `BUILD_PLAN.md`, `AGENTS.md`, `DEPLOYMENT.md`.
 
 ## Current state
-- **Live** at **veeey.com**. Latest deployed commit: **`81da59e`** (2026-07-08). All
-  **33 Prisma migrations applied** (this batch adds none); `pm2` processes `veeey` + `veeey-worker` healthy; `/api/health` → `{"status":"ok"}`.
+- **Live** at **veeey.com**. Latest deployed commit: **`b5a1982`** (2026-07-09). All
+  **34 Prisma migrations applied** (V3 added `20260709120000_collection_v3`); `pm2` processes `veeey` + `veeey-worker` healthy; `/api/health` → `{"status":"ok"}`.
+
+## V3 admin epic (from `V3 admin.docx`) — in progress
+Source doc: Tags / Attributes / Collections admin upgrades + collection storefront wiring. Full plan in assistant memory [[veeey-v3-admin-epic]].
+- **DONE & DEPLOYED (2026-07-09):**
+  - **P0** `654e6e3` shared list UX (aligned filter bar / search-empty state / delete-always-confirms; toolkit-level).
+  - **TAG-1** `53c4338` tags usage-count column + missing-AR badge/filter (added `tag`/`category` filter to products admin).
+  - **TAG-2** slug UX (live preview + invalid-char + duplicate check via `/api/admin/slug-available`) + unsaved-changes guard + clearer Cancel, all in shared `EntityForm` (SlugField extracted to `slug-field.tsx`).
+  - **COL-1** `collection_v3` migration (ruleJson, manualOrder text[], imageAlt EN/AR).
+  - **COL-2** searchable manual product picker (drag/↑↓ reorder) + bespoke `CollectionForm` (conditional Manual/Auto display); order saved in `manualOrder`.
+  - **COL-3** AR description + banner+alt + meta SEO in the form (no migration — columns existed).
+  - **COL-5** storefront `/[locale]/collection/[slug]` + `/collections` index (published-only 404-guard, canonical/hreflang/JSON-LD) — **fixes the 404s**.
+  - **COL-6** "Shop by Goal" mega-menu → `/collection/<slug>` + collection display-order + onboarding hint. **Seeded 13 published goal collections on prod** (AUTO, mapped to matching categories; all 12 menu targets return 200 EN+AR). No saved `nav.config` existed, so `defaultNav()` is live.
+- **PENDING (not built):** **Attributes track** (ATTR-1 migration: inputType/multi-kind applies-to/unit/isFilterable/isRequired/value slug+order → ATTR-2 form → ATTR-3 product enforcement → ATTR-4 seed the Device/Supplement/Injection sets) and **COL-4** (advanced attribute-based rule engine — depends on Attributes).
+- **Owner follow-up:** the seeded goal collections are AUTO by category; open `/admin/collections` to refine (add banners, switch to Manual + hand-pick, fix `beauty`→Beauty Devices / empties like best-sellers/new-arrivals/bundles-stacks/testosterone).
 - Stack: Next.js 16 (App Router, Turbopack) · TypeScript · Prisma 7 + Postgres ·
   next-intl (AR/EN, RTL) · Tailwind v4. Verify gate: `npm run typecheck && npm run lint && npm run test && npm run build` (243 unit tests green).
 
