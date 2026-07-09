@@ -46,6 +46,11 @@ export const SETTINGS: SettingDef[] = [
   { key: 'store.whatsappNumber', label: 'WhatsApp number', group: 'Store', type: 'text', default: '201000000000', hint: 'Digits only, international format (no +).' },
   { key: 'store.addressEn', label: 'Address (English)', group: 'Store', type: 'text', default: '' },
   { key: 'store.addressAr', label: 'Address (Arabic)', group: 'Store', type: 'text', default: '' },
+  // Homepage search-engine appearance (the <title> + description Google shows for veeey.com).
+  { key: 'seo.homeTitleEn', label: 'Homepage title — English', group: 'SEO', type: 'text', default: 'Veeey — Premium Imported Supplements & Health Devices in Egypt', hint: 'The blue headline Google shows for your homepage. ~55–60 characters. Keep the brand + what you sell + Egypt.' },
+  { key: 'seo.homeTitleAr', label: 'Homepage title — Arabic', group: 'SEO', type: 'text', default: 'فيي — مكمّلات غذائية وأجهزة صحية فاخرة مستوردة في مصر', hint: 'العنوان الذي يظهر في جوجل للصفحة الرئيسية. حوالي ٦٠ حرفًا.' },
+  { key: 'seo.homeDescEn', label: 'Homepage description — English', group: 'SEO', type: 'text', default: 'Genuine supplements & health devices imported from the USA, UK & EU. Every lot dated before you buy, fast delivery across Egypt, and 15% off with Veeey Refill.', hint: 'The grey snippet under the title in Google. ~150–160 characters.' },
+  { key: 'seo.homeDescAr', label: 'Homepage description — Arabic', group: 'SEO', type: 'text', default: 'مكمّلات غذائية وأجهزة صحية أصلية مستوردة من أمريكا وبريطانيا وأوروبا. تاريخ كل تشغيلة ظاهر قبل الشراء، توصيل سريع في كل مصر، وخصم ١٥٪ مع ريفيل من فيي.', hint: 'الوصف الذي يظهر أسفل العنوان في جوجل. حوالي ١٦٠ حرفًا.' },
 ];
 
 const DEFAULTS: Record<string, string> = Object.fromEntries(SETTINGS.map((s) => [s.key, s.default]));

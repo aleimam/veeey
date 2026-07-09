@@ -7,6 +7,7 @@ import { getMessages, setRequestLocale } from 'next-intl/server';
 import { routing, localeDirection, type Locale } from '@/i18n/routing';
 import { ConsentBanner } from '@/components/consent-banner';
 import { ThemeStyle } from '@/components/storefront/theme-style';
+import { SiteJsonLd } from '@/components/storefront/site-json-ld';
 import { ServiceWorkerRegister } from '@/components/service-worker-register';
 import { AnalyticsProvider } from '@/components/analytics/analytics-provider';
 import { PostHogLoader } from '@/components/analytics/posthog-loader';
@@ -61,7 +62,8 @@ const geDinar = localFont({
 });
 
 export const metadata: Metadata = {
-  title: 'Veeey — Health Inside | Premium supplements & health devices',
+  metadataBase: new URL('https://veeey.com'),
+  title: 'Veeey — Premium Imported Supplements & Health Devices in Egypt',
   description:
     'Veeey imports premium dietary supplements and health devices directly from the USA, UK and EU. Every product shows its expiry date before you buy.',
 };
@@ -95,6 +97,7 @@ export default async function LocaleLayout({
     >
       <body className="min-h-dvh flex flex-col font-sans">
         <ThemeStyle />
+        <SiteJsonLd locale={locale} />
         <NextIntlClientProvider locale={locale} messages={messages}>
           <AnalyticsProvider>
             {children}

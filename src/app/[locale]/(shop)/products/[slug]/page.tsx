@@ -128,6 +128,20 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
     ...schemaOverrides,
   };
 
+  // Breadcrumb rich result — mirrors the visible trail (Home › Shop › Brand › product).
+  const localSlug = (locale === 'ar' ? p.slugAr : p.slugEn) ?? p.slugEn;
+  const crumbs = [
+    { name: tb('Home', 'الرئيسية'), url: `https://veeey.com/${locale}` },
+    { name: tb('Shop', 'المتجر'), url: `https://veeey.com/${locale}/products` },
+    ...(brandName && p.brand?.slug ? [{ name: brandName, url: `https://veeey.com/${locale}/brands/${p.brand.slug}` }] : []),
+    { name, url: `https://veeey.com/${locale}/products/${localSlug}` },
+  ];
+  const breadcrumbLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: crumbs.map((c, i) => ({ '@type': 'ListItem', position: i + 1, name: c.name, item: c.url })),
+  };
+
   const ORIGIN_BADGE: Record<string, { flag: string; en: string; ar: string }> = {
     USA: { flag: '🇺🇸', en: 'Imported from the USA', ar: 'مستورد من الولايات المتحدة' },
     UK: { flag: '🇬🇧', en: 'Imported from the UK', ar: 'مستورد من بريطانيا' },
@@ -167,6 +181,7 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
     {zones['pdp.top'].length > 0 && <ChewyHome locale={locale} blocks={zones['pdp.top']} data={zoneData} />}
     <div className="mx-auto max-w-[1440px] px-4 pb-14 pt-5 sm:px-6 lg:px-8">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
       <TrackView name="product_view" props={{ sku: p.sku, slug, name }} />
       <RecentlyViewedTracker productId={p.id} />
 

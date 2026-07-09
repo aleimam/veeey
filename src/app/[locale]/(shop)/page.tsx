@@ -1,6 +1,34 @@
+import type { Metadata } from 'next';
 import { setRequestLocale } from 'next-intl/server';
 import { getHomeLayout, resolveHomeData, type HomeData } from '@/lib/home-layout-service';
+import { getSetting } from '@/lib/settings-service';
 import { ChewyHome } from '@/components/storefront/chewy/chewy-home';
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  const ar = locale === 'ar';
+  const [title, description] = await Promise.all([
+    getSetting(ar ? 'seo.homeTitleAr' : 'seo.homeTitleEn'),
+    getSetting(ar ? 'seo.homeDescAr' : 'seo.homeDescEn'),
+  ]);
+  return {
+    metadataBase: new URL('https://veeey.com'),
+    title,
+    description,
+    // A localized homepage title stops Google from inventing one from the hero copy.
+    alternates: { canonical: `/${locale}`, languages: { en: '/en', ar: '/ar', 'x-default': '/en' } },
+    openGraph: {
+      title,
+      description,
+      url: `/${locale}`,
+      siteName: 'Veeey',
+      type: 'website',
+      locale: ar ? 'ar_EG' : 'en_US',
+      images: ['/brand/veeey-logo.png'],
+    },
+    twitter: { card: 'summary_large_image', title, description, images: ['/brand/veeey-logo.png'] },
+  };
+}
 
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
