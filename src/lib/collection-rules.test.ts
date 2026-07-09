@@ -23,6 +23,29 @@ describe('collection rule engine', () => {
     expect(conditionWhere({ field: 'stock', op: 'out_of_stock' })).toEqual({ NOT: { lots: { some: { status: 'LIVE', qtyOnHand: { gt: 0 } } } } });
   });
 
+  it('compiles name/SKU contains + not_contains (case-insensitive, trimmed) and parses it', () => {
+    const w = {
+      OR: [
+        { nameEn: { contains: 'vitamin', mode: 'insensitive' } },
+        { nameAr: { contains: 'vitamin', mode: 'insensitive' } },
+        { sku: { contains: 'vitamin', mode: 'insensitive' } },
+      ],
+    };
+    expect(conditionWhere({ field: 'name', op: 'contains', value: '  vitamin  ' })).toEqual(w);
+    expect(conditionWhere({ field: 'name', op: 'not_contains', value: 'vitamin' })).toEqual({ NOT: w });
+    expect(conditionWhere({ field: 'name', op: 'contains', value: '   ' })).toBeNull();
+    // parseRule keeps a valid name condition, drops bad op / empty value
+    expect(
+      parseRule({
+        conditions: [
+          { field: 'name', op: 'contains', value: 'foo' },
+          { field: 'name', op: 'bad', value: 'x' },
+          { field: 'name', op: 'contains', value: '  ' },
+        ],
+      }).conditions,
+    ).toEqual([{ field: 'name', op: 'contains', value: 'foo' }]);
+  });
+
   it('drops incomplete conditions (empty value / missing between bound)', () => {
     expect(conditionWhere({ field: 'category', op: 'is', value: '' })).toBeNull();
     expect(conditionWhere({ field: 'price', op: 'between', value: 100 })).toBeNull();

@@ -14,6 +14,7 @@ export type RuleCondition =
   | { field: 'tag'; op: 'is' | 'is_not'; value: string }            // tag id
   | { field: 'brand'; op: 'is' | 'is_not'; value: string }          // brand id
   | { field: 'attribute'; op: 'is' | 'is_not'; value: string }      // attributeValue id
+  | { field: 'name'; op: 'contains' | 'not_contains'; value: string } // free text vs name (EN/AR) + SKU
   | { field: 'price'; op: 'gt' | 'lt' | 'between'; value: number; value2?: number } // EGP
   | { field: 'stock'; op: 'in_stock' | 'out_of_stock' };
 
@@ -60,6 +61,19 @@ export function conditionWhere(c: RuleCondition): Prisma.ProductWhereInput | nul
       const w: Prisma.ProductWhereInput = { attributeValues: { some: { attributeValueId: c.value } } };
       return c.op === 'is_not' ? { NOT: w } : w;
     }
+    case 'name': {
+      const v = c.value.trim();
+      if (!v) return null;
+      // Free-text match against the bilingual name + SKU (case-insensitive).
+      const w: Prisma.ProductWhereInput = {
+        OR: [
+          { nameEn: { contains: v, mode: 'insensitive' } },
+          { nameAr: { contains: v, mode: 'insensitive' } },
+          { sku: { contains: v, mode: 'insensitive' } },
+        ],
+      };
+      return c.op === 'not_contains' ? { NOT: w } : w;
+    }
     case 'price': {
       if (c.op === 'between') {
         if (c.value == null || c.value2 == null) return null;
@@ -84,7 +98,7 @@ export function buildRuleWhere(rule: RuleConfig): Prisma.ProductWhereInput {
   return rule.match === 'ANY' ? { OR: parts } : { AND: parts };
 }
 
-const FIELDS = new Set(['category', 'tag', 'brand', 'attribute', 'price', 'stock']);
+const FIELDS = new Set(['category', 'tag', 'brand', 'attribute', 'name', 'price', 'stock']);
 
 /** Coerce arbitrary stored/submitted JSON into a safe RuleConfig. */
 export function parseRule(raw: unknown): RuleConfig {
@@ -112,6 +126,11 @@ export function parseRule(raw: unknown): RuleConfig {
     } else if (field === 'stock') {
       if (!['in_stock', 'out_of_stock'].includes(op)) continue;
       conditions.push({ field: 'stock', op: op as 'in_stock' | 'out_of_stock' });
+    } else if (field === 'name') {
+      if (!['contains', 'not_contains'].includes(op)) continue;
+      const value = String(c.value ?? '').trim();
+      if (!value) continue;
+      conditions.push({ field: 'name', op: op as 'contains' | 'not_contains', value });
     } else {
       if (!['is', 'is_not'].includes(op)) continue;
       const value = String(c.value ?? '');

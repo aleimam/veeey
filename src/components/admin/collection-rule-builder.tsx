@@ -75,6 +75,7 @@ export function CollectionRuleBuilder({ initial, options, onDirty }: { initial: 
                 // Reset op/value sensibly for the new field.
                 if (f === 'price') setCond(i, { field: 'price', op: 'gt', value: 0 });
                 else if (f === 'stock') setCond(i, { field: 'stock', op: 'in_stock' });
+                else if (f === 'name') setCond(i, { field: 'name', op: 'contains', value: '' });
                 else setCond(i, { field: f, op: 'is', value: '' });
               }}
               className={`${inputCls} w-36`}
@@ -83,6 +84,7 @@ export function CollectionRuleBuilder({ initial, options, onDirty }: { initial: 
               <option value="tag">{tb('Tag', 'الوسم')}</option>
               <option value="brand">{tb('Brand', 'العلامة')}</option>
               <option value="attribute">{tb('Attribute', 'الخاصية')}</option>
+              <option value="name">{tb('Name / SKU', 'الاسم / SKU')}</option>
               <option value="price">{tb('Price (EGP)', 'السعر (ج.م)')}</option>
               <option value="stock">{tb('Stock', 'المخزون')}</option>
             </select>
@@ -99,6 +101,16 @@ export function CollectionRuleBuilder({ initial, options, onDirty }: { initial: 
                     <option key={o.value} value={o.value}>{o.label}</option>
                   ))}
                 </select>
+              </>
+            )}
+
+            {c.field === 'name' && (
+              <>
+                <select value={c.op} onChange={(e) => setCond(i, { ...c, op: e.target.value as 'contains' | 'not_contains' })} className={`${inputCls} w-40`}>
+                  <option value="contains">{tb('contains', 'يحتوي')}</option>
+                  <option value="not_contains">{tb('does not contain', 'لا يحتوي')}</option>
+                </select>
+                <input type="text" value={c.value} onChange={(e) => setCond(i, { ...c, value: e.target.value })} placeholder={tb('text…', 'نص…')} className={`${inputCls} min-w-48 flex-1`} />
               </>
             )}
 
