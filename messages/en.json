@@ -86,7 +86,11 @@
       "cancel": "Cancel",
       "nothingHere": "Nothing here yet.",
       "inUseNotice": "That item is in use and can’t be deleted. Archive it instead — it will be hidden but kept for history.",
-      "archivedSuffix": "(archived)"
+      "archivedSuffix": "(archived)",
+      "noSearchResults": "No results match “{query}”.",
+      "clearSearch": "Clear search",
+      "deleteConfirm": "Delete this item? This can’t be undone.",
+      "deleteConfirmNamed": "Delete “{name}”? This can’t be undone."
     },
     "fields": {
       "name": "Name",

@@ -29,11 +29,14 @@ export async function AdminList({
   editLabel,
   notice,
   toolbar,
+  filters,
   count,
   sortCtx,
   bulk,
   pagination,
   emptyState,
+  query,
+  searchClearHref,
 }: {
   title: string;
   newHref: string;
@@ -43,11 +46,17 @@ export async function AdminList({
   editLabel?: string;
   notice?: React.ReactNode;
   toolbar?: React.ReactNode;
+  /** Filter bar rendered inside the page padding, aligned above the table. */
+  filters?: React.ReactNode;
   count?: number;
   sortCtx?: SortCtx;
   bulk?: BulkConfig;
   pagination?: PageCtx;
   emptyState?: React.ReactNode;
+  /** Active search text — switches the empty row to a distinct "no matches" state. */
+  query?: string;
+  /** Href that clears the search (shown as a button in the no-matches state). */
+  searchClearHref?: string;
 }) {
   const t = await getTranslations('admin.common');
   const colSpan = head.length + 1 + (bulk ? 1 : 0);
@@ -64,6 +73,7 @@ export async function AdminList({
           </Link>
         </div>
       </header>
+      {filters}
       {notice}
       {bulk && (() => {
         const tb = pick(bulk.locale);
@@ -116,7 +126,14 @@ export async function AdminList({
               </tr>
             ))}
             {rows.length === 0 && (
-              <tr><td colSpan={colSpan} className="p-6 text-center text-muted-foreground">{emptyState ?? 'Nothing here yet.'}</td></tr>
+              <tr><td colSpan={colSpan} className="p-6 text-center text-muted-foreground">
+                {query
+                  ? <span className="inline-flex flex-wrap items-center justify-center gap-2">
+                      {t('noSearchResults', { query })}
+                      {searchClearHref && <a href={searchClearHref} className="text-primary hover:underline">{t('clearSearch')}</a>}
+                    </span>
+                  : (emptyState ?? t('nothingHere'))}
+              </td></tr>
             )}
           </tbody>
         </table>

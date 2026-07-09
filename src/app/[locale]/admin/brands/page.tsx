@@ -47,33 +47,38 @@ export default async function BrandsPage({ params, searchParams }: { params: Pro
     { value: 'delete', label: tb('Delete', 'حذف'), danger: true, confirm: guardText },
   ];
 
+  const clearHref = `${basePath}${showingArchived ? '?archived=1' : ''}`;
   return (
     <div>
-      <FilterBar
-        fields={[
-          { name: 'q', label: tb('Search', 'بحث'), type: 'text' },
-          { name: 'flag', label: tb('Data filter', 'تصفية البيانات'), type: 'select', options: [
-            { value: 'missing_ar_name', label: tb('Missing Arabic name', 'بدون اسم عربي') },
-            { value: 'missing_logo', label: tb('Missing logo', 'بدون شعار') },
-            { value: 'missing_banner', label: tb('Missing banner', 'بدون بانر') },
-            { value: 'missing_description', label: tb('Missing description', 'بدون وصف') },
-            { value: 'zero_products', label: tb('Zero products', 'بدون منتجات') },
-          ] },
-        ]}
-        values={{ q, flag }}
-        locale={locale}
-        path="brands"
-      />
-      {tjob === 'started' && <p className="mb-4 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">{tb('Translation job started — Arabic names fill in as the background job runs. Refresh to see progress.', 'بدأت مهمة الترجمة — تُملأ الأسماء العربية أثناء عمل المهمة في الخلفية. حدّث الصفحة لمتابعة التقدم.')}</p>}
-      {tjob === 'offline' && <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{tb('Could not start the job — the background worker is not reachable.', 'تعذّر بدء المهمة — عامل الخلفية غير متاح.')}</p>}
-      {job?.state === 'running' && <p className="mb-4 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">{tb(`Translating… ${job.done}/${job.total} done${job.failed ? `, ${job.failed} failed` : ''}.`, `جارٍ الترجمة… ${job.done}/${job.total}${job.failed ? `، ${job.failed} فشل` : ''}.`)}</p>}
-      {job?.state === 'error' && <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{tb('Last translation job failed — is the AI provider configured (Providers page)?', 'فشلت مهمة الترجمة الأخيرة — هل مزوّد الذكاء الاصطناعي مُفعّل (صفحة المزوّدين)؟')}</p>}
       <AdminList
         title={showingArchived ? `${tl('brands')} ${tc('archivedSuffix')}` : tl('brands')}
         newHref="/admin/brands/edit"
         count={total}
         head={[{ label: tf('name'), col: 'name' }, tf('nameAr'), { label: tf('slug'), col: 'slug' }, tb('Products', 'المنتجات')]}
         sortCtx={{ sort, dir, sp, basePath }}
+        query={q}
+        searchClearHref={clearHref}
+        filters={<>
+          <FilterBar
+            fields={[
+              { name: 'q', label: tb('Search', 'بحث'), type: 'text' },
+              { name: 'flag', label: tb('Data filter', 'تصفية البيانات'), type: 'select', options: [
+                { value: 'missing_ar_name', label: tb('Missing Arabic name', 'بدون اسم عربي') },
+                { value: 'missing_logo', label: tb('Missing logo', 'بدون شعار') },
+                { value: 'missing_banner', label: tb('Missing banner', 'بدون بانر') },
+                { value: 'missing_description', label: tb('Missing description', 'بدون وصف') },
+                { value: 'zero_products', label: tb('Zero products', 'بدون منتجات') },
+              ] },
+            ]}
+            values={{ q, flag }}
+            locale={locale}
+            path="brands"
+          />
+          {tjob === 'started' && <p className="mb-4 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">{tb('Translation job started — Arabic names fill in as the background job runs. Refresh to see progress.', 'بدأت مهمة الترجمة — تُملأ الأسماء العربية أثناء عمل المهمة في الخلفية. حدّث الصفحة لمتابعة التقدم.')}</p>}
+          {tjob === 'offline' && <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{tb('Could not start the job — the background worker is not reachable.', 'تعذّر بدء المهمة — عامل الخلفية غير متاح.')}</p>}
+          {job?.state === 'running' && <p className="mb-4 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">{tb(`Translating… ${job.done}/${job.total} done${job.failed ? `, ${job.failed} failed` : ''}.`, `جارٍ الترجمة… ${job.done}/${job.total}${job.failed ? `، ${job.failed} فشل` : ''}.`)}</p>}
+          {job?.state === 'error' && <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{tb('Last translation job failed — is the AI provider configured (Providers page)?', 'فشلت مهمة الترجمة الأخيرة — هل مزوّد الذكاء الاصطناعي مُفعّل (صفحة المزوّدين)؟')}</p>}
+        </>}
         toolbar={
           <div className="flex flex-wrap items-center gap-3">
             <BrandTranslateButton locale={locale} back={back} missing={missingAr} />
@@ -98,6 +103,7 @@ export default async function BrandsPage({ params, searchParams }: { params: Pro
               path="brands"
               locale={locale}
               archived={!!b.archivedAt}
+              label={b.nameEn}
               warn={b._count.products > 0 ? tb(`This brand has ${b._count.products} product(s) — removing it may orphan them. Continue?`, `لهذه العلامة ${b._count.products} منتجًا — إزالتها قد تترك المنتجات بلا علامة. المتابعة؟`) : undefined}
             />
           ),

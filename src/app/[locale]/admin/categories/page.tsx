@@ -79,26 +79,29 @@ export default async function CategoriesPage({ params, searchParams }: { params:
     return tb(`This category has ${parts.join(' + ')} — removing it may orphan them. Continue?`, `لهذه الفئة ${parts.join(' + ')} — إزالتها قد تتركها بلا فئة. المتابعة؟`);
   };
 
+  const clearHref = `${basePath}${showingArchived ? '?archived=1' : ''}`;
   return (
     <div>
-      <FilterBar
-        fields={[
-          { name: 'q', label: tb('Search', 'بحث'), type: 'text' },
-          { name: 'flag', label: tb('Data filter', 'تصفية البيانات'), type: 'select', options: [
-            { value: 'missing_ar_name', label: tb('Missing Arabic name', 'بدون اسم عربي') },
-            { value: 'missing_image', label: tb('Missing image', 'بدون صورة') },
-            { value: 'missing_description', label: tb('Missing description', 'بدون وصف') },
-            { value: 'zero_products', label: tb('Zero products', 'بدون منتجات') },
-          ] },
-        ]}
-        values={{ q, flag }}
-        locale={locale}
-        path="categories"
-      />
       <AdminList
         title={showingArchived ? `${tl('categories')} ${tc('archivedSuffix')}` : tl('categories')}
         newHref="/admin/categories/edit"
         count={total}
+        query={q}
+        searchClearHref={clearHref}
+        filters={<FilterBar
+          fields={[
+            { name: 'q', label: tb('Search', 'بحث'), type: 'text' },
+            { name: 'flag', label: tb('Data filter', 'تصفية البيانات'), type: 'select', options: [
+              { value: 'missing_ar_name', label: tb('Missing Arabic name', 'بدون اسم عربي') },
+              { value: 'missing_image', label: tb('Missing image', 'بدون صورة') },
+              { value: 'missing_description', label: tb('Missing description', 'بدون وصف') },
+              { value: 'zero_products', label: tb('Zero products', 'بدون منتجات') },
+            ] },
+          ]}
+          values={{ q, flag }}
+          locale={locale}
+          path="categories"
+        />}
         head={[{ label: tf('name'), col: 'name' }, tf('parent'), { label: tf('slug'), col: 'slug' }, tb('Products', 'المنتجات')]}
         sortCtx={{ sort, dir, sp, basePath }}
         toolbar={<div className="flex items-center gap-3"><a href={`${basePath}/restructure`} className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface">🗂 {tb('Restructure tool', 'أداة إعادة الهيكلة')}</a><ExportBar entity="categories" locale={locale} query={exportQs(sp)} /><ArchivedToggle path="categories" showingArchived={showingArchived} /></div>}
@@ -123,7 +126,7 @@ export default async function CategoriesPage({ params, searchParams }: { params:
             String(c._count.products),
           ],
           editHref: `/admin/categories/edit/${c.id}`,
-          actions: <RowActions entity="category" id={c.id} path="categories" locale={locale} archived={!!c.archivedAt} warn={rowWarn(c)} />,
+          actions: <RowActions entity="category" id={c.id} path="categories" locale={locale} archived={!!c.archivedAt} label={c.nameEn} warn={rowWarn(c)} />,
         }))}
       />
     </div>

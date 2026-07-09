@@ -86,7 +86,11 @@
       "cancel": "إلغاء",
       "nothingHere": "لا يوجد شيء بعد.",
       "inUseNotice": "هذا العنصر قيد الاستخدام ولا يمكن حذفه. أرشفه بدلًا من ذلك — سيُخفى مع الاحتفاظ به في السجل.",
-      "archivedSuffix": "(مؤرشف)"
+      "archivedSuffix": "(مؤرشف)",
+      "noSearchResults": "لا نتائج تطابق «{query}».",
+      "clearSearch": "مسح البحث",
+      "deleteConfirm": "حذف هذا العنصر؟ لا يمكن التراجع.",
+      "deleteConfirmNamed": "حذف «{name}»؟ لا يمكن التراجع."
     },
     "fields": {
       "name": "الاسم",

@@ -36,23 +36,26 @@ export default async function ReturnsPage({ params, searchParams }: { params: Pr
   });
   const basePath = `/${locale}/admin/returns`;
 
+  const clearHref = basePath;
   return (
     <div>
-      <FilterBar
-        fields={[
-          { name: 'q', label: tb('Search', 'بحث'), type: 'text', placeholder: tb('Order # or customer', 'رقم الطلب أو العميل') },
-          { name: 'status', label: tb('Status', 'الحالة'), type: 'select', options: RETURN_STATUSES.map((s) => ({ value: s, label: s })) },
-          { name: 'reason', label: tb('Reason', 'السبب'), type: 'select', options: reasons.map((r) => ({ value: r.id, label: locale === 'ar' ? r.labelAr : r.labelEn })) },
-        ]}
-        values={{ q, status, reason }}
-        locale={locale}
-        path="returns"
-      />
       <AdminList
         title={tb('Returns', 'المرتجعات')}
         newHref="/admin/returns/reasons"
         newLabel={tb('Manage reasons', 'إدارة الأسباب')}
         count={total}
+        query={q}
+        searchClearHref={clearHref}
+        filters={<FilterBar
+          fields={[
+            { name: 'q', label: tb('Search', 'بحث'), type: 'text', placeholder: tb('Order # or customer', 'رقم الطلب أو العميل') },
+            { name: 'status', label: tb('Status', 'الحالة'), type: 'select', options: RETURN_STATUSES.map((s) => ({ value: s, label: s })) },
+            { name: 'reason', label: tb('Reason', 'السبب'), type: 'select', options: reasons.map((r) => ({ value: r.id, label: locale === 'ar' ? r.labelAr : r.labelEn })) },
+          ]}
+          values={{ q, status, reason }}
+          locale={locale}
+          path="returns"
+        />}
         toolbar={<ExportBar entity="returns" locale={locale} query={exportQs(sp)} />}
         head={[
           { label: tb('Order', 'الطلب'), col: 'order' },

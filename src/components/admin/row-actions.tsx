@@ -14,6 +14,7 @@ export async function RowActions({
   archived,
   canDelete = true,
   warn,
+  label,
 }: {
   entity: string;
   id: string;
@@ -22,9 +23,14 @@ export async function RowActions({
   archived: boolean;
   canDelete?: boolean;
   warn?: string;
+  /** Item display name — used in the delete confirmation ("Delete '{name}'?"). */
+  label?: string;
 }) {
   const t = await getTranslations('admin.common');
   const archiveBtn = archived ? t('restore') : t('archive');
+  // Destructive Delete always confirms: the in-use `warn` if present, else a
+  // generic (named when we have the item's label) confirmation.
+  const deleteWarn = warn ?? (label ? t('deleteConfirmNamed', { name: label }) : t('deleteConfirm'));
   return (
     <>
       <form action={archiveEntityAction}>
@@ -43,9 +49,7 @@ export async function RowActions({
           <input type="hidden" name="id" value={id} />
           <input type="hidden" name="path" value={path} />
           <input type="hidden" name="locale" value={locale} />
-          {warn
-            ? <ConfirmButton warn={warn} className="text-destructive hover:underline">{t('delete')}</ConfirmButton>
-            : <button className="text-destructive hover:underline">{t('delete')}</button>}
+          <ConfirmButton warn={deleteWarn} className="text-destructive hover:underline">{t('delete')}</ConfirmButton>
         </form>
       )}
     </>

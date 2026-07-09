@@ -32,15 +32,18 @@ export default async function TagsPage({ params, searchParams }: { params: Promi
     { value: 'delete', label: tb('Delete', 'حذف'), danger: true },
   ];
 
+  const clearHref = `${basePath}${showingArchived ? '?archived=1' : ''}`;
   return (
     <div>
-      <FilterBar fields={[{ name: 'q', label: tb('Search', 'بحث'), type: 'text' }]} values={{ q }} locale={locale} path="tags" />
       <AdminList
         title={showingArchived ? `${tl('tags')} ${tc('archivedSuffix')}` : tl('tags')}
         newHref="/admin/tags/edit"
         count={total}
         head={[{ label: tf('name'), col: 'name' }, tf('nameAr'), { label: tf('slug'), col: 'slug' }]}
         sortCtx={{ sort, dir, sp, basePath }}
+        query={q}
+        searchClearHref={clearHref}
+        filters={<FilterBar fields={[{ name: 'q', label: tb('Search', 'بحث'), type: 'text' }]} values={{ q }} locale={locale} path="tags" />}
         toolbar={<ArchivedToggle path="tags" showingArchived={showingArchived} />}
         notice={<>
           <InUseNotice show={one(sp.error) === 'in_use'} />
@@ -52,7 +55,7 @@ export default async function TagsPage({ params, searchParams }: { params: Promi
           key: t.id,
           cells: [t.nameEn, t.nameAr ?? '—', t.slug],
           editHref: `/admin/tags/edit/${t.id}`,
-          actions: <RowActions entity="tag" id={t.id} path="tags" locale={locale} archived={!!t.archivedAt} />,
+          actions: <RowActions entity="tag" id={t.id} path="tags" locale={locale} archived={!!t.archivedAt} label={t.nameEn} />,
         }))}
       />
     </div>
