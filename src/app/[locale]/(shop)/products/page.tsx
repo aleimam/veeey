@@ -165,9 +165,32 @@ export default async function ProductsPage({
     // zone product data is best-effort
   }
 
+  // Breadcrumb rich result for category pages: Home › Shop › [parent] › category.
+  const catUrl = (c: { slug: string; slugAr: string | null }) =>
+    `https://veeey.com/${locale}/products?category=${(ar ? c.slugAr : c.slug) ?? c.slug}`;
+  const catParent = activeCategory?.parentId
+    ? await prisma.category.findFirst({
+        where: { id: activeCategory.parentId, archivedAt: null },
+        select: { nameEn: true, nameAr: true, slug: true, slugAr: true },
+      })
+    : null;
+  const breadcrumbLd = activeCategory
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { name: tb('Home', 'الرئيسية'), item: `https://veeey.com/${locale}` },
+          { name: tb('Shop', 'المتجر'), item: `https://veeey.com/${locale}/products` },
+          ...(catParent ? [{ name: (ar ? catParent.nameAr : catParent.nameEn) ?? catParent.nameEn, item: catUrl(catParent) }] : []),
+          { name: (ar ? activeCategory.nameAr : activeCategory.nameEn) ?? activeCategory.nameEn, item: catUrl(activeCategory) },
+        ].map((c, i) => ({ '@type': 'ListItem', position: i + 1, name: c.name, item: c.item })),
+      }
+    : null;
+
   return (
     <>
     {activeCategory && (
+      <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -183,6 +206,8 @@ export default async function ProductsPage({
           }),
         }}
       />
+      {breadcrumbLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />}
+      </>
     )}
     {zones['category.top'].length > 0 && <ChewyHome locale={locale} blocks={zones['category.top']} data={zoneData} />}
     <div className="mx-auto max-w-[1440px] px-4 pb-12 pt-5 sm:px-6 lg:px-8">
