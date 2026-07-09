@@ -104,6 +104,10 @@ export function CollectionForm({
         </Field>
       </div>
 
+      <Field label={tb('Display order', 'ترتيب العرض')} hint={tb('Lower numbers show first on the storefront and in menus.', 'الأرقام الأقل تظهر أولًا في المتجر والقوائم.')}>
+        <input name="sortOrder" type="number" defaultValue={s('sortOrder') || '0'} className={`${inputCls} w-32`} />
+      </Field>
+
       {/* Conditional: only the fields relevant to the selected type are active. */}
       {isManual ? (
         <div>

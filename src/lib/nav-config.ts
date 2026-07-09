@@ -101,17 +101,17 @@ export function defaultNav(): NavConfig {
         mega: {
           columns: [
             col('goals-by', 'By goal', 'حسب الهدف', [
-              ['Immunity', 'المناعة', '/products'], ['Energy', 'الطاقة', '/products'], ['Sleep', 'النوم', '/products'],
-              ['Heart', 'القلب', '/products'], ['Gut Health', 'صحة الأمعاء', '/products'], ['Beauty', 'الجمال', '/products'],
-              ["Men's", 'الرجال', '/products'], ['Devices', 'الأجهزة', '/products?kind=DEVICE'],
+              ['Immunity', 'المناعة', '/collection/immunity'], ['Energy', 'الطاقة', '/collection/energy'], ['Sleep', 'النوم', '/collection/sleep'],
+              ['Heart', 'القلب', '/collection/heart'], ['Gut Health', 'صحة الأمعاء', '/collection/gut-health'], ['Beauty', 'الجمال', '/collection/beauty'],
+              ["Men's", 'الرجال', '/collection/mens-health'], ['Devices', 'الأجهزة', '/products?kind=DEVICE'],
             ]),
             col('goals-pop', 'Popular', 'الأكثر رواجًا', [
-              ['Best sellers', 'الأكثر مبيعًا', '/products'], ['New arrivals', 'وصل حديثًا', '/products'],
-              ['Expiry deals', 'عروض قرب الصلاحية', '/products?offers=1'], ['Bundles & stacks', 'الحزم', '/products'],
+              ['Best sellers', 'الأكثر مبيعًا', '/collection/best-sellers'], ['New arrivals', 'وصل حديثًا', '/collection/new-arrivals'],
+              ['Expiry deals', 'عروض قرب الصلاحية', '/products?offers=1'], ['Bundles & stacks', 'الحزم', '/collection/bundles-stacks'],
             ]),
             col('goals-men', "Men's wellness", 'صحة الرجل', [
-              ['Performance', 'الأداء', '/products'], ['Prostate', 'البروستاتا', '/products'],
-              ['Testosterone', 'التستوستيرون', '/products'], ['Energy', 'الطاقة', '/products'],
+              ['Performance', 'الأداء', '/collection/performance'], ['Prostate', 'البروستاتا', '/collection/prostate'],
+              ['Testosterone', 'التستوستيرون', '/collection/testosterone'], ['Energy', 'الطاقة', '/collection/energy'],
             ]),
           ],
           promo: refillPromo(),

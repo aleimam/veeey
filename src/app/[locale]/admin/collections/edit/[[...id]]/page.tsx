@@ -20,7 +20,7 @@ export default async function CollectionEditPage({ params }: { params: Promise<{
     ? {
         titleEn: collection.titleEn, titleAr: collection.titleAr ?? '', slug: collection.slug,
         descriptionEn: collection.descriptionEn ?? '', descriptionAr: collection.descriptionAr ?? '',
-        type: collection.type, status: collection.status,
+        type: collection.type, status: collection.status, sortOrder: String(collection.sortOrder ?? 0),
         ruleCategoryId: collection.ruleCategoryId ?? '', ruleTagSlug: collection.ruleTagSlug ?? '',
         imageUrl: collection.imageUrl ?? '', imageAltEn: collection.imageAltEn ?? '', imageAltAr: collection.imageAltAr ?? '',
         metaTitleEn: collection.metaTitleEn ?? '', metaTitleAr: collection.metaTitleAr ?? '',

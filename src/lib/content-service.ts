@@ -87,6 +87,7 @@ const collectionSchema = z.object({
   ruleCategoryId: z.string().optional().nullable(),
   ruleTagSlug: z.string().optional().nullable(),
   status: STATUS.default('DRAFT'),
+  sortOrder: z.number().int().default(0),
   productIds: z.array(z.string()).default([]),
   imageUrl: z.string().optional().nullable(),
   imageAltEn: z.string().optional().nullable(),
@@ -137,7 +138,7 @@ export async function saveCollection(id: string | null, raw: CollectionInput) {
   const base = {
     titleEn: d.titleEn, titleAr: d.titleAr ?? null, slug,
     descriptionEn: d.descriptionEn ?? null, descriptionAr: d.descriptionAr ?? null,
-    type: d.type, status: d.status,
+    type: d.type, status: d.status, sortOrder: d.sortOrder,
     ruleCategoryId: d.type === 'AUTO' ? d.ruleCategoryId || null : null,
     ruleTagSlug: d.type === 'AUTO' ? d.ruleTagSlug || null : null,
     // Manual: remember the picker's order; Automatic: order comes from the rule.

@@ -268,6 +268,7 @@ export async function saveCollectionAction(_p: AdminFormState, fd: FormData): Pr
       type: (str(fd, 'type') ?? 'MANUAL') as 'MANUAL' | 'AUTO',
       ruleCategoryId: str(fd, 'ruleCategoryId') ?? null, ruleTagSlug: str(fd, 'ruleTagSlug') ?? null,
       status: (str(fd, 'status') ?? 'DRAFT') as 'DRAFT' | 'PUBLISHED' | 'ARCHIVED',
+      sortOrder: Number(str(fd, 'sortOrder') || '0') || 0,
       productIds: arr(fd, 'productIds'),
       imageUrl: str(fd, 'imageUrl'), imageAltEn: str(fd, 'imageAltEn'), imageAltAr: str(fd, 'imageAltAr'),
       metaTitleEn: str(fd, 'metaTitleEn'), metaTitleAr: str(fd, 'metaTitleAr'),

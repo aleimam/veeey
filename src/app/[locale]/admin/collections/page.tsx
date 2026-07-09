@@ -36,9 +36,10 @@ export default async function CollectionsPage({ params, searchParams }: { params
       title={showingArchived ? `${tl('collections')} ${tc('archivedSuffix')}` : tl('collections')}
       newHref="/admin/collections/edit"
       count={total}
-      head={[{ label: tf('title'), col: 'title' }, tf('type'), tf('status'), { label: tf('slug'), col: 'slug' }]}
+      head={[{ label: tf('title'), col: 'title' }, tf('type'), tf('status'), { label: tf('slug'), col: 'slug' }, tb('Order', 'الترتيب')]}
       sortCtx={{ sort: lp.sort, dir: lp.dir, sp, basePath }}
       toolbar={<ArchivedToggle path="collections" showingArchived={showingArchived} />}
+      emptyState={<span>{tb('No collections yet. Collections are curated groups (e.g. Immunity, Bundles) that power the “Shop by Goal” menu and their own landing pages. Create one, then it appears at /collection/its-slug.', 'لا مجموعات بعد. المجموعات هي تجميعات منسّقة (مثل المناعة والحزم) تُشغّل قائمة «تسوّق حسب الهدف» ولها صفحات هبوط خاصة. أنشئ واحدة لتظهر على /collection/معرّفها.')}</span>}
       notice={<>
         <InUseNotice show={one(sp.error) === 'in_use'} />
         {done != null && <p className="mb-4 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">{tb(`Done — ${done} updated`, `تم — ${done}`)}{Number(one(sp.skip)) > 0 ? tb(`, ${one(sp.skip)} skipped (in use)`, `، ${one(sp.skip)} متخطّى`) : ''}.</p>}
@@ -47,9 +48,9 @@ export default async function CollectionsPage({ params, searchParams }: { params
       pagination={{ page: lp.page, perPage: lp.perPage, total, sp, basePath, locale }}
       rows={collections.map((c) => ({
         key: c.id,
-        cells: [c.titleEn, c.type, <StatusBadge key="s" status={c.status} />, c.slug],
+        cells: [c.titleEn, c.type, <StatusBadge key="s" status={c.status} />, c.slug, c.sortOrder],
         editHref: `/admin/collections/edit/${c.id}`,
-        actions: <RowActions entity="collection" id={c.id} path="collections" locale={locale} archived={c.status === 'ARCHIVED'} />,
+        actions: <RowActions entity="collection" id={c.id} path="collections" locale={locale} archived={c.status === 'ARCHIVED'} label={c.titleEn} />,
       }))}
     />
   );
