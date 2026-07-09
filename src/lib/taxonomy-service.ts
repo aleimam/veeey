@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
 import { uniqueSlug } from '@/lib/slug';
+import { slugify } from '@/lib/sku';
 import { parseSchemaOverrides } from '@/lib/catalog-service';
 
 /** Taxonomy CRUD (FR-CAT-01/08). RBAC-gated + audited. */
@@ -300,22 +301,35 @@ export async function saveTag(id: string | null, raw: TagInput) {
 }
 
 // ---- Attributes + values (governed schema, FR-CAT-08) ----------------------
+const KIND = z.enum(['SUPPLEMENT', 'DEVICE', 'INJECTION']);
 const attributeSchema = z.object({
   key: z.string().trim().min(1),
   ...bilingual,
-  kind: z.enum(['SUPPLEMENT', 'DEVICE', 'INJECTION']).default('SUPPLEMENT'),
+  kinds: z.array(KIND).min(1).default(['SUPPLEMENT']), // multi-type "applies to"
+  inputType: z.enum(['SINGLE_SELECT', 'MULTI_SELECT']).default('SINGLE_SELECT'),
+  descriptionEn: z.string().optional().nullable(),
+  descriptionAr: z.string().optional().nullable(),
+  unit: z.string().optional().nullable(),
+  isFilterable: z.boolean().default(false),
+  isRequired: z.boolean().default(false),
 });
 export type AttributeInput = z.input<typeof attributeSchema>;
 
 export const listAttributes = () =>
-  prisma.attribute.findMany({ include: { values: { orderBy: { valueEn: 'asc' } } }, orderBy: { nameEn: 'asc' } });
+  prisma.attribute.findMany({ include: { values: { orderBy: [{ sortOrder: 'asc' }, { valueEn: 'asc' }] } }, orderBy: { nameEn: 'asc' } });
 export const getAttribute = (id: string) =>
-  prisma.attribute.findUnique({ where: { id }, include: { values: true } });
+  prisma.attribute.findUnique({ where: { id }, include: { values: { orderBy: [{ sortOrder: 'asc' }, { valueEn: 'asc' }] } } });
 
 export async function saveAttribute(id: string | null, raw: AttributeInput) {
   const user = await requirePermission('catalog.write');
   const d = attributeSchema.parse(raw);
-  const data = { key: d.key, nameEn: d.nameEn, nameAr: d.nameAr ?? null, kind: d.kind };
+  const data = {
+    key: d.key, nameEn: d.nameEn, nameAr: d.nameAr ?? null,
+    kinds: d.kinds, kind: d.kinds[0] ?? 'SUPPLEMENT', // keep the legacy single column in sync
+    inputType: d.inputType,
+    descriptionEn: d.descriptionEn || null, descriptionAr: d.descriptionAr || null,
+    unit: d.unit || null, isFilterable: d.isFilterable, isRequired: d.isRequired,
+  };
   const attribute = id
     ? await prisma.attribute.update({ where: { id }, data })
     : await prisma.attribute.create({ data });
@@ -323,9 +337,36 @@ export async function saveAttribute(id: string | null, raw: AttributeInput) {
   return attribute;
 }
 
-export async function addAttributeValue(attributeId: string, valueEn: string, valueAr?: string) {
+export async function addAttributeValue(attributeId: string, valueEn: string, valueAr?: string, slug?: string) {
   await requirePermission('catalog.write');
-  return prisma.attributeValue.create({ data: { attributeId, valueEn: valueEn.trim(), valueAr: valueAr?.trim() || null } });
+  const max = await prisma.attributeValue.aggregate({ where: { attributeId }, _max: { sortOrder: true } });
+  return prisma.attributeValue.create({
+    data: {
+      attributeId, valueEn: valueEn.trim(), valueAr: valueAr?.trim() || null,
+      slug: (slug?.trim() || slugify(valueEn)) || null,
+      sortOrder: (max._max.sortOrder ?? -1) + 1,
+    },
+  });
+}
+
+/** Edit a value's slug (auto-normalized). */
+export async function updateAttributeValueSlug(id: string, slug: string) {
+  await requirePermission('catalog.write');
+  return prisma.attributeValue.update({ where: { id }, data: { slug: slugify(slug) || null } });
+}
+
+/** Reorder a value one step up/down within its attribute. Renumbers all
+ *  siblings to 0..n-1 (self-healing — existing values all seed to sortOrder 0). */
+export async function moveAttributeValue(id: string, dir: 'up' | 'down') {
+  await requirePermission('catalog.write');
+  const v = await prisma.attributeValue.findUnique({ where: { id } });
+  if (!v) return;
+  const siblings = await prisma.attributeValue.findMany({ where: { attributeId: v.attributeId }, orderBy: [{ sortOrder: 'asc' }, { valueEn: 'asc' }] });
+  const i = siblings.findIndex((s) => s.id === id);
+  const j = dir === 'up' ? i - 1 : i + 1;
+  if (j < 0 || j >= siblings.length) return;
+  [siblings[i], siblings[j]] = [siblings[j], siblings[i]];
+  await prisma.$transaction(siblings.map((s, idx) => prisma.attributeValue.update({ where: { id: s.id }, data: { sortOrder: idx } })));
 }
 
 export async function deleteAttributeValue(id: string) {

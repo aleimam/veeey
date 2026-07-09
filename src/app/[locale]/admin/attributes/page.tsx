@@ -35,7 +35,7 @@ export default async function AttributesPage({ params, searchParams }: { params:
       title={showingArchived ? `${tl('attributes')} ${tc('archivedSuffix')}` : tl('attributes')}
       newHref="/admin/attributes/edit"
       count={total}
-      head={[{ label: tf('name'), col: 'name' }, { label: tf('key'), col: 'key' }, { label: tf('values'), col: 'values' }]}
+      head={[{ label: tf('name'), col: 'name' }, { label: tf('key'), col: 'key' }, tb('Applies to', 'ينطبق على'), { label: tf('values'), col: 'values' }]}
       sortCtx={{ sort: lp.sort, dir: lp.dir, sp, basePath }}
       toolbar={<ArchivedToggle path="attributes" showingArchived={showingArchived} />}
       notice={<>
@@ -46,9 +46,14 @@ export default async function AttributesPage({ params, searchParams }: { params:
       pagination={{ page: lp.page, perPage: lp.perPage, total, sp, basePath, locale }}
       rows={attributes.map((a) => ({
         key: a.id,
-        cells: [a.nameEn, a.key, String(a.values.length)],
+        cells: [
+          <span key="n">{a.nameEn}{a.isFilterable ? <span className="ms-1.5 rounded bg-primary/10 px-1 text-[10px] font-medium text-primary">{tb('filter', 'فلتر')}</span> : null}</span>,
+          a.key,
+          (a.kinds.length ? a.kinds : [a.kind]).map((k) => k[0] + k.slice(1).toLowerCase()).join(', '),
+          String(a.values.length),
+        ],
         editHref: `/admin/attributes/edit/${a.id}`,
-        actions: <RowActions entity="attribute" id={a.id} path="attributes" locale={locale} archived={!!a.archivedAt} />,
+        actions: <RowActions entity="attribute" id={a.id} path="attributes" locale={locale} archived={!!a.archivedAt} label={a.nameEn} />,
       }))}
     />
   );

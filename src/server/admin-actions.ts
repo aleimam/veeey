@@ -13,6 +13,8 @@ import {
   saveTag,
   saveAttribute,
   addAttributeValue,
+  updateAttributeValueSlug,
+  moveAttributeValue,
   deleteAttributeValue,
 } from '@/lib/taxonomy-service';
 import { savePage, savePost, saveCollection } from '@/lib/content-service';
@@ -203,10 +205,16 @@ export async function saveTagAction(_p: AdminFormState, fd: FormData): Promise<A
 
 export async function saveAttributeAction(_p: AdminFormState, fd: FormData): Promise<AdminFormState> {
   const locale = localeOf(fd);
+  const kinds = arr(fd, 'kinds').filter((k): k is 'SUPPLEMENT' | 'DEVICE' | 'INJECTION' => k === 'SUPPLEMENT' || k === 'DEVICE' || k === 'INJECTION');
   try {
     await saveAttribute(str(fd, 'id') ?? null, {
       key: str(fd, 'key') ?? '', nameEn: str(fd, 'nameEn') ?? '', nameAr: str(fd, 'nameAr'),
-      kind: (str(fd, 'kind') ?? 'SUPPLEMENT') as 'SUPPLEMENT' | 'DEVICE' | 'INJECTION',
+      kinds: kinds.length ? kinds : ['SUPPLEMENT'],
+      inputType: (str(fd, 'inputType') ?? 'SINGLE_SELECT') as 'SINGLE_SELECT' | 'MULTI_SELECT',
+      descriptionEn: str(fd, 'descriptionEn'), descriptionAr: str(fd, 'descriptionAr'),
+      unit: str(fd, 'unit'),
+      isFilterable: fd.get('isFilterable') != null,
+      isRequired: fd.get('isRequired') != null,
     });
   } catch (e) { return fail(e); }
   done(locale, 'attributes');
@@ -217,8 +225,27 @@ export async function addAttributeValueAction(fd: FormData): Promise<void> {
   const attributeId = str(fd, 'attributeId');
   const valueEn = str(fd, 'valueEn');
   if (attributeId && valueEn) {
-    try { await addAttributeValue(attributeId, valueEn, str(fd, 'valueAr')); } catch (e) { fail(e); }
+    try { await addAttributeValue(attributeId, valueEn, str(fd, 'valueAr'), str(fd, 'slug')); } catch (e) { fail(e); }
   }
+  revalidatePath(`/${locale}/admin/attributes`);
+  redirect(`/${locale}/admin/attributes/${attributeId}`);
+}
+
+export async function updateAttributeValueSlugAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const attributeId = str(fd, 'attributeId');
+  const valueId = str(fd, 'valueId');
+  if (valueId) { try { await updateAttributeValueSlug(valueId, str(fd, 'slug') ?? ''); } catch (e) { fail(e); } }
+  revalidatePath(`/${locale}/admin/attributes`);
+  redirect(`/${locale}/admin/attributes/${attributeId}`);
+}
+
+export async function moveAttributeValueAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const attributeId = str(fd, 'attributeId');
+  const valueId = str(fd, 'valueId');
+  const dir = str(fd, 'dir') === 'up' ? 'up' : 'down';
+  if (valueId) { try { await moveAttributeValue(valueId, dir); } catch (e) { fail(e); } }
   revalidatePath(`/${locale}/admin/attributes`);
   redirect(`/${locale}/admin/attributes/${attributeId}`);
 }

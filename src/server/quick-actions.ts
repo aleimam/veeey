@@ -26,7 +26,7 @@ export async function quickCreateTag(name: string): Promise<{ id: string; label:
 }
 
 export async function quickCreateAttribute(name: string, kind: 'SUPPLEMENT' | 'DEVICE' | 'INJECTION'): Promise<{ id: string; label: string }> {
-  const a = await saveAttribute(null, { key: keyFrom(name), nameEn: name.trim(), kind });
+  const a = await saveAttribute(null, { key: keyFrom(name), nameEn: name.trim(), kinds: [kind] });
   return { id: a.id, label: a.nameEn };
 }
 
