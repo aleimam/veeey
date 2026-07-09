@@ -2,6 +2,8 @@
 
 import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/auth-guards';
+import { collectionMatchPreview } from '@/lib/content-service';
+import { parseRule } from '@/lib/collection-rules';
 import type { Prisma } from '@/generated/prisma/client';
 
 /** Lightweight product hit for the collection manual picker (V3-COL-2). */
@@ -34,6 +36,13 @@ export async function searchCollectionProductsAction(q: string): Promise<PickerP
     take: 15,
   });
   return rows.map(toHit);
+}
+
+/** Live "matches N products (+ sample)" for the automatic-rule builder. */
+export async function previewCollectionRuleAction(ruleJson: string): Promise<{ count: number; sample: string[] }> {
+  let raw: unknown = null;
+  try { raw = JSON.parse(ruleJson); } catch { raw = null; }
+  return collectionMatchPreview(parseRule(raw));
 }
 
 /** Hydrate a set of product ids into ordered picker hits (for form defaults). */

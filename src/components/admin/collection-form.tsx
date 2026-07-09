@@ -5,14 +5,14 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import { saveCollectionAction, type AdminFormState } from '@/server/admin-actions';
 import type { PickerProduct } from '@/server/collection-actions';
+import type { RuleConfig } from '@/lib/collection-rules';
 import { pick } from '@/lib/admin-i18n';
 import { Field, FormError, SubmitButton, inputCls } from './ui';
 import { SlugField } from './slug-field';
 import { RichTextField } from './rich-text/field';
 import { SingleImageUploader } from './image-uploader';
 import { CollectionProductPicker } from './collection-product-picker';
-
-type Opt = { value: string; label: string };
+import { CollectionRuleBuilder, type RuleOptions } from './collection-rule-builder';
 
 /**
  * Bespoke collection create/edit form (V3-COL-2/3). Unlike the generic
@@ -21,12 +21,13 @@ type Opt = { value: string; label: string };
  * the unsaved-changes guard pattern.
  */
 export function CollectionForm({
-  locale, id, defaults, categoryOptions, initialProducts,
+  locale, id, defaults, ruleOptions, initialRule, initialProducts,
 }: {
   locale: string;
   id?: string;
   defaults: Record<string, unknown>;
-  categoryOptions: Opt[];
+  ruleOptions: RuleOptions;
+  initialRule: RuleConfig;
   initialProducts: PickerProduct[];
 }) {
   const [state, formAction] = useActionState<AdminFormState, FormData>(saveCollectionAction, {});
@@ -40,8 +41,6 @@ export function CollectionForm({
   const [slug, setSlug] = useState(s('slug'));
   const [type, setType] = useState(s('type') || 'MANUAL');
   const [status, setStatus] = useState(s('status') || 'DRAFT');
-  const [ruleCategoryId, setRuleCategoryId] = useState(s('ruleCategoryId'));
-  const [ruleTagSlug, setRuleTagSlug] = useState(s('ruleTagSlug'));
   const [dirty, setDirty] = useState(false);
   const touch = () => setDirty(true);
 
@@ -115,18 +114,9 @@ export function CollectionForm({
           <CollectionProductPicker initial={initialProducts} onDirty={touch} />
         </div>
       ) : (
-        <div className="space-y-4 rounded-lg border border-border p-3">
+        <div className="space-y-3 rounded-lg border border-border p-3">
           <p className="text-sm font-medium text-foreground">{tb('Automatic rule', 'قاعدة تلقائية')}</p>
-          <Field label={tb('Category', 'الفئة')}>
-            <select name="ruleCategoryId" value={ruleCategoryId} onChange={(e) => { setRuleCategoryId(e.target.value); touch(); }} className={inputCls}>
-              <option value="">{tb('— None —', '— بدون —')}</option>
-              {categoryOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </Field>
-          <Field label={tb('Tag slug', 'مُعرّف الوسم')}>
-            <input name="ruleTagSlug" value={ruleTagSlug} onChange={(e) => { setRuleTagSlug(e.target.value); touch(); }} dir="ltr" className={inputCls} />
-          </Field>
-          <p className="text-xs text-muted-foreground">{tb('Products matching the category and/or tag are included automatically. A richer condition builder is coming.', 'تُضاف المنتجات المطابقة للفئة و/أو الوسم تلقائيًا. أداة شروط أكثر تفصيلًا قادمة.')}</p>
+          <CollectionRuleBuilder initial={initialRule} options={ruleOptions} onDirty={touch} />
         </div>
       )}
 

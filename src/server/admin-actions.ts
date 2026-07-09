@@ -294,6 +294,7 @@ export async function saveCollectionAction(_p: AdminFormState, fd: FormData): Pr
       descriptionEn: str(fd, 'descriptionEn'), descriptionAr: str(fd, 'descriptionAr'),
       type: (str(fd, 'type') ?? 'MANUAL') as 'MANUAL' | 'AUTO',
       ruleCategoryId: str(fd, 'ruleCategoryId') ?? null, ruleTagSlug: str(fd, 'ruleTagSlug') ?? null,
+      rule: (() => { try { return JSON.parse(str(fd, 'ruleJson') ?? 'null'); } catch { return null; } })(),
       status: (str(fd, 'status') ?? 'DRAFT') as 'DRAFT' | 'PUBLISHED' | 'ARCHIVED',
       sortOrder: Number(str(fd, 'sortOrder') || '0') || 0,
       productIds: arr(fd, 'productIds'),

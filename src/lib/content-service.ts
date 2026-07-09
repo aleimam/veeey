@@ -1,8 +1,11 @@
 import { z } from 'zod';
+import type { Prisma } from '@/generated/prisma/client';
+import { Prisma as PrismaRt } from '@/generated/prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
 import { uniqueSlug } from '@/lib/slug';
+import { buildRuleWhere, parseRule, hasConditions, type RuleConfig } from '@/lib/collection-rules';
 
 /** CMS pages, blog, and curated collections (FR-CMS-*, FR-CAT-03). */
 
@@ -86,6 +89,7 @@ const collectionSchema = z.object({
   type: z.enum(['MANUAL', 'AUTO']).default('MANUAL'),
   ruleCategoryId: z.string().optional().nullable(),
   ruleTagSlug: z.string().optional().nullable(),
+  rule: z.unknown().optional().nullable(), // structured condition builder (parsed via parseRule)
   status: STATUS.default('DRAFT'),
   sortOrder: z.number().int().default(0),
   productIds: z.array(z.string()).default([]),
@@ -128,6 +132,28 @@ export async function getPublishedCollectionBySlug(slug: string) {
 export const listPublishedCollections = () =>
   prisma.collection.findMany({ where: { status: 'PUBLISHED' }, orderBy: [{ sortOrder: 'asc' }, { titleEn: 'asc' }] });
 
+/** Product where-clause for an AUTO collection: prefer the structured ruleJson,
+ *  else the legacy single category + tag slug. Shared by admin + storefront. */
+export function collectionRuleWhere(c: { ruleJson: Prisma.JsonValue | null; ruleCategoryId: string | null; ruleTagSlug: string | null }): Prisma.ProductWhereInput {
+  const rule = parseRule(c.ruleJson);
+  if (hasConditions(rule)) return buildRuleWhere(rule);
+  return {
+    ...(c.ruleCategoryId ? { categories: { some: { id: c.ruleCategoryId } } } : {}),
+    ...(c.ruleTagSlug ? { tags: { some: { slug: c.ruleTagSlug } } } : {}),
+  };
+}
+
+/** Admin preview: how many PUBLISHED products a rule matches, + a small sample. */
+export async function collectionMatchPreview(rule: RuleConfig, take = 8) {
+  await requirePermission('content.manage');
+  const where: Prisma.ProductWhereInput = { status: 'PUBLISHED', ...(hasConditions(rule) ? buildRuleWhere(rule) : {}) };
+  const [count, sample] = await Promise.all([
+    prisma.product.count({ where }),
+    prisma.product.findMany({ where, select: { id: true, nameEn: true }, take, orderBy: { nameEn: 'asc' } }),
+  ]);
+  return { count, sample: sample.map((p) => p.nameEn) };
+}
+
 export async function saveCollection(id: string | null, raw: CollectionInput) {
   const user = await requirePermission('content.manage');
   const d = collectionSchema.parse(raw);
@@ -135,12 +161,16 @@ export async function saveCollection(id: string | null, raw: CollectionInput) {
     const found = await prisma.collection.findUnique({ where: { slug: s } });
     return !!found && found.id !== id;
   });
+  const parsedRule = parseRule(d.rule);
+  const ruleJson: Prisma.InputJsonValue | typeof PrismaRt.DbNull =
+    d.type === 'AUTO' && hasConditions(parsedRule) ? (parsedRule as unknown as Prisma.InputJsonValue) : PrismaRt.DbNull;
   const base = {
     titleEn: d.titleEn, titleAr: d.titleAr ?? null, slug,
     descriptionEn: d.descriptionEn ?? null, descriptionAr: d.descriptionAr ?? null,
     type: d.type, status: d.status, sortOrder: d.sortOrder,
     ruleCategoryId: d.type === 'AUTO' ? d.ruleCategoryId || null : null,
     ruleTagSlug: d.type === 'AUTO' ? d.ruleTagSlug || null : null,
+    ruleJson,
     // Manual: remember the picker's order; Automatic: order comes from the rule.
     manualOrder: d.type === 'MANUAL' ? d.productIds : [],
     imageUrl: d.imageUrl || null, imageAltEn: d.imageAltEn || null, imageAltAr: d.imageAltAr || null,
@@ -169,12 +199,5 @@ export async function resolveCollectionProducts(id: string) {
     const byId = new Map(c.products.map((p) => [p.id, p]));
     return order.map((pid) => byId.get(pid)).filter((p): p is (typeof c.products)[number] => !!p);
   }
-  return prisma.product.findMany({
-    where: {
-      status: 'PUBLISHED',
-      ...(c.ruleCategoryId ? { categories: { some: { id: c.ruleCategoryId } } } : {}),
-      ...(c.ruleTagSlug ? { tags: { some: { slug: c.ruleTagSlug } } } : {}),
-    },
-    take: 100,
-  });
+  return prisma.product.findMany({ where: { status: 'PUBLISHED', ...collectionRuleWhere(c) }, take: 100 });
 }
