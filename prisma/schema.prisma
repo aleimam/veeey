@@ -1476,7 +1476,11 @@ model Collection {
   type           CollectionType @default(MANUAL)
   ruleCategoryId String?
   ruleTagSlug    String?
+  ruleJson       Json? // structured condition builder (V3-COL-4): { match: 'ALL'|'ANY', conditions: [...] }
+  manualOrder    String[]       @default([]) // ordered product ids for MANUAL collections (membership stays in the M2M)
   imageUrl       String?
+  imageAltEn     String? // banner alt text (a11y + SEO)
+  imageAltAr     String?
   status         ContentStatus  @default(DRAFT)
   sortOrder      Int            @default(0)
   metaTitleEn    String?
