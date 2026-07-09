@@ -6,13 +6,14 @@ import { pick } from '@/lib/admin-i18n';
 import { inputCls } from './ui';
 import { quickCreateAttribute, quickCreateAttributeValue } from '@/server/quick-actions';
 
-export type AttrOpt = { id: string; label: string; kind: string; values: { id: string; label: string }[] };
+export type AttrOpt = { id: string; label: string; kinds: string[]; inputType: 'SINGLE_SELECT' | 'MULTI_SELECT'; required: boolean; values: { id: string; label: string }[] };
 
 /**
  * Attributes one-by-one (#C3): pick an attribute, then one of its values, then
  * Add. New attributes/values can be created inline (#C2). Attributes are filtered
- * to the current product kind. Chosen value ids submit as hidden
- * `attributeValueIds` inputs.
+ * to the current product kind (multi-type `kinds`). Single-select attributes
+ * keep at most one value; multi-select allow many. Chosen value ids submit as
+ * hidden `attributeValueIds` inputs.
  */
 export function AttributePicker({ attributes, initial = [], kind }: { attributes: AttrOpt[]; initial?: string[]; kind: string }) {
   const tb = pick(useLocale());
@@ -24,8 +25,9 @@ export function AttributePicker({ attributes, initial = [], kind }: { attributes
   const [newVal, setNewVal] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const shown = attrs.filter((a) => a.kind === kind);
+  const shown = attrs.filter((a) => a.kinds.includes(kind));
   const curAttr = attrs.find((a) => a.id === attrId);
+  const ownerOf = (vid: string) => attrs.find((a) => a.values.some((v) => v.id === vid));
   const valueMeta = (vid: string) => {
     for (const a of attrs) {
       const v = a.values.find((x) => x.id === vid);
@@ -33,9 +35,20 @@ export function AttributePicker({ attributes, initial = [], kind }: { attributes
     }
     return null;
   };
+  // Required attributes (for this kind) with no selected value → warn.
+  const missing = shown.filter((a) => a.required && !a.values.some((v) => selected.includes(v.id)));
 
   const add = () => {
-    if (valId && !selected.includes(valId)) setSelected((s) => [...s, valId]);
+    if (!valId) return;
+    const owner = ownerOf(valId);
+    setSelected((s) => {
+      let next = s;
+      if (owner && owner.inputType === 'SINGLE_SELECT') {
+        const own = new Set(owner.values.map((v) => v.id));
+        next = s.filter((id) => !own.has(id)); // single-select: replace the existing value
+      }
+      return next.includes(valId) ? next : [...next, valId];
+    });
     setValId('');
   };
   const remove = (vid: string) => setSelected((s) => s.filter((x) => x !== vid));
@@ -45,7 +58,7 @@ export function AttributePicker({ attributes, initial = [], kind }: { attributes
     setBusy(true);
     try {
       const a = await quickCreateAttribute(newAttr.trim(), (kind as 'SUPPLEMENT' | 'DEVICE' | 'INJECTION'));
-      setAttrs((list) => [...list, { id: a.id, label: a.label, kind, values: [] }]);
+      setAttrs((list) => [...list, { id: a.id, label: a.label, kinds: [kind], inputType: 'SINGLE_SELECT', required: false, values: [] }]);
       setAttrId(a.id);
       setNewAttr('');
     } finally {
@@ -72,7 +85,7 @@ export function AttributePicker({ attributes, initial = [], kind }: { attributes
       <div className="flex flex-wrap items-end gap-2">
         <select value={attrId} onChange={(e) => { setAttrId(e.target.value); setValId(''); }} className={`${inputCls} w-40`}>
           <option value="">{tb('Attribute…', 'الخاصية…')}</option>
-          {shown.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+          {shown.map((a) => <option key={a.id} value={a.id}>{a.label}{a.required ? ' *' : ''}{a.inputType === 'MULTI_SELECT' ? ' (multi)' : ''}</option>)}
         </select>
         <select value={valId} onChange={(e) => setValId(e.target.value)} disabled={!curAttr} className={`${inputCls} w-40`}>
           <option value="">{tb('Value…', 'القيمة…')}</option>
@@ -91,6 +104,12 @@ export function AttributePicker({ attributes, initial = [], kind }: { attributes
           </>
         )}
       </div>
+
+      {missing.length > 0 && (
+        <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+          {tb('Required attribute(s) missing a value: ', 'خصائص مطلوبة بدون قيمة: ')}{missing.map((a) => a.label).join(', ')}
+        </p>
+      )}
 
       {selected.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">

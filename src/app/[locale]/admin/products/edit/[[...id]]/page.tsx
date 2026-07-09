@@ -43,7 +43,9 @@ export default async function ProductEditPage({
   const attributeOpts = attributes.map((a) => ({
     id: a.id,
     label: a.nameEn,
-    kind: a.kind,
+    kinds: a.kinds.length ? a.kinds : [a.kind],
+    inputType: a.inputType,
+    required: a.isRequired,
     values: a.values.map((v) => ({ id: v.id, label: v.valueEn })),
   }));
 

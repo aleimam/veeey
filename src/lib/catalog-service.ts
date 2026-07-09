@@ -265,9 +265,24 @@ export function getProduct(id: string) {
   });
 }
 
+/** Enforce that every REQUIRED attribute applying to this product kind has at
+ *  least one chosen value (V3-ATTR-3). Dormant until the owner marks an
+ *  attribute required, so it never breaks existing saves/imports. */
+async function assertRequiredAttributes(kind: string, attributeValueIds: string[]) {
+  const required = await prisma.attribute.findMany({
+    where: { archivedAt: null, isRequired: true, kinds: { has: kind as 'SUPPLEMENT' | 'DEVICE' | 'INJECTION' } },
+    select: { nameEn: true, values: { select: { id: true } } },
+  });
+  if (!required.length) return;
+  const chosen = new Set(attributeValueIds);
+  const missing = required.filter((a) => !a.values.some((v) => chosen.has(v.id)));
+  if (missing.length) throw new Error(`MISSING_REQUIRED_ATTRIBUTES: ${missing.map((a) => a.nameEn).join(', ')}`);
+}
+
 export async function createProduct(raw: ProductWriteInput) {
   const user = await requirePermission('catalog.write');
   const data = productWriteSchema.parse(raw);
+  await assertRequiredAttributes(data.kind, data.attributeValueIds);
 
   const sku = data.sku || (await generateUniqueSku(data.brandId));
   const slugEn = await uniqueSlug(data.slugEn || data.nameEn, async (s) =>
@@ -297,6 +312,7 @@ export async function createProduct(raw: ProductWriteInput) {
 export async function updateProduct(id: string, raw: ProductWriteInput) {
   const user = await requirePermission('catalog.write');
   const data = productWriteSchema.parse(raw);
+  await assertRequiredAttributes(data.kind, data.attributeValueIds);
 
   const product = await prisma.product.update({
     where: { id },

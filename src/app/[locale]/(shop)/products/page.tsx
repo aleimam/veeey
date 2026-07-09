@@ -94,10 +94,12 @@ export default async function ProductsPage({
     prisma.brand.findMany({ where: { archivedAt: null }, orderBy: { nameEn: 'asc' } }),
     prisma.category.findMany({ where: { archivedAt: null }, orderBy: { nameEn: 'asc' }, select: { id: true, nameEn: true, nameAr: true } }),
     prisma.attribute.findMany({
-      where: { archivedAt: null, values: { some: {} } },
+      // Facets are the attributes flagged filterable (V3-ATTR); fall back to any
+      // attribute-with-values only if none are flagged yet.
+      where: { archivedAt: null, isFilterable: true, values: { some: {} } },
       orderBy: { nameEn: 'asc' },
-      take: 6,
-      select: { id: true, nameEn: true, nameAr: true, values: { select: { id: true, valueEn: true, valueAr: true } } },
+      take: 8,
+      select: { id: true, nameEn: true, nameAr: true, values: { select: { id: true, valueEn: true, valueAr: true }, orderBy: [{ sortOrder: 'asc' }, { valueEn: 'asc' }] } },
     }),
   ]);
 
@@ -106,11 +108,21 @@ export default async function ProductsPage({
     products = [...products].sort((a, b) => a.expiry.localeCompare(b.expiry));
   }
 
+  // Fall back to any attributes-with-values while none are flagged filterable yet.
+  const facetSource = attributes.length
+    ? attributes
+    : await prisma.attribute.findMany({
+        where: { archivedAt: null, values: { some: {} } },
+        orderBy: { nameEn: 'asc' },
+        take: 6,
+        select: { id: true, nameEn: true, nameAr: true, values: { select: { id: true, valueEn: true, valueAr: true }, orderBy: [{ sortOrder: 'asc' }, { valueEn: 'asc' }] } },
+      });
+
   const t = await getTranslations('storefront.listing');
   const tb = pick(locale);
   const heading = q ? t('resultsFor', { q }) : t('allProducts');
 
-  const facetAttrs: FacetAttribute[] = attributes.map((a) => ({
+  const facetAttrs: FacetAttribute[] = facetSource.map((a) => ({
     id: a.id,
     name: nameOf(a.nameEn, a.nameAr),
     values: a.values.map((v) => ({ id: v.id, name: nameOf(v.valueEn, v.valueAr) })),
