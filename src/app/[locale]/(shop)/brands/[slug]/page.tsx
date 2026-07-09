@@ -62,18 +62,30 @@ export default async function BrandPage({ params }: { params: Promise<{ locale: 
     brand.schemaOverridesJson && typeof brand.schemaOverridesJson === 'object' && !Array.isArray(brand.schemaOverridesJson)
       ? (brand.schemaOverridesJson as Record<string, unknown>)
       : {};
+  const brandSlug = (ar ? brand.slugAr : brand.slug) ?? brand.slug;
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Brand',
     name,
     logo: brand.ogImage || brand.logoUrl || undefined,
-    url: `https://veeey.com/${locale}/brands/${(ar ? brand.slugAr : brand.slug) ?? brand.slug}`,
+    url: `https://veeey.com/${locale}/brands/${brandSlug}`,
     ...schemaOverrides,
+  };
+  // Breadcrumb rich result — mirrors the visible Home › Brands › brand trail.
+  const breadcrumbLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { name: tb('Home', 'الرئيسية'), item: `https://veeey.com/${locale}` },
+      { name: tb('Brands', 'العلامات التجارية'), item: `https://veeey.com/${locale}/brands` },
+      { name, item: `https://veeey.com/${locale}/brands/${brandSlug}` },
+    ].map((c, i) => ({ '@type': 'ListItem', position: i + 1, name: c.name, item: c.item })),
   };
 
   return (
     <div className="mx-auto max-w-[1440px] px-4 pb-12 pt-5 sm:px-6 lg:px-8">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
       <div className="mb-3.5 flex items-center gap-2 text-[13px] text-[color:var(--text-muted)]">
         <Link href="/">{tb('Home', 'الرئيسية')}</Link>
         <Icon name="chevron-right" size={14} color="var(--slate-45)" />

@@ -68,6 +68,17 @@ export default async function CollectionPage({ params }: { params: Promise<{ loc
   const alt = (ar ? c.imageAltAr : c.imageAltEn) || name;
   const products = await cardProducts(c, locale);
 
+  // Breadcrumb rich result — mirrors the visible Home › Collections › collection trail.
+  const breadcrumbLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { name: tb('Home', 'الرئيسية'), item: `https://veeey.com/${locale}` },
+      { name: tb('Collections', 'المجموعات'), item: `https://veeey.com/${locale}/collections` },
+      { name, item: `https://veeey.com/${locale}/collection/${c.slug}` },
+    ].map((cx, i) => ({ '@type': 'ListItem', position: i + 1, name: cx.name, item: cx.item })),
+  };
+
   return (
     <div className="mx-auto max-w-[1440px] px-4 pb-12 pt-5 sm:px-6 lg:px-8">
       <div className="mb-3.5 flex items-center gap-2 text-[13px] text-[color:var(--text-muted)]">
@@ -115,6 +126,7 @@ export default async function CollectionPage({ params }: { params: Promise<{ loc
           }),
         }}
       />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
     </div>
   );
 }
