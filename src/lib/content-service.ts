@@ -82,11 +82,19 @@ const collectionSchema = z.object({
   titleAr: z.string().trim().optional().nullable(),
   slug: z.string().trim().optional(),
   descriptionEn: z.string().optional().nullable(),
+  descriptionAr: z.string().optional().nullable(),
   type: z.enum(['MANUAL', 'AUTO']).default('MANUAL'),
   ruleCategoryId: z.string().optional().nullable(),
   ruleTagSlug: z.string().optional().nullable(),
   status: STATUS.default('DRAFT'),
   productIds: z.array(z.string()).default([]),
+  imageUrl: z.string().optional().nullable(),
+  imageAltEn: z.string().optional().nullable(),
+  imageAltAr: z.string().optional().nullable(),
+  metaTitleEn: z.string().optional().nullable(),
+  metaTitleAr: z.string().optional().nullable(),
+  metaDescEn: z.string().optional().nullable(),
+  metaDescAr: z.string().optional().nullable(),
 });
 export type CollectionInput = z.input<typeof collectionSchema>;
 
@@ -117,11 +125,15 @@ export async function saveCollection(id: string | null, raw: CollectionInput) {
   });
   const base = {
     titleEn: d.titleEn, titleAr: d.titleAr ?? null, slug,
-    descriptionEn: d.descriptionEn ?? null, type: d.type, status: d.status,
+    descriptionEn: d.descriptionEn ?? null, descriptionAr: d.descriptionAr ?? null,
+    type: d.type, status: d.status,
     ruleCategoryId: d.type === 'AUTO' ? d.ruleCategoryId || null : null,
     ruleTagSlug: d.type === 'AUTO' ? d.ruleTagSlug || null : null,
     // Manual: remember the picker's order; Automatic: order comes from the rule.
     manualOrder: d.type === 'MANUAL' ? d.productIds : [],
+    imageUrl: d.imageUrl || null, imageAltEn: d.imageAltEn || null, imageAltAr: d.imageAltAr || null,
+    metaTitleEn: d.metaTitleEn || null, metaTitleAr: d.metaTitleAr || null,
+    metaDescEn: d.metaDescEn || null, metaDescAr: d.metaDescAr || null,
   };
   const picks = d.type === 'MANUAL' ? d.productIds.map((pid) => ({ id: pid })) : [];
   const collection = id

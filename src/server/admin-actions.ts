@@ -264,11 +264,14 @@ export async function saveCollectionAction(_p: AdminFormState, fd: FormData): Pr
   try {
     await saveCollection(str(fd, 'id') ?? null, {
       titleEn: str(fd, 'titleEn') ?? '', titleAr: str(fd, 'titleAr'), slug: str(fd, 'slug'),
-      descriptionEn: str(fd, 'descriptionEn'),
+      descriptionEn: str(fd, 'descriptionEn'), descriptionAr: str(fd, 'descriptionAr'),
       type: (str(fd, 'type') ?? 'MANUAL') as 'MANUAL' | 'AUTO',
       ruleCategoryId: str(fd, 'ruleCategoryId') ?? null, ruleTagSlug: str(fd, 'ruleTagSlug') ?? null,
       status: (str(fd, 'status') ?? 'DRAFT') as 'DRAFT' | 'PUBLISHED' | 'ARCHIVED',
       productIds: arr(fd, 'productIds'),
+      imageUrl: str(fd, 'imageUrl'), imageAltEn: str(fd, 'imageAltEn'), imageAltAr: str(fd, 'imageAltAr'),
+      metaTitleEn: str(fd, 'metaTitleEn'), metaTitleAr: str(fd, 'metaTitleAr'),
+      metaDescEn: str(fd, 'metaDescEn'), metaDescAr: str(fd, 'metaDescAr'),
     });
   } catch (e) { return fail(e); }
   done(locale, 'collections');

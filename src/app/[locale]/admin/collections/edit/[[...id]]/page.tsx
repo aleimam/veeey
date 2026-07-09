@@ -19,8 +19,12 @@ export default async function CollectionEditPage({ params }: { params: Promise<{
   const defaults = collection
     ? {
         titleEn: collection.titleEn, titleAr: collection.titleAr ?? '', slug: collection.slug,
-        descriptionEn: collection.descriptionEn ?? '', type: collection.type, status: collection.status,
+        descriptionEn: collection.descriptionEn ?? '', descriptionAr: collection.descriptionAr ?? '',
+        type: collection.type, status: collection.status,
         ruleCategoryId: collection.ruleCategoryId ?? '', ruleTagSlug: collection.ruleTagSlug ?? '',
+        imageUrl: collection.imageUrl ?? '', imageAltEn: collection.imageAltEn ?? '', imageAltAr: collection.imageAltAr ?? '',
+        metaTitleEn: collection.metaTitleEn ?? '', metaTitleAr: collection.metaTitleAr ?? '',
+        metaDescEn: collection.metaDescEn ?? '', metaDescAr: collection.metaDescAr ?? '',
       }
     : {};
 

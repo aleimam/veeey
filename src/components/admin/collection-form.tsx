@@ -9,6 +9,7 @@ import { pick } from '@/lib/admin-i18n';
 import { Field, FormError, SubmitButton, inputCls } from './ui';
 import { SlugField } from './slug-field';
 import { RichTextField } from './rich-text/field';
+import { SingleImageUploader } from './image-uploader';
 import { CollectionProductPicker } from './collection-product-picker';
 
 type Opt = { value: string; label: string };
@@ -70,6 +71,22 @@ export function CollectionForm({
       <Field label={tb('Description (English)', 'الوصف (إنجليزي)')}>
         <RichTextField name="descriptionEn" initial={s('descriptionEn')} compact />
       </Field>
+      <Field label={tb('Description (Arabic)', 'الوصف (عربي)')}>
+        <RichTextField name="descriptionAr" initial={s('descriptionAr')} compact />
+      </Field>
+
+      {/* Banner: image + bilingual alt text (a11y + SEO). */}
+      <Field label={tb('Banner image', 'صورة البانر')} hint={tb('Drag & drop, paste, or click to upload.', 'اسحب وأفلت أو الصق أو انقر للرفع.')}>
+        <SingleImageUploader name="imageUrl" initial={s('imageUrl')} />
+      </Field>
+      <div className="grid grid-cols-2 gap-4">
+        <Field label={tb('Banner alt (English)', 'نص بديل (إنجليزي)')}>
+          <input name="imageAltEn" defaultValue={s('imageAltEn')} className={inputCls} />
+        </Field>
+        <Field label={tb('Banner alt (Arabic)', 'نص بديل (عربي)')}>
+          <input name="imageAltAr" defaultValue={s('imageAltAr')} dir="rtl" className={inputCls} />
+        </Field>
+      </div>
 
       <div className="grid grid-cols-2 gap-4">
         <Field label={tb('Type', 'النوع')}>
@@ -108,6 +125,25 @@ export function CollectionForm({
           <p className="text-xs text-muted-foreground">{tb('Products matching the category and/or tag are included automatically. A richer condition builder is coming.', 'تُضاف المنتجات المطابقة للفئة و/أو الوسم تلقائيًا. أداة شروط أكثر تفصيلًا قادمة.')}</p>
         </div>
       )}
+
+      {/* SEO — collection landing pages are indexable; meta title/desc EN+AR. */}
+      <details className="rounded-lg border border-border p-3">
+        <summary className="cursor-pointer text-sm font-medium text-foreground">{tb('SEO (search engine listing)', 'تحسين محركات البحث')}</summary>
+        <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label={tb('Meta title (English)', 'عنوان ميتا (إنجليزي)')}>
+            <input name="metaTitleEn" defaultValue={s('metaTitleEn')} className={inputCls} />
+          </Field>
+          <Field label={tb('Meta title (Arabic)', 'عنوان ميتا (عربي)')}>
+            <input name="metaTitleAr" defaultValue={s('metaTitleAr')} dir="rtl" className={inputCls} />
+          </Field>
+          <Field label={tb('Meta description (English)', 'وصف ميتا (إنجليزي)')}>
+            <textarea name="metaDescEn" defaultValue={s('metaDescEn')} rows={2} className={inputCls} />
+          </Field>
+          <Field label={tb('Meta description (Arabic)', 'وصف ميتا (عربي)')}>
+            <textarea name="metaDescAr" defaultValue={s('metaDescAr')} rows={2} dir="rtl" className={inputCls} />
+          </Field>
+        </div>
+      </details>
 
       <div className="flex items-center gap-3 pt-2">
         <SubmitButton />
