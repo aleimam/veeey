@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
 import { uniqueSlug } from '@/lib/slug';
-import { buildRuleWhere, parseRule, hasConditions, type RuleConfig } from '@/lib/collection-rules';
+import { buildRuleWhere, parseRule, hasConditions, ruleOrderBy, type RuleConfig } from '@/lib/collection-rules';
 
 /** CMS pages, blog, and curated collections (FR-CMS-*, FR-CAT-03). */
 
@@ -143,6 +143,9 @@ export function collectionRuleWhere(c: { ruleJson: Prisma.JsonValue | null; rule
   };
 }
 
+/** Product order-by for an AUTO collection (from the rule's sort). */
+export const collectionRuleOrderBy = (c: { ruleJson: Prisma.JsonValue | null }): Prisma.ProductOrderByWithRelationInput => ruleOrderBy(parseRule(c.ruleJson).sort);
+
 /** Admin preview: how many PUBLISHED products a rule matches, + a small sample. */
 export async function collectionMatchPreview(rule: RuleConfig, take = 8) {
   await requirePermission('content.manage');
@@ -199,5 +202,5 @@ export async function resolveCollectionProducts(id: string) {
     const byId = new Map(c.products.map((p) => [p.id, p]));
     return order.map((pid) => byId.get(pid)).filter((p): p is (typeof c.products)[number] => !!p);
   }
-  return prisma.product.findMany({ where: { status: 'PUBLISHED', ...collectionRuleWhere(c) }, take: 100 });
+  return prisma.product.findMany({ where: { status: 'PUBLISHED', ...collectionRuleWhere(c) }, orderBy: ruleOrderBy(parseRule(c.ruleJson).sort), take: 100 });
 }

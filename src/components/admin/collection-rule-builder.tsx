@@ -25,9 +25,10 @@ export function CollectionRuleBuilder({ initial, options, onDirty }: { initial: 
   const tb = pick(useLocale());
   const [match, setMatch] = useState<RuleConfig['match']>(initial.match);
   const [conds, setConds] = useState<RuleCondition[]>(initial.conditions);
+  const [sort, setSort] = useState<NonNullable<RuleConfig['sort']>>(initial.sort ?? 'featured');
   const [preview, setPreview] = useState<{ count: number; sample: string[] } | null>(null);
   const seq = useRef(0);
-  const rule: RuleConfig = { match, conditions: conds };
+  const rule: RuleConfig = { match, conditions: conds, sort };
 
   const touch = () => onDirty?.();
   const update = (next: RuleCondition[]) => { setConds(next); touch(); };
@@ -130,6 +131,17 @@ export function CollectionRuleBuilder({ initial, options, onDirty }: { initial: 
         ))}
         <button type="button" onClick={addCond} className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface">+ {tb('Add condition', 'إضافة شرط')}</button>
       </div>
+
+      <label className="flex items-center gap-2 text-sm">
+        {tb('Sort products by', 'ترتيب المنتجات حسب')}
+        <select value={sort} onChange={(e) => { setSort(e.target.value as NonNullable<RuleConfig['sort']>); touch(); }} className={`${inputCls} w-48`}>
+          <option value="featured">{tb('Featured (top-rated)', 'مميّز (الأعلى تقييمًا)')}</option>
+          <option value="bestselling">{tb('Best selling', 'الأكثر مبيعًا')}</option>
+          <option value="newest">{tb('Newest', 'الأحدث')}</option>
+          <option value="price_asc">{tb('Price: low to high', 'السعر: من الأقل')}</option>
+          <option value="price_desc">{tb('Price: high to low', 'السعر: من الأعلى')}</option>
+        </select>
+      </label>
 
       <div className="rounded-md bg-surface px-3 py-2 text-sm">
         {preview

@@ -17,9 +17,23 @@ export type RuleCondition =
   | { field: 'price'; op: 'gt' | 'lt' | 'between'; value: number; value2?: number } // EGP
   | { field: 'stock'; op: 'in_stock' | 'out_of_stock' };
 
-export type RuleConfig = { match: MatchMode; conditions: RuleCondition[] };
+export type RuleSort = 'featured' | 'bestselling' | 'newest' | 'price_asc' | 'price_desc';
+export type RuleConfig = { match: MatchMode; conditions: RuleCondition[]; sort?: RuleSort };
 
 export const EMPTY_RULE: RuleConfig = { match: 'ALL', conditions: [] };
+
+const SORTS = new Set<RuleSort>(['featured', 'bestselling', 'newest', 'price_asc', 'price_desc']);
+
+/** Product order-by for a rule's sort (default = featured, i.e. most-reviewed). */
+export function ruleOrderBy(sort: RuleSort | undefined): Prisma.ProductOrderByWithRelationInput {
+  switch (sort) {
+    case 'bestselling': return { orderItems: { _count: 'desc' } };
+    case 'newest': return { createdAt: 'desc' };
+    case 'price_asc': return { basePricePiastres: 'asc' };
+    case 'price_desc': return { basePricePiastres: 'desc' };
+    default: return { ratingCount: 'desc' };
+  }
+}
 
 const inStockWhere: Prisma.ProductWhereInput = { lots: { some: { status: 'LIVE', qtyOnHand: { gt: 0 } } } };
 const egpToPiastres = (egp: number): bigint => BigInt(Math.round(egp * 100));
@@ -76,6 +90,7 @@ const FIELDS = new Set(['category', 'tag', 'brand', 'attribute', 'price', 'stock
 export function parseRule(raw: unknown): RuleConfig {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const match: MatchMode = r.match === 'ANY' ? 'ANY' : 'ALL';
+  const sort = SORTS.has(r.sort as RuleSort) ? (r.sort as RuleSort) : undefined;
   const rawConds = Array.isArray(r.conditions) ? r.conditions : [];
   const conditions: RuleCondition[] = [];
   for (const cu of rawConds) {
@@ -104,7 +119,7 @@ export function parseRule(raw: unknown): RuleConfig {
       conditions.push({ field: field as 'category' | 'tag' | 'brand' | 'attribute', op: op as 'is' | 'is_not', value });
     }
   }
-  return { match, conditions };
+  return sort ? { match, conditions, sort } : { match, conditions };
 }
 
 export const hasConditions = (rule: RuleConfig): boolean => rule.conditions.length > 0;

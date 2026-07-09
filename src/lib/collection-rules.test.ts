@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildRuleWhere, conditionWhere, parseRule, type RuleConfig } from './collection-rules';
+import { buildRuleWhere, conditionWhere, parseRule, ruleOrderBy, type RuleConfig } from './collection-rules';
 
 describe('collection rule engine', () => {
   it('compiles category / tag / brand / attribute (is + is_not)', () => {
@@ -37,6 +37,19 @@ describe('collection rule engine', () => {
     expect(buildRuleWhere({ match: 'ANY', conditions: conds })).toEqual({ OR: [{ categories: { some: { id: 'c1' } } }, { brandId: 'b1' }] });
     expect(buildRuleWhere({ match: 'ALL', conditions: [conds[0]] })).toEqual({ categories: { some: { id: 'c1' } } });
     expect(buildRuleWhere({ match: 'ALL', conditions: [] })).toEqual({}); // empty = match all
+  });
+
+  it('ruleOrderBy maps sort → Prisma orderBy (default featured = ratingCount)', () => {
+    expect(ruleOrderBy('bestselling')).toEqual({ orderItems: { _count: 'desc' } });
+    expect(ruleOrderBy('newest')).toEqual({ createdAt: 'desc' });
+    expect(ruleOrderBy('price_asc')).toEqual({ basePricePiastres: 'asc' });
+    expect(ruleOrderBy(undefined)).toEqual({ ratingCount: 'desc' });
+    expect(ruleOrderBy('featured')).toEqual({ ratingCount: 'desc' });
+  });
+
+  it('parseRule keeps a valid sort and drops an invalid one', () => {
+    expect(parseRule({ conditions: [], sort: 'newest' }).sort).toBe('newest');
+    expect(parseRule({ conditions: [], sort: 'bogus' }).sort).toBeUndefined();
   });
 
   it('parseRule coerces junk into a safe config', () => {

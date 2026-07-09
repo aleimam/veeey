@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { prisma } from '@/lib/prisma';
-import { getPublishedCollectionBySlug, collectionRuleWhere } from '@/lib/content-service';
+import { getPublishedCollectionBySlug, collectionRuleWhere, collectionRuleOrderBy } from '@/lib/content-service';
 import { toCardProduct, cardProductInclude, visibleProductWhere } from '@/lib/storefront';
 import { sanitizeRichHtml, richToText } from '@/lib/rich-text';
 import { pick } from '@/lib/admin-i18n';
@@ -30,7 +30,7 @@ async function cardProducts(c: NonNullable<Awaited<ReturnType<typeof getPublishe
   const rows = await prisma.product.findMany({
     where: { status: 'PUBLISHED', AND: [visibleProductWhere, collectionRuleWhere(c)] },
     include: cardProductInclude,
-    orderBy: { ratingCount: 'desc' },
+    orderBy: collectionRuleOrderBy(c),
     take: 60,
   });
   return rows.map((p) => toCardProduct(p, locale));
