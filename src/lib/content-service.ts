@@ -116,6 +116,17 @@ export async function getCollection(id: string) {
   return { ...c, orderedProductIds: orderedIds(c.manualOrder, c.products.map((p) => p.id)) };
 }
 
+/** Storefront: a PUBLISHED collection by slug (+ its ordered manual ids), or null. */
+export async function getPublishedCollectionBySlug(slug: string) {
+  const c = await prisma.collection.findFirst({ where: { slug, status: 'PUBLISHED' }, include: { products: { select: { id: true } } } });
+  if (!c) return null;
+  return { ...c, orderedProductIds: orderedIds(c.manualOrder, c.products.map((p) => p.id)) };
+}
+
+/** Storefront: published collections for the index page (with sortOrder). */
+export const listPublishedCollections = () =>
+  prisma.collection.findMany({ where: { status: 'PUBLISHED' }, orderBy: [{ sortOrder: 'asc' }, { titleEn: 'asc' }] });
+
 export async function saveCollection(id: string | null, raw: CollectionInput) {
   const user = await requirePermission('content.manage');
   const d = collectionSchema.parse(raw);
