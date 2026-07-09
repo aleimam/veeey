@@ -90,7 +90,13 @@
       "noSearchResults": "No results match “{query}”.",
       "clearSearch": "Clear search",
       "deleteConfirm": "Delete this item? This can’t be undone.",
-      "deleteConfirmNamed": "Delete “{name}”? This can’t be undone."
+      "deleteConfirmNamed": "Delete “{name}”? This can’t be undone.",
+      "slugAutoHint": "Leave blank to auto-generate from the English name.",
+      "slugPreview": "Will be saved as: {slug}",
+      "slugInvalid": "Only lowercase letters, numbers and hyphens. Suggested: {slug}",
+      "slugUse": "Use this",
+      "slugTaken": "This slug is already in use — a number will be appended on save.",
+      "unsavedLeave": "You have unsaved changes. Leave without saving?"
     },
     "fields": {
       "name": "Name",

@@ -90,7 +90,13 @@
       "noSearchResults": "لا نتائج تطابق «{query}».",
       "clearSearch": "مسح البحث",
       "deleteConfirm": "حذف هذا العنصر؟ لا يمكن التراجع.",
-      "deleteConfirmNamed": "حذف «{name}»؟ لا يمكن التراجع."
+      "deleteConfirmNamed": "حذف «{name}»؟ لا يمكن التراجع.",
+      "slugAutoHint": "اتركه فارغًا ليُنشأ تلقائيًا من الاسم الإنجليزي.",
+      "slugPreview": "سيُحفظ كـ: {slug}",
+      "slugInvalid": "أحرف إنجليزية صغيرة وأرقام وشرطات فقط. المقترح: {slug}",
+      "slugUse": "استخدم هذا",
+      "slugTaken": "هذا المُعرّف مستخدم بالفعل — سيُضاف رقم عند الحفظ.",
+      "unsavedLeave": "لديك تغييرات غير محفوظة. المغادرة دون حفظ؟"
     },
     "fields": {
       "name": "الاسم",

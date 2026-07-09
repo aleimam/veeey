@@ -65,6 +65,7 @@ export default async function TagsPage({ params, searchParams }: { params: Promi
         </>}
         bulk={{ formId: 'bulk-tags', action: bulkSoftDeleteAction, locale, back, ops, hidden: { entity: 'tag', path: 'tags' } }}
         pagination={{ page, perPage, total, sp, basePath, locale }}
+        emptyState={<span>{tb('No tags yet. Tags are keyword labels you attach to products (e.g. “vegan”, “bestseller”) to group and filter them across the store.', 'لا توجد وسوم بعد. الوسوم هي كلمات مفتاحية تربطها بالمنتجات (مثل «نباتي» أو «الأكثر مبيعًا») لتجميعها وتصفيتها في المتجر.')}</span>}
         rows={tags.map((t) => ({
           key: t.id,
           cells: [
