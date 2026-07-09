@@ -32,8 +32,10 @@ export default async function ProductsPage({ params, searchParams }: { params: P
   const brand = one(sp.brand);
   const flag = one(sp.flag);
   const origin = one(sp.origin);
+  const tag = one(sp.tag);
+  const category = one(sp.category);
   const { sort, dir, page, perPage } = parseListParams(sp, { sortable: SORTABLE, defaultSort: 'updated' });
-  const filters = { search: q, status, kind, brand, flag, origin };
+  const filters = { search: q, status, kind, brand, flag, origin, tag, category };
 
   const [products, total, allCount, brands, categories] = await Promise.all([
     listProducts({ ...filters, sort, dir, page, perPage }),

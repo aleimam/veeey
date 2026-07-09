@@ -264,12 +264,25 @@ export async function saveCategory(id: string | null, raw: CategoryInput) {
 const tagSchema = z.object({ ...bilingual, slug: z.string().trim().optional() });
 export type TagInput = z.input<typeof tagSchema>;
 
+function tagFlagWhere(flag?: string): Prisma.TagWhereInput {
+  switch (flag) {
+    case 'missing_ar_name': return { OR: [{ nameAr: null }, { nameAr: '' }] };
+    case 'zero_products': return { products: { none: {} } };
+    default: return {};
+  }
+}
 const tagWhere = (o: TaxoListOpts): Prisma.TagWhereInput => ({
   ...(o.q ? { nameEn: { contains: o.q, mode: 'insensitive' } } : {}),
   ...archivedWhere(o.archived),
+  ...(o.flag ? { AND: [tagFlagWhere(o.flag)] } : {}),
 });
 export const listTags = (o: TaxoListOpts = {}) =>
-  prisma.tag.findMany({ where: tagWhere(o), orderBy: o.sort === 'slug' ? { slug: o.dir ?? 'asc' } : { nameEn: o.dir ?? 'asc' }, ...paging(o) });
+  prisma.tag.findMany({
+    where: tagWhere(o),
+    include: { _count: { select: { products: true } } },
+    orderBy: o.sort === 'slug' ? { slug: o.dir ?? 'asc' } : { nameEn: o.dir ?? 'asc' },
+    ...paging(o),
+  });
 export const countTags = (o: TaxoListOpts = {}) => prisma.tag.count({ where: tagWhere(o) });
 export const getTag = (id: string) => prisma.tag.findUnique({ where: { id } });
 

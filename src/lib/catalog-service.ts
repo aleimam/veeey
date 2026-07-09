@@ -160,6 +160,8 @@ export type ProductListOpts = {
   search?: string; status?: string; kind?: string; brand?: string;
   flag?: string; // data-completeness / sourcing / stock filter (PRODUCT_FLAGS)
   origin?: string; // 'USA' | 'UK' | 'EU' | 'none'
+  tag?: string; // filter to products carrying this tag id (e.g. from the Tags usage-count link)
+  category?: string; // filter to products in this category id
   sort?: string; dir?: 'asc' | 'desc'; page?: number; perPage?: number;
 };
 
@@ -212,6 +214,8 @@ export async function productAdminWhere(opts: ProductListOpts): Promise<Prisma.P
     ...(opts.kind ? { kind: opts.kind as 'SUPPLEMENT' | 'DEVICE' | 'INJECTION' } : {}),
     ...(opts.brand ? { brandId: opts.brand } : {}),
     ...(opts.origin ? (opts.origin === 'none' ? { originCountry: null } : { originCountry: opts.origin }) : {}),
+    ...(opts.tag ? { tags: { some: { id: opts.tag } } } : {}),
+    ...(opts.category ? { categories: { some: { id: opts.category } } } : {}),
     ...(opts.flag ? { AND: [await flagWhere(opts.flag)] } : {}),
   };
 }
