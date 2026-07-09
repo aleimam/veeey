@@ -91,8 +91,22 @@ const collectionSchema = z.object({
 export type CollectionInput = z.input<typeof collectionSchema>;
 
 export const listCollections = () => prisma.collection.findMany({ orderBy: { sortOrder: 'asc' } });
-export const getCollection = (id: string) =>
-  prisma.collection.findUnique({ where: { id }, include: { products: { select: { id: true } } } });
+
+/** Reconcile the stored display order with actual membership: keep manualOrder
+ *  entries that are still members, then append any members it doesn't list. */
+function orderedIds(manualOrder: string[], memberIds: string[]): string[] {
+  const members = new Set(memberIds);
+  const ordered = manualOrder.filter((pid) => members.has(pid));
+  const seen = new Set(ordered);
+  for (const pid of memberIds) if (!seen.has(pid)) ordered.push(pid);
+  return ordered;
+}
+
+export async function getCollection(id: string) {
+  const c = await prisma.collection.findUnique({ where: { id }, include: { products: { select: { id: true } } } });
+  if (!c) return null;
+  return { ...c, orderedProductIds: orderedIds(c.manualOrder, c.products.map((p) => p.id)) };
+}
 
 export async function saveCollection(id: string | null, raw: CollectionInput) {
   const user = await requirePermission('content.manage');
@@ -106,6 +120,8 @@ export async function saveCollection(id: string | null, raw: CollectionInput) {
     descriptionEn: d.descriptionEn ?? null, type: d.type, status: d.status,
     ruleCategoryId: d.type === 'AUTO' ? d.ruleCategoryId || null : null,
     ruleTagSlug: d.type === 'AUTO' ? d.ruleTagSlug || null : null,
+    // Manual: remember the picker's order; Automatic: order comes from the rule.
+    manualOrder: d.type === 'MANUAL' ? d.productIds : [],
   };
   const picks = d.type === 'MANUAL' ? d.productIds.map((pid) => ({ id: pid })) : [];
   const collection = id
@@ -120,11 +136,15 @@ export async function saveCollection(id: string | null, raw: CollectionInput) {
   return collection;
 }
 
-/** Resolve a collection's products (manual picks or auto rule). */
+/** Resolve a collection's products (manual picks in saved order, or auto rule). */
 export async function resolveCollectionProducts(id: string) {
   const c = await prisma.collection.findUnique({ where: { id }, include: { products: true } });
   if (!c) return [];
-  if (c.type === 'MANUAL') return c.products;
+  if (c.type === 'MANUAL') {
+    const order = orderedIds(c.manualOrder, c.products.map((p) => p.id));
+    const byId = new Map(c.products.map((p) => [p.id, p]));
+    return order.map((pid) => byId.get(pid)).filter((p): p is (typeof c.products)[number] => !!p);
+  }
   return prisma.product.findMany({
     where: {
       status: 'PUBLISHED',

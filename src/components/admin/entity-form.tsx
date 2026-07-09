@@ -4,10 +4,10 @@ import { useActionState, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import type { AdminFormState } from '@/server/admin-actions';
-import { slugify } from '@/lib/sku';
 import { Field, FormError, SubmitButton, inputCls } from './ui';
 import { SingleImageUploader } from './image-uploader';
 import { RichTextField } from './rich-text/field';
+import { SlugField } from './slug-field';
 
 export type FieldSpec =
   | { name: string; label: string; type: 'text' | 'textarea' | 'slug'; required?: boolean; hint?: string }
@@ -18,49 +18,6 @@ export type FieldSpec =
   | { name: string; label: string; type: 'multiselect'; options: { value: string; label: string }[] };
 
 type Action = (prev: AdminFormState, fd: FormData) => Promise<AdminFormState>;
-
-/** Slug input with live preview (from the English name), invalid-char validation
- *  and a debounced duplicate check (when `entity` is given). */
-function SlugField({ fieldName, label, value, onChange, sourceName, entity, id }: {
-  fieldName: string; label: string; value: string; onChange: (v: string) => void; sourceName: string; entity?: string; id?: string;
-}) {
-  const tc = useTranslations('admin.common');
-  const [taken, setTaken] = useState(false);
-  const effective = value.trim() || slugify(sourceName); // what will actually be saved
-  const invalid = value.trim() !== '' && value.trim() !== slugify(value);
-
-  useEffect(() => {
-    let alive = true;
-    // All setState happens inside the debounce callback (never synchronously in
-    // the effect body) so the check is throttled and lint-clean.
-    const t = setTimeout(async () => {
-      if (!entity || !effective) { if (alive) setTaken(false); return; }
-      try {
-        const params = new URLSearchParams({ entity, slug: effective, ...(id ? { id } : {}) });
-        const r = await fetch(`/api/admin/slug-available?${params}`);
-        const j = await r.json();
-        if (alive) setTaken(j?.available === false);
-      } catch { if (alive) setTaken(false); }
-    }, 350);
-    return () => { alive = false; clearTimeout(t); };
-  }, [entity, effective, id]);
-
-  return (
-    <Field label={label} hint={tc('slugAutoHint')}>
-      <input type="text" name={fieldName} value={value} onChange={(e) => onChange(e.target.value)} className={inputCls} dir="ltr" />
-      {invalid && (
-        <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
-          {tc('slugInvalid', { slug: slugify(value) })}{' '}
-          <button type="button" onClick={() => onChange(slugify(value))} className="font-medium underline">{tc('slugUse')}</button>
-        </p>
-      )}
-      {!invalid && effective && (
-        <p className="mt-1 text-xs text-muted-foreground"><span className="font-mono">{tc('slugPreview', { slug: effective })}</span></p>
-      )}
-      {taken && !invalid && <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">{tc('slugTaken')}</p>}
-    </Field>
-  );
-}
 
 /** Generic admin create/edit form driven by a field spec (used by all the
  *  simpler bilingual entities — brand/category/tag/attribute/page/post/collection). */
