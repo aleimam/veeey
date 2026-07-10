@@ -6,6 +6,9 @@ import {
   searchCustomers, quickCreateCustomer, updateCustomerDetails,
   saveCustomerAddress, deleteCustomerAddress, type CustomerHit,
 } from '@/lib/customer-admin-service';
+import { deleteCustomerAnalytics } from '@/lib/analytics/retention-service';
+import { requirePermission } from '@/lib/auth-guards';
+import { audit } from '@/lib/audit';
 
 /** Staff customer management actions (backend orders revamp, Phase A). The two
  *  JSON-returning functions are called from client components (order form). */
@@ -84,4 +87,22 @@ export async function deleteCustomerAddressAction(fd: FormData): Promise<void> {
     back(locale, customerId, e instanceof Error && e.message === 'IN_USE' ? 'error=address_in_use' : 'error=1');
   }
   back(locale, customerId, 'saved=1');
+}
+
+/**
+ * DSAR / right-to-erasure: wipe a customer's first-party analytics footprint
+ * (sessions + events). RBAC-gated + audited. The retention cron handles bulk
+ * expiry; this is the per-customer erase for a deletion request.
+ */
+export async function eraseCustomerAnalyticsAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const customerId = str(fd, 'customerId') ?? '';
+  const user = await requirePermission('customers.write');
+  try {
+    const r = await deleteCustomerAnalytics(customerId);
+    await audit({ actorType: 'USER', actorId: user.id, action: 'customer.analytics.erase', entityType: 'Customer', entityId: customerId, data: { events: r.events, sessions: r.sessions } });
+  } catch {
+    back(locale, customerId, 'error=1');
+  }
+  back(locale, customerId, 'analytics_erased=1');
 }
