@@ -39,6 +39,8 @@ const NAV_SECTIONS: RawSection[] = [
   ] },
   { title: ['Inventory', 'المخزون'], items: [
     { href: '/admin/inventory', key: 'inventory', permission: 'inventory.manage' },
+    { href: '/admin/inventory/requests', key: 'reorderRequests', permission: 'inventory.manage' },
+    { href: '/admin/inventory/expiry', key: 'expiryFight', permission: 'inventory.manage' },
     { href: '/admin/stocktake', key: 'stocktake', permission: 'stocktake.manage' },
   ] },
   { title: ['Shipping', 'الشحن'], items: [

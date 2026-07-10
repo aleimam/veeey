@@ -30,6 +30,8 @@
       "goLive": "Go-live",
       "seoHealth": "SEO health",
       "inventory": "Inventory",
+      "reorderRequests": "Requests — to buy",
+      "expiryFight": "Expiry fight — to sell",
       "stocktake": "Stocktake",
       "shipping": "Shipping",
       "gifts": "Gifts",
