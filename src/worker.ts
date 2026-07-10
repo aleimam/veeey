@@ -28,9 +28,17 @@ async function main() {
   await boss.createQueue(QUEUES.brandTranslate);
   await boss.createQueue(QUEUES.mediaLocalize);
   await boss.createQueue(QUEUES.analyticsPurge);
+  await boss.createQueue(QUEUES.reviewRequest);
 
   await boss.work(QUEUES.notify, async ([job]) => {
     await notify(job.data as NotifyInput);
+  });
+
+  await boss.work(QUEUES.reviewRequest, async ([job]) => {
+    const { sendReviewRequest } = await import('@/lib/review-request-service');
+    const orderId = (job.data as { orderId: string }).orderId;
+    const r = await sendReviewRequest(orderId);
+    console.log(`[worker] review-request ${orderId}: ${r.sent ? 'sent' : r.reason}`);
   });
 
   await boss.work(QUEUES.alerts, async () => {

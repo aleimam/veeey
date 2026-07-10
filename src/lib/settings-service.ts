@@ -40,6 +40,9 @@ export const SETTINGS: SettingDef[] = [
   { key: 'payments.cardGateway', label: 'Card gateway', group: 'Payments', type: 'text', default: 'auto', hint: 'auto | kashier | opay — which gateway handles Visa/MasterCard (auto prefers Kashier). Configure keys in Providers.' },
   // Inventory reorder (Requests / To-buy)
   { key: 'inventory.featuredCollectionSlug', label: 'Featured collection (reorder)', group: 'Inventory', type: 'text', default: 'best-sellers', hint: 'Products in this collection use a 6-month sales window (instead of 3) for the To-buy "Short stock" list. Point it at Best Sellers or a manual Featured collection.' },
+  // Post-delivery review requests
+  { key: 'reviews.requestEnabled', label: 'Post-delivery review requests', group: 'Reviews', type: 'text', default: 'true', hint: 'true / false — email customers a review request a few days after their order is delivered (needs SMTP configured).' },
+  { key: 'reviews.requestDelayDays', label: 'Review request delay (days)', group: 'Reviews', type: 'days', default: '7', hint: 'Days after delivery before the review-request email is sent.' },
   // Storefront
   { key: 'refill.enabled', label: 'Show "Subscribe with Refill" on products', group: 'Storefront', type: 'text', default: 'false', hint: 'true / false. Real recurring subscriptions are not built yet — keep "false" to hide the per-product subscribe option.' },
   // Store contact (shown in the footer / contact block)

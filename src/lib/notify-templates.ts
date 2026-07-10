@@ -27,4 +27,7 @@ export const SEED_TEMPLATES: SeedTemplate[] = [
   { key: 'order.placed', channel: 'WHATSAPP', locale: 'ar', body: 'أهلًا {{name}} 👋 شكرًا لطلبك من فيي {{number}} ({{total}} ج.م). نجهّزه الآن وسنوافيك بالتحديثات هنا.' },
   { key: 'order.shipped', channel: 'WHATSAPP', locale: 'en', body: 'Veeey: good news {{name}} — order {{number}} has shipped 🚚 Tracking: {{tracking}}.' },
   { key: 'order.shipped', channel: 'WHATSAPP', locale: 'ar', body: 'فيي: خبر سار يا {{name}} — تم شحن طلبك {{number}} 🚚 رقم التتبّع: {{tracking}}.' },
+  // Post-delivery review request (#188) — sent N days after an order is delivered.
+  { key: 'review.request', channel: 'EMAIL', locale: 'en', subject: 'How did you like your order {{number}}?', body: 'Hi {{name}}, thanks for shopping with Veeey! Your recent order included: {{products}}. Would you share a quick review? It only takes a minute and helps other shoppers choose. Review here: {{link}}' },
+  { key: 'review.request', channel: 'EMAIL', locale: 'ar', subject: 'ما رأيك في طلبك {{number}}؟', body: 'مرحبًا {{name}}، شكرًا لتسوّقك من فيي! تضمّن طلبك الأخير: {{products}}. هل تشاركنا تقييمًا سريعًا؟ لا يستغرق سوى دقيقة، ويساعد بقية المتسوّقين على الاختيار. قيّم من هنا: {{link}}' },
 ];

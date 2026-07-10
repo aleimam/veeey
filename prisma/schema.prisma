@@ -1009,6 +1009,7 @@ model Order {
   status              String       @default("PENDING") // OrderStatusConfig.code (system/internal)
   customerStatus      String? // customer-facing code (derived; EDIT keeps previous)
   legacyStatus        String? // raw source status (WooCommerce/EV) for re-mapping
+  reviewRequestSentAt DateTime? // #188: set once a post-delivery review request has been sent/attempted
   paymentMethod       String? // customer-facing method code (checkout) — CUSTOMER_METHODS
   systemPaymentMethod String? // SystemPaymentMethod.code (granular; invoice/packing)
   legacyPaymentMethod String? // raw source payment_method (WooCommerce) for re-mapping

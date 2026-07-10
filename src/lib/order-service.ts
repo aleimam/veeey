@@ -213,6 +213,15 @@ export async function transitionOrder(id: string, to: OrderStatus, reason?: stri
   await applyStatusEffects(order, from, cfg);
   await audit({ actorType: 'USER', actorId: user.id, action: `order.${to.toLowerCase()}`, entityType: 'Order', entityId: id, data: { reason } });
   await runStatusNotify(id, cfg);
+  if (to === 'DELIVERED') {
+    // #188: schedule a post-delivery review request (best-effort; never blocks the transition).
+    try {
+      const { scheduleReviewRequest } = await import('@/lib/review-request-service');
+      await scheduleReviewRequest(id);
+    } catch (e) {
+      console.error('scheduleReviewRequest failed', e);
+    }
+  }
   return prisma.order.findUniqueOrThrow({ where: { id } });
 }
 
