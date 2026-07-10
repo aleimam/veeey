@@ -2,13 +2,14 @@
 
 > Living status/handoff doc. Repo-committed so it travels with the code (unlike
 > per-user assistant memory). Update it when features ship or the backlog changes.
-> **Last updated: 2026-07-10 (Visitor analytics epic P1–P5 COMPLETE & DEPLOYED; also SEO search-appearance + full breadcrumbs + media-localization run).** Authoritative product docs: `VEEEY_PRD.md`,
+> **Last updated: 2026-07-10 (Visitor analytics epic P1–P6 + DSAR erase COMPLETE & DEPLOYED; blog/CMS BreadcrumbList completes site-wide breadcrumb coverage; also SEO search-appearance + media-localization run).** Authoritative product docs: `VEEEY_PRD.md`,
 > `VEEEY_SPEC.md`, `BUILD_PLAN.md`, `AGENTS.md`, `DEPLOYMENT.md`.
 
 ## Current state
-- **Live** at **veeey.com**. Latest deployed commit: **`88e41c6`** (2026-07-10). All
+- **Live** at **veeey.com**. Latest deployed commit: **`a78ecf3`** (2026-07-10). All
   **36 Prisma migrations applied** (analytics added `analytics_enrichment`); `pm2` processes `veeey` + `veeey-worker` healthy; `/api/health` → `{"status":"ok"}`.
-- **Newest epic — Visitor analytics (P1–P5, 2026-07-10):** first-party IP/geo/device/dwell capture (consent-tiered) + retention cron/DSAR erase; commerce-joined metrics (`analytics-insights.ts`); `/admin/analytics` dashboard with 7/30/90 filter, SVG chart, tables, CSV export; client GA4 dataLayer bridge + server-side GA4 Measurement Protocol. See the "Analytics P1–P5" rows below + memory [[veeey-analytics-epic]]. **P6 report-builder deferred.** Owner to activate: GA4/GTM ids + MP secret in /admin/google, GeoLite2 mmdb at `GEOIP_DB_PATH`, privacy-policy update.
+- **Newest epic — Visitor analytics (P1–P6 + DSAR, 2026-07-10):** first-party IP/geo/device/dwell capture (consent-tiered) + retention cron; commerce-joined metrics (`analytics-insights.ts`); `/admin/analytics` dashboard with 7/30/90 filter, SVG chart, tables, CSV export; client GA4 dataLayer bridge + server-side GA4 Measurement Protocol; **P6 report builder** `/admin/analytics/report` (allow-listed dimension×metric×range×filter, URL-saveable, CSV) + **DSAR erase** admin action (customer detail → Privacy & data). See the "Analytics" rows below + memory [[veeey-analytics-epic]]. Owner to activate: GA4/GTM ids + MP secret in /admin/google, GeoLite2 mmdb at `GEOIP_DB_PATH`, privacy-policy update.
+- **SEO — site-wide breadcrumbs complete (`a78ecf3`, 2026-07-10):** blog posts `/blog/[slug]` gained `generateMetadata` (title/desc/hreflang/OG-article) + BlogPosting + BreadcrumbList JSON-LD; CMS pages `/p/[slug]` gained BreadcrumbList. Every storefront page type (PDP, category, brand, collection, blog, CMS) now emits `BreadcrumbList` schema.
 
 ## V3 admin epic (from `V3 admin.docx`) — ✅ COMPLETE & DEPLOYED
 Source doc: Tags / Attributes / Collections admin upgrades + collection storefront wiring. Full plan in assistant memory [[veeey-v3-admin-epic]].
