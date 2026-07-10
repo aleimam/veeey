@@ -75,7 +75,7 @@ export async function sweepAbandonedCarts(): Promise<{ sent: number }> {
     where: { reminderSentAt: null, itemCount: { gt: 0 }, updatedAt: { lt: cutoff } },
     select: {
       customerId: true, itemCount: true, subtotalPiastres: true,
-      customer: { select: { user: { select: { email: true, name: true } } } },
+      customer: { select: { locale: true, user: { select: { email: true, name: true } } } },
     },
     take: 200,
   });
@@ -86,14 +86,16 @@ export async function sweepAbandonedCarts(): Promise<{ sent: number }> {
     await prisma.cartSnapshot.update({ where: { customerId: snap.customerId }, data: { reminderSentAt: new Date() } });
     const email = snap.customer?.user.email;
     if (!email) continue;
+    const locale = snap.customer?.locale === 'ar' ? 'ar' : 'en';
     await notify({
       customerId: snap.customerId,
       toAddress: email,
       type: 'MARKETING',
       channel: 'EMAIL',
       templateKey: 'cart.abandoned',
-      vars: { name: snap.customer?.user.name ?? 'there', count: snap.itemCount, total: (Number(snap.subtotalPiastres) / 100).toFixed(2), link: `${SITE}/en/cart` },
+      vars: { name: snap.customer?.user.name ?? 'there', count: snap.itemCount, total: (Number(snap.subtotalPiastres) / 100).toFixed(2), link: `${SITE}/${locale}/cart` },
       refType: 'cart',
+      locale,
     });
     sent += 1;
   }

@@ -31,7 +31,7 @@ export async function sendReviewRequest(orderId: string): Promise<{ sent: boolea
       number: true,
       reviewRequestSentAt: true,
       customerId: true,
-      customer: { select: { nameAr: true, user: { select: { email: true, name: true } } } },
+      customer: { select: { locale: true, nameAr: true, user: { select: { email: true, name: true } } } },
       items: { where: { isGift: false, lost: false }, select: { productId: true, product: { select: { slugEn: true, nameEn: true } } } },
     },
   });
@@ -56,16 +56,17 @@ export async function sendReviewRequest(orderId: string): Promise<{ sent: boolea
 
   const first = products.get(pending[0])!;
   const names = pending.map((id) => products.get(id)!.nameEn).join(', ');
+  const locale = order.customer?.locale === 'ar' ? 'ar' : 'en';
   await notify({
     customerId: order.customerId,
     toAddress: email,
     type: 'ORDER',
     channel: 'EMAIL',
     templateKey: 'review.request',
-    vars: { name: order.customer?.user.name ?? 'there', number: order.number, products: names, link: `${SITE}/en/products/${first.slug}#reviews` },
+    vars: { name: order.customer?.user.name ?? 'there', number: order.number, products: names, link: `${SITE}/${locale}/products/${first.slug}#reviews` },
     refType: 'order',
     refId: orderId,
-    locale: 'en',
+    locale,
   });
   return { sent: true };
 }
