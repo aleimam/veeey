@@ -27,6 +27,7 @@ async function main() {
   await boss.createQueue(QUEUES.auditPurge);
   await boss.createQueue(QUEUES.brandTranslate);
   await boss.createQueue(QUEUES.mediaLocalize);
+  await boss.createQueue(QUEUES.analyticsPurge);
 
   await boss.work(QUEUES.notify, async ([job]) => {
     await notify(job.data as NotifyInput);
@@ -80,6 +81,13 @@ async function main() {
     console.log(`[worker] media localize: ${r.state} — ${r.done}/${r.total} localized, ${r.failed} dead (${r.deleted} image rows pruned)`);
   });
 
+  // Analytics data-retention purge (events + sessions past analytics.retentionDays).
+  await boss.work(QUEUES.analyticsPurge, async () => {
+    const { purgeOldAnalytics } = await import('@/lib/analytics/retention-service');
+    const r = await purgeOldAnalytics();
+    console.log(`[worker] analytics purge: ${r.skipped ? `skipped (${r.skipped})` : `${r.events} events / ${r.sessions} sessions deleted`}`);
+  });
+
   // Recurring wishlist-alert sweep every 5 minutes.
   await boss.schedule(QUEUES.alerts, '*/5 * * * *', {});
   // WooCommerce incremental sync every 15 minutes (gated by woo.sync.enabled).
@@ -87,6 +95,8 @@ async function main() {
   // Weekly activity report Mondays 06:00 UTC; retention purge daily 04:30 UTC.
   await boss.schedule(QUEUES.auditReport, '0 6 * * 1', {});
   await boss.schedule(QUEUES.auditPurge, '30 4 * * *', {});
+  // Analytics retention purge daily 04:45 UTC.
+  await boss.schedule(QUEUES.analyticsPurge, '45 4 * * *', {});
   console.log('[worker] started — notify + alerts + woo-sync + audit queues registered, schedules set.');
 }
 

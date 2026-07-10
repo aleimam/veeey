@@ -51,6 +51,8 @@ export const SETTINGS: SettingDef[] = [
   { key: 'seo.homeTitleAr', label: 'Homepage title — Arabic', group: 'SEO', type: 'text', default: 'فيي — مكمّلات غذائية وأجهزة صحية فاخرة مستوردة في مصر', hint: 'العنوان الذي يظهر في جوجل للصفحة الرئيسية. حوالي ٦٠ حرفًا.' },
   { key: 'seo.homeDescEn', label: 'Homepage description — English', group: 'SEO', type: 'text', default: 'Genuine supplements & health devices imported from the USA, UK & EU. Every lot dated before you buy, fast delivery across Egypt, and 15% off with Veeey Refill.', hint: 'The grey snippet under the title in Google. ~150–160 characters.' },
   { key: 'seo.homeDescAr', label: 'Homepage description — Arabic', group: 'SEO', type: 'text', default: 'مكمّلات غذائية وأجهزة صحية أصلية مستوردة من أمريكا وبريطانيا وأوروبا. تاريخ كل تشغيلة ظاهر قبل الشراء، توصيل سريع في كل مصر، وخصم ١٥٪ مع ريفيل من فيي.', hint: 'الوصف الذي يظهر أسفل العنوان في جوجل. حوالي ١٦٠ حرفًا.' },
+  // Analytics data retention — visitor clickstream is purged after this many days.
+  { key: 'analytics.retentionDays', label: 'Analytics retention (days)', group: 'Analytics', type: 'days', default: '90', hint: 'Visitor sessions + events older than this are auto-deleted daily. 0 = keep forever (raises privacy/legal obligations).' },
 ];
 
 const DEFAULTS: Record<string, string> = Object.fromEntries(SETTINGS.map((s) => [s.key, s.default]));
