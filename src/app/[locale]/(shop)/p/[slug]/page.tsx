@@ -6,6 +6,10 @@ import { sanitizeRichHtml } from '@/lib/rich-text';
 import { parseFaq } from '@/lib/faq';
 import { FaqAccordion } from '@/components/storefront/faq-accordion';
 import { AdminEditLink } from '@/components/storefront/admin-edit-link';
+import { pick } from '@/lib/admin-i18n';
+import { Link } from '@/i18n/navigation';
+
+const SITE = 'https://veeey.com';
 
 function loadPage(slug: string) {
   return prisma.cmsPage.findFirst({ where: { slug, status: 'PUBLISHED' } });
@@ -35,8 +39,22 @@ export default async function CmsPageView({ params }: { params: Promise<{ locale
   const faq = slug === 'faq' ? parseFaq(safeBody) : null;
   const asFaq = faq && faq.count > 0;
 
+  const tb = pick(locale);
+  const breadcrumbLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { name: tb('Home', 'الرئيسية'), item: `${SITE}/${locale}` },
+      { name: title, item: `${SITE}/${locale}/p/${page.slug}` },
+    ].map((c, i) => ({ '@type': 'ListItem', position: i + 1, name: c.name, item: c.item })),
+  };
+
   return (
     <article className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
+      <div className="mb-3.5 flex items-center gap-2 text-[13px] text-[color:var(--text-muted)]">
+        <Link href="/">{tb('Home', 'الرئيسية')}</Link>
+      </div>
       <div className="mb-3"><AdminEditLink href={`/admin/content/pages/edit/${page.id}`} locale={locale} /></div>
       <h1 className="text-3xl font-bold text-green-dark sm:text-4xl">{title}</h1>
       {asFaq ? (
