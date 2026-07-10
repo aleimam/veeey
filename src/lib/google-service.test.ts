@@ -15,7 +15,7 @@ describe('sanitizeGoogleConfig', () => {
   });
 
   it('leaves unknown-shaped ids as trimmed text and empty as empty', () => {
-    expect(sanitizeGoogleConfig({ ga4Id: '  ', gtmId: '' })).toEqual({ ga4Id: '', gtmId: '', searchConsole: '', adsId: '', consentMode: 'gated' });
+    expect(sanitizeGoogleConfig({ ga4Id: '  ', gtmId: '' })).toEqual({ ga4Id: '', gtmId: '', searchConsole: '', adsId: '', consentMode: 'gated', ga4ApiSecret: '' });
     expect(sanitizeGoogleConfig({ ga4Id: 'weird' }).ga4Id).toBe('weird');
   });
 

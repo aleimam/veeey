@@ -46,6 +46,11 @@ export default async function AdminGooglePage({ params, searchParams }: { params
             <span className="text-xs font-normal text-muted-foreground">{tb('Google Analytics 4 → Admin → Data streams.', 'من Google Analytics 4 ← الإدارة ← تدفقات البيانات.')}</span>
           </label>
           <label className={labelCls}>
+            {tb('GA4 Measurement Protocol API secret (optional)', 'سر واجهة قياس GA4 (اختياري)')}
+            <input name="ga4ApiSecret" type="password" defaultValue={cfg.ga4ApiSecret} autoComplete="off" placeholder="••••••••••" className={inputCls} />
+            <span className="text-xs font-normal text-muted-foreground">{tb('Enables server-side event forwarding (ad-blocker-proof). GA4 → Admin → Data streams → Measurement Protocol API secrets.', 'يُفعّل إرسال الأحداث من الخادم (لا يحجبه مانع الإعلانات). GA4 ← الإدارة ← تدفقات البيانات ← أسرار واجهة القياس.')}</span>
+          </label>
+          <label className={labelCls}>
             {tb('Tag Manager container ID', 'معرّف حاوية Tag Manager')}
             <input name="gtmId" defaultValue={cfg.gtmId} placeholder="GTM-XXXXXXX" className={inputCls} />
           </label>

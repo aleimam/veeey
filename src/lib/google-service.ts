@@ -19,6 +19,7 @@ export async function getGoogleConfig(): Promise<GoogleConfig> {
     searchConsole: map.get(KEYS.searchConsole) ?? '',
     adsId: map.get(KEYS.adsId) ?? '',
     consentMode: map.get(KEYS.consentMode) === 'always' ? 'always' : 'gated',
+    ga4ApiSecret: map.get(KEYS.ga4ApiSecret) ?? '',
   };
 }
 
