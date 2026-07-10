@@ -7,7 +7,8 @@ import { rankByAffinity } from '@/lib/personalization';
 import { ProductCard } from '@/components/storefront/product-card';
 import { Select } from '@/components/storefront/ui/select';
 import { Checkbox } from '@/components/storefront/ui/checkbox';
-import { Link } from '@/i18n/navigation';
+import { Link, redirect } from '@/i18n/navigation';
+import { matchSearchRule } from '@/lib/search-rules-service';
 import { TrackView } from '@/components/analytics/track-view';
 
 type SP = Record<string, string | string[] | undefined>;
@@ -27,7 +28,13 @@ export default async function SearchPage({
   const sort = one(sp.sort) ?? 'relevance';
   const instock = one(sp.instock) === '1';
 
-  const results = q ? await searchProducts(q) : [];
+  // Merchandising rules (#186): a matched query can redirect the searcher to a
+  // page, or rewrite to different terms so a "no results" query finds something.
+  const rule = q ? await matchSearchRule(q) : null;
+  if (rule?.kind === 'REDIRECT' && rule.targetUrl) redirect({ href: rule.targetUrl, locale });
+  const effectiveQ = rule?.kind === 'REWRITE' && rule.rewriteTo ? rule.rewriteTo : q;
+
+  const results = q ? await searchProducts(effectiveQ) : [];
   // Personalized ranking (FR-PERS-03): boost results in the visitor's affinity categories.
   const affinity = q ? await affinityCategoryIds() : new Set<string>();
   const ranked = rankByAffinity(results.map((p) => ({ ...p, categoryIds: p.categories.map((c) => c.id) })), affinity);

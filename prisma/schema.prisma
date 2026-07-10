@@ -1724,6 +1724,21 @@ model ReorderIgnore {
   updatedAt     DateTime  @updatedAt
 }
 
+/// Merchandising fix for search queries that return nothing (#186). A normalized
+/// query either REWRITEs to different search terms (so it finds results) or
+/// REDIRECTs the searcher to a page (product/category/collection/URL).
+model SearchRule {
+  id          String   @id @default(cuid())
+  query       String   @unique // normalized: lowercased, trimmed, spaces collapsed
+  kind        String   @default("REWRITE") // REWRITE | REDIRECT
+  rewriteTo   String? // REWRITE: search terms to use instead
+  targetUrl   String? // REDIRECT: locale-relative path to send the searcher to
+  note        String?
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 model IdempotencyRecord {
   id           String   @id @default(cuid())
   key          String   @unique
