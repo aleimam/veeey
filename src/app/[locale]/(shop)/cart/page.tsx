@@ -35,11 +35,25 @@ export default async function CartPage({
       {t('outOfStock')}
     </div>
   );
+  const againRaw = Array.isArray(sp.again) ? sp.again[0] : sp.again;
+  const again = againRaw ? againRaw.split('-').map((x) => Number(x) || 0) : null;
+  const againNotice = again && (
+    <div className={`mb-6 rounded-[12px] border px-4 py-3 text-sm font-medium text-ink ${again[0] > 0 ? 'border-[color:var(--green-dark-12)] bg-[color:var(--green-wash)]' : 'border-[color:var(--gold)] bg-gold-wash'}`} role="status">
+      {again[0] > 0
+        ? (locale === 'ar'
+            ? `أُضيفت ${again[0]} منتجات من طلبك إلى السلة${again[1] ? ` — تم تخطّي ${again[1]} (غير متوفّرة حاليًا)` : ''}.`
+            : `Added ${again[0]} item(s) from your order to your cart${again[1] ? ` — ${again[1]} skipped (currently unavailable)` : ''}.`)
+        : (locale === 'ar'
+            ? 'تعذّر إضافة أي من منتجات هذا الطلب — غير متوفّرة حاليًا.'
+            : "None of that order's items could be added — they're currently unavailable.")}
+    </div>
+  );
 
   if (lines.length === 0) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-20 text-center">
         {stockNotice}
+        {againNotice}
         <h1 className="text-3xl font-bold text-green-dark">{t('emptyTitle')}</h1>
         <Link href="/products" className="mt-4 inline-block text-sm font-semibold text-green-dark hover:text-lime-press">{t('browse')}</Link>
       </div>
@@ -58,6 +72,7 @@ export default async function CartPage({
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
       {stockNotice}
+        {againNotice}
       <h1 className="mb-6 text-3xl font-bold text-green-dark">{t('title')}</h1>
       <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
         <ul className="space-y-4">

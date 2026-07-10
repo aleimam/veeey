@@ -2,7 +2,8 @@
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { ensureCartId, readCartId, addToCart, setCartQty, removeFromCart, addPreorder, setPreorderQty, removePreorder } from '@/lib/cart-service';
+import { ensureCartId, readCartId, addToCart, setCartQty, removeFromCart, addPreorder, setPreorderQty, removePreorder, reorderToCart } from '@/lib/cart-service';
+import { getCurrentUser } from '@/lib/auth-guards';
 import { placeOrder, type CheckoutInput } from '@/lib/checkout-service';
 import { buildCardRedirect } from '@/lib/payment-gateways';
 import { isOnlineMethod, gatewayFor } from '@/lib/payment-method-service';
@@ -31,6 +32,21 @@ export async function addToCartAction(fd: FormData): Promise<void> {
   }
   revalidatePath(`/${locale}/cart`);
   redirect(`/${locale}/cart${failed ? '?add=out' : ''}`);
+}
+
+/** Buy again — re-add a past order's lines to the current cart (customer only). */
+export async function buyAgainAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const orderId = str(fd, 'orderId');
+  const user = await getCurrentUser();
+  let added = 0;
+  let skipped = 0;
+  if (orderId && user?.customerId) {
+    const cartId = await ensureCartId();
+    ({ added, skipped } = await reorderToCart(cartId, orderId, user.customerId));
+  }
+  revalidatePath(`/${locale}/cart`);
+  redirect(`/${locale}/cart?again=${added}-${skipped}`);
 }
 
 /** Pre-order (buy before back in stock) — no lot to hold, so this writes the

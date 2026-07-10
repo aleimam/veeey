@@ -4,6 +4,7 @@ import { getCurrentUser } from '@/lib/auth-guards';
 import { prisma } from '@/lib/prisma';
 import { getSetting } from '@/lib/settings-service';
 import { signOutAction } from '@/server/auth-actions';
+import { buyAgainAction } from '@/server/cart-actions';
 import { listReturnReasons } from '@/lib/return-reason-service';
 import { reorderSuggestions } from '@/lib/replenishment-service';
 import { ReturnRequestForm } from '@/components/storefront/return-request-form';
@@ -187,6 +188,13 @@ export default async function AccountPage({ params }: { params: Promise<{ locale
                         <td className="p-3 text-ink">{formatEGP(Number(o.totalPiastres))}</td>
                         <td className="p-3"><StatusBadge status={o.customerStatus ?? o.status} /></td>
                         <td className="p-3 text-end">
+                          <form action={buyAgainAction} className="mb-1.5 inline-block">
+                            <input type="hidden" name="locale" value={locale} />
+                            <input type="hidden" name="orderId" value={o.id} />
+                            <button type="submit" className="rounded-full border border-[color:var(--green-dark-12)] px-3 py-1.5 text-xs font-semibold text-green-dark hover:bg-[color:var(--green-wash)]">
+                              {tb('Buy again', 'اطلب مجددًا')}
+                            </button>
+                          </form>
                           {o.status === 'DELIVERED' && reasonOptions.length > 0 && (
                             <ReturnRequestForm
                               orderId={o.id}

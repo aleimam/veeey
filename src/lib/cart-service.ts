@@ -208,3 +208,35 @@ export async function setCartQty(cartId: string, productId: string, qty: number,
     }
   }
 }
+
+/**
+ * Buy again (reorder): re-add a past order's regular lines to the current cart.
+ * Merges duplicate products, skips gifts / lost / pre-order lines, and skips any
+ * product that is no longer PUBLISHED or is out of stock (addToCart throws
+ * INSUFFICIENT_STOCK). The order must belong to `customerId`. Returns how many
+ * distinct products were added vs skipped.
+ */
+export async function reorderToCart(cartId: string, orderId: string, customerId: string): Promise<{ added: number; skipped: number }> {
+  const order = await prisma.order.findFirst({
+    where: { id: orderId, customerId },
+    select: { items: { where: { isGift: false, lost: false, preorder: false }, select: { productId: true, qty: true } } },
+  });
+  if (!order) return { added: 0, skipped: 0 };
+
+  const wanted = new Map<string, number>();
+  for (const it of order.items) wanted.set(it.productId, (wanted.get(it.productId) ?? 0) + it.qty);
+
+  let added = 0;
+  let skipped = 0;
+  for (const [productId, qty] of wanted) {
+    const p = await prisma.product.findFirst({ where: { id: productId, status: 'PUBLISHED' }, select: { id: true } });
+    if (!p) { skipped += 1; continue; }
+    try {
+      await addToCart(cartId, productId, qty);
+      added += 1;
+    } catch {
+      skipped += 1; // out of stock
+    }
+  }
+  return { added, skipped };
+}
