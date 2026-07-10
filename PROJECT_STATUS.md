@@ -2,12 +2,13 @@
 
 > Living status/handoff doc. Repo-committed so it travels with the code (unlike
 > per-user assistant memory). Update it when features ship or the backlog changes.
-> **Last updated: 2026-07-09 (V3 admin epic COMPLETE & DEPLOYED — all 3 tracks + rule engine).** Authoritative product docs: `VEEEY_PRD.md`,
+> **Last updated: 2026-07-10 (Visitor analytics epic P1–P5 COMPLETE & DEPLOYED; also SEO search-appearance + full breadcrumbs + media-localization run).** Authoritative product docs: `VEEEY_PRD.md`,
 > `VEEEY_SPEC.md`, `BUILD_PLAN.md`, `AGENTS.md`, `DEPLOYMENT.md`.
 
 ## Current state
-- **Live** at **veeey.com**. Latest deployed commit: **`406198c`** (2026-07-09). All
-  **35 Prisma migrations applied** (V3 added `collection_v3` + `attribute_v3`); `pm2` processes `veeey` + `veeey-worker` healthy; `/api/health` → `{"status":"ok"}`.
+- **Live** at **veeey.com**. Latest deployed commit: **`88e41c6`** (2026-07-10). All
+  **36 Prisma migrations applied** (analytics added `analytics_enrichment`); `pm2` processes `veeey` + `veeey-worker` healthy; `/api/health` → `{"status":"ok"}`.
+- **Newest epic — Visitor analytics (P1–P5, 2026-07-10):** first-party IP/geo/device/dwell capture (consent-tiered) + retention cron/DSAR erase; commerce-joined metrics (`analytics-insights.ts`); `/admin/analytics` dashboard with 7/30/90 filter, SVG chart, tables, CSV export; client GA4 dataLayer bridge + server-side GA4 Measurement Protocol. See the "Analytics P1–P5" rows below + memory [[veeey-analytics-epic]]. **P6 report-builder deferred.** Owner to activate: GA4/GTM ids + MP secret in /admin/google, GeoLite2 mmdb at `GEOIP_DB_PATH`, privacy-policy update.
 
 ## V3 admin epic (from `V3 admin.docx`) — ✅ COMPLETE & DEPLOYED
 Source doc: Tags / Attributes / Collections admin upgrades + collection storefront wiring. Full plan in assistant memory [[veeey-v3-admin-epic]].
