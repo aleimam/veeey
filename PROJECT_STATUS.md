@@ -2,12 +2,13 @@
 
 > Living status/handoff doc. Repo-committed so it travels with the code (unlike
 > per-user assistant memory). Update it when features ship or the backlog changes.
-> **Last updated: 2026-07-10 (Visitor analytics epic P1–P6 + DSAR erase COMPLETE & DEPLOYED; blog/CMS BreadcrumbList completes site-wide breadcrumb coverage; also SEO search-appearance + media-localization run).** Authoritative product docs: `VEEEY_PRD.md`,
+> **Last updated: 2026-07-11 (Inventory To-buy + Expiry Fight epic COMPLETE & DEPLOYED — migration `inventory_reorder`. Earlier: analytics P1–P6 + DSAR; site-wide breadcrumbs; SEO search-appearance + media-localization).** Authoritative product docs: `VEEEY_PRD.md`,
 > `VEEEY_SPEC.md`, `BUILD_PLAN.md`, `AGENTS.md`, `DEPLOYMENT.md`.
 
 ## Current state
-- **Live** at **veeey.com**. Latest deployed commit: **`a78ecf3`** (2026-07-10). All
-  **36 Prisma migrations applied** (analytics added `analytics_enrichment`); `pm2` processes `veeey` + `veeey-worker` healthy; `/api/health` → `{"status":"ok"}`.
+- **Live** at **veeey.com**. Latest deployed commit: **`2271e71`** (2026-07-11). All
+  **37 Prisma migrations applied** (inventory added `inventory_reorder`); `pm2` processes `veeey` + `veeey-worker` healthy; `/api/health` → `{"status":"ok"}`.
+- **Newest epic — Inventory To-buy + Expiry Fight (2026-07-11):** two new Inventory admin pages. **Requests / To-buy** (`/admin/inventory/requests`) — 5 tabs (out-of-stock, last-pieces, short-stock [featured→180d else 90d], running-fast [spike ≥3×], special-orders) + an Ignored view; each row shows 30/90/180-day units sold, sellable stock, incoming (YeldnIN, later), local requested count, pre-orders; per-row + bulk Request (→ local `PurchaseRequest` + YeldnIN outbox) and Ignore (30-day snooze). **Expiry Fight / To-sell** (`/admin/inventory/expiry`) — 5 expiry windows (this/next month + 90/180/365 days); each product's 3 nearest-expiry lots (expiry, stock, price) + 30/90/180-day sales; per-lot quick markdown reusing `setLotPrice`. Pure engine `inventory-reorder.ts` (+29 tests); featured = the Best Sellers collection (setting `inventory.featuredCollectionSlug`). YeldnIN "incoming" column + request dispatch stay inert until the integration is enabled. See assistant memory `veeey-inventory-reorder-epic`.
 - **Newest epic — Visitor analytics (P1–P6 + DSAR, 2026-07-10):** first-party IP/geo/device/dwell capture (consent-tiered) + retention cron; commerce-joined metrics (`analytics-insights.ts`); `/admin/analytics` dashboard with 7/30/90 filter, SVG chart, tables, CSV export; client GA4 dataLayer bridge + server-side GA4 Measurement Protocol; **P6 report builder** `/admin/analytics/report` (allow-listed dimension×metric×range×filter, URL-saveable, CSV) + **DSAR erase** admin action (customer detail → Privacy & data). See the "Analytics" rows below + memory [[veeey-analytics-epic]]. Owner to activate: GA4/GTM ids + MP secret in /admin/google, GeoLite2 mmdb at `GEOIP_DB_PATH`, privacy-policy update.
 - **SEO — site-wide breadcrumbs complete (`a78ecf3`, 2026-07-10):** blog posts `/blog/[slug]` gained `generateMetadata` (title/desc/hreflang/OG-article) + BlogPosting + BreadcrumbList JSON-LD; CMS pages `/p/[slug]` gained BreadcrumbList. Every storefront page type (PDP, category, brand, collection, blog, CMS) now emits `BreadcrumbList` schema.
 
