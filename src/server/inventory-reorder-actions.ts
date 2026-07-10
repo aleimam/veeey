@@ -105,3 +105,18 @@ export async function unignoreAction(fd: FormData): Promise<void> {
     await audit({ actorType: 'USER', actorId: user.id, action: 'inventory.reorder.unignore', entityType: 'Product', entityId: productId });
   });
 }
+
+// ---- Expiry Fight: fast per-lot price markdown -----------------------------
+
+export async function setExpiryPriceAction(fd: FormData): Promise<void> {
+  const path = listPath(fd);
+  await finish(path, async () => {
+    const lotId = str(fd, 'lotId');
+    const egp = Number(str(fd, 'egp') ?? '');
+    if (!lotId || !Number.isFinite(egp) || egp < 0) throw new Error('INVALID');
+    // setLotPrice enforces inventory.manage, sets the per-expiry price, flags the
+    // lot on sale, emits a SALE_LOT change event, and audits.
+    const { setLotPrice } = await import('@/lib/inventory-service');
+    await setLotPrice(lotId, egp, true);
+  });
+}
