@@ -10,6 +10,7 @@ import {
 } from 'react';
 import { usePathname } from '@/i18n/navigation';
 import { getConsent, subscribeConsent } from '@/lib/consent';
+import { pushDataLayer } from '@/lib/analytics/datalayer';
 import type { ClientEvent } from '@/lib/analytics/events';
 
 type TrackFn = (name: string, props?: Record<string, unknown>) => void;
@@ -103,6 +104,9 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   const track = useCallback<TrackFn>(
     (name, props) => {
       queue.current.push({ name, path: typeof location !== 'undefined' ? location.pathname : undefined, props, ts: Date.now() });
+      // Mirror ecommerce events into the GTM dataLayer / GA4 (P4). Consent Mode +
+      // the GoogleLoader gate the actual send; this is inert without a loaded tag.
+      pushDataLayer(name, props);
       if (queue.current.length >= 10) flush();
     },
     [flush],

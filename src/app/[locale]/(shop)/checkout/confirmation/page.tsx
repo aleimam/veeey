@@ -6,6 +6,7 @@ import { getOrderByNumber } from '@/lib/checkout-service';
 import { customerLabel, isOnlineMethod } from '@/lib/payment-method-service';
 import { formatEGP } from '@/lib/format';
 import { conditionLabel, isConditionVariant } from '@/lib/lot-condition';
+import { TrackView } from '@/components/analytics/track-view';
 
 type SP = Record<string, string | string[] | undefined>;
 
@@ -55,8 +56,21 @@ export default async function ConfirmationPage({
     : null;
   const toneCls = { ok: 'bg-green-wash text-green-dark', pending: 'bg-gold-wash text-gold-deep', error: 'bg-error-wash text-error' };
 
+  // GA4 `purchase` event (Analytics P4) — fire only for a completed order (COD is
+  // placed; card must be PAID). GA4 dedupes repeat views by transaction_id.
+  const purchaseComplete = !isCard || order.paymentState === 'PAID';
+  const purchaseProps = purchaseComplete
+    ? {
+        orderId: order.number,
+        value: Number(order.totalPiastres) / 100,
+        currency: 'EGP',
+        items: order.items.map((it) => ({ item_id: it.product.sku, item_name: it.product.nameEn, quantity: it.qty, price: Number(it.unitPricePiastres) / 100 })),
+      }
+    : null;
+
   return (
     <div className="mx-auto max-w-2xl px-4 py-16">
+      {purchaseProps && <TrackView name="purchase" props={purchaseProps} />}
       <div className="rounded-[16px] border border-[color:var(--green-dark-05)] bg-white p-8 text-center shadow-[var(--shadow-card)]">
         <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-green-wash text-2xl text-green-dark">✓</div>
         <h1 className="mt-4 text-3xl font-bold text-green-dark">{t('thankYou')}</h1>
