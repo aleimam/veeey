@@ -278,9 +278,9 @@ model User {
   updatedAt     DateTime  @updatedAt
 
   // Back-relations for "acted by staff" references
-  pharmacistOrders Order[]          @relation("OrderPharmacist")
+  pharmacistOrders Order[]            @relation("OrderPharmacist")
   stocktakeCounts  StocktakeCount[]
-  reviewsModerated Review[]         @relation("ReviewModerator")
+  reviewsModerated Review[]           @relation("ReviewModerator")
   departments      DepartmentMember[]
 }
 
@@ -320,13 +320,13 @@ model VerificationToken {
 
 // Phone OTP login (FR-ACC-01b). Codes are hashed; verified within `expiresAt`.
 model OtpCode {
-  id        String    @id @default(cuid())
-  phone     String
-  codeHash  String
-  expiresAt DateTime
+  id         String    @id @default(cuid())
+  phone      String
+  codeHash   String
+  expiresAt  DateTime
   consumedAt DateTime?
-  attempts  Int       @default(0)
-  createdAt DateTime  @default(now())
+  attempts   Int       @default(0)
+  createdAt  DateTime  @default(now())
 
   @@index([phone])
 }
@@ -398,7 +398,7 @@ model Customer {
   // Link to YeldnIN for special-order dedupe (INTEGRATION_CONTRACT).
   veeeyCustomerId       String?    @unique
   legacyWpId            Int?       @unique
-  syncedAt              DateTime?  // last WooCommerce sync write (detach detection)
+  syncedAt              DateTime? // last WooCommerce sync write (detach detection)
   createdAt             DateTime   @default(now())
   updatedAt             DateTime   @updatedAt
 
@@ -632,20 +632,20 @@ model CouponRedemption {
 // ============================================================================
 
 model Brand {
-  id            String    @id @default(cuid())
-  slug          String    @unique
-  slugAr        String?   @unique
-  nameEn        String
-  nameAr        String?
-  descriptionEn String?
-  descriptionAr String?
-  logoUrl       String?
-  bannerUrl     String?
+  id                  String    @id @default(cuid())
+  slug                String    @unique
+  slugAr              String?   @unique
+  nameEn              String
+  nameAr              String?
+  descriptionEn       String?
+  descriptionAr       String?
+  logoUrl             String?
+  bannerUrl           String?
   // SEO/AEO (FR-SEO-07)
-  metaTitleEn   String?
-  metaTitleAr   String?
-  metaDescEn    String?
-  metaDescAr    String?
+  metaTitleEn         String?
+  metaTitleAr         String?
+  metaDescEn          String?
+  metaDescAr          String?
   // Full SEO module (RankMath-style editor — same set as Product)
   focusKeywordEn      String?
   focusKeywordAr      String?
@@ -657,31 +657,31 @@ model Brand {
   ogDescAr            String?
   ogImage             String?
   canonicalUrl        String?
-  robotsIndex         Boolean @default(true)
-  robotsFollow        Boolean @default(true)
+  robotsIndex         Boolean   @default(true)
+  robotsFollow        Boolean   @default(true)
   schemaOverridesJson Json?
-  legacyName    String?
-  products      Product[]
-  archivedAt    DateTime?
-  createdAt     DateTime  @default(now())
+  legacyName          String?
+  products            Product[]
+  archivedAt          DateTime?
+  createdAt           DateTime  @default(now())
 }
 
 model Category {
-  id            String     @id @default(cuid())
-  slug          String     @unique
-  slugAr        String?    @unique
-  nameEn        String
-  nameAr        String?
-  descriptionEn String?
-  descriptionAr String?
-  imageUrl      String?
-  parentId      String?
-  parent        Category?  @relation("CategoryTree", fields: [parentId], references: [id])
-  children      Category[] @relation("CategoryTree")
-  metaTitleEn   String?
-  metaTitleAr   String?
-  metaDescEn    String?
-  metaDescAr    String?
+  id                  String     @id @default(cuid())
+  slug                String     @unique
+  slugAr              String?    @unique
+  nameEn              String
+  nameAr              String?
+  descriptionEn       String?
+  descriptionAr       String?
+  imageUrl            String?
+  parentId            String?
+  parent              Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children            Category[] @relation("CategoryTree")
+  metaTitleEn         String?
+  metaTitleAr         String?
+  metaDescEn          String?
+  metaDescAr          String?
   // Full SEO module (RankMath-style editor — same set as Product)
   focusKeywordEn      String?
   focusKeywordAr      String?
@@ -693,12 +693,12 @@ model Category {
   ogDescAr            String?
   ogImage             String?
   canonicalUrl        String?
-  robotsIndex         Boolean @default(true)
-  robotsFollow        Boolean @default(true)
+  robotsIndex         Boolean    @default(true)
+  robotsFollow        Boolean    @default(true)
   schemaOverridesJson Json?
-  products      Product[]  @relation("ProductCategories")
-  archivedAt    DateTime?
-  createdAt     DateTime   @default(now())
+  products            Product[]  @relation("ProductCategories")
+  archivedAt          DateTime?
+  createdAt           DateTime   @default(now())
 
   @@index([parentId])
 }
@@ -747,7 +747,7 @@ model Product {
   sku               String            @unique
   legacyWpId        Int?              @unique
   legacySku         String?
-  syncedAt          DateTime?         // last WooCommerce sync write; sync detaches when updatedAt drifts past this
+  syncedAt          DateTime? // last WooCommerce sync write; sync detaches when updatedAt drifts past this
   gtin              String?
   kind              ProductKind       @default(SUPPLEMENT)
   nameEn            String
@@ -825,22 +825,24 @@ model Product {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  images          ProductImage[]
-  categories      Category[]              @relation("ProductCategories")
-  tags            Tag[]                   @relation("ProductTags")
-  attributeValues ProductAttributeValue[]
-  lots            Lot[]
-  reviews         Review[]
-  questions       ProductQuestion[]
-  wishlistItems   WishlistItem[]
-  compareItems    CompareItem[]
-  orderItems      OrderItem[]
-  changeEvents    ProductChangeEvent[]
-  relationsFrom   ProductRelation[]       @relation("RelationFrom")
-  relationsTo     ProductRelation[]       @relation("RelationTo")
-  stocktakeCounts StocktakeCount[]
-  specialOrders   SpecialOrder[]
-  collections     Collection[]            @relation("ProductCollections")
+  images           ProductImage[]
+  categories       Category[]              @relation("ProductCategories")
+  tags             Tag[]                   @relation("ProductTags")
+  attributeValues  ProductAttributeValue[]
+  lots             Lot[]
+  reviews          Review[]
+  questions        ProductQuestion[]
+  wishlistItems    WishlistItem[]
+  compareItems     CompareItem[]
+  orderItems       OrderItem[]
+  changeEvents     ProductChangeEvent[]
+  relationsFrom    ProductRelation[]       @relation("RelationFrom")
+  relationsTo      ProductRelation[]       @relation("RelationTo")
+  stocktakeCounts  StocktakeCount[]
+  specialOrders    SpecialOrder[]
+  collections      Collection[]            @relation("ProductCollections")
+  purchaseRequests PurchaseRequest[]
+  reorderIgnore    ReorderIgnore?
 
   @@index([brandId])
   @@index([status])
@@ -999,19 +1001,19 @@ model ShippingTypeConfig {
 // ============================================================================
 
 model Order {
-  id            String         @id @default(cuid())
-  number        String         @unique
-  customerId    String?
-  customer      Customer?      @relation(fields: [customerId], references: [id])
-  guestEmail    String?
-  status         String        @default("PENDING") // OrderStatusConfig.code (system/internal)
-  customerStatus String?       // customer-facing code (derived; EDIT keeps previous)
-  legacyStatus   String?       // raw source status (WooCommerce/EV) for re-mapping
-  paymentMethod String?        // customer-facing method code (checkout) — CUSTOMER_METHODS
-  systemPaymentMethod String?  // SystemPaymentMethod.code (granular; invoice/packing)
-  legacyPaymentMethod String?  // raw source payment_method (WooCommerce) for re-mapping
-  paymentState  PaymentState   @default(PENDING)
-  payCheck      PayCheck       @default(NO)
+  id                  String       @id @default(cuid())
+  number              String       @unique
+  customerId          String?
+  customer            Customer?    @relation(fields: [customerId], references: [id])
+  guestEmail          String?
+  status              String       @default("PENDING") // OrderStatusConfig.code (system/internal)
+  customerStatus      String? // customer-facing code (derived; EDIT keeps previous)
+  legacyStatus        String? // raw source status (WooCommerce/EV) for re-mapping
+  paymentMethod       String? // customer-facing method code (checkout) — CUSTOMER_METHODS
+  systemPaymentMethod String? // SystemPaymentMethod.code (granular; invoice/packing)
+  legacyPaymentMethod String? // raw source payment_method (WooCommerce) for re-mapping
+  paymentState        PaymentState @default(PENDING)
+  payCheck            PayCheck     @default(NO)
 
   subtotalPiastres     BigInt  @default(0)
   discountPiastres     BigInt  @default(0)
@@ -1040,10 +1042,10 @@ model Order {
   isSpecialOrder      Boolean       @default(false)
   isPreorder          Boolean       @default(false) // contains pre-order lines → deposit taken, balance due on delivery
 
-  legacyWpId Int?     @unique
+  legacyWpId Int?      @unique
   syncedAt   DateTime? // last WooCommerce sync write (detach detection)
-  placedAt   DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  placedAt   DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   items             OrderItem[]
   gifts             OrderGift[]
@@ -1220,14 +1222,14 @@ model ProductChangeEvent {
 }
 
 model AnalyticsSession {
-  id         String           @id @default(cuid())
-  sessionId  String           @unique
-  customerId String?
-  customer   Customer?        @relation(fields: [customerId], references: [id])
-  utmJson    Json?
-  referrer   String?
-  location   String?
-  userAgent  String?
+  id             String           @id @default(cuid())
+  sessionId      String           @unique
+  customerId     String?
+  customer       Customer?        @relation(fields: [customerId], references: [id])
+  utmJson        Json?
+  referrer       String?
+  location       String?
+  userAgent      String?
   // Visitor enrichment (Analytics P1) — captured server-side, only under full
   // consent. `ip` is raw (owner opted in); `ipTruncated` is the anonymized form
   // (last IPv4 octet / IPv6 suffix zeroed) used wherever the raw IP isn't needed.
@@ -1281,23 +1283,23 @@ model AnalyticsEvent {
 // ============================================================================
 
 model Review {
-  id          String        @id @default(cuid())
-  productId   String
-  product     Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
-  customerId  String?
-  customer    Customer?     @relation(fields: [customerId], references: [id])
-  authorName  String?
-  rating      Int
-  title       String?
-  body        String?
-  status      ReviewStatus  @default(PENDING)
-  source      ReviewSource  @default(NATIVE)
-  verifiedPurchase Boolean  @default(false)
-  moderatorId String?
-  moderator   User?         @relation("ReviewModerator", fields: [moderatorId], references: [id])
-  legacyId    String?
-  media       ReviewMedia[]
-  createdAt   DateTime      @default(now())
+  id               String        @id @default(cuid())
+  productId        String
+  product          Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customerId       String?
+  customer         Customer?     @relation(fields: [customerId], references: [id])
+  authorName       String?
+  rating           Int
+  title            String?
+  body             String?
+  status           ReviewStatus  @default(PENDING)
+  source           ReviewSource  @default(NATIVE)
+  verifiedPurchase Boolean       @default(false)
+  moderatorId      String?
+  moderator        User?         @relation("ReviewModerator", fields: [moderatorId], references: [id])
+  legacyId         String?
+  media            ReviewMedia[]
+  createdAt        DateTime      @default(now())
 
   @@index([productId])
 }
@@ -1683,6 +1685,43 @@ model OutboxEvent {
 
   @@index([status])
   @@index([aggregateId])
+}
+
+/// Local reorder request captured by the Inventory "Requests (To-buy)" feature
+/// (INV-P2). Queued to an OutboxEvent for YeldnIN dispatch once the integration
+/// is enabled; until then it records intent + drives the local "requested"
+/// count on the To-buy list. Status: PENDING | SENT | FULFILLED | CANCELLED.
+model PurchaseRequest {
+  id              String   @id @default(cuid())
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  qtyRequested    Int
+  status          String   @default("PENDING")
+  note            String?
+  requestedById   String? // acting staff user id (no FK — mirrors AuditLog.actorId)
+  requestedByName String? // snapshot for display; survives staff deletion
+  outboxEventId   String? // the OutboxEvent enqueued for YeldnIN (null until dispatched)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([productId])
+  @@index([status])
+}
+
+/// Products dismissed from the To-buy lists (INV-P2). Suppresses a product while
+/// the snooze is active AND stock hasn't risen materially above the level when
+/// it was ignored (logic in inventory-reorder-service). One row per product.
+model ReorderIgnore {
+  id            String    @id @default(cuid())
+  productId     String    @unique
+  product       Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  snoozeUntil   DateTime? // null = indefinite
+  stockAtIgnore Int? // stock when ignored; a rise above this resurfaces the product
+  reason        String?
+  ignoredById   String?
+  ignoredByName String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 model IdempotencyRecord {
