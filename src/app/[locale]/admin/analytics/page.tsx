@@ -89,12 +89,15 @@ export default async function AnalyticsPage({ params, searchParams }: { params: 
     <div className="p-6">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-heading text-xl font-semibold">{tb('Analytics', 'التحليلات')}</h1>
-        <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
-          {RANGES.map((d) => (
-            <Link key={d} href={`/admin/analytics?days=${d}`} className={`rounded-md px-3 py-1 text-sm ${d === days ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-surface'}`}>
-              {tb(`${d}d`, `${d} يوم`)}
-            </Link>
-          ))}
+        <div className="flex items-center gap-3">
+          <Link href="/admin/analytics/report" className="text-sm font-medium text-primary hover:underline">{tb('Report builder →', 'منشئ التقارير ←')}</Link>
+          <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
+            {RANGES.map((d) => (
+              <Link key={d} href={`/admin/analytics?days=${d}`} className={`rounded-md px-3 py-1 text-sm ${d === days ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-surface'}`}>
+                {tb(`${d}d`, `${d} يوم`)}
+              </Link>
+            ))}
+          </div>
         </div>
       </div>
 

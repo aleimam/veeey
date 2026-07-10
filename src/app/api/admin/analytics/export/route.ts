@@ -42,6 +42,19 @@ export async function GET(req: Request) {
   } else if (report === 'products') {
     const p = await productPerformance(days);
     csv = toCsv(['sku', 'name', 'views', 'units_sold', 'view_to_buy'], p.map((r) => [r.sku, r.name, r.views, r.units, (r.conversion * 100).toFixed(1) + '%']));
+  } else if (report === 'custom') {
+    const { resolveReportConfig, runReport, REPORT_DIMENSIONS, REPORT_METRICS } = await import('@/lib/analytics-report');
+    const cfg = resolveReportConfig({
+      dimension: url.searchParams.get('dimension') ?? undefined,
+      metric: url.searchParams.get('metric') ?? undefined,
+      days: url.searchParams.get('days') ?? undefined,
+      fdim: url.searchParams.get('fdim') ?? undefined,
+      fval: url.searchParams.get('fval') ?? undefined,
+    });
+    const rows = await runReport(cfg);
+    const dimLabel = REPORT_DIMENSIONS.find((d) => d.key === cfg.dimension)!.labelEn;
+    const metLabel = REPORT_METRICS.find((m) => m.key === cfg.metric)!.labelEn;
+    csv = toCsv([dimLabel, metLabel], rows.map((r) => [r.key, r.value]));
   } else {
     return new NextResponse('Unknown report', { status: 400 });
   }
