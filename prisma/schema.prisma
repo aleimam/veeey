@@ -1228,8 +1228,35 @@ model AnalyticsSession {
   referrer   String?
   location   String?
   userAgent  String?
-  startedAt  DateTime         @default(now())
-  events     AnalyticsEvent[]
+  // Visitor enrichment (Analytics P1) — captured server-side, only under full
+  // consent. `ip` is raw (owner opted in); `ipTruncated` is the anonymized form
+  // (last IPv4 octet / IPv6 suffix zeroed) used wherever the raw IP isn't needed.
+  ip             String?
+  ipTruncated    String?
+  country        String?
+  region         String?
+  city           String?
+  os             String?
+  osVersion      String?
+  browser        String?
+  browserVersion String?
+  deviceType     String? // mobile | tablet | desktop | bot
+  isBot          Boolean          @default(false)
+  language       String?
+  screenW        Int?
+  screenH        Int?
+  viewportW      Int?
+  viewportH      Int?
+  landingPath    String?
+  exitPath       String?
+  lastSeenAt     DateTime?
+  startedAt      DateTime         @default(now())
+  events         AnalyticsEvent[]
+
+  @@index([startedAt])
+  @@index([country])
+  @@index([deviceType])
+  @@index([isBot])
 }
 
 model AnalyticsEvent {
@@ -1240,11 +1267,13 @@ model AnalyticsEvent {
   customer   Customer?         @relation(fields: [customerId], references: [id])
   type       String // page_view, product_view, search, cart_add, ...
   path       String?
+  durationMs Int? // dwell time on the page (page_leave events)
   propsJson  Json?
   createdAt  DateTime          @default(now())
 
   @@index([sessionId])
   @@index([type])
+  @@index([createdAt])
 }
 
 // ============================================================================
