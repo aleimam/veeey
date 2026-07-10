@@ -43,6 +43,9 @@ export const SETTINGS: SettingDef[] = [
   // Post-delivery review requests
   { key: 'reviews.requestEnabled', label: 'Post-delivery review requests', group: 'Reviews', type: 'text', default: 'true', hint: 'true / false — email customers a review request a few days after their order is delivered (needs SMTP configured).' },
   { key: 'reviews.requestDelayDays', label: 'Review request delay (days)', group: 'Reviews', type: 'days', default: '7', hint: 'Days after delivery before the review-request email is sent.' },
+  // Abandoned-cart recovery
+  { key: 'cart.abandonedReminderEnabled', label: 'Abandoned-cart reminders', group: 'Cart', type: 'text', default: 'true', hint: 'true / false — email signed-in customers a reminder when they leave items in the cart (needs SMTP). Guest carts cannot be emailed.' },
+  { key: 'cart.abandonedIdleHours', label: 'Abandoned-cart idle (hours)', group: 'Cart', type: 'number', default: '6', hint: 'Hours a cart must sit untouched before one reminder is sent.' },
   // Storefront
   { key: 'refill.enabled', label: 'Show "Subscribe with Refill" on products', group: 'Storefront', type: 'text', default: 'false', hint: 'true / false. Real recurring subscriptions are not built yet — keep "false" to hide the per-product subscribe option.' },
   // Store contact (shown in the footer / contact block)

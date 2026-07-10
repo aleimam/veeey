@@ -12,7 +12,7 @@ import {
   FolderTree, Tags, SlidersHorizontal, LayoutGrid, Boxes, ClipboardCheck, Truck, Users,
   Crown, Ticket, Star, Home, FileText, Newspaper, Share2, HelpCircle, Bell, UserCog,
   ShieldCheck, Settings, Plug, Palette, Webhook, Menu, X, Search, PanelLeftClose,
-  PanelLeftOpen, Sun, Moon, LogOut, ExternalLink, ChevronRight, KeyRound, Cable, DatabaseZap, RefreshCw, Trash2, CreditCard, ListChecks, Rocket, LayoutTemplate, History, Bot, Inbox, LineChart, MessageCircleQuestion, Gauge, ClipboardList, CalendarClock, SearchCheck,
+  PanelLeftOpen, Sun, Moon, LogOut, ExternalLink, ChevronRight, KeyRound, Cable, DatabaseZap, RefreshCw, Trash2, CreditCard, ListChecks, Rocket, LayoutTemplate, History, Bot, Inbox, LineChart, MessageCircleQuestion, Gauge, ClipboardList, CalendarClock, SearchCheck, ShoppingBag,
 } from 'lucide-react';
 
 export type NavItem = { href: string; label: string; icon: string };
@@ -22,7 +22,7 @@ const ICONS: Record<string, LucideIcon> = {
   dashboard: LayoutDashboard, analytics: BarChart3, orders: ShoppingCart, returns: RotateCcw,
   specialOrders: Globe, gifts: Gift, products: Package, brands: Award, categories: FolderTree,
   tags: Tags, attributes: SlidersHorizontal, collections: LayoutGrid, inventory: Boxes,
-  reorderRequests: ClipboardList, expiryFight: CalendarClock, searchRules: SearchCheck,
+  reorderRequests: ClipboardList, expiryFight: CalendarClock, searchRules: SearchCheck, abandonedCarts: ShoppingBag,
   stocktake: ClipboardCheck, shipping: Truck, customers: Users, tiers: Crown, coupons: Ticket,
   reviews: Star, questions: MessageCircleQuestion, homepage: Home, navigation: Menu, landing: LayoutTemplate, pageSections: LayoutGrid, cmsPages: FileText, blog: Newspaper, social: Share2,
   quizzes: HelpCircle, notifications: Bell, users: UserCog, roles: ShieldCheck, departments: ShieldCheck, settings: Settings,

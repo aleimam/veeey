@@ -215,6 +215,11 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
   });
 
   await clearCartCookie();
+  // #185: the cart converted — drop any abandoned-cart snapshot for it.
+  try {
+    const { clearCartSnapshotByCartId } = await import('@/lib/abandoned-cart-service');
+    await clearCartSnapshotByCartId(cartId);
+  } catch { /* best-effort */ }
   // Remember this browser's recent order numbers so the (public) confirmation
   // page can gate access — order numbers alone are guessable.
   try {

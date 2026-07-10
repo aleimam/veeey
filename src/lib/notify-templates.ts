@@ -30,4 +30,7 @@ export const SEED_TEMPLATES: SeedTemplate[] = [
   // Post-delivery review request (#188) — sent N days after an order is delivered.
   { key: 'review.request', channel: 'EMAIL', locale: 'en', subject: 'How did you like your order {{number}}?', body: 'Hi {{name}}, thanks for shopping with Veeey! Your recent order included: {{products}}. Would you share a quick review? It only takes a minute and helps other shoppers choose. Review here: {{link}}' },
   { key: 'review.request', channel: 'EMAIL', locale: 'ar', subject: 'ما رأيك في طلبك {{number}}؟', body: 'مرحبًا {{name}}، شكرًا لتسوّقك من فيي! تضمّن طلبك الأخير: {{products}}. هل تشاركنا تقييمًا سريعًا؟ لا يستغرق سوى دقيقة، ويساعد بقية المتسوّقين على الاختيار. قيّم من هنا: {{link}}' },
+  // Abandoned-cart reminder (#185) — one email when a signed-in cart sits idle.
+  { key: 'cart.abandoned', channel: 'EMAIL', locale: 'en', subject: 'You left {{count}} item(s) in your Veeey cart', body: 'Hi {{name}}, you still have {{count}} item(s) waiting in your cart ({{total}} EGP). Pick up where you left off: {{link}}' },
+  { key: 'cart.abandoned', channel: 'EMAIL', locale: 'ar', subject: 'تركت {{count}} منتجًا في سلة فيي', body: 'مرحبًا {{name}}، ما زال لديك {{count}} منتجًا في سلّتك ({{total}} ج.م). أكمل من حيث توقّفت: {{link}}' },
 ];

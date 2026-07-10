@@ -29,6 +29,7 @@ async function main() {
   await boss.createQueue(QUEUES.mediaLocalize);
   await boss.createQueue(QUEUES.analyticsPurge);
   await boss.createQueue(QUEUES.reviewRequest);
+  await boss.createQueue(QUEUES.abandonedCart);
 
   await boss.work(QUEUES.notify, async ([job]) => {
     await notify(job.data as NotifyInput);
@@ -39,6 +40,12 @@ async function main() {
     const orderId = (job.data as { orderId: string }).orderId;
     const r = await sendReviewRequest(orderId);
     console.log(`[worker] review-request ${orderId}: ${r.sent ? 'sent' : r.reason}`);
+  });
+
+  await boss.work(QUEUES.abandonedCart, async () => {
+    const { sweepAbandonedCarts } = await import('@/lib/abandoned-cart-service');
+    const r = await sweepAbandonedCarts();
+    console.log(`[worker] abandoned-cart sweep: ${r.sent} reminder(s) sent`);
   });
 
   await boss.work(QUEUES.alerts, async () => {
@@ -105,6 +112,8 @@ async function main() {
   await boss.schedule(QUEUES.auditPurge, '30 4 * * *', {});
   // Analytics retention purge daily 04:45 UTC.
   await boss.schedule(QUEUES.analyticsPurge, '45 4 * * *', {});
+  // Abandoned-cart reminder sweep hourly at :15 (gated by cart.abandonedReminderEnabled).
+  await boss.schedule(QUEUES.abandonedCart, '15 * * * *', {});
   console.log('[worker] started — notify + alerts + woo-sync + audit queues registered, schedules set.');
 }
 

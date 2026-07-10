@@ -406,6 +406,7 @@ model Customer {
   orders            Order[]
   wishlistLists     WishlistList[]
   compareList       CompareList?
+  cartSnapshot      CartSnapshot?
   reviews           Review[]
   loyaltyTxns       LoyaltyTransaction[]
   returns           Return[]
@@ -1723,6 +1724,24 @@ model ReorderIgnore {
   ignoredByName String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+}
+
+/// Latest cart summary per signed-in customer (#185), refreshed on every cart
+/// change. An hourly sweep emails a reminder for carts left idle past a
+/// threshold; deleted when the cart is emptied or the order is placed. Guest
+/// carts (cookie-only, no customer) are not captured and cannot be recovered.
+model CartSnapshot {
+  id               String    @id @default(cuid())
+  customerId       String    @unique
+  customer         Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  cartId           String
+  itemCount        Int
+  subtotalPiastres BigInt    @default(0)
+  reminderSentAt   DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([reminderSentAt])
 }
 
 /// Merchandising fix for search queries that return nothing (#186). A normalized

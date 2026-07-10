@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { ensureCartId, readCartId, addToCart, setCartQty, removeFromCart, addPreorder, setPreorderQty, removePreorder, reorderToCart } from '@/lib/cart-service';
 import { getCurrentUser } from '@/lib/auth-guards';
+import { syncCartSnapshot } from '@/lib/abandoned-cart-service';
 import { placeOrder, type CheckoutInput } from '@/lib/checkout-service';
 import { buildCardRedirect } from '@/lib/payment-gateways';
 import { isOnlineMethod, gatewayFor } from '@/lib/payment-method-service';
@@ -30,6 +31,7 @@ export async function addToCartAction(fd: FormData): Promise<void> {
       failed = true; // INSUFFICIENT_STOCK — tell the shopper instead of a silent empty cart
     }
   }
+  await syncCartSnapshot();
   revalidatePath(`/${locale}/cart`);
   redirect(`/${locale}/cart${failed ? '?add=out' : ''}`);
 }
@@ -45,6 +47,7 @@ export async function buyAgainAction(fd: FormData): Promise<void> {
     const cartId = await ensureCartId();
     ({ added, skipped } = await reorderToCart(cartId, orderId, user.customerId));
   }
+  await syncCartSnapshot();
   revalidatePath(`/${locale}/cart`);
   redirect(`/${locale}/cart?again=${added}-${skipped}`);
 }
@@ -56,6 +59,7 @@ export async function addPreorderToCartAction(fd: FormData): Promise<void> {
   const productId = str(fd, 'productId');
   const qty = Number(str(fd, 'qty') ?? '1') || 1;
   if (productId) await addPreorder(productId, qty);
+  await syncCartSnapshot();
   revalidatePath(`/${locale}/cart`);
   redirect(`/${locale}/cart`);
 }
@@ -80,6 +84,7 @@ export async function updateCartQtyAction(fd: FormData): Promise<void> {
       }
     }
   }
+  await syncCartSnapshot();
   revalidatePath(`/${locale}/cart`);
   redirect(`/${locale}/cart${failed ? '?add=out' : ''}`);
 }
@@ -96,6 +101,7 @@ export async function removeFromCartAction(fd: FormData): Promise<void> {
       if (cartId) await removeFromCart(cartId, productId, condition);
     }
   }
+  await syncCartSnapshot();
   revalidatePath(`/${locale}/cart`);
   redirect(`/${locale}/cart`);
 }
