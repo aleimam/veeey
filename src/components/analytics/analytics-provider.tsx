@@ -41,10 +41,29 @@ function readUtm(): Record<string, string> {
   return utm;
 }
 
+/** Screen + viewport + language for the session payload (best-effort). */
+function readClientEnv() {
+  try {
+    return {
+      language: navigator.language || undefined,
+      screenW: window.screen?.width || undefined,
+      screenH: window.screen?.height || undefined,
+      viewportW: window.innerWidth || undefined,
+      viewportH: window.innerHeight || undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
+const MAX_DWELL = 6 * 60 * 60 * 1000; // 6h — anything longer is a stuck tab, drop it
+
 /**
- * First-party clickstream provider (FR-BEH-01). Batches events and flushes via
- * sendBeacon. Consent is read live from the shared consent module and forwarded
- * so the server only links a customer under full consent.
+ * First-party clickstream provider (FR-BEH-01 + Analytics P1). Batches events and
+ * flushes via sendBeacon. Tracks per-page dwell time by emitting a `page_leave`
+ * event (with durationMs) whenever the visitor navigates away, hides the tab, or
+ * closes the page. Consent is read live and forwarded so the server only stores
+ * identifying data under full consent.
  */
 export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   const consent = useSyncExternalStore(subscribeConsent, getConsent, () => null);
@@ -53,6 +72,8 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   const queue = useRef<ClientEvent[]>([]);
   const sid = useRef<string>('');
   const consentRef = useRef(consent);
+  const pageEnter = useRef<number>(0); // stamped on the first route effect (mount)
+  const pagePath = useRef<string>('');
 
   useEffect(() => {
     consentRef.current = consent;
@@ -68,6 +89,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       consent: consentRef.current,
       referrer: document.referrer || undefined,
       utm: readUtm(),
+      ...readClientEnv(),
       events,
     });
     try {
@@ -86,24 +108,48 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     [flush],
   );
 
-  // Auto page-view on every route change.
-  useEffect(() => {
-    track('page_view');
-  }, [pathname, track]);
+  // Emit a page_leave (with dwell time) for the page we're leaving, then reset the
+  // timer so a subsequent hide+navigate doesn't double-count.
+  const leaveCurrentPage = useCallback(() => {
+    const path = pagePath.current;
+    if (!path) return;
+    const dur = Date.now() - pageEnter.current;
+    pageEnter.current = Date.now();
+    if (dur > 0 && dur < MAX_DWELL) {
+      queue.current.push({ name: 'page_leave', path, durationMs: dur, ts: Date.now() });
+    }
+  }, []);
 
-  // Periodic + on-leave flush.
+  // Route change → close out the previous page, open the new one.
+  useEffect(() => {
+    leaveCurrentPage();
+    pagePath.current = typeof location !== 'undefined' ? location.pathname : pathname;
+    pageEnter.current = Date.now();
+    track('page_view');
+  }, [pathname, track, leaveCurrentPage]);
+
+  // Periodic flush + close out the page on hide/leave.
   useEffect(() => {
     const interval = setInterval(flush, 5000);
-    const onHide = () => flush();
+    const onHide = () => {
+      if (document.visibilityState === 'hidden') leaveCurrentPage();
+      flush();
+    };
+    const onShow = () => {
+      if (document.visibilityState === 'visible') pageEnter.current = Date.now();
+    };
     document.addEventListener('visibilitychange', onHide);
+    document.addEventListener('visibilitychange', onShow);
     window.addEventListener('pagehide', onHide);
     return () => {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', onHide);
+      document.removeEventListener('visibilitychange', onShow);
       window.removeEventListener('pagehide', onHide);
+      leaveCurrentPage();
       flush();
     };
-  }, [flush]);
+  }, [flush, leaveCurrentPage]);
 
   return <TrackContext.Provider value={track}>{children}</TrackContext.Provider>;
 }
