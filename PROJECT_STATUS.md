@@ -7,8 +7,8 @@
 
 ## Current state
 
-- **Live** at **veeey.com**. Latest deployed commit: **`cefbce0`** (2026-07-11). All
-  **45 Prisma migrations applied**; `pm2` processes `veeey` (web) + `veeey-worker` (jobs) healthy;
+- **Live** at **veeey.com**. Latest deployed commit: **`cb08885`** (2026-07-11). All
+  **46 Prisma migrations applied**; `pm2` processes `veeey` (web) + `veeey-worker` (jobs) healthy;
   `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **336 unit tests** · build.
 - Stack: Next.js 16 (App Router, Turbopack) · TypeScript strict · Prisma 7 + Postgres ·
   Auth.js · next-intl (AR/EN, RTL) · Tailwind v4 · pg-boss v12.
@@ -17,6 +17,7 @@
 
 | Feature | Commits | Notes |
 |---|---|---|
+| **V4 Shipping stream (E23–E28)** | `9f00b1c`→`cb08885` | **"Free shipping over EGP 1,500" concept removed** (cart-drawer progress bar deleted; nav default promo disabled+empty; prod had no `nav.config` override so the header line is gone live). **UltraFast only in Greater Cairo + Giza** (checkout hides it elsewhere w/ graceful fallback). Structured ETA `etaMinDays/etaMaxDays` (+optional label) renders bilingual "2–3 business days". Zones/sub-areas bilingual (`nameAr`). Admin: collapsed zone accordion + search, delete confirmations, sub-area **Save-all**. **Seed RAN on prod**: 27 zones AR names + **194 sub-areas created** (`scripts/seed-shipping-areas.ts`, idempotent, dry-run default). Migration `shipping_v2`. Flat per-method fees kept by design. |
 | **V4 Stocktake stream (D15–D22)** | `f3d34a4` `cefbce0` | **Behavior change: counting only RECORDS — stock changes when a reviewer "Approve & apply"s the reconcile screen** (lot-level adjustments + ledger `refType stocktake` + audit; "Close & discard" keeps counts, changes nothing). New count sheet: live color-coded variance, search/filters/pagination, Save-all batch + progress bar, barcode SKU+Enter → +1, blind-count mode, condition badges. Sessions: scope (category/brand cycle counts), assigned counter, created/approved-by attribution, variance + adjustment summaries, delete for never-applied. Recurring `StocktakeSchedule` auto-opens sessions (daily 02:45 UTC cron, new `stocktake-cycle` queue). Migration `stocktake_v2`. |
 | **V4 Inventory stream (C7–C14)** | `535da20`→`163134f` | Searchable `ProductSelect` picker fixes lot-edit preselect (old dropdown capped at 200 rows) + intake; expiring/condition filters + status colors + dashboard deep-link; lots BulkBar (−% discount / status / CSV export via new `lots` adapter) + Reserved column; `Product.reorderPoint` (migration `reorder_point`) feeds the To-buy short-stock tab + product-form field; **condition-migration tool** `/admin/inventory/condition-migration` (dry-run → gated apply: "{Broken bottle}"-named variants' lots move to base product w/ condition, variant archived); YeldnIN receiving preps QUARANTINE intake lots w/ supplier cost behind `INTEGRATION_ENABLED` (⚠️ `unitCostEgp` contract field to confirm at re-baseline); cost editable at intake publish; killed a dormant `loc_main` hardcode in mock intake. |
 | **Gift-with-purchase automation** | `1197db5` `c213f55` | `GiftRule` model + pure engine (`gift-rules.ts`) + `applyGiftRules` inside checkout/staff-order tx (atomic gift-stock claim, skip-not-fail); cart earned/nudge hints; confirmation gift lines; admin `/admin/gifts/rules` (create/pause/delete, product-by-SKU + category + subtotal + window conditions). Migration `gift_rules`. |
