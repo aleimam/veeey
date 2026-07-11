@@ -283,6 +283,20 @@ model User {
   stocktakeCounts  StocktakeCount[]
   reviewsModerated Review[]           @relation("ReviewModerator")
   departments      DepartmentMember[]
+  adminUsage       AdminSectionUsage[]
+}
+
+// Per-user admin section visit counters — drives the dashboard's personal
+// "quick access" cards (top 8 most-visited sections for that user).
+model AdminSectionUsage {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  section   String // sidebar item href, e.g. "/admin/orders"
+  count     Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, section])
 }
 
 model Account {
