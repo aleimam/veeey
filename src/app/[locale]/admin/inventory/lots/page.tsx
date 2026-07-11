@@ -10,7 +10,7 @@ import { SortableTh } from '@/components/admin/sortable-th';
 import { ListPagination } from '@/components/admin/list-pagination';
 import { parseListParams, one, type SP } from '@/lib/admin-list';
 import { pick } from '@/lib/admin-i18n';
-import { conditionLabel, isConditionVariant } from '@/lib/lot-condition';
+import { conditionLabel, isConditionVariant, LOT_CONDITIONS } from '@/lib/lot-condition';
 
 const monthYear = (d: Date) => `${String(d.getUTCMonth() + 1).padStart(2, '0')}/${d.getUTCFullYear()}`;
 const SORTABLE = ['product', 'location', 'expiry', 'onhand', 'price', 'status'] as const;
@@ -27,8 +27,10 @@ export default async function LotsPage({ params, searchParams }: { params: Promi
   const locationId = one(sp.location);
   const stock = one(sp.stock);
   const sale = one(sp.sale);
+  const expiring = one(sp.expiring);
+  const condition = one(sp.condition);
   const { sort, dir, page, perPage } = parseListParams(sp, { sortable: SORTABLE, defaultSort: 'expiry', defaultDir: 'asc' });
-  const filters = { search: q, status, locationId, stock, sale };
+  const filters = { search: q, status, locationId, stock, sale, expiring, condition };
 
   const [lots, total, locations] = await Promise.all([
     listLots({ ...filters, sort, dir, page, perPage }),
@@ -48,7 +50,7 @@ export default async function LotsPage({ params, searchParams }: { params: Promi
       <FilterBar
         locale={locale}
         path="inventory/lots"
-        values={{ q, status, location: locationId, stock, sale }}
+        values={{ q, status, location: locationId, stock, sale, expiring, condition }}
         fields={[
           { name: 'q', label: tb('Search', 'بحث'), type: 'text', placeholder: tb('Product name / SKU', 'اسم المنتج / SKU') },
           { name: 'status', label: tb('Status', 'الحالة'), type: 'select', options: LOT_STATUSES.map((s) => ({ value: s, label: s })) },
@@ -59,6 +61,12 @@ export default async function LotsPage({ params, searchParams }: { params: Promi
             { value: 'zero', label: tb('Out of stock', 'غير متوفر') },
           ] },
           { name: 'sale', label: tb('Sale', 'التخفيض'), type: 'select', options: [{ value: '1', label: tb('On sale', 'عليه تخفيض') }] },
+          { name: 'expiring', label: tb('Expiring within', 'تنتهي خلال'), type: 'select', options: [
+            { value: '30', label: tb('30 days', '٣٠ يومًا') },
+            { value: '90', label: tb('90 days', '٩٠ يومًا') },
+            { value: '180', label: tb('180 days', '١٨٠ يومًا') },
+          ] },
+          { name: 'condition', label: tb('Condition', 'حالة العبوة'), type: 'select', options: LOT_CONDITIONS.map((c) => ({ value: c, label: conditionLabel(c, locale) })) },
         ]}
       />
 

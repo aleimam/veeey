@@ -23,7 +23,7 @@ export default async function InventoryOverviewPage({ params }: { params: Promis
   const cards = [
     { label: tb('Lots in stock', 'الدفعات المتاحة في المخزون'), value: live, href: '/admin/inventory/lots' },
     { label: tb('Pending intake', 'إدخال قيد الانتظار'), value: quarantine, href: '/admin/inventory/intake', sub: tb('Received, awaiting publish', 'تم الاستلام، في انتظار النشر') },
-    { label: tb('Expiring within ≤ 90 days', 'تنتهي صلاحيتها خلال ≤ 90 يوم'), value: expiringSoon, href: '/admin/inventory/lots', sub: tb('Review for discounts', 'مراجعة للخصومات') },
+    { label: tb('Expiring within ≤ 90 days', 'تنتهي صلاحيتها خلال ≤ 90 يوم'), value: expiringSoon, href: '/admin/inventory/lots?status=LIVE&stock=in&expiring=90', sub: tb('Review for discounts', 'مراجعة للخصومات') },
     { label: tb('Locations', 'المواقع'), value: locations, href: '/admin/inventory/locations' },
   ];
 

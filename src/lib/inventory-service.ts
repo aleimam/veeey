@@ -29,7 +29,7 @@ export type LotInput = z.input<typeof lotInputSchema>;
 
 export type LotListOpts = {
   search?: string; status?: string; locationId?: string; productId?: string;
-  sale?: string; stock?: string;
+  sale?: string; stock?: string; expiring?: string; condition?: string;
   sort?: string; dir?: 'asc' | 'desc'; page?: number; perPage?: number;
 };
 
@@ -39,7 +39,12 @@ function lotWhere(o: LotListOpts): Prisma.LotWhereInput {
     ...(o.locationId ? { locationId: o.locationId } : {}),
     ...(o.productId ? { productId: o.productId } : {}),
     ...(o.sale === '1' ? { saleFlag: true } : {}),
+    ...(o.condition ? { condition: o.condition } : {}),
     ...(o.stock === 'in' ? { qtyOnHand: { gt: 0 } } : o.stock === 'zero' ? { qtyOnHand: { lte: 0 } } : o.stock === 'low' ? { qtyOnHand: { lte: 5 } } : {}), // 'low' (≤5) matches the dashboard low-stock KPI
+    // Expiring-within filter (V4 C13) — dated lots expiring inside N days.
+    ...(o.expiring && Number(o.expiring) > 0
+      ? { expiryDate: { not: null, lt: new Date(Date.now() + Number(o.expiring) * 86_400_000) } }
+      : {}),
     ...(o.search
       ? { product: { OR: [{ nameEn: { contains: o.search, mode: 'insensitive' } }, { sku: { contains: o.search, mode: 'insensitive' } }] } }
       : {}),
