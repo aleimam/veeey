@@ -10,7 +10,7 @@ import { deriveSystemMethod } from '@/lib/payment-method-service';
 import { availableQty } from '@/lib/inventory';
 import { getShippingFee, type ShippingTypeKey } from '@/lib/shipping-service';
 import { getNumberSetting } from '@/lib/settings-service';
-import { creditOrderPoints, creditReferralReward, reverseOrderPoints } from '@/lib/loyalty-service';
+import { creditOrderPoints, creditReferralReward, reverseOrderPoints, recomputeLoyaltyStanding } from '@/lib/loyalty-service';
 import { enqueue, QUEUES } from '@/lib/jobs';
 import { notify, type NotifyInput } from '@/lib/notification-service';
 import { smsConfigured } from '@/lib/provider-config';
@@ -193,6 +193,12 @@ async function applyStatusEffects(order: { id: string; number: string; totalPias
     await creditReferralReward(order.id); // referrer earns a configured share of the referee's order points
   } else if (cfg.loyaltyEffect === 'reverse') {
     await reverseOrderPoints(order.id); // idempotent; no-op if nothing was credited
+  }
+  // Keep lifetime spend + tier canonical after any loyalty-affecting transition
+  // (auto-promotes/demotes the customer per the tier thresholds, V5 F29).
+  if (cfg.loyaltyEffect === 'credit' || cfg.loyaltyEffect === 'reverse') {
+    const full = await prisma.order.findUnique({ where: { id: order.id }, select: { customerId: true } });
+    if (full?.customerId) await recomputeLoyaltyStanding(full.customerId).catch((e) => console.error('loyalty standing recompute failed', e));
   }
 }
 

@@ -131,3 +131,53 @@ export async function getExpiryView(opts: { tab: ExpiryTab; page: number; perPag
 
   return { rows, total, page: opts.page, perPage: opts.perPage, counts };
 }
+
+// ---- Expired stock (V4 C6) --------------------------------------------------
+
+export interface ExpiredStockRow {
+  lotId: string;
+  productId: string;
+  sku: string;
+  nameEn: string;
+  nameAr: string | null;
+  image: string | null;
+  expiry: Date | null;
+  qty: number;
+  valuePiastres: number; // qty × effective price (what the stuck stock is "worth")
+  condition: string;
+}
+
+/** EXPIRED lots still holding units — the write-off/disposal queue. Auto-expiry
+ *  (expireOverdueLots) feeds this; sorted most-recently-expired first. */
+export async function getExpiredStock(limit = 100): Promise<{ rows: ExpiredStockRow[]; totalLots: number; totalUnits: number; totalValuePiastres: number }> {
+  const lots = await prisma.lot.findMany({
+    where: { status: 'EXPIRED', qtyOnHand: { gt: 0 } },
+    select: {
+      id: true, productId: true, expiryDate: true, qtyOnHand: true, condition: true, priceOverridePiastres: true,
+      product: { select: { sku: true, nameEn: true, nameAr: true, basePricePiastres: true, images: { orderBy: { sortOrder: 'asc' }, take: 1, select: { url: true } } } },
+    },
+    orderBy: [{ expiryDate: 'desc' }],
+  });
+
+  let totalUnits = 0;
+  let totalValuePiastres = 0;
+  const all = lots.map((l) => {
+    const value = l.qtyOnHand * n(l.priceOverridePiastres ?? l.product.basePricePiastres);
+    totalUnits += l.qtyOnHand;
+    totalValuePiastres += value;
+    return {
+      lotId: l.id,
+      productId: l.productId,
+      sku: l.product.sku,
+      nameEn: l.product.nameEn,
+      nameAr: l.product.nameAr,
+      image: l.product.images[0]?.url ?? null,
+      expiry: l.expiryDate,
+      qty: l.qtyOnHand,
+      valuePiastres: value,
+      condition: l.condition,
+    };
+  });
+
+  return { rows: all.slice(0, limit), totalLots: all.length, totalUnits, totalValuePiastres };
+}

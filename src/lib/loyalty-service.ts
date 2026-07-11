@@ -1,10 +1,74 @@
 import { prisma } from '@/lib/prisma';
 import { earnedPoints, pointsToPiastres } from '@/lib/loyalty';
 import { getNumberSetting } from '@/lib/settings-service';
+import { pickTierId, standingChanged } from '@/lib/loyalty-standing';
+import { audit } from '@/lib/audit';
 
 /** Loyalty service (FR-PRC-04). Points earn when an order is delivered (revenue
  *  realized) and lifetime spend updates then too. Redemption is recorded at
  *  checkout. Double-credit is guarded by checking for an existing EARN txn. */
+
+/**
+ * Recompute loyalty STANDING — lifetime spend (Σ DELIVERED order totals) + tier
+ * (highest threshold met) — for one customer or the whole base (V5 F29).
+ * Canonical + idempotent: covers orders that never passed transitionOrder
+ * (WooCommerce-imported/synced ones), which is why 16k customers sat at
+ * "0 pts · 0 EGP · base tier". Deliberately does NOT touch pointsBalance —
+ * per owner decision, points are not minted retroactively; they accrue from
+ * now on via creditOrderPoints.
+ */
+export async function recomputeLoyaltyStanding(customerId?: string): Promise<{ scanned: number; updated: number }> {
+  const tiers = (await prisma.tier.findMany({ select: { id: true, rank: true, minSpendPiastres: true } }))
+    .map((t) => ({ ...t, minSpendPiastres: BigInt(t.minSpendPiastres) }));
+
+  const spendRows = await prisma.order.groupBy({
+    by: ['customerId'],
+    where: { status: 'DELIVERED', customerId: customerId ?? { not: null } },
+    _sum: { totalPiastres: true },
+  });
+  const spendBy = new Map(spendRows.map((r) => [r.customerId as string, BigInt(r._sum.totalPiastres ?? 0n)]));
+
+  let scanned = 0;
+  let updated = 0;
+  const BATCH = 1000;
+  let cursor: string | undefined;
+  for (;;) {
+    const customers = await prisma.customer.findMany({
+      where: customerId ? { id: customerId } : {},
+      select: { id: true, lifetimeSpendPiastres: true, tierId: true },
+      orderBy: { id: 'asc' },
+      take: BATCH,
+      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+    });
+    if (customers.length === 0) break;
+    scanned += customers.length;
+
+    const writes = customers
+      .map((c) => {
+        const spend = spendBy.get(c.id) ?? 0n;
+        const tierId = pickTierId(tiers, spend);
+        return standingChanged(c, { spendPiastres: spend, tierId }) ? { id: c.id, spend, tierId } : null;
+      })
+      .filter((w): w is NonNullable<typeof w> => w !== null);
+
+    for (let i = 0; i < writes.length; i += 50) {
+      await Promise.all(
+        writes.slice(i, i + 50).map((w) =>
+          prisma.customer.update({ where: { id: w.id }, data: { lifetimeSpendPiastres: w.spend, tierId: w.tierId } }),
+        ),
+      );
+    }
+    updated += writes.length;
+
+    cursor = customers[customers.length - 1].id;
+    if (customers.length < BATCH || customerId) break;
+  }
+
+  if (!customerId && updated > 0) {
+    await audit({ actorType: 'SYSTEM', action: 'loyalty.standing.recompute', entityType: 'Customer', data: { scanned, updated } });
+  }
+  return { scanned, updated };
+}
 
 export async function creditOrderPoints(orderId: string): Promise<number> {
   const order = await prisma.order.findUnique({ where: { id: orderId }, include: { customer: { include: { tier: true } } } });

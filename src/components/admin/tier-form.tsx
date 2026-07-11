@@ -14,6 +14,7 @@ type Defaults = {
   nameAr?: string;
   rank?: number;
   earnRatePerEgp?: number;
+  minSpendEgp?: number;
   color?: string | null;
   badge?: string | null;
 };
@@ -46,6 +47,12 @@ export function TierForm({ id, locale, defaults = {} }: { id?: string; locale: s
           <input name="earnRatePerEgp" type="number" min={0} required defaultValue={defaults.earnRatePerEgp ?? 1} className={inputCls} />
         </Field>
       </div>
+      <Field
+        label={tb('Min lifetime spend (EGP)', 'الحد الأدنى للإنفاق الكلي (ج.م)')}
+        hint={tb('Customers are auto-promoted to the highest tier whose threshold their delivered-order spend meets. 0 = base tier.', 'يُرقّى العملاء تلقائيًا لأعلى فئة يحقق إنفاقهم (الطلبات المُسلّمة) حدّها. 0 = الفئة الأساسية.')}
+      >
+        <input name="minSpendEgp" type="number" min={0} step="0.01" required defaultValue={defaults.minSpendEgp ?? 0} className={inputCls} />
+      </Field>
       <div className="grid grid-cols-2 gap-4">
         <Field label={tb('Color', 'اللون')} hint={tb('Hex value, used for the tier badge.', 'قيمة Hex، تُستخدم لشارة الفئة.')}>
           <input name="color" type="text" placeholder="#48884D" defaultValue={defaults.color ?? ''} className={inputCls} />

@@ -28,6 +28,7 @@ const tierSchema = z.object({
   nameAr: z.string().trim().min(1),
   rank: z.coerce.number().int().min(1),
   earnRatePerEgp: z.coerce.number().int().min(0),
+  minSpendEgp: z.coerce.number().min(0).default(0), // auto-promotion threshold (V5 F29)
   color: z.string().trim().optional().nullable(),
   badge: z.string().trim().optional().nullable(),
 });
@@ -38,7 +39,8 @@ export async function saveTier(id: string | null, raw: TierInput) {
   const d = tierSchema.parse(raw);
   const data = {
     key: d.key, nameEn: d.nameEn, nameAr: d.nameAr, rank: d.rank,
-    earnRatePerEgp: d.earnRatePerEgp, color: d.color ?? null, badge: d.badge ?? null,
+    earnRatePerEgp: d.earnRatePerEgp, minSpendPiastres: BigInt(Math.round(d.minSpendEgp * 100)),
+    color: d.color ?? null, badge: d.badge ?? null,
   };
   const tier = id
     ? await prisma.tier.update({ where: { id }, data })

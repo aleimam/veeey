@@ -30,6 +30,8 @@ async function main() {
   await boss.createQueue(QUEUES.analyticsPurge);
   await boss.createQueue(QUEUES.reviewRequest);
   await boss.createQueue(QUEUES.abandonedCart);
+  await boss.createQueue(QUEUES.lotExpiry);
+  await boss.createQueue(QUEUES.loyaltyStanding);
 
   await boss.work(QUEUES.notify, async ([job]) => {
     await notify(job.data as NotifyInput);
@@ -103,6 +105,21 @@ async function main() {
     console.log(`[worker] analytics purge: ${r.skipped ? `skipped (${r.skipped})` : `${r.events} events / ${r.sessions} sessions deleted`}`);
   });
 
+  // Auto-expire overdue lots (V4 C6) — LIVE lots past expiry → EXPIRED.
+  await boss.work(QUEUES.lotExpiry, async () => {
+    const { expireOverdueLots } = await import('@/lib/inventory-service');
+    const r = await expireOverdueLots();
+    console.log(`[worker] lot expiry sweep: ${r.expired} lot(s) auto-expired`);
+  });
+
+  // Loyalty standing recompute (V5 F29) — lifetime spend + tier from DELIVERED
+  // orders; catches WooCommerce-synced orders that never pass transitionOrder.
+  await boss.work(QUEUES.loyaltyStanding, async () => {
+    const { recomputeLoyaltyStanding } = await import('@/lib/loyalty-service');
+    const r = await recomputeLoyaltyStanding();
+    console.log(`[worker] loyalty standing: ${r.updated}/${r.scanned} customer(s) updated`);
+  });
+
   // Recurring wishlist-alert sweep every 5 minutes.
   await boss.schedule(QUEUES.alerts, '*/5 * * * *', {});
   // WooCommerce incremental sync every 15 minutes (gated by woo.sync.enabled).
@@ -114,6 +131,9 @@ async function main() {
   await boss.schedule(QUEUES.analyticsPurge, '45 4 * * *', {});
   // Abandoned-cart reminder sweep hourly at :15 (gated by cart.abandonedReminderEnabled).
   await boss.schedule(QUEUES.abandonedCart, '15 * * * *', {});
+  // Auto-expire overdue lots daily 03:10 UTC; loyalty standing recompute 03:25 UTC.
+  await boss.schedule(QUEUES.lotExpiry, '10 3 * * *', {});
+  await boss.schedule(QUEUES.loyaltyStanding, '25 3 * * *', {});
   console.log('[worker] started — notify + alerts + woo-sync + audit queues registered, schedules set.');
 }
 

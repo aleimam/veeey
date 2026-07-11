@@ -4,7 +4,8 @@ import { getCurrentUser } from '@/lib/auth-guards';
 import { hasPermission } from '@/lib/rbac';
 import { pick } from '@/lib/admin-i18n';
 import { formatEGP } from '@/lib/format';
-import { getExpiryView } from '@/lib/inventory-expiry-service';
+import { getExpiryView, getExpiredStock } from '@/lib/inventory-expiry-service';
+import { conditionLabel, isConditionVariant } from '@/lib/lot-condition';
 import type { ExpiryTab } from '@/lib/inventory-reorder';
 import { setExpiryPriceAction } from '@/server/inventory-reorder-actions';
 import { ListPagination } from '@/components/admin/list-pagination';
@@ -36,7 +37,7 @@ export default async function ExpiryFightPage({ params, searchParams }: { params
   const tabParam = one(sp.tab);
   const tab: ExpiryTab = (TAB_KEYS as string[]).includes(tabParam ?? '') ? (tabParam as ExpiryTab) : 'this_month';
   const { page, perPage } = parseListParams(sp, { sortable: [], defaultSort: '' });
-  const view = await getExpiryView({ tab, page, perPage });
+  const [view, expired] = await Promise.all([getExpiryView({ tab, page, perPage }), getExpiredStock(100)]);
 
   const basePath = `/${locale}/admin/inventory/expiry`; // locale-prefixed: for `back` + ListPagination (plain <a>)
   const back = `${basePath}${listQs(sp, {})}`;
@@ -146,6 +147,75 @@ export default async function ExpiryFightPage({ params, searchParams }: { params
       </div>
 
       <ListPagination total={view.total} page={view.page} perPage={view.perPage} sp={sp} basePath={basePath} locale={locale} />
+
+      {/* Expired stock (V4 C6) — units sitting in EXPIRED lots, auto-swept daily */}
+      <section className="mt-10">
+        <h2 className="mb-1 font-heading text-lg font-semibold text-foreground">{tb('Expired stock', 'مخزون منتهي الصلاحية')}</h2>
+        <p className="mb-3 max-w-3xl text-sm text-muted-foreground">
+          {tb(
+            'Lots whose expiry date has passed — automatically moved out of sellable stock every night. Dispose or write them off from the lot page.',
+            'تشغيلات انتهت صلاحيتها — تُنقل تلقائيًا خارج المخزون القابل للبيع كل ليلة. تخلّص منها أو اشطبها من صفحة التشغيلة.',
+          )}
+        </p>
+        {expired.totalLots === 0 ? (
+          <div className="rounded-xl border border-border bg-card px-3 py-8 text-center text-sm text-muted-foreground">
+            {tb('No expired stock — nothing is sitting past its date. 🎉', 'لا يوجد مخزون منتهي الصلاحية — لا شيء تجاوز تاريخه. 🎉')}
+          </div>
+        ) : (
+          <>
+            <div className="mb-3 flex flex-wrap gap-4 text-sm">
+              <span className="rounded-lg bg-destructive/10 px-3 py-1.5 font-medium text-destructive">{expired.totalLots} {tb('lots', 'تشغيلة')}</span>
+              <span className="rounded-lg bg-destructive/10 px-3 py-1.5 font-medium text-destructive">{expired.totalUnits} {tb('units', 'وحدة')}</span>
+              <span className="rounded-lg bg-destructive/10 px-3 py-1.5 font-medium text-destructive">{formatEGP(expired.totalValuePiastres)} {tb('stuck value', 'قيمة عالقة')}</span>
+            </div>
+            <div className="overflow-x-auto rounded-xl border border-border bg-card">
+              <table className="w-full min-w-[640px] border-collapse">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className={th}>{tb('Product', 'المنتج')}</th>
+                    <th className={th}>{tb('Expired', 'انتهت في')}</th>
+                    <th className={`${th} text-end`}>{tb('Units', 'الوحدات')}</th>
+                    <th className={`${th} text-end`}>{tb('Value', 'القيمة')}</th>
+                    <th className={th} />
+                  </tr>
+                </thead>
+                <tbody>
+                  {expired.rows.map((r) => (
+                    <tr key={r.lotId} className="border-b border-border last:border-0">
+                      <td className={td}>
+                        <div className="flex items-center gap-2.5">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          {r.image ? <img src={r.image} alt="" className="size-9 shrink-0 rounded-md border border-border object-cover" /> : <div className="size-9 shrink-0 rounded-md border border-border bg-muted" />}
+                          <div className="min-w-0">
+                            <Link href={`/admin/products/edit/${r.productId}`} className="line-clamp-1 font-medium text-foreground hover:text-primary">
+                              {(locale === 'ar' ? r.nameAr : r.nameEn) || r.nameEn}
+                            </Link>
+                            <div className="text-xs text-muted-foreground">
+                              {r.sku}
+                              {isConditionVariant(r.condition) && <span className="ms-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">{conditionLabel(r.condition, locale)}</span>}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className={`${td} text-destructive`}>{r.expiry ? fmtDate(r.expiry) : '—'}</td>
+                      <td className={`${td} text-end tabular-nums`}>{r.qty}</td>
+                      <td className={`${td} text-end tabular-nums`}>{formatEGP(r.valuePiastres)}</td>
+                      <td className={`${td} text-end`}>
+                        <Link href={`/admin/inventory/lots/edit/${r.lotId}`} className="text-sm text-primary hover:underline">{tb('Open lot', 'فتح التشغيلة')}</Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {expired.totalLots > expired.rows.length && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                {tb(`Showing ${expired.rows.length} of ${expired.totalLots} — see the lots list (status = EXPIRED) for the rest.`, `يعرض ${expired.rows.length} من ${expired.totalLots} — راجع قائمة التشغيلات (الحالة = منتهية) للباقي.`)}
+              </p>
+            )}
+          </>
+        )}
+      </section>
     </div>
   );
 }

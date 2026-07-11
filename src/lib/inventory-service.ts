@@ -151,6 +151,25 @@ export async function setLotStatus(lotId: string, status: 'LIVE' | 'QUARANTINE' 
   return lot;
 }
 
+/**
+ * Auto-expire overdue lots (V4 C6). Any LIVE lot whose expiry date has passed
+ * flips to EXPIRED — off the storefront, out of sellable stock, out of FEFO.
+ * Runs daily from the worker (and once at deploy); reserveStock also guards the
+ * gap between sweeps. Returns how many lots were expired.
+ */
+export async function expireOverdueLots(): Promise<{ expired: number }> {
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  const { count } = await prisma.lot.updateMany({
+    where: { status: 'LIVE', expiryDate: { not: null, lt: today } },
+    data: { status: 'EXPIRED' },
+  });
+  if (count > 0) {
+    await audit({ actorType: 'SYSTEM', action: 'lot.auto_expired', entityType: 'Lot', data: { count } });
+  }
+  return { expired: count };
+}
+
 export type ReservationBinding = {
   lotId: string;
   reservationId: string;
@@ -175,11 +194,16 @@ export async function reserveStock(
 ): Promise<ReservationBinding[]> {
   const expiresAt = new Date(Date.now() + (opts.holdMinutes ?? HOLD_MINUTES_DEFAULT) * 60_000);
   return prisma.$transaction(async (tx) => {
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
     const lots = await tx.lot.findMany({
       where: {
         productId,
         ...(locationId ? { locationId } : {}),
         status: 'LIVE',
+        // Guard the window between daily auto-expire sweeps — never sell an
+        // overdue lot even while it still says LIVE (V4 C6).
+        OR: [{ expiryDate: null }, { expiryDate: { gte: today } }],
         ...(opts.lotId ? { id: opts.lotId } : { condition: opts.condition ?? 'NEW' }),
       },
       orderBy: { expiryDate: 'asc' },

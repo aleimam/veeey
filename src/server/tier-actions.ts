@@ -28,6 +28,7 @@ export async function saveTierAction(_p: AdminFormState, fd: FormData): Promise<
       nameAr: str(fd, 'nameAr') ?? '',
       rank: str(fd, 'rank') ?? '1',
       earnRatePerEgp: str(fd, 'earnRatePerEgp') ?? '1',
+      minSpendEgp: str(fd, 'minSpendEgp') ?? '0',
       color: str(fd, 'color') ?? null,
       badge: str(fd, 'badge') ?? null,
     });

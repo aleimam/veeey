@@ -33,7 +33,8 @@ export default async function TierEditPage({ params }: { params: Promise<{ local
         locale={locale}
         defaults={tier ? {
           key: tier.key, nameEn: tier.nameEn, nameAr: tier.nameAr, rank: tier.rank,
-          earnRatePerEgp: tier.earnRatePerEgp, color: tier.color, badge: tier.badge,
+          earnRatePerEgp: tier.earnRatePerEgp, minSpendEgp: Number(tier.minSpendPiastres) / 100,
+          color: tier.color, badge: tier.badge,
         } : {}}
       />
 
