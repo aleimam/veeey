@@ -699,6 +699,7 @@ model Category {
   robotsFollow        Boolean    @default(true)
   schemaOverridesJson Json?
   products            Product[]  @relation("ProductCategories")
+  giftRules           GiftRule[]
   archivedAt          DateTime?
   createdAt           DateTime   @default(now())
 
@@ -838,6 +839,7 @@ model Product {
   compareItems     CompareItem[]
   orderItems       OrderItem[]
   changeEvents     ProductChangeEvent[]
+  giftRules        GiftRule[]
   relationsFrom    ProductRelation[]       @relation("RelationFrom")
   relationsTo      ProductRelation[]       @relation("RelationTo")
   stocktakeCounts  StocktakeCount[]
@@ -1098,6 +1100,31 @@ model Gift {
   createdAt    DateTime       @default(now())
   orderGifts   OrderGift[]
   movements    GiftMovement[]
+  rules        GiftRule[]
+}
+
+/// Gift-with-purchase automation (owner growth feature): when an order meets a
+/// rule's conditions (AND-ed where present), its gift is auto-attached at
+/// checkout / staff order creation — best-effort, skipped when gift stock runs
+/// out, never blocks the order. nameEn/nameAr are customer-facing (cart hint).
+model GiftRule {
+  id                  String    @id @default(cuid())
+  nameEn              String
+  nameAr              String?
+  giftId              String
+  gift                Gift      @relation(fields: [giftId], references: [id], onDelete: Cascade)
+  giftQty             Int       @default(1)
+  active              Boolean   @default(true)
+  minSubtotalPiastres BigInt? // order subtotal ≥ X
+  productId           String? // order contains this product
+  product             Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+  categoryId          String? // order contains a product from this category
+  category            Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  startsAt            DateTime?
+  endsAt              DateTime?
+  createdAt           DateTime  @default(now())
+
+  @@index([active])
 }
 
 /// Gift stock movement audit (counter-based — gifts are NOT lot-tracked).
