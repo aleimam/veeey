@@ -1,5 +1,7 @@
 import { getSetting } from '@/lib/settings-service';
 import { activeSocialLinks } from '@/lib/social-service';
+import { getBranding } from '@/lib/branding-service';
+import { DEFAULT_BRANDING, type Branding } from '@/lib/branding';
 
 const SITE = 'https://veeey.com';
 
@@ -13,15 +15,18 @@ export async function SiteJsonLd({ locale }: { locale: string }) {
   let email = 'info@veeey.com';
   let whatsapp = '';
   let socials: { platform: string; url: string }[] = [];
+  let branding: Branding = DEFAULT_BRANDING;
   try {
-    [email, whatsapp, socials] = await Promise.all([
+    [email, whatsapp, socials, branding] = await Promise.all([
       getSetting('store.contactEmail'),
       getSetting('store.whatsappNumber'),
       activeSocialLinks(),
+      getBranding(),
     ]);
   } catch {
     // DB hiccup → still emit a minimal Organization from the constants above.
   }
+  const logoUrl = branding.logoUrl ? (branding.logoUrl.startsWith('/') ? `${SITE}${branding.logoUrl}` : branding.logoUrl) : `${SITE}/brand/veeey-logo.png`;
 
   const sameAs = socials
     .filter((s) => s.platform !== 'whatsapp' && /^https?:\/\//i.test(s.url))
@@ -31,10 +36,10 @@ export async function SiteJsonLd({ locale }: { locale: string }) {
   const organization = {
     '@type': 'Organization',
     '@id': `${SITE}/#organization`,
-    name: 'Veeey',
+    name: branding.siteNameEn,
     url: SITE,
-    logo: `${SITE}/brand/veeey-logo.png`,
-    image: `${SITE}/brand/veeey-logo.png`,
+    logo: logoUrl,
+    image: logoUrl,
     ...(email ? { email } : {}),
     ...(sameAs.length ? { sameAs } : {}),
     ...(phone
@@ -53,7 +58,7 @@ export async function SiteJsonLd({ locale }: { locale: string }) {
   const website = {
     '@type': 'WebSite',
     '@id': `${SITE}/#website`,
-    name: 'Veeey',
+    name: branding.siteNameEn,
     url: SITE,
     publisher: { '@id': `${SITE}/#organization` },
     inLanguage: locale === 'ar' ? 'ar-EG' : 'en-US',

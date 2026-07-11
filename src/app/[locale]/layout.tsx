@@ -13,6 +13,8 @@ import { AnalyticsProvider } from '@/components/analytics/analytics-provider';
 import { PostHogLoader } from '@/components/analytics/posthog-loader';
 import { ClarityLoader } from '@/components/analytics/clarity-loader';
 import { GoogleTags } from '@/components/analytics/google-tags';
+import { getBranding } from '@/lib/branding-service';
+import { brandingTitle } from '@/lib/branding';
 import '../globals.css';
 
 // Admin fonts (unchanged).
@@ -61,12 +63,19 @@ const geDinar = localFont({
   display: 'swap',
 });
 
-export const metadata: Metadata = {
-  metadataBase: new URL('https://veeey.com'),
-  title: 'Veeey — Premium Imported Supplements & Health Devices in Egypt',
-  description:
-    'Veeey imports premium dietary supplements and health devices directly from the USA, UK and EU. Every product shows its expiry date before you buy.',
-};
+// Branding-aware defaults (admin-editable title + favicon); getBranding falls
+// back to shipped values on any DB hiccup, so this stays build-safe.
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  const branding = await getBranding();
+  return {
+    metadataBase: new URL('https://veeey.com'),
+    title: brandingTitle(branding, locale),
+    description:
+      'Veeey imports premium dietary supplements and health devices directly from the USA, UK and EU. Every product shows its expiry date before you buy.',
+    ...(branding.faviconUrl ? { icons: { icon: [{ url: branding.faviconUrl, type: 'image/png' }] } } : {}),
+  };
+}
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));

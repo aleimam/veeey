@@ -91,7 +91,7 @@ export function ImageUploader({ initial = [] }: { initial?: string[] }) {
  * Single-image uploader for one named field (e.g. brand logo / banner). Posts to
  * /api/admin/upload and keeps the chosen URL in a hidden input `name`.
  */
-export function SingleImageUploader({ name, initial = '' }: { name: string; initial?: string }) {
+export function SingleImageUploader({ name, initial = '', kind }: { name: string; initial?: string; kind?: 'icon' }) {
   const [url, setUrl] = useState(initial);
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -102,6 +102,7 @@ export function SingleImageUploader({ name, initial = '' }: { name: string; init
     try {
       const fd = new FormData();
       fd.append('file', file);
+      if (kind) fd.append('kind', kind);
       const res = await fetch('/api/admin/upload', { method: 'POST', body: fd });
       if (res.ok) {
         const data = (await res.json()) as { url: string };

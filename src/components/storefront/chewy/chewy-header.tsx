@@ -22,6 +22,7 @@ export function ChewyHeader({
   subtotalPiastres = 0,
   isStaff = false,
   help,
+  branding,
 }: {
   locale: string;
   nav: NavConfig;
@@ -30,6 +31,7 @@ export function ChewyHeader({
   subtotalPiastres?: number;
   isStaff?: boolean;
   help?: { whatsapp?: string; phone?: string };
+  branding?: { logoUrl?: string; logoLightUrl?: string; siteName?: string };
 }) {
   const loc = useLocale();
   const t = pick(loc);
@@ -54,7 +56,7 @@ export function ChewyHeader({
               </button>
 
               <Link href="/" aria-label={t('Home', 'الرئيسية')} className="me-auto flex shrink-0 items-center md:me-0">
-                <VeeeyLogo variant="light" size={36} priority />
+                <VeeeyLogo variant="light" size={36} priority src={branding?.logoLightUrl || undefined} alt={branding?.siteName || undefined} />
               </Link>
 
               {/* desktop search */}
@@ -190,7 +192,7 @@ export function ChewyHeader({
         </div>
       </header>
 
-      {mobOpen && <MobileNav nav={nav} t={t} onClose={() => setMobOpen(false)} />}
+      {mobOpen && <MobileNav nav={nav} t={t} onClose={() => setMobOpen(false)} logoUrl={branding?.logoUrl} siteName={branding?.siteName} />}
       {cartOpen && (
         <CartDrawer
           t={t}
@@ -249,13 +251,13 @@ function MegaMenu({ item, t, onClose }: { item: NavItem; t: T; onClose: () => vo
   );
 }
 
-function MobileNav({ nav, t, onClose }: { nav: NavConfig; t: T; onClose: () => void }) {
+function MobileNav({ nav, t, onClose, logoUrl, siteName }: { nav: NavConfig; t: T; onClose: () => void; logoUrl?: string; siteName?: string }) {
   return (
     <div className="fixed inset-0 z-[60]">
       <div onClick={onClose} className="absolute inset-0" style={{ background: 'var(--scrim)' }} />
       <div className="absolute inset-y-0 start-0 w-[82%] max-w-[360px] overflow-y-auto bg-white p-5 shadow-[var(--shadow-lg)]">
         <div className="mb-4 flex items-center justify-between">
-          <VeeeyLogo size={26} />
+          <VeeeyLogo size={26} src={logoUrl || undefined} alt={siteName || undefined} />
           <button onClick={onClose} aria-label={t('Close', 'إغلاق')}>
             <Icon name="x" size={24} color="var(--slate)" />
           </button>

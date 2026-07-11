@@ -57,6 +57,7 @@ const NAV_SECTIONS: RawSection[] = [
   ] },
   // Appearance — theming, page-building & site chrome (req: one "Appearance" group).
   { title: ['Appearance', 'المظهر'], items: [
+    { href: '/admin/branding', key: 'branding', permission: 'settings.manage' },
     { href: '/admin/appearance', key: 'appearance', permission: 'settings.manage' },
     { href: '/admin/homepage', key: 'homepage', permission: 'content.manage' },
     { href: '/admin/navigation', key: 'navigation', permission: 'settings.manage' },

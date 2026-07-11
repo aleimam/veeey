@@ -4,6 +4,8 @@ import { VeeeyLogo } from "@/components/storefront/veeey-logo"
 import { SocialIcon } from "@/components/storefront/social-icon"
 import { activeSocialLinks, SOCIAL_PLATFORMS } from "@/lib/social-service"
 import { getAllSettings } from "@/lib/settings-service"
+import { getBranding } from "@/lib/branding-service"
+import { brandingSiteName } from "@/lib/branding"
 
 const columns = [
   { key: "shop", links: ["vitamins", "devices", "refill", "select", "brands", "offers", "specialOrder"] },
@@ -86,6 +88,7 @@ export async function SiteFooter() {
   const locale = await getLocale()
   const social = await activeSocialLinks()
   const settings = await getAllSettings()
+  const branding = await getBranding()
   const address = (locale === "ar" ? settings["store.addressAr"] : settings["store.addressEn"]) || settings["store.addressEn"] || ""
   const phone = settings["store.phone"] || ""
   const email = settings["store.contactEmail"] || ""
@@ -95,7 +98,7 @@ export async function SiteFooter() {
       <div className="mx-auto max-w-[1440px] px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid gap-10 lg:grid-cols-[1.5fr_2fr]">
           <div className="max-w-sm">
-            <VeeeyLogo size={30} />
+            <VeeeyLogo size={30} src={branding.logoUrl || undefined} alt={brandingSiteName(branding, locale)} />
             <p className="mt-4 text-sm leading-relaxed text-[color:var(--text-muted)]">{t("blurb")}</p>
             {(address || phone || email || whatsapp) && (
               <ul className="mt-6 space-y-2.5 text-sm text-slate">

@@ -5,6 +5,8 @@ import { readCartId, cartCount, getCart } from '@/lib/cart-service';
 import { getSetting } from '@/lib/settings-service';
 import { getHomeContent } from '@/lib/home-content-service';
 import { getNavConfig } from '@/lib/nav-service';
+import { getBranding } from '@/lib/branding-service';
+import { brandingSiteName } from '@/lib/branding';
 import { NavFontLink } from '@/components/storefront/chewy/nav-font-link';
 import { AnnouncementBar } from '@/components/storefront/announcement-bar';
 import { ChewyHeader, type CartLine } from '@/components/storefront/chewy/chewy-header';
@@ -38,6 +40,7 @@ export default async function ShopLayout({
   const phone = await getSetting('store.phone');
   const home = await getHomeContent(locale);
   const nav = await getNavConfig();
+  const branding = await getBranding();
   const session = await auth();
   const isStaff = canAccessAdmin(session?.user?.permissions ?? []);
   return (
@@ -52,6 +55,7 @@ export default async function ShopLayout({
         subtotalPiastres={subtotalPiastres}
         isStaff={isStaff}
         help={{ whatsapp: whatsapp ?? undefined, phone: phone ?? undefined }}
+        branding={{ logoUrl: branding.logoUrl, logoLightUrl: branding.logoLightUrl, siteName: brandingSiteName(branding, locale) }}
       />
       <main>{children}</main>
       <SiteFooter />
