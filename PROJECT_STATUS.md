@@ -2,21 +2,24 @@
 
 > Living status/handoff doc. **Repo-committed so it travels with the code** (unlike per-user
 > assistant memory). Update it when features ship or the backlog changes.
-> **Last updated: 2026-07-11.** Authoritative product docs: `VEEEY_PRD.md`, `VEEEY_SPEC.md`,
+> **Last updated: 2026-07-12.** Authoritative product docs: `VEEEY_PRD.md`, `VEEEY_SPEC.md`,
 > `BUILD_PLAN.md`, `AGENTS.md` (build rules — read first), `DEPLOYMENT.md`, `SECURITY.md`, `README.md`.
 
 ## Current state
 
-- **Live** at **veeey.com**. Latest deployed commit: **`cb08885`** (2026-07-11). All
-  **46 Prisma migrations applied**; `pm2` processes `veeey` (web) + `veeey-worker` (jobs) healthy;
-  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **336 unit tests** · build.
+- **Live** at **veeey.com**. Latest deployed commit: **`8459842`** (2026-07-12). All
+  **47 Prisma migrations applied**; `pm2` processes `veeey` (web) + `veeey-worker` (jobs) healthy;
+  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **350 unit tests** · build.
 - Stack: Next.js 16 (App Router, Turbopack) · TypeScript strict · Prisma 7 + Postgres ·
   Auth.js · next-intl (AR/EN, RTL) · Tailwind v4 · pg-boss v12.
 
-### Shipped 2026-07-09 → 2026-07-11 (newest first)
+### Shipped 2026-07-11 → 2026-07-12 (newest first)
 
 | Feature | Commits | Notes |
 |---|---|---|
+| **V5 Customers stream (F30–F37)** | `1602bb7`→`8459842` | **F30 checkout verification** ("verify email or phone to checkout", owner decision): 6-digit OTP via SMSMisr SMS or email (generalized `otp-service` `requestVerifyCode`/`verifyCode`, hashed + rate-limited); guests get a 24h signed HMAC cookie (`verify-cookie.ts`), signed-in shoppers get `User.phoneVerified`/`emailVerified` persisted and skip future checks; `placeOrder` enforces server-side; **admin toggle Settings › Checkout "Require verified contact to checkout" — shipped OFF; owner flips to `true` after one live OTP checkout test on their phone**; gate auto-disables when neither SMS nor SMTP can deliver (never bricks checkout). **F31 standing**: `Customer.status` ACTIVE/FLAGGED/BLOCKED (BLOCKED can't order) + derived "Unverified" badge; status filter + bulk Set-status; **"Scan for suspicious" button** flags disposable-email / nameless+unverified+orderless / stale-90d-unverified / 10-per-hour signup bursts, appends reasons to internal notes (pure `customer-spam.ts`, tested). **F32 cleanup** via Flagged/Unverified filters + existing no-orders-only bulk delete. **F33** sortable Orders + Last-order columns, has/no-orders segment. **F34** nameless rows show email handle/phone (was literal "Profile"). **F35** email+SMS marketing consent flags + staff-only notes on detail page (Standing & marketing card w/ verification dates). **F36** customers CSV export needs `customers.write`; ALL exports audit-logged w/ row counts. **F37** reCAPTCHA wiring completed (`RecaptchaToken` fills the previously-always-empty token via grecaptcha v3 when `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` env is set; fail-open on misconfig). Migration `customer_v5`. |
+| **Branding admin (favicon/logos/titles)** | `a85dd8b` | `/admin/branding` (Appearance group, `settings.manage`): site name EN/AR (logo alt + JSON-LD Organization/WebSite name + PWA manifest), browser-tab default title EN/AR (root `generateMetadata`; per-page SEO titles still override), main + light logo uploads (header knockout slot, mobile menu, footer; empty = built-in artwork), favicon upload (auto-converted to universal 64px PNG via `toFaviconPng`; upload route `kind=icon` gated `settings.manage`). Settings keys `branding.*` (pure `branding.ts` parse, tested). No migration. |
+| **SMSMisr SMS provider LIVE** | `64d5e1b` `4a1bd43` `06e4eb0` | Owner's creds sorted (the three values are: API username `b2e00aad…`, API password (regenerated), **sender token** `3e876255…` — the sender field takes the TOKEN, not the display name "Yeldn EGV"). Test banner now surfaces the exact `sms_<code>` + bilingual fix hint (1903 creds / 1904 sender / 1906 credit …). **Auto-Unicode**: non-ASCII messages (Arabic, em dashes) switch to SMSMisr language 3 — English test AND Arabic test both received on the owner's phone. Order SMS (placed/shipped/delivered) now delivers; **phone-OTP login + F30 checkout OTP ride this gateway**. |
 | **V4 Shipping stream (E23–E28)** | `9f00b1c`→`cb08885` | **"Free shipping over EGP 1,500" concept removed** (cart-drawer progress bar deleted; nav default promo disabled+empty; prod had no `nav.config` override so the header line is gone live). **UltraFast only in Greater Cairo + Giza** (checkout hides it elsewhere w/ graceful fallback). Structured ETA `etaMinDays/etaMaxDays` (+optional label) renders bilingual "2–3 business days". Zones/sub-areas bilingual (`nameAr`). Admin: collapsed zone accordion + search, delete confirmations, sub-area **Save-all**. **Seed RAN on prod**: 27 zones AR names + **194 sub-areas created** (`scripts/seed-shipping-areas.ts`, idempotent, dry-run default). Migration `shipping_v2`. Flat per-method fees kept by design. |
 | **V4 Stocktake stream (D15–D22)** | `f3d34a4` `cefbce0` | **Behavior change: counting only RECORDS — stock changes when a reviewer "Approve & apply"s the reconcile screen** (lot-level adjustments + ledger `refType stocktake` + audit; "Close & discard" keeps counts, changes nothing). New count sheet: live color-coded variance, search/filters/pagination, Save-all batch + progress bar, barcode SKU+Enter → +1, blind-count mode, condition badges. Sessions: scope (category/brand cycle counts), assigned counter, created/approved-by attribution, variance + adjustment summaries, delete for never-applied. Recurring `StocktakeSchedule` auto-opens sessions (daily 02:45 UTC cron, new `stocktake-cycle` queue). Migration `stocktake_v2`. |
 | **V4 Inventory stream (C7–C14)** | `535da20`→`163134f` | Searchable `ProductSelect` picker fixes lot-edit preselect (old dropdown capped at 200 rows) + intake; expiring/condition filters + status colors + dashboard deep-link; lots BulkBar (−% discount / status / CSV export via new `lots` adapter) + Reserved column; `Product.reorderPoint` (migration `reorder_point`) feeds the To-buy short-stock tab + product-form field; **condition-migration tool** `/admin/inventory/condition-migration` (dry-run → gated apply: "{Broken bottle}"-named variants' lots move to base product w/ condition, variant archived); YeldnIN receiving preps QUARANTINE intake lots w/ supplier cost behind `INTEGRATION_ENABLED` (⚠️ `unitCostEgp` contract field to confirm at re-baseline); cost editable at intake publish; killed a dormant `loc_main` hardcode in mock intake. |
@@ -160,8 +163,15 @@ portable source of truth** — everything below is what the memory contained tha
 ## Waiting tasks
 
 ### Quick owner actions that unblock shipped features
+- **Enable checkout verification**: place ONE test order on your own phone with an OTP, then set
+  Settings › Checkout › "Require verified contact to checkout" = `true` (shipped OFF on purpose;
+  SMS is live so it works today — email codes additionally need SMTP).
+- **Optionally run the spam scan**: `/admin/customers` → "Scan for suspicious" → review the
+  Flagged filter → bulk Block or Delete (no-orders-only safeguard applies).
 - **Configure SMTP** (`/admin/providers` or Settings) → activates abandoned-cart + review-request
-  emails (built, enabled, currently log-only) + order emails.
+  emails (built, enabled, currently log-only) + order emails + email OTP verification.
+- **reCAPTCHA (optional)**: set `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` + `RECAPTCHA_SECRET_KEY` env vars
+  on the server to activate the now-wired v3 check on login/register.
 - **Add an AI provider key** (`/admin/providers`) → unblocks the brands **AR-translate job**
   (~697 brands missing Arabic; button on `/admin/brands`).
 - **GA4/GTM ids + Measurement Protocol secret** in `/admin/google` → activates analytics P4/P5.
