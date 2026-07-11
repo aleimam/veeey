@@ -246,12 +246,20 @@ RequestHeader set X-Forwarded-Proto "https"
 
 ```bash
 cd /home/veeey/app
+git checkout -- package-lock.json   # npm install dirties it; a dirty tree makes `git pull`
+                                    # silently FAIL to advance HEAD while build/reload still
+                                    # run — you'd redeploy the OLD code. Never skip this.
 git pull
-npm ci
+npm install                          # also re-runs `prisma generate` (postinstall) — required
+                                     # whenever the schema changed, or the client goes stale
 npx prisma migrate deploy
 npm run build
 pm2 reload veeey && pm2 reload veeey-worker
+git rev-parse --short HEAD           # confirm it matches the commit you pushed
 ```
+
+More gotchas (firewall bans, ad-hoc DB queries, health checks): see the
+"Deploy gotchas" section in `PROJECT_STATUS.md`.
 
 ### What you own on a VPS
 
