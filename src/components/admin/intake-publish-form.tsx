@@ -6,8 +6,9 @@ import { publishIntakeAction, type AdminFormState } from '@/server/inventory-act
 import { FormError, SubmitButton, inputCls } from './ui';
 import { pick } from '@/lib/admin-i18n';
 
-/** Inline publisher for one received (QUARANTINE) lot → live catalog. */
-export function IntakePublishForm({ locale, lotId }: { locale: string; lotId: string }) {
+/** Inline publisher for one received (QUARANTINE) lot → live catalog. Cost is
+ *  confirmable here (V4 C10) — prefilled when the shipment carried one. */
+export function IntakePublishForm({ locale, lotId, defaultCostEgp = null }: { locale: string; lotId: string; defaultCostEgp?: number | null }) {
   const tb = pick(useLocale());
   const [state, action] = useActionState<AdminFormState, FormData>(publishIntakeAction, {});
   return (
@@ -18,6 +19,10 @@ export function IntakePublishForm({ locale, lotId }: { locale: string; lotId: st
       <label className="text-xs">
         {tb('Expiry', 'الصلاحية')}
         <input type="date" name="expiryDate" required className={`${inputCls} w-40`} />
+      </label>
+      <label className="text-xs">
+        {tb('Cost (EGP)', 'التكلفة (ج.م)')}
+        <input type="number" step="0.01" min="0" name="costEgp" defaultValue={defaultCostEgp ?? ''} className={`${inputCls} w-28`} />
       </label>
       <label className="text-xs">
         {tb('Sale price (EGP)', 'سعر التخفيض (ج.م)')}

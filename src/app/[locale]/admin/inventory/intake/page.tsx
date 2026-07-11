@@ -16,7 +16,10 @@ export default async function IntakePage({ params }: { params: Promise<{ locale:
     <div className="p-6">
       <h1 className="mb-1 font-heading text-xl font-semibold">{tb('Inventory intake', 'إدخال المخزون')}</h1>
       <p className="mb-6 text-sm text-muted-foreground">
-        {tb('Goods received from YeldnIN (simulated here) arrive as pending lots. Confirm the expiry date and price, then publish them to the live catalog.', 'البضائع المستلَمة من YeldnIN (محاكاة هنا) تصل كدفعات قيد الانتظار. أكِّد تاريخ الصلاحية والسعر، ثم انشرها في الكتالوج المتاح.')}
+        {tb(
+          'Received goods arrive as pending lots — real YeldnIN shipments land here automatically (with supplier expiry + cost) once the integration is enabled. Confirm the expiry, cost and price, then publish to the live catalog.',
+          'البضائع المستلَمة تصل كدفعات قيد الانتظار — شحنات YeldnIN الفعلية تصل هنا تلقائيًا (مع الصلاحية والتكلفة من المورّد) بعد تفعيل التكامل. أكِّد الصلاحية والتكلفة والسعر ثم انشرها في الكتالوج.',
+        )}
       </p>
 
       {/* Simulate a YeldnIN shipment.received (dev/demo only) */}
@@ -45,7 +48,7 @@ export default async function IntakePage({ params }: { params: Promise<{ locale:
                 {lot.product.nameEn} <span className="text-muted-foreground">({lot.product.sku})</span> · {tb('Qty', 'الكمية')} {lot.qtyOnHand} · {lot.location.name}
                 {lot.sourceBatchId && <span className="text-muted-foreground"> · {tb('Batch', 'دفعة')} {lot.sourceBatchId}</span>}
               </div>
-              <IntakePublishForm locale={locale} lotId={lot.id} />
+              <IntakePublishForm locale={locale} lotId={lot.id} defaultCostEgp={lot.costPiastres != null ? Number(lot.costPiastres) / 100 : null} />
             </li>
           ))}
         </ul>

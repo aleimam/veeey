@@ -7,10 +7,24 @@ import type { SpecialOrderStatus } from '@/generated/prisma/client';
  * delivery handlers record progress. ⚠️ Exact status mapping + compensation math
  * trace to a contract snapshot — re-baseline before enabling in staging.
  */
-type ShipmentLot = { quantity: number; expiryMonth: number; expiryYear: number; batchNumber?: string | null };
-type ShipmentItem = { batchId?: number; requestUid?: string; sku?: string | null; productName?: string; quantity: number; lots?: ShipmentLot[] };
+// ⚠️ unitCostEgp is a contract field to confirm at re-baseline (V4 C10) — parsed
+// tolerantly (lot-level wins over item-level; absent = cost left null).
+type ShipmentLot = { quantity: number; expiryMonth: number; expiryYear: number; batchNumber?: string | null; unitCostEgp?: number | null };
+type ShipmentItem = { batchId?: number; requestUid?: string; sku?: string | null; productName?: string; quantity: number; unitCostEgp?: number | null; lots?: ShipmentLot[] };
 type ShipmentPayload = { shipmentId: number; receivedAt?: string; items?: ShipmentItem[] };
 
+const costPiastresOf = (lot: ShipmentLot, item: ShipmentItem): bigint | null => {
+  const egp = lot.unitCostEgp ?? item.unitCostEgp;
+  return egp != null && Number.isFinite(egp) && egp >= 0 ? BigInt(Math.round(egp * 100)) : null;
+};
+
+/**
+ * Real supplier receiving (V4 C10): shipments land as PENDING (QUARANTINE)
+ * intake lots carrying the supplier expiry + unit cost — they flow through the
+ * same confirm-and-publish step as the manual intake (publish is the single
+ * point where stock becomes sellable + writes the STOCK_IN ledger row). This
+ * whole handler is inert until INTEGRATION_ENABLED (webhook is flag-gated).
+ */
 export async function handleShipmentReceived(payload: ShipmentPayload): Promise<{ lotsCreated: number; unmatched: number }> {
   const location = await prisma.location.findFirst({ orderBy: { createdAt: 'asc' } });
   if (!location) return { lotsCreated: 0, unmatched: 0 };
@@ -23,10 +37,17 @@ export async function handleShipmentReceived(payload: ShipmentPayload): Promise<
     // Lots may be empty or sum to fewer than quantity → those units are "expiry unknown"; we only shelve specified lots.
     for (const lot of item.lots ?? []) {
       const expiry = new Date(Date.UTC(lot.expiryYear, Math.max(0, Math.min(11, lot.expiryMonth - 1)), 1));
-      const created = await prisma.lot.create({
-        data: { productId: product.id, locationId: location.id, expiryDate: expiry, qtyOnHand: lot.quantity, sourceBatchId: item.batchId != null ? String(item.batchId) : null, status: 'LIVE' },
+      await prisma.lot.create({
+        data: {
+          productId: product.id,
+          locationId: location.id,
+          expiryDate: expiry,
+          qtyOnHand: lot.quantity,
+          sourceBatchId: item.batchId != null ? String(item.batchId) : null,
+          costPiastres: costPiastresOf(lot, item),
+          status: 'QUARANTINE', // pending intake — Ops confirms expiry/price/cost, then publishes
+        },
       });
-      await prisma.movementLedger.create({ data: { lotId: created.id, locationId: location.id, type: 'STOCK_IN', qtyDelta: lot.quantity, refType: 'yeldnin_shipment', refId: String(payload.shipmentId) } });
       lotsCreated += 1;
     }
   }

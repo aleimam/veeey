@@ -169,6 +169,7 @@ export async function publishIntakeAction(_p: AdminFormState, fd: FormData): Pro
         expiryDate: str(fd, 'expiryDate') ?? '',
         priceOverrideEgp: num(fd, 'priceOverrideEgp') ?? null,
         saleFlag: bool(fd, 'saleFlag'),
+        costEgp: num(fd, 'costEgp') ?? null,
       });
     }
   } catch (e) {

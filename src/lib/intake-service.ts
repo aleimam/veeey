@@ -12,9 +12,15 @@ import { egpToPiastres } from '@/lib/format';
 
 export async function mockShipmentReceived(
   items: { sku: string; qty: number; batchId?: string }[],
-  locationId = 'loc_main',
+  locationId?: string,
 ) {
   const user = await requirePermission('inventory.manage');
+  // No hard-coded 'loc_main' — that id only exists in the dev seed (same bug
+  // class as the P0 cart fix); default to the oldest real location.
+  const location = locationId
+    ? await prisma.location.findUnique({ where: { id: locationId } })
+    : await prisma.location.findFirst({ orderBy: { createdAt: 'asc' } });
+  if (!location) throw new Error('NO_LOCATION');
   const created: string[] = [];
   for (const it of items) {
     const product = await prisma.product.findUnique({ where: { sku: it.sku } });
@@ -22,7 +28,7 @@ export async function mockShipmentReceived(
     const lot = await prisma.lot.create({
       data: {
         productId: product.id,
-        locationId,
+        locationId: location.id,
         // Placeholder expiry until Ops confirms at intake.
         expiryDate: new Date(Date.now() + 365 * 86_400_000),
         qtyOnHand: it.qty,
@@ -44,10 +50,11 @@ export function listPendingIntake(locationId?: string) {
   });
 }
 
-/** Confirm a received lot and publish it to the live catalog. */
+/** Confirm a received lot and publish it to the live catalog. Cost is editable
+ *  at confirm time (V4 C10) — omitted = keep whatever the shipment carried. */
 export async function publishIntakeLot(
   lotId: string,
-  input: { expiryDate: string; noExpiry?: boolean; priceOverrideEgp?: number | null; saleFlag?: boolean },
+  input: { expiryDate: string; noExpiry?: boolean; priceOverrideEgp?: number | null; saleFlag?: boolean; costEgp?: number | null },
 ) {
   const user = await requirePermission('inventory.manage');
   const lot = await prisma.lot.findUnique({ where: { id: lotId } });
@@ -61,6 +68,7 @@ export async function publishIntakeLot(
     data: {
       expiryDate: input.noExpiry || !input.expiryDate ? null : new Date(input.expiryDate),
       priceOverridePiastres: input.priceOverrideEgp != null ? egpToPiastres(input.priceOverrideEgp) : null,
+      ...(input.costEgp != null ? { costPiastres: egpToPiastres(input.costEgp) } : {}),
       saleFlag: !!input.saleFlag,
       status: 'LIVE',
     },
