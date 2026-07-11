@@ -98,7 +98,12 @@ export async function sendTestSmsAction(fd: FormData): Promise<void> {
   let result: 'ok' | 'fail' | 'skipped' = 'fail';
   let code = '';
   if (to) {
-    const r = await dispatchSms(to, 'Veeey SMS test - your sms.com.eg integration is working.');
+    // The Arabic variant exercises the Unicode (language 3) path that real
+    // Arabic order notifications use; the default stays plain GSM ASCII.
+    const message = str(fd, 'variant') === 'ar'
+      ? 'رسالة اختبار من Veeey - خدمة الرسائل العربية تعمل بنجاح.'
+      : 'Veeey SMS test - your sms.com.eg integration is working.';
+    const r = await dispatchSms(to, message);
     result = r.ok ? 'ok' : r.skipped ? 'skipped' : 'fail';
     if (!r.ok && r.error) code = r.error;
   }

@@ -170,6 +170,7 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
               <input name="to" required placeholder="01XXXXXXXXX" className={`${inputCls} w-56`} />
             </label>
             <button className="rounded-md border border-border px-3 py-2 text-sm hover:bg-surface">{tb('Send test message', 'إرسال رسالة اختبار')}</button>
+            <button name="variant" value="ar" className="rounded-md border border-border px-3 py-2 text-sm hover:bg-surface">{tb('Send Arabic test', 'إرسال اختبار بالعربية')}</button>
           </form>
           <form action={clearSmsConfigAction}>
             <input type="hidden" name="locale" value={locale} />
