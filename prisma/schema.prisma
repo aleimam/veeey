@@ -449,12 +449,13 @@ model Address {
 
 // Tiers are admin-renameable + manually assigned; rank orders entry->top.
 model Tier {
-  id             String            @id @default(cuid())
-  key            String            @unique // GREEN | VEEEYIP | SELECT (stable key)
-  nameEn         String
-  nameAr         String
-  rank           Int               @unique // 1 = entry
-  earnRatePerEgp Int               @default(1) // points per EGP (configurable)
+  id                String         @id @default(cuid())
+  key               String         @unique // GREEN | VEEEYIP | SELECT (stable key)
+  nameEn            String
+  nameAr            String
+  rank              Int            @unique // 1 = entry
+  earnRatePerEgp    Int            @default(1) // points per EGP (configurable)
+  minSpendPiastres  BigInt         @default(0) // lifetime-spend threshold for auto-promotion (admin-editable)
   color          String?
   badge          String?
   // Optional storefront theme for this tier (Appearance). Null = use the active theme.
