@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { Link, usePathname } from '@/i18n/navigation';
 import { pick } from '@/lib/admin-i18n';
 import { signOutAction } from '@/server/auth-actions';
+import { recordAdminVisitAction } from '@/server/usage-actions';
 import { CommandPalette } from '@/components/admin/command-palette';
 import {
   LayoutDashboard, BarChart3, ShoppingCart, RotateCcw, Globe, Gift, Package, Award,
@@ -17,7 +18,7 @@ import {
 export type NavItem = { href: string; label: string; icon: string };
 export type NavSection = { title: string; items: NavItem[] };
 
-const ICONS: Record<string, LucideIcon> = {
+export const ICONS: Record<string, LucideIcon> = {
   dashboard: LayoutDashboard, analytics: BarChart3, orders: ShoppingCart, returns: RotateCcw,
   specialOrders: Globe, gifts: Gift, products: Package, brands: Award, categories: FolderTree,
   tags: Tags, attributes: SlidersHorizontal, collections: LayoutGrid, inventory: Boxes,
@@ -102,6 +103,16 @@ export function AdminShell({
 
   const flat = sections.flatMap((s) => s.items.map((i) => ({ href: i.href, label: i.label, section: s.title })));
   const current = [...flat].sort((a, b) => b.href.length - a.href.length).find((i) => isActivePath(pathname, i.href));
+
+  // Count section visits for the dashboard's personal quick cards. Best-effort
+  // (server no-ops on unknown hrefs); the dashboard itself is not counted.
+  const lastTracked = useRef<string | null>(null);
+  const currentHref = current?.href;
+  useEffect(() => {
+    if (!currentHref || currentHref === '/admin' || lastTracked.current === currentHref) return;
+    lastTracked.current = currentHref;
+    void recordAdminVisitAction(currentHref);
+  }, [currentHref]);
 
   const toggleDark = () => {
     const next = !isDark;

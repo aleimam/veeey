@@ -1,19 +1,42 @@
-import { setRequestLocale } from 'next-intl/server';
+import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { prisma } from '@/lib/prisma';
 import { pick } from '@/lib/admin-i18n';
 import { formatEGP } from '@/lib/format';
+import { getCurrentUser } from '@/lib/auth-guards';
+import { NAV_ITEMS, type AdminNavItem } from '@/lib/admin-nav';
 import { StatusBadge } from '@/components/admin/ui';
+import { QuickCards, type QuickCard } from '@/components/admin/quick-cards';
 import { TrendingUp, ShoppingCart, UserPlus, PackageX, ArrowUpRight, ArrowDownRight, Clock, ArrowRight } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
 const monthDay = (d: Date) => `${d.getUTCDate()}/${d.getUTCMonth() + 1}`;
 
+// Sections offered until a user has enough visit history of their own.
+const DEFAULT_QUICK = ['/admin/orders', '/admin/products', '/admin/inventory', '/admin/customers', '/admin/analytics', '/admin/returns', '/admin/brands', '/admin/settings'];
+
 export default async function AdminPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
   const tb = pick(locale);
+
+  // Personal quick-access cards: this user's most-visited sections (recorded by
+  // AdminShell), permission-filtered, topped up with defaults to 8.
+  const user = await getCurrentUser();
+  const usage = user
+    ? await prisma.adminSectionUsage.findMany({ where: { userId: user.id }, orderBy: { count: 'desc' }, take: 30 })
+    : [];
+  const byHref = new Map(NAV_ITEMS.map((i) => [i.href, i]));
+  const allowed = (i: AdminNavItem) => !i.permission || (user?.permissions.includes(i.permission) ?? false);
+  const picks: AdminNavItem[] = [];
+  for (const href of [...usage.map((u) => u.section), ...DEFAULT_QUICK]) {
+    const item = byHref.get(href);
+    if (item && item.href !== '/admin' && allowed(item) && !picks.includes(item)) picks.push(item);
+    if (picks.length === 8) break;
+  }
+  const tNav = await getTranslations('admin');
+  const quickCards: QuickCard[] = picks.map((i) => ({ href: i.href, label: tNav(`nav.${i.key}`), icon: i.key }));
 
   const now = new Date();
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -94,6 +117,8 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
           </Link>
         )}
       </div>
+
+      <QuickCards items={quickCards} />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {kpis.map((k) => {
