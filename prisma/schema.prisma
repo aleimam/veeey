@@ -1212,15 +1212,17 @@ model CompareItem {
 // ============================================================================
 
 model ProductChangeEvent {
-  id        String            @id @default(cuid())
-  productId String
-  product   Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
-  type      ProductChangeType
-  oldValue  String?
-  newValue  String?
-  createdAt DateTime          @default(now())
+  id          String            @id @default(cuid())
+  productId   String
+  product     Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type        ProductChangeType
+  oldValue    String?
+  newValue    String?
+  processedAt DateTime? // wishlist-alert sweep marker — null = pending fan-out (exactly-once sends)
+  createdAt   DateTime          @default(now())
 
   @@index([productId])
+  @@index([processedAt])
 }
 
 model AnalyticsSession {
