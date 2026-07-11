@@ -96,12 +96,14 @@ export async function sendTestSmsAction(fd: FormData): Promise<void> {
   await requirePermission('settings.manage');
   const to = str(fd, 'to').trim();
   let result: 'ok' | 'fail' | 'skipped' = 'fail';
+  let code = '';
   if (to) {
     const r = await dispatchSms(to, 'Veeey SMS test — your sms.com.eg integration is working.');
     result = r.ok ? 'ok' : r.skipped ? 'skipped' : 'fail';
+    if (!r.ok && r.error) code = r.error;
   }
   revalidatePath(`/${locale}/admin/providers`);
-  redirect(`/${locale}/admin/providers?smstest=${result}`);
+  redirect(`/${locale}/admin/providers?smstest=${result}${code ? `&smscode=${encodeURIComponent(code)}` : ''}`);
 }
 
 // ---- WhatsApp (config-only) ------------------------------------------------

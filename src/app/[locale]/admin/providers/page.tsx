@@ -7,6 +7,21 @@ import { pick } from '@/lib/admin-i18n';
 type SP = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
+// SMSMisr response codes (their v2 API) → what the owner should actually do.
+const SMS_HINTS: Record<string, [en: string, ar: string]> = {
+  sms_1902: ['Invalid request — retry; if it persists, report it.', 'طلب غير صالح — أعد المحاولة، وإن تكرر أبلغ عن المشكلة.'],
+  sms_1903: ['SMSMisr rejected the API username/password. Copy the CURRENT values from smsmisr.com → Settings (regenerate the API password if you are unsure which is current).', 'رفض SMSMisr اسم المستخدم/كلمة مرور API. انسخ القيم الحالية من smsmisr.com ← الإعدادات (أعد توليد كلمة مرور API إذا لم تكن متأكدًا).'],
+  sms_1904: ['Sender code not accepted — it must exactly match an approved sender in your SMSMisr account (spaces and case included).', 'رمز المُرسِل غير مقبول — يجب أن يطابق تمامًا مُرسِلًا معتمدًا في حسابك (بما في ذلك المسافات وحالة الأحرف).'],
+  sms_1905: ['Invalid mobile number — use the Egyptian 01XXXXXXXXX format.', 'رقم موبايل غير صالح — استخدم الصيغة المصرية 01XXXXXXXXX.'],
+  sms_1906: ['Insufficient credit — top up your SMSMisr balance.', 'رصيد غير كافٍ — اشحن رصيد حسابك في SMSMisr.'],
+  sms_1907: ['SMSMisr servers are updating — try again in a few minutes.', 'خوادم SMSMisr قيد التحديث — حاول بعد دقائق.'],
+  sms_1909: ['Invalid message content.', 'محتوى رسالة غير صالح.'],
+  sms_1910: ['Invalid language setting.', 'إعداد لغة غير صالح.'],
+  sms_1911: ['Message text is too long.', 'نص الرسالة طويل جدًا.'],
+  sms_1912: ['Invalid environment value.', 'قيمة بيئة غير صالحة.'],
+  no_mobile: ['Enter a valid Egyptian mobile (01XXXXXXXXX).', 'أدخل رقم موبايل مصري صالح (01XXXXXXXXX).'],
+};
+
 export default async function ProvidersPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<SP> }) {
   const { locale } = await params;
   const sp = await searchParams;
@@ -19,6 +34,8 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
   ]);
   const test = one(sp.test);
   const smsTest = one(sp.smstest);
+  const smsCode = one(sp.smscode);
+  const smsHint = smsCode ? SMS_HINTS[smsCode] : undefined;
   const site = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://veeey.com').replace(/\/$/, '');
 
   return (
@@ -109,7 +126,12 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
         <h2 className="mb-1 font-heading text-lg font-semibold">{tb('SMS (sms.com.eg / SMSMisr)', 'الرسائل القصيرة SMS (sms.com.eg / SMSMisr)')}</h2>
         <p className="mb-4 text-sm text-muted-foreground">{tb('Status:', 'الحالة:')} {smsOn ? tb('✓ configured', '✓ مُهيّأ') : tb('— not configured', '— غير مُهيّأ')}. {tb('Find your username, API password & sender code in the SMSMisr dashboard ← Settings.', 'ستجد اسم المستخدم وكلمة مرور API & رمز المُرسِل في لوحة تحكم SMSMisr ← الإعدادات.')}</p>
         {smsTest === 'ok' && <p className="mb-4 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">{tb('Test message sent.', 'تم إرسال رسالة الاختبار.')}</p>}
-        {smsTest === 'fail' && <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{tb('Test message failed — check credentials/sender.', 'فشل إرسال رسالة الاختبار — راجع بيانات الاعتماد/المُرسِل.')}</p>}
+        {smsTest === 'fail' && (
+          <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {tb('Test message failed', 'فشل إرسال رسالة الاختبار')}
+            {smsCode ? ` (${smsCode})` : ''} — {smsHint ? tb(smsHint[0], smsHint[1]) : tb('check credentials/sender.', 'راجع بيانات الاعتماد/المُرسِل.')}
+          </p>
+        )}
         {smsTest === 'skipped' && <p className="mb-4 rounded-md bg-gold/15 px-3 py-2 text-sm text-slate">{tb('SMS not configured yet.', 'الرسائل القصيرة غير مُهيّأة بعد.')}</p>}
 
         <form action={saveSmsConfigAction} className="space-y-4 rounded-lg border border-border p-4">
