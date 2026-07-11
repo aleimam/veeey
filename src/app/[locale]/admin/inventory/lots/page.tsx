@@ -8,7 +8,10 @@ import { StatusBadge } from '@/components/admin/ui';
 import { FilterBar } from '@/components/admin/filter-bar';
 import { SortableTh } from '@/components/admin/sortable-th';
 import { ListPagination } from '@/components/admin/list-pagination';
-import { parseListParams, one, type SP } from '@/lib/admin-list';
+import { BulkBar, type BulkOp } from '@/components/admin/bulk-bar';
+import { ExportBar, exportQs } from '@/components/admin/export-bar';
+import { bulkLotsAction } from '@/server/bulk-actions';
+import { parseListParams, listQs, one, type SP } from '@/lib/admin-list';
 import { pick } from '@/lib/admin-i18n';
 import { conditionLabel, isConditionVariant, LOT_CONDITIONS } from '@/lib/lot-condition';
 
@@ -39,13 +42,36 @@ export default async function LotsPage({ params, searchParams }: { params: Promi
   ]);
 
   const basePath = `/${locale}/admin/inventory/lots`;
+  const back = `${basePath}${listQs(sp, { done: undefined, skip: undefined, error: undefined })}`;
+  const done = one(sp.done);
+  const bulkError = one(sp.error) === 'bulk';
+
+  const ops: BulkOp[] = [
+    {
+      value: 'discount',
+      label: tb('Near-expiry discount', 'تخفيض قرب الانتهاء'),
+      values: ['10', '15', '20', '25', '30', '40', '50'].map((p) => ({ value: p, label: `−${p}%` })),
+    },
+    {
+      value: 'status',
+      label: tb('Set status', 'تغيير الحالة'),
+      values: LOT_STATUSES.map((s) => ({ value: s, label: s })),
+      danger: true, // status flips (e.g. WRITTEN_OFF) are destructive — confirm first
+    },
+  ];
 
   return (
     <div className="p-6">
-      <header className="mb-6 flex items-center justify-between">
+      <header className="mb-6 flex items-center justify-between gap-3">
         <h1 className="font-heading text-xl font-semibold">{tb('Lots', 'الدفعات')} ({total})</h1>
-        <Link href="/admin/inventory/lots/edit" className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">{tb('New lot', 'دفعة جديدة')}</Link>
+        <span className="flex items-center gap-2">
+          <ExportBar entity="lots" locale={locale} query={exportQs(sp)} />
+          <Link href="/admin/inventory/lots/edit" className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">{tb('New lot', 'دفعة جديدة')}</Link>
+        </span>
       </header>
+
+      {done != null && <p className="mb-4 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">{tb(`Done — ${done} lot(s) updated.`, `تم — ${done} دفعة.`)}</p>}
+      {bulkError && <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{tb('Bulk action failed — check the selection and value.', 'فشل الإجراء الجماعي — راجع التحديد والقيمة.')}</p>}
 
       <FilterBar
         locale={locale}
@@ -70,14 +96,26 @@ export default async function LotsPage({ params, searchParams }: { params: Promi
         ]}
       />
 
+      <BulkBar
+        formId="bulk-lots"
+        action={bulkLotsAction}
+        locale={locale}
+        back={back}
+        ops={ops}
+        exportHref="/api/admin/export/lots"
+        labels={{ selectAllPage: tb('Select page', 'تحديد الصفحة'), selected: tb('selected', 'محدد'), apply: tb('Apply', 'تطبيق'), exportSel: tb('Export selected', 'تصدير المحدد'), confirmDanger: tb('Apply this status to the selected lots?', 'تطبيق هذه الحالة على الدفعات المحددة؟'), needValue: tb('Choose a value first.', 'اختر قيمة أولًا.') }}
+      />
+
       <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-sm">
           <thead className="bg-surface text-xs uppercase text-muted-foreground">
             <tr>
+              <th className="w-8 p-3" />
               <SortableTh col="product" label={tb('Product', 'المنتج')} sort={sort} dir={dir} sp={sp} basePath={basePath} />
               <SortableTh col="location" label={tb('Location', 'الموقع')} sort={sort} dir={dir} sp={sp} basePath={basePath} />
               <SortableTh col="expiry" label={tb('Expiry', 'الصلاحية')} sort={sort} dir={dir} sp={sp} basePath={basePath} />
               <SortableTh col="onhand" label={tb('On hand', 'المتاح')} sort={sort} dir={dir} sp={sp} basePath={basePath} align="center" />
+              <th className="p-3 text-center">{tb('Reserved', 'محجوز')}</th>
               <th className="p-3 text-center">{tb('Sellable', 'القابل للبيع')}</th>
               <SortableTh col="price" label={tb('Price', 'السعر')} sort={sort} dir={dir} sp={sp} basePath={basePath} />
               <SortableTh col="status" label={tb('Status', 'الحالة')} sort={sort} dir={dir} sp={sp} basePath={basePath} />
@@ -87,6 +125,7 @@ export default async function LotsPage({ params, searchParams }: { params: Promi
           <tbody>
             {lots.map((l) => (
               <tr key={l.id} className="border-t border-border">
+                <td className="p-3"><input type="checkbox" name="ids" value={l.id} form="bulk-lots" className="size-4" aria-label={l.product.sku} /></td>
                 <td className="p-3"><div className="font-medium">{l.product.nameEn}</div><div className="font-mono text-xs text-muted-foreground">{l.product.sku}</div></td>
                 <td className="p-3 text-muted-foreground">{l.location.name}</td>
                 <td className="p-3">
@@ -94,6 +133,7 @@ export default async function LotsPage({ params, searchParams }: { params: Promi
                   {isConditionVariant(l.condition) && <span className="ms-1.5 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">{conditionLabel(l.condition, locale)}</span>}
                 </td>
                 <td className="p-3 text-center">{l.qtyOnHand}</td>
+                <td className={`p-3 text-center ${l.qtyReserved > 0 ? 'font-medium text-gold' : 'text-muted-foreground'}`}>{l.qtyReserved}</td>
                 <td className="p-3 text-center text-muted-foreground">{availableQty(l)}</td>
                 <td className="p-3">{formatEGP(Number(l.priceOverridePiastres ?? l.product.basePricePiastres))}{l.saleFlag ? ` · ${tb('Sale', 'تخفيض')}` : ''}</td>
                 <td className="p-3"><StatusBadge status={l.status} /></td>
@@ -101,7 +141,7 @@ export default async function LotsPage({ params, searchParams }: { params: Promi
               </tr>
             ))}
             {lots.length === 0 && (
-              <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">{tb('No lots match.', 'لا توجد دفعات مطابقة.')}</td></tr>
+              <tr><td colSpan={10} className="p-6 text-center text-muted-foreground">{tb('No lots match.', 'لا توجد دفعات مطابقة.')}</td></tr>
             )}
           </tbody>
         </table>

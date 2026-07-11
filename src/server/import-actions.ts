@@ -3,15 +3,14 @@
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
 import { parseCsvObjects } from '@/lib/csv-io';
-import { EXPORT_ENTITIES, type ExportEntity } from '@/lib/admin-export';
-import { IMPORT_PERMISSION, importEntity, type ImportReport } from '@/lib/admin-import';
+import { IMPORT_PERMISSION, importEntity, isImportEntity, type ImportReport } from '@/lib/admin-import';
 
 export type ImportState = { report?: ImportReport; error?: 'bad_entity' | 'no_file' | 'too_large' | 'empty' };
 
 export async function importCsvAction(_prev: ImportState, fd: FormData): Promise<ImportState> {
   const entity = String(fd.get('entity') ?? '');
-  if (!EXPORT_ENTITIES.includes(entity as ExportEntity)) return { error: 'bad_entity' };
-  const e = entity as ExportEntity;
+  if (!isImportEntity(entity)) return { error: 'bad_entity' }; // e.g. 'lots' is export-only
+  const e = entity;
   const user = await requirePermission(IMPORT_PERMISSION[e]);
 
   const file = fd.get('file');

@@ -2,7 +2,7 @@
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { bulkProducts, bulkOrders, bulkCustomers, bulkReviews, bulkSpecialOrders, adjustAllProductPrices, type BulkResult } from '@/lib/admin-bulk-service';
+import { bulkProducts, bulkOrders, bulkCustomers, bulkReviews, bulkSpecialOrders, bulkLots, adjustAllProductPrices, type BulkResult } from '@/lib/admin-bulk-service';
 import { bulkSoftDelete } from '@/lib/soft-delete-service';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
@@ -27,6 +27,22 @@ function finish(target: string, r: BulkResult): never {
 function fail(target: string): never {
   const sep = target.includes('?') ? '&' : '?';
   redirect(`${target}${sep}error=bulk`);
+}
+
+export async function bulkLotsAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const target = backTo(fd, locale, 'inventory/lots');
+  let r: BulkResult | null = null;
+  try {
+    r = await bulkLots(str(fd, 'op'), idsOf(fd), str(fd, 'value'));
+  } catch (e) {
+    console.error('bulk lots failed', e);
+    revalidatePath(`/${locale}/admin/inventory/lots`);
+    fail(target);
+  }
+  if (!r) return;
+  revalidatePath(`/${locale}/admin/inventory/lots`);
+  finish(target, r);
 }
 
 export async function bulkProductsAction(fd: FormData): Promise<void> {

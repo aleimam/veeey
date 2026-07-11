@@ -2,8 +2,7 @@ import { notFound } from 'next/navigation';
 import { setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requirePermission } from '@/lib/auth-guards';
-import { EXPORT_ENTITIES, type ExportEntity } from '@/lib/admin-export';
-import { IMPORT_PERMISSION } from '@/lib/admin-import';
+import { IMPORT_PERMISSION, isImportEntity } from '@/lib/admin-import';
 import { ImportForm } from '@/components/admin/import-form';
 import { pick } from '@/lib/admin-i18n';
 
@@ -12,8 +11,8 @@ export const dynamic = 'force-dynamic';
 export default async function ImportPage({ params }: { params: Promise<{ locale: string; entity: string }> }) {
   const { locale, entity } = await params;
   setRequestLocale(locale);
-  if (!EXPORT_ENTITIES.includes(entity as ExportEntity)) notFound();
-  const e = entity as ExportEntity;
+  if (!isImportEntity(entity)) notFound(); // 'lots' is export-only
+  const e = entity;
   await requirePermission(IMPORT_PERMISSION[e]);
   const t = pick(locale);
 

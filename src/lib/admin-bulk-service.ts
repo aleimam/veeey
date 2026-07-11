@@ -24,6 +24,50 @@ const PAY_CHECK = new Set<PayCheck>(['NO', 'YES', 'PROBLEM']);
 
 const empty = (): BulkResult => ({ affected: 0, skipped: 0 });
 
+const LOT_STATUSES = new Set(['LIVE', 'QUARANTINE', 'EXPIRED', 'WRITTEN_OFF']);
+
+/** Bulk lot operations (V4 C11): near-expiry discount % / status change.
+ *  Discount reprices each lot from its PRODUCT base price and flags the sale
+ *  (same effects as the per-lot markdown, incl. the SALE_LOT wishlist event). */
+export async function bulkLots(op: string, ids: string[], value: string): Promise<BulkResult> {
+  const user = await requirePermission('inventory.manage');
+  if (ids.length === 0) return empty();
+  const r = empty();
+
+  if (op === 'discount') {
+    const pct = Number(value);
+    if (!Number.isFinite(pct) || pct <= 0 || pct >= 100) throw new Error('BAD_DISCOUNT');
+    const lots = await prisma.lot.findMany({ where: { id: { in: ids } }, include: { product: { select: { id: true, basePricePiastres: true } } } });
+    const minNewByProduct = new Map<string, number>(); // lowest sale price per product (EGP), for the alert event
+    for (let i = 0; i < lots.length; i += 50) {
+      const chunk = lots.slice(i, i + 50);
+      await Promise.all(chunk.map((l) => {
+        const next = Math.max(0, Math.round(Number(l.product.basePricePiastres) * (1 - pct / 100)));
+        const cur = minNewByProduct.get(l.product.id);
+        if (cur == null || next < cur) minNewByProduct.set(l.product.id, next);
+        return prisma.lot.update({ where: { id: l.id }, data: { priceOverridePiastres: BigInt(next), saleFlag: true } });
+      }));
+      r.affected += chunk.length;
+    }
+    // One SALE_LOT event per product → wishlist price alerts fan out once.
+    await prisma.productChangeEvent.createMany({
+      data: [...minNewByProduct].map(([productId, piastres]) => ({ productId, type: 'SALE_LOT' as const, newValue: (piastres / 100).toString() })),
+    });
+    await audit({ actorType: 'USER', actorId: user.id, action: 'lot.bulk.discount', entityType: 'Lot', data: { count: r.affected, pct } });
+    return r;
+  }
+
+  if (op === 'status') {
+    if (!LOT_STATUSES.has(value)) throw new Error('BAD_STATUS');
+    const res = await prisma.lot.updateMany({ where: { id: { in: ids } }, data: { status: value as 'LIVE' | 'QUARANTINE' | 'EXPIRED' | 'WRITTEN_OFF' } });
+    r.affected = res.count;
+    await audit({ actorType: 'USER', actorId: user.id, action: 'lot.bulk.status', entityType: 'Lot', data: { count: r.affected, status: value } });
+    return r;
+  }
+
+  throw new Error('BAD_OP');
+}
+
 export async function bulkProducts(op: string, ids: string[], value: string): Promise<BulkResult> {
   const user = await requirePermission('catalog.write');
   if (ids.length === 0) return empty();

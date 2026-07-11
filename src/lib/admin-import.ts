@@ -15,7 +15,10 @@ import type { ExportEntity } from '@/lib/admin-export';
  * i.e. a data load. Each importer is RBAC-gated via IMPORT_PERMISSION at the
  * action layer.
  */
-export const IMPORT_PERMISSION: Record<ExportEntity, PermissionKey> = {
+/** Entities that support CSV IMPORT — a subset of the exportable ones ('lots'
+ *  is export-only; stock loads go through the go-live bulk stock CSV). */
+export type ImportEntity = Exclude<ExportEntity, 'lots'>;
+export const IMPORT_PERMISSION: Record<ImportEntity, PermissionKey> = {
   products: 'catalog.write',
   brands: 'catalog.write',
   categories: 'catalog.write',
@@ -218,7 +221,7 @@ const importReviews = (rows: Row[]) => run(rows, async (r) => {
   return 'created';
 });
 
-const IMPORTERS: Record<ExportEntity, (rows: Row[]) => Promise<ImportReport>> = {
+const IMPORTERS: Record<ImportEntity, (rows: Row[]) => Promise<ImportReport>> = {
   products: importProducts,
   brands: importBrands,
   categories: importCategories,
@@ -228,6 +231,8 @@ const IMPORTERS: Record<ExportEntity, (rows: Row[]) => Promise<ImportReport>> = 
   reviews: importReviews,
 };
 
-export async function importEntity(entity: ExportEntity, rows: Row[]): Promise<ImportReport> {
+export const isImportEntity = (entity: string): entity is ImportEntity => entity in IMPORTERS;
+
+export async function importEntity(entity: ImportEntity, rows: Row[]): Promise<ImportReport> {
   return IMPORTERS[entity](rows);
 }

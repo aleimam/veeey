@@ -9,8 +9,8 @@ import type { Prisma } from '@/generated/prisma/client';
  * URL params (the same filters the list pages use) and maps rows to CSV. Gated by
  * each entity's read permission (see EXPORT_PERMISSION).
  */
-export type ExportEntity = 'products' | 'brands' | 'categories' | 'customers' | 'orders' | 'returns' | 'reviews';
-export const EXPORT_ENTITIES: ExportEntity[] = ['products', 'brands', 'categories', 'customers', 'orders', 'returns', 'reviews'];
+export type ExportEntity = 'products' | 'brands' | 'categories' | 'customers' | 'orders' | 'returns' | 'reviews' | 'lots';
+export const EXPORT_ENTITIES: ExportEntity[] = ['products', 'brands', 'categories', 'customers', 'orders', 'returns', 'reviews', 'lots'];
 
 export const EXPORT_PERMISSION: Record<ExportEntity, PermissionKey> = {
   products: 'catalog.read',
@@ -20,6 +20,7 @@ export const EXPORT_PERMISSION: Record<ExportEntity, PermissionKey> = {
   orders: 'orders.read',
   returns: 'returns.manage',
   reviews: 'reviews.moderate',
+  lots: 'inventory.manage',
 };
 
 type SP = Record<string, string | undefined>;
@@ -124,7 +125,30 @@ async function reviews(sp: SP): Promise<Built> {
   };
 }
 
-const BUILDERS: Record<ExportEntity, (sp: SP) => Promise<Built>> = { products, brands, categories, customers, orders, returns, reviews };
+async function lots(sp: SP): Promise<Built> {
+  // Same where-builder as the lots list page (V4 C11) — export honors every
+  // filter; ids = export-selected from the bulk bar.
+  const { lotWhere } = await import('@/lib/inventory-service');
+  const where: Prisma.LotWhereInput = {
+    ...lotWhere({ search: sp.q, status: sp.status, locationId: sp.location, stock: sp.stock, sale: sp.sale, expiring: sp.expiring, condition: sp.condition }),
+    ...(sp.ids ? { id: { in: sp.ids.split('~') } } : {}),
+  };
+  const rows = await prisma.lot.findMany({
+    where,
+    include: { product: { select: { sku: true, nameEn: true, basePricePiastres: true } }, location: { select: { name: true } } },
+    orderBy: { expiryDate: 'asc' },
+  });
+  return {
+    headers: ['sku', 'product', 'location', 'expiry', 'condition', 'status', 'qtyOnHand', 'qtyReserved', 'sellable', 'basePriceEgp', 'salePriceEgp', 'saleFlag', 'costEgp'],
+    rows: rows.map((l) => [
+      l.product.sku, l.product.nameEn, l.location.name, iso(l.expiryDate), l.condition, l.status,
+      l.qtyOnHand, l.qtyReserved, Math.max(0, l.qtyOnHand - l.qtyReserved),
+      egp(l.product.basePricePiastres), egp(l.priceOverridePiastres), l.saleFlag ? 'yes' : '', egp(l.costPiastres),
+    ]),
+  };
+}
+
+const BUILDERS: Record<ExportEntity, (sp: SP) => Promise<Built>> = { products, brands, categories, customers, orders, returns, reviews, lots };
 
 /** Build the CSV string for an entity given the URL filter params. */
 export async function buildExportCsv(entity: ExportEntity, sp: SP): Promise<string> {

@@ -33,7 +33,7 @@ export type LotListOpts = {
   sort?: string; dir?: 'asc' | 'desc'; page?: number; perPage?: number;
 };
 
-function lotWhere(o: LotListOpts): Prisma.LotWhereInput {
+export function lotWhere(o: LotListOpts): Prisma.LotWhereInput {
   return {
     ...(o.status ? { status: o.status as 'LIVE' | 'QUARANTINE' | 'EXPIRED' | 'WRITTEN_OFF' } : {}),
     ...(o.locationId ? { locationId: o.locationId } : {}),
