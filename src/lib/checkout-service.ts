@@ -13,10 +13,12 @@ import { orderTotal, depositAndBalance } from '@/lib/checkout-math';
 import { scoreOrderRisk } from '@/lib/fraud';
 import { applyCoupon } from '@/lib/coupon-service';
 import { maxRedeemablePoints, pointsToPiastres } from '@/lib/loyalty';
-import { getNumberSetting } from '@/lib/settings-service';
+import { getNumberSetting, getSetting } from '@/lib/settings-service';
+import { normalizeDestination } from '@/lib/otp-service';
+import { VERIFY_COOKIE, verifyCookieMatches } from '@/lib/verify-cookie';
 import { enqueue, QUEUES } from '@/lib/jobs';
 import { notify, type NotifyInput } from '@/lib/notification-service';
-import { smsConfigured, whatsappConfigured } from '@/lib/provider-config';
+import { smsConfigured, whatsappConfigured, emailConfigured } from '@/lib/provider-config';
 import { deriveSystemMethod } from '@/lib/payment-method-service';
 
 /** Checkout → Order (FR-CHK-*, FR-ORD-01). Converts cart soft-holds into a real
@@ -39,10 +41,42 @@ export const checkoutSchema = z.object({
 });
 export type CheckoutInput = z.input<typeof checkoutSchema>;
 
+/** V5 F30 — "verify email or phone to checkout". True when the shopper has a
+ *  verified account contact or a signed guest-verification cookie matching the
+ *  contact they're checking out with. */
+export async function isCheckoutVerified(userId: string | null | undefined, phone: string, guestEmail?: string): Promise<boolean> {
+  if (userId) {
+    const u = await prisma.user.findUnique({ where: { id: userId }, select: { emailVerified: true, phoneVerified: true } });
+    if (u?.emailVerified || u?.phoneVerified) return true;
+  }
+  const jar = await cookies();
+  const dests = [normalizeDestination(phone)?.dest, guestEmail ? normalizeDestination(guestEmail)?.dest : undefined];
+  return verifyCookieMatches(jar.get(VERIFY_COOKIE)?.value, dests);
+}
+
+/** Gate is active only when the toggle is on AND at least one code channel
+ *  (SMS / email) can actually deliver — never bricks checkout otherwise. */
+export const checkoutVerificationRequired = async () => {
+  if ((await getSetting('checkout.requireVerification')) !== 'true') return false;
+  return (await smsConfigured()) || (await emailConfigured());
+};
+
 export async function placeOrder(cartId: string, raw: CheckoutInput) {
   const data = checkoutSchema.parse(raw);
   const session = await auth();
   const customerId = session?.user?.customerId ?? null;
+
+  // Blocked accounts cannot order (V5 F31).
+  if (customerId) {
+    const standing = await prisma.customer.findUnique({ where: { id: customerId }, select: { status: true } });
+    if (standing?.status === 'BLOCKED') throw new Error('CUSTOMER_BLOCKED');
+  }
+
+  // Contact verification gate (V5 F30, admin-toggleable).
+  if (await checkoutVerificationRequired()) {
+    const verified = await isCheckoutVerified(session?.user?.id, data.phone, data.guestEmail);
+    if (!verified) throw new Error('VERIFY_REQUIRED');
+  }
 
   const reservations = await prisma.lotReservation.findMany({
     where: { sessionId: cartId },

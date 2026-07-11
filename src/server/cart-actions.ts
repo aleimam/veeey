@@ -154,6 +154,8 @@ export async function placeOrderAction(_p: CheckoutState, fd: FormData): Promise
     }
   } catch (e) {
     if (e instanceof Error && e.message === 'EMPTY_CART') return { error: 'empty' };
+    if (e instanceof Error && e.message === 'VERIFY_REQUIRED') return { error: 'verify' };
+    if (e instanceof Error && e.message === 'CUSTOMER_BLOCKED') return { error: 'blocked' };
     console.error('placeOrder failed', e);
     return { error: 'invalid' };
   }

@@ -47,6 +47,8 @@ export const SETTINGS: SettingDef[] = [
   { key: 'alerts.wishlistEmailEnabled', label: 'Wishlist alert emails', group: 'Alerts', type: 'text', default: 'true', hint: 'true / false — email wishlist price-drop / back-in-stock alerts (needs SMTP). Push alerts always fire for subscribed devices.' },
   { key: 'cart.abandonedReminderEnabled', label: 'Abandoned-cart reminders', group: 'Cart', type: 'text', default: 'true', hint: 'true / false — email signed-in customers a reminder when they leave items in the cart (needs SMTP). Guest carts cannot be emailed.' },
   { key: 'cart.abandonedIdleHours', label: 'Abandoned-cart idle (hours)', group: 'Cart', type: 'number', default: '6', hint: 'Hours a cart must sit untouched before one reminder is sent.' },
+  // Checkout
+  { key: 'checkout.requireVerification', label: 'Require verified contact to checkout', group: 'Checkout', type: 'text', default: 'false', hint: 'true / false — shoppers must confirm a one-time code sent to their phone (SMS) or email before placing an order. Needs SMS (and/or SMTP) configured in Providers. Verified accounts skip it on later orders.' },
   // Storefront
   { key: 'refill.enabled', label: 'Show "Subscribe with Refill" on products', group: 'Storefront', type: 'text', default: 'false', hint: 'true / false. Real recurring subscriptions are not built yet — keep "false" to hide the per-product subscribe option.' },
   // Store contact (shown in the footer / contact block)

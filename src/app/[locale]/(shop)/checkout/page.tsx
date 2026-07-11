@@ -4,6 +4,8 @@ import { readCartId, getCart } from '@/lib/cart-service';
 import { listShippingTypes, ultraFastGovernorates } from '@/lib/shipping-service';
 import { enabledCustomerMethods } from '@/lib/payment-method-service';
 import { getNumberSetting } from '@/lib/settings-service';
+import { checkoutVerificationRequired, isCheckoutVerified } from '@/lib/checkout-service';
+import { smsConfigured, emailConfigured } from '@/lib/provider-config';
 import { pick } from '@/lib/admin-i18n';
 import { getCurrentUser } from '@/lib/auth-guards';
 import { listAddresses } from '@/lib/address-service';
@@ -36,6 +38,12 @@ export default async function CheckoutPage({ params }: { params: Promise<{ local
   const posGovernorates = [...new Set(posAreas.map((a) => a.zone.governorate))];
   const ultraGovs = await ultraFastGovernorates(); // UltraFast hidden outside these (V4 E24)
 
+  // Contact verification gate (V5 F30). Only meaningful when a channel can
+  // actually deliver codes; signed-in users with a verified contact skip it.
+  const [smsOk, emailOk] = await Promise.all([smsConfigured(), emailConfigured()]);
+  const requireVerification = await checkoutVerificationRequired();
+  const alreadyVerified = requireVerification && user ? await isCheckoutVerified(user.id, '', undefined) : false;
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
       <TrackView name="checkout_step" props={{ step: 'start' }} />
@@ -60,6 +68,11 @@ export default async function CheckoutPage({ params }: { params: Promise<{ local
         pointsBalance={customer?.pointsBalance ?? 0}
         pointsPerEgp={pointsPerEgp}
         savedAddresses={savedAddresses}
+        requireVerification={requireVerification}
+        alreadyVerified={alreadyVerified}
+        accountEmail={user?.email ?? undefined}
+        smsAvailable={smsOk}
+        emailAvailable={emailOk}
       />
     </div>
   );
