@@ -48,6 +48,14 @@ export async function dispatchEmail(to: string, subject: string, body: string): 
   return { ok: false, skipped: true };
 }
 
+/** True when the text needs SMSMisr's Unicode encoding (language 3): anything
+ *  outside printable ASCII (Arabic, em dashes, curly quotes) is rejected with
+ *  code 1909 under language 1/2. */
+const needsUnicodeSms = (text: string) => [...text].some((ch) => {
+  const c = ch.codePointAt(0)!;
+  return (c < 0x20 && ch !== '\n' && ch !== '\r') || c > 0x7e;
+});
+
 /** SMS via SMSMisr (sms.com.eg). Mobile may be comma-separated; each is
  *  normalized to the 2011… form. Success response code is 1901. */
 export async function dispatchSms(to: string, message: string): Promise<DispatchResult> {
@@ -62,7 +70,7 @@ export async function dispatchSms(to: string, message: string): Promise<Dispatch
       password: cfg.password,
       sender: cfg.sender,
       mobile,
-      language: cfg.language,
+      language: needsUnicodeSms(message) ? '3' : cfg.language,
       message,
     });
     const res = await fetch('https://smsmisr.com/api/SMS/', {

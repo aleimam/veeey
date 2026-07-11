@@ -98,7 +98,7 @@ export async function sendTestSmsAction(fd: FormData): Promise<void> {
   let result: 'ok' | 'fail' | 'skipped' = 'fail';
   let code = '';
   if (to) {
-    const r = await dispatchSms(to, 'Veeey SMS test — your sms.com.eg integration is working.');
+    const r = await dispatchSms(to, 'Veeey SMS test - your sms.com.eg integration is working.');
     result = r.ok ? 'ok' : r.skipped ? 'skipped' : 'fail';
     if (!r.ok && r.error) code = r.error;
   }
