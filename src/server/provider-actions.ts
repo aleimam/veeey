@@ -4,7 +4,9 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { saveSmtpConfig, clearSmtpConfig, saveAiConfig, clearAiConfig, saveSmsConfig, clearSmsConfig, saveWhatsappConfig, clearWhatsappConfig, saveOpayConfig, clearOpayConfig, saveKashierConfig, clearKashierConfig, saveAramexConfig, clearAramexConfig, saveSmsaConfig, clearSmsaConfig } from '@/lib/provider-config-service';
 import { requirePermission } from '@/lib/auth-guards';
+import { audit } from '@/lib/audit';
 import { dispatchEmail, dispatchSms } from '@/lib/notification-dispatch';
+import { checkProvider, type CheckableProvider } from '@/lib/provider-check';
 
 const localeOf = (fd: FormData) => (fd.get('locale') === 'ar' ? 'ar' : 'en');
 const str = (fd: FormData, k: string) => {
@@ -109,6 +111,24 @@ export async function sendTestSmsAction(fd: FormData): Promise<void> {
   }
   revalidatePath(`/${locale}/admin/providers`);
   redirect(`/${locale}/admin/providers?smstest=${result}${code ? `&smscode=${encodeURIComponent(code)}` : ''}`);
+}
+
+// ---- Provider connection checks (OPay / Kashier / Aramex / SMSA) ------------
+export async function checkProviderAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const user = await requirePermission('settings.manage');
+  const raw = str(fd, 'provider');
+  const provider = (['opay', 'kashier', 'aramex', 'smsa'] as const).find((p) => p === raw);
+  if (!provider) redirect(`/${locale}/admin/providers`);
+
+  const r = await checkProvider(provider as CheckableProvider);
+  await audit({ actorType: 'USER', actorId: user.id, action: 'provider.check', entityType: 'Setting', entityId: provider, data: { status: r.status, code: r.code } });
+
+  const q = new URLSearchParams({ pcheck: provider, pstatus: r.status });
+  if (r.code) q.set('pcode', r.code);
+  if (r.detail) q.set('pdetail', r.detail.slice(0, 140));
+  revalidatePath(`/${locale}/admin/providers`);
+  redirect(`/${locale}/admin/providers?${q.toString()}`);
 }
 
 // ---- WhatsApp (config-only) ------------------------------------------------

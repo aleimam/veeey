@@ -1,6 +1,6 @@
 import { setRequestLocale } from 'next-intl/server';
 import { getSmtpFormValues, emailConfigured, getAiFormValues, aiConfigured, getSmsFormValues, smsConfigured, getWhatsappFormValues, getOpayFormValues, opayConfigured, getKashierFormValues, kashierConfigured, getAramexFormValues, aramexConfigured, getSmsaFormValues, smsaConfigured } from '@/lib/provider-config';
-import { saveSmtpConfigAction, clearSmtpConfigAction, sendTestEmailAction, saveAiConfigAction, clearAiConfigAction, saveSmsConfigAction, clearSmsConfigAction, sendTestSmsAction, saveWhatsappConfigAction, clearWhatsappConfigAction, saveOpayConfigAction, clearOpayConfigAction, saveKashierConfigAction, clearKashierConfigAction, saveAramexConfigAction, clearAramexConfigAction, saveSmsaConfigAction, clearSmsaConfigAction } from '@/server/provider-actions';
+import { saveSmtpConfigAction, clearSmtpConfigAction, sendTestEmailAction, saveAiConfigAction, clearAiConfigAction, saveSmsConfigAction, clearSmsConfigAction, sendTestSmsAction, saveWhatsappConfigAction, clearWhatsappConfigAction, saveOpayConfigAction, clearOpayConfigAction, saveKashierConfigAction, clearKashierConfigAction, saveAramexConfigAction, clearAramexConfigAction, saveSmsaConfigAction, clearSmsaConfigAction, checkProviderAction } from '@/server/provider-actions';
 import { inputCls } from '@/components/admin/ui';
 import { pick } from '@/lib/admin-i18n';
 
@@ -36,6 +36,33 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
   const smsTest = one(sp.smstest);
   const smsCode = one(sp.smscode);
   const smsHint = smsCode ? SMS_HINTS[smsCode] : undefined;
+
+  // Live connection checks (OPay / Kashier / Aramex / SMSA).
+  const pcheck = one(sp.pcheck);
+  const pstatus = one(sp.pstatus);
+  const pcode = one(sp.pcode);
+  const pdetail = one(sp.pdetail);
+  const checkBanner = (p: string) => {
+    if (pcheck !== p) return null;
+    const cls = pstatus === 'ok' ? 'bg-primary/10 text-primary' : pstatus === 'fail' ? 'bg-destructive/10 text-destructive' : 'bg-gold/15 text-slate';
+    const text =
+      pstatus === 'ok' ? tb('✓ Connection OK — credentials accepted.', '✓ الاتصال ناجح — تم قبول بيانات الاعتماد.')
+      : pstatus === 'fail' ? tb('✗ Connection failed.', '✗ فشل الاتصال.')
+      : pstatus === 'skip' ? tb('Not configured yet — save the credentials first.', 'غير مُهيّأ بعد — احفظ بيانات الاعتماد أولًا.')
+      : tb('Reached the provider — response inconclusive.', 'تم الوصول إلى المزوّد — النتيجة غير حاسمة.');
+    return (
+      <p className={`mb-4 rounded-md px-3 py-2 text-sm ${cls}`}>
+        {text}{pcode ? ` (${pcode})` : ''}{pdetail ? <span className="block text-xs opacity-80" dir="ltr">{pdetail}</span> : null}
+      </p>
+    );
+  };
+  const checkForm = (p: string) => (
+    <form action={checkProviderAction} className="mt-2">
+      <input type="hidden" name="locale" value={locale} />
+      <input type="hidden" name="provider" value={p} />
+      <button className="rounded-md border border-border px-3 py-2 text-sm hover:bg-surface">{tb('Check connection', 'فحص الاتصال')}</button>
+    </form>
+  );
   const site = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://veeey.com').replace(/\/$/, '');
 
   return (
@@ -202,6 +229,7 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
         <p className="mb-4 text-sm text-muted-foreground">
           {tb('Hosted card payment (Visa / MasterCard). Status:', 'دفع مُستضاف بالبطاقة (Visa / MasterCard). الحالة:')} {opayOn ? tb('✓ configured', '✓ مُهيّأ') : tb('— not configured', '— غير مُهيّأ')}. {tb('Find these in the OPay merchant dashboard ← API keys. Keep ', 'ستجد هذه في لوحة تحكم تاجر OPay ← مفاتيح API. أبقِ ')}<strong>{tb('Environment', 'البيئة')}</strong>{tb(' on Sandbox until you go live.', ' على Sandbox حتى تنتقل إلى التشغيل المباشر.')}
         </p>
+        {checkBanner('opay')}
         <form action={saveOpayConfigAction} className="space-y-4 rounded-lg border border-border p-4">
           <input type="hidden" name="locale" value={locale} />
           <div className="grid gap-4 sm:grid-cols-2">
@@ -226,6 +254,7 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
             <button formAction={clearOpayConfigAction} className="rounded-md border border-border px-3 py-2 text-sm text-destructive hover:bg-surface">{tb('Clear', 'مسح')}</button>
           </div>
         </form>
+        {checkForm('opay')}
         <p className="mt-2 text-xs text-muted-foreground">{tb('In the OPay dashboard, set the callback/webhook URL to ', 'في لوحة تحكم OPay اضبط رابط رد النداء/الويب هوك على ')}<code className="rounded bg-surface px-1">{site}/api/payments/webhook/opay</code>{tb('. The card method uses the gateway selected in Settings ← Payments (default: automatic).', '. تستخدم طريقة البطاقة البوابة المختارة في الإعدادات ← المدفوعات (الافتراضي: تلقائي).')}</p>
       </section>
 
@@ -234,6 +263,7 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
         <p className="mb-4 text-sm text-muted-foreground">
           {tb('Hosted card payment (Visa / MasterCard). Status:', 'دفع مُستضاف بالبطاقة (Visa / MasterCard). الحالة:')} {kashierOn ? tb('✓ configured', '✓ مُهيّأ') : tb('— not configured', '— غير مُهيّأ')}. {tb('Find these in the Kashier dashboard ← Settings ← API. The ', 'ستجد هذه في لوحة تحكم Kashier ← الإعدادات ← API. يوقّع ')}<strong>{tb('payment API key', 'مفتاح API للدفع')}</strong>{tb(' signs the payment; the ', ' عملية الدفع؛ ويتحقّق ')}<strong>{tb('secret key', 'المفتاح السرّي')}</strong>{tb(' verifies the webhook. Keep ', ' من الويب هوك. أبقِ ')}<strong>{tb('Environment', 'البيئة')}</strong>{tb(' on Test until you go live.', ' على Test حتى تنتقل إلى التشغيل المباشر.')}
         </p>
+        {checkBanner('kashier')}
         <form action={saveKashierConfigAction} className="space-y-4 rounded-lg border border-border p-4">
           <input type="hidden" name="locale" value={locale} />
           <div className="grid gap-4 sm:grid-cols-2">
@@ -258,6 +288,7 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
             <button formAction={clearKashierConfigAction} className="rounded-md border border-border px-3 py-2 text-sm text-destructive hover:bg-surface">{tb('Clear', 'مسح')}</button>
           </div>
         </form>
+        {checkForm('kashier')}
         <p className="mt-2 text-xs text-muted-foreground">{tb('In the Kashier dashboard, set the webhook URL to ', 'في لوحة تحكم Kashier اضبط رابط الويب هوك على ')}<code className="rounded bg-surface px-1">{site}/api/payments/webhook/kashier</code>{tb('. The card method uses the gateway selected in Settings ← Payments (default: automatic).', '. تستخدم طريقة البطاقة البوابة المختارة في الإعدادات ← المدفوعات (الافتراضي: تلقائي).')}</p>
       </section>
 
@@ -266,6 +297,7 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
         <p className="mb-4 text-sm text-muted-foreground">
           {tb('Status', 'الحالة')}: {aramexOn ? tb('✓ configured', '✓ مُهيّأ') : tb('— not configured', '— غير مُهيّأ')}. {tb('From your Aramex account (Shipping Services API). Keep Environment on Test until you go live.', 'من حساب Aramex (واجهة خدمات الشحن). أبقِ البيئة على «اختبار» حتى الانتقال للتشغيل.')}
         </p>
+        {checkBanner('aramex')}
         <form action={saveAramexConfigAction} className="space-y-4 rounded-lg border border-border p-4">
           <input type="hidden" name="locale" value={locale} />
           <div className="grid gap-4 sm:grid-cols-2">
@@ -299,6 +331,7 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
             <button formAction={clearAramexConfigAction} className="rounded-md border border-border px-3 py-2 text-sm text-destructive hover:bg-surface">{tb('Clear', 'مسح')}</button>
           </div>
         </form>
+        {checkForm('aramex')}
         <p className="mt-2 text-xs text-muted-foreground">{tb('Create shipments + labels and track from an order in Orders. Saving keys here readies it.', 'أنشئ الشحنات والملصقات وتتبّعها من صفحة الطلب في «الطلبات». حفظ المفاتيح هنا يجهّزها.')}</p>
       </section>
 
@@ -307,6 +340,7 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
         <p className="mb-4 text-sm text-muted-foreground">
           {tb('Status', 'الحالة')}: {smsaOn ? tb('✓ configured', '✓ مُهيّأ') : tb('— not configured', '— غير مُهيّأ')}. {tb('SMSA SOAP web service (pass key). Create shipments + labels and track from an order.', 'خدمة SMSA عبر SOAP (مفتاح المرور). أنشئ الشحنات والملصقات وتتبّعها من صفحة الطلب.')}
         </p>
+        {checkBanner('smsa')}
         <form action={saveSmsaConfigAction} className="space-y-4 rounded-lg border border-border p-4">
           <input type="hidden" name="locale" value={locale} />
           <div className="grid gap-4 sm:grid-cols-2">
@@ -328,6 +362,7 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
             <button formAction={clearSmsaConfigAction} className="rounded-md border border-border px-3 py-2 text-sm text-destructive hover:bg-surface">{tb('Clear', 'مسح')}</button>
           </div>
         </form>
+        {checkForm('smsa')}
       </section>
     </div>
   );
