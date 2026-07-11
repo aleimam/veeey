@@ -7,6 +7,7 @@ import { audit } from '@/lib/audit';
 import { clearCartCookie } from '@/lib/cart-service';
 import { ATTR_COOKIE, parseAttribution } from '@/lib/attribution';
 import { PREORDER_COOKIE, parsePreorderCart } from '@/lib/preorder-cart';
+import { applyGiftRules } from '@/lib/gift-rule-service';
 import { getShippingFee, type ShippingTypeKey } from '@/lib/shipping-service';
 import { orderTotal, depositAndBalance } from '@/lib/checkout-math';
 import { scoreOrderRisk } from '@/lib/fraud';
@@ -211,6 +212,14 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
       await tx.loyaltyTransaction.create({ data: { customerId, points: -usePoints, type: 'REDEEM', orderId: ord.id, note: 'checkout redemption' } });
       await tx.customer.update({ where: { id: customerId }, data: { pointsBalance: { decrement: usePoints } } });
     }
+
+    // Gift-with-purchase: attach any gifts this order earned (best-effort —
+    // out-of-stock gifts are skipped, never blocks checkout).
+    await applyGiftRules(tx, ord.id, {
+      subtotalPiastres: subtotal,
+      productIds: [...reservations.map((r) => r.lot.productId), ...preorders.map((l) => l.productId)],
+    });
+
     return ord;
   });
 
@@ -268,6 +277,9 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
 export function getOrderByNumber(number: string) {
   return prisma.order.findUnique({
     where: { number },
-    include: { items: { include: { product: { select: { nameEn: true, sku: true } } } } },
+    include: {
+      items: { include: { product: { select: { nameEn: true, sku: true } } } },
+      gifts: { include: { gift: { select: { internalName: true } } } },
+    },
   });
 }

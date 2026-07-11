@@ -68,7 +68,14 @@ export default async function GiftsPage({ params, searchParams }: { params: Prom
         count={total}
         head={[{ label: tf('code'), col: 'code' }, { label: tf('internalName'), col: 'name' }, { label: tf('stock'), col: 'stock' }, tf('expiry')]}
         sortCtx={{ sort: lp.sort, dir: lp.dir, sp, basePath }}
-        toolbar={<ArchivedToggle path="gifts" showingArchived={showingArchived} />}
+        toolbar={
+          <span className="inline-flex items-center gap-2">
+            <a href={`/${locale}/admin/gifts/rules`} className="rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-surface">
+              🎁 {tb('Gift rules', 'قواعد الهدايا')}
+            </a>
+            <ArchivedToggle path="gifts" showingArchived={showingArchived} />
+          </span>
+        }
         notice={<>
           <InUseNotice show={one(sp.error) === 'in_use'} />
           {done != null && <p className="mb-4 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">{tb(`Done — ${done} updated`, `تم — ${done}`)}{Number(one(sp.skip)) > 0 ? tb(`, ${one(sp.skip)} skipped (in use)`, `، ${one(sp.skip)} متخطّى`) : ''}.</p>}

@@ -11,6 +11,7 @@ import { availableQty } from '@/lib/inventory';
 import { getShippingFee, type ShippingTypeKey } from '@/lib/shipping-service';
 import { getNumberSetting } from '@/lib/settings-service';
 import { creditOrderPoints, creditReferralReward, reverseOrderPoints, recomputeLoyaltyStanding } from '@/lib/loyalty-service';
+import { applyGiftRules } from '@/lib/gift-rule-service';
 import { enqueue, QUEUES } from '@/lib/jobs';
 import { notify, type NotifyInput } from '@/lib/notification-service';
 import { smsConfigured } from '@/lib/provider-config';
@@ -598,6 +599,10 @@ export async function createManualOrder(raw: ManualOrderInput) {
         },
       });
     }
+    // Gift-with-purchase — same rules as storefront checkout (best-effort;
+    // staff can remove the auto-added gift from the order page if unwanted).
+    await applyGiftRules(tx, ord.id, { subtotalPiastres: subtotal, productIds: d.items.map((i) => i.productId) });
+
     return tx.order.update({ where: { id: ord.id }, data: { subtotalPiastres: subtotal, totalPiastres: subtotal + shipping, isPreorder: shortfalls.length > 0 } });
   });
 

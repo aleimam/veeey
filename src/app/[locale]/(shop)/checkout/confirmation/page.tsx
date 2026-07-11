@@ -100,6 +100,12 @@ export default async function ConfirmationPage({
               <span className="font-semibold">{formatEGP(Number(it.unitPricePiastres) * it.qty)}</span>
             </li>
           ))}
+          {order.gifts.map((g) => (
+            <li key={g.id} className="flex justify-between text-green-dark">
+              <span>🎁 {locale === 'ar' ? 'هدية مجانية' : 'Free gift'}: {g.gift.internalName}{g.qty > 1 ? ` × ${g.qty}` : ''}</span>
+              <span className="font-semibold">{locale === 'ar' ? 'مجانًا' : 'FREE'}</span>
+            </li>
+          ))}
         </ul>
         <div className="mt-3 space-y-1 border-t border-[color:var(--slate-border)] pt-3 text-sm">
           <div className="flex justify-between text-[color:var(--text-muted)]"><span>{t('shipping')}</span><span>{Number(order.shippingPiastres) === 0 ? t('free') : formatEGP(Number(order.shippingPiastres))}</span></div>

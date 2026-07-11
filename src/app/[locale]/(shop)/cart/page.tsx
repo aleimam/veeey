@@ -3,6 +3,7 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { readCartId, getCart } from '@/lib/cart-service';
 import { listAreas, deliverToOptions } from '@/lib/shipping-service';
+import { cartGiftHints } from '@/lib/gift-rule-service';
 import { getSetting } from '@/lib/settings-service';
 import { updateCartQtyAction, removeFromCartAction } from '@/server/cart-actions';
 import { formatEGP } from '@/lib/format';
@@ -67,7 +68,11 @@ export default async function CartPage({
   const depositNow = Math.round((subtotal * depositPercent) / 100);
   const balanceLater = subtotal - depositNow;
   const areaId = (Array.isArray(sp.area) ? sp.area[0] : sp.area) ?? undefined;
-  const [areas, deliver] = await Promise.all([listAreas(), deliverToOptions(areaId, locale)]);
+  const [areas, deliver, giftHints] = await Promise.all([
+    listAreas(),
+    deliverToOptions(areaId, locale),
+    cartGiftHints(BigInt(subtotal), lines.map((l) => l.productId), locale).catch(() => []), // matches checkout (incl. pre-order lines)
+  ]);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
@@ -128,6 +133,19 @@ export default async function CartPage({
               <span className="text-[color:var(--text-muted)]">{t('subtotal')}</span>
               <span className="font-bold text-ink">{formatEGP(subtotal)}</span>
             </div>
+            {giftHints.map((h, i) =>
+              h.kind === 'earned' ? (
+                <div key={i} className="mt-3 flex items-center gap-2 rounded-[10px] bg-green-wash p-3 text-[13px] font-semibold text-green-dark">
+                  <span aria-hidden="true">🎁</span>
+                  {tb(`You've earned a free gift: ${h.name}${h.qty > 1 ? ` ×${h.qty}` : ''}`, `لقد كسبت هدية مجانية: ${h.name}${h.qty > 1 ? ` ×${h.qty}` : ''}`)}
+                </div>
+              ) : (
+                <div key={i} className="mt-3 flex items-center gap-2 rounded-[10px] bg-gold-wash p-3 text-[13px] font-medium text-ink">
+                  <span aria-hidden="true">🎁</span>
+                  {tb(`Add ${formatEGP(h.remainingPiastres)} more to earn: ${h.name}`, `أضف ${formatEGP(h.remainingPiastres)} لتكسب: ${h.name}`)}
+                </div>
+              ),
+            )}
             {hasPreorder && (
               <div className="mt-3 space-y-1.5 rounded-[10px] bg-gold-wash p-3 text-[13px]">
                 <div className="flex items-center gap-1.5 font-bold text-ink">
