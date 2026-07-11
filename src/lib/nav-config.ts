@@ -94,7 +94,10 @@ export function defaultNav(): NavConfig {
     fontFamily: '',
     baseSizePx: 15,
     baseColor: '#ffffff',
-    promo: { enabled: true, textEn: 'Free delivery over EGP 1,500', textAr: 'توصيل مجاني لأكثر من ١٥٠٠ ج.م', href: '', color: 'var(--gold)' },
+    // V4 E23: the "over EGP 1,500" free-delivery threshold concept is removed —
+    // shipping is free nationwide by method. The promo slot stays available for
+    // any future message; it ships disabled and empty.
+    promo: { enabled: false, textEn: '', textAr: '', href: '', color: 'var(--gold)' },
     items: [
       {
         id: 'shop-goal', labelEn: 'Shop by Goal', labelAr: 'تسوّق حسب الهدف', href: '/products', icon: '', color: '', bold: true, sizePx: null, visible: true,

@@ -14,8 +14,6 @@ import { navFontResolve, type NavConfig, type NavItem } from '@/lib/nav-config';
 
 export type CartLine = { name: string; image: string; pricePiastres: number; qty: number };
 
-const FREE_DELIVERY_PIASTRES = 150000; // EGP 1,500
-
 export function ChewyHeader({
   locale,
   nav,
@@ -300,8 +298,6 @@ function CartDrawer({
   count: number;
   onClose: () => void;
 }) {
-  const pct = Math.min(100, Math.round((subtotalPiastres / FREE_DELIVERY_PIASTRES) * 100));
-  const remaining = Math.max(0, FREE_DELIVERY_PIASTRES - subtotalPiastres);
   return (
     <div className="fixed inset-0 z-[70]">
       <div onClick={onClose} className="absolute inset-0" style={{ background: 'var(--scrim)' }} />
@@ -315,20 +311,8 @@ function CartDrawer({
           </button>
         </div>
 
-        <div className="bg-green-wash px-5 py-3.5">
-          {subtotalPiastres >= FREE_DELIVERY_PIASTRES ? (
-            <div className="flex items-center gap-2 text-[13px] font-semibold text-green-dark">
-              <Icon name="check-circle" size={16} color="var(--green-dark)" /> {t("You've unlocked free delivery!", 'حصلت على توصيل مجاني!')}
-            </div>
-          ) : (
-            <div className="text-[13px] font-semibold text-green-dark">
-              {t('{x} away from free delivery'.replace('{x}', formatEGP(remaining)), 'باقي {x} على التوصيل المجاني'.replace('{x}', formatEGP(remaining)))}
-            </div>
-          )}
-          <div className="mt-2 h-[7px] overflow-hidden rounded-full bg-white">
-            <div className="h-full bg-lime transition-[width]" style={{ width: `${pct}%` }} />
-          </div>
-        </div>
+        {/* Free-delivery threshold banner removed (V4 E23) — Fast & Free ships
+            free nationwide by method design; there is no minimum to message. */}
 
         <div className="flex-1 overflow-y-auto px-5 py-2">
           {lines.length === 0 ? (

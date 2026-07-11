@@ -22,6 +22,7 @@ export function CheckoutForm({
   shippingOptions,
   paymentMethods,
   posGovernorates = [],
+  ultraFastGovernorates = [],
   pointsBalance = 0,
   pointsPerEgp = 200,
   savedAddresses = [],
@@ -33,6 +34,7 @@ export function CheckoutForm({
   shippingOptions: ShipOpt[];
   paymentMethods: PayOpt[];
   posGovernorates?: string[];
+  ultraFastGovernorates?: string[];
   pointsBalance?: number;
   pointsPerEgp?: number;
   savedAddresses?: SavedAddr[];
@@ -47,7 +49,12 @@ export function CheckoutForm({
     const a = savedAddresses.find((x) => x.id === id);
     setAddr(a ? { name: defaultName ?? '', phone: a.phone ?? '', governorate: a.governorate, city: a.city, street: a.street ?? '' } : { ...blankAddr, name: defaultName ?? '' });
   };
-  const fee = shippingOptions.find((s) => s.type === shipping)?.feePiastres ?? 0;
+  // UltraFast (3–6h same-day) is only selectable in eligible governorates
+  // (Greater Cairo + Giza by seed, V4 E24). If the shopper picks another
+  // governorate after selecting it, the choice falls back to the first option.
+  const visibleShipping = shippingOptions.filter((s) => s.type !== 'ULTRAFAST' || ultraFastGovernorates.includes(addr.governorate));
+  const effectiveShipping = visibleShipping.some((s) => s.type === shipping) ? shipping : (visibleShipping[0]?.type ?? 'FAST_FREE');
+  const fee = visibleShipping.find((s) => s.type === effectiveShipping)?.feePiastres ?? 0;
   const total = subtotalPiastres + fee;
 
   const errorMsg = state.error === 'empty' ? t('errEmpty') : state.error ? t('errGeneric') : null;
@@ -100,15 +107,15 @@ export function CheckoutForm({
         <section>
           <h2 className={heading}>{t('shipping')}</h2>
           <div className="space-y-2">
-            {shippingOptions.map((s) => (
+            {visibleShipping.map((s) => (
               <label
                 key={s.type}
                 className={`flex cursor-pointer items-center justify-between rounded-[10px] border p-3.5 text-sm transition-colors ${
-                  shipping === s.type ? 'border-[1.5px] border-green-dark bg-green-wash' : 'border-[color:var(--slate-border)]'
+                  effectiveShipping === s.type ? 'border-[1.5px] border-green-dark bg-green-wash' : 'border-[color:var(--slate-border)]'
                 }`}
               >
                 <span className="flex items-center gap-2.5 text-ink">
-                  <input type="radio" name="shippingType" value={s.type} checked={shipping === s.type} onChange={() => setShipping(s.type)} className="accent-[color:var(--green-dark)]" />
+                  <input type="radio" name="shippingType" value={s.type} checked={effectiveShipping === s.type} onChange={() => setShipping(s.type)} className="accent-[color:var(--green-dark)]" />
                   {s.label}
                 </span>
                 <span className="font-semibold text-green-dark">{s.feePiastres === 0 ? t('free') : formatEGP(s.feePiastres)}</span>

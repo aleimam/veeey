@@ -173,7 +173,7 @@ export default async function CartPage({
               <select name="area" defaultValue={areaId ?? ''} className={selectCls}>
                 <option value="">{t('selectArea')}</option>
                 {areas.map((a) => (
-                  <option key={a.id} value={a.id}>{a.name} · {a.zone.governorate}</option>
+                  <option key={a.id} value={a.id}>{(locale === 'ar' ? a.nameAr : null) ?? a.name} · {(locale === 'ar' ? a.zone.nameAr : null) ?? a.zone.governorate}</option>
                 ))}
               </select>
               <button className="v-btn v-btn--secondary v-btn--block v-btn--sm mt-2">{t('checkOptions')}</button>

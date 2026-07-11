@@ -43,6 +43,7 @@ export async function saveZoneAction(fd: FormData): Promise<void> {
   try {
     await saveZone(str(fd, 'id') ?? null, {
       name: str(fd, 'name') ?? '',
+      nameAr: str(fd, 'nameAr') ?? null,
       governorate: str(fd, 'governorate') ?? '',
       granularity: (str(fd, 'granularity') ?? 'GOVERNORATE') as 'AREA' | 'GOVERNORATE',
     });
@@ -64,6 +65,9 @@ export async function saveAreaAction(fd: FormData): Promise<void> {
     await saveArea(str(fd, 'id') ?? null, {
       zoneId,
       name: str(fd, 'name') ?? '',
+      nameAr: str(fd, 'nameAr') ?? null,
+      etaMinDays: str(fd, 'etaMinDays') ?? null,
+      etaMaxDays: str(fd, 'etaMaxDays') ?? null,
       etaText: str(fd, 'etaText') ?? null,
       allowsUltraFast: fd.get('allowsUltraFast') != null,
       allowsPos: fd.get('allowsPos') != null,
@@ -71,6 +75,36 @@ export async function saveAreaAction(fd: FormData): Promise<void> {
   } catch (e) { console.error('area save failed', e); }
   revalidatePath(`/${locale}/admin/shipping/zones/${zoneId}`);
   redirect(`/${locale}/admin/shipping/zones/${zoneId}`);
+}
+
+/** Save-all for a zone's sub-areas (V4 E27): every row's inputs are namespaced
+ *  `<field>__<areaId>` and associated to one form via the `form=` attribute. */
+export async function saveAreasAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const zoneId = str(fd, 'zoneId') ?? '';
+  const ids = fd.getAll('areaIds').filter((v): v is string => typeof v === 'string' && v !== '');
+  let failed = 0;
+  for (const id of ids) {
+    const name = str(fd, `name__${id}`);
+    if (!name) continue;
+    try {
+      await saveArea(id, {
+        zoneId,
+        name,
+        nameAr: str(fd, `nameAr__${id}`) ?? null,
+        etaMinDays: str(fd, `etaMinDays__${id}`) ?? null,
+        etaMaxDays: str(fd, `etaMaxDays__${id}`) ?? null,
+        etaText: str(fd, `etaText__${id}`) ?? null,
+        allowsUltraFast: fd.get(`allowsUltraFast__${id}`) != null,
+        allowsPos: fd.get(`allowsPos__${id}`) != null,
+      });
+    } catch (e) {
+      failed += 1;
+      console.error('area save-all row failed', id, e);
+    }
+  }
+  revalidatePath(`/${locale}/admin/shipping/zones/${zoneId}`);
+  redirect(`/${locale}/admin/shipping/zones/${zoneId}?saved=${ids.length - failed}${failed ? `&failed=${failed}` : ''}`);
 }
 
 export async function deleteAreaAction(fd: FormData): Promise<void> {

@@ -405,7 +405,9 @@
     "shipping": {
       "etaUltra": "3–6 hours",
       "etaPickup": "Same day at our office",
-      "etaStandard": "1–3 working days"
+      "etaStandard": "1–3 working days",
+      "etaDaysRange": "{min}–{max} business days",
+      "etaDaysSingle": "{n} business day(s)"
     },
     "payments": {
       "COD": "Cash on Delivery",

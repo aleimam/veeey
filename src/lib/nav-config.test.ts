@@ -5,7 +5,7 @@ describe('normalizeNav', () => {
   it('returns the shipped default when given null/garbage', () => {
     expect(normalizeNav(null).items.length).toBe(defaultNav().items.length);
     expect(normalizeNav('nope').items[0].labelEn).toBe('Shop by Goal');
-    expect(normalizeNav(42).promo.textEn).toContain('Free delivery');
+    expect(normalizeNav(42).promo.enabled).toBe(false); // V4 E23: no default free-delivery-threshold promo
   });
 
   it('coerces types, fills AR from EN, clamps sizes, defaults missing fields', () => {

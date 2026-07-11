@@ -405,7 +405,9 @@
     "shipping": {
       "etaUltra": "3–6 ساعات",
       "etaPickup": "في نفس اليوم من مكتبنا",
-      "etaStandard": "1–3 أيام عمل"
+      "etaStandard": "1–3 أيام عمل",
+      "etaDaysRange": "{min}–{max} أيام عمل",
+      "etaDaysSingle": "{n} يوم عمل"
     },
     "payments": {
       "COD": "الدفع نقدًا عند الاستلام",
