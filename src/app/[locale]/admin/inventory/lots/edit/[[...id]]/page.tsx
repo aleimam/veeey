@@ -1,6 +1,5 @@
 import { setRequestLocale } from 'next-intl/server';
 import { getLot, lotSuggestion } from '@/lib/inventory-service';
-import { listProducts } from '@/lib/catalog-service';
 import { listLocations } from '@/lib/location-service';
 import { piastresToEgp } from '@/lib/format';
 import { LotForm } from '@/components/admin/lot-form';
@@ -12,12 +11,24 @@ export default async function LotEditPage({ params }: { params: Promise<{ locale
   const tb = pick(locale);
   const lotId = id?.[0];
 
-  const [lot, products, locations] = await Promise.all([
+  const [lot, locations] = await Promise.all([
     lotId ? getLot(lotId) : Promise.resolve(null),
-    listProducts(),
     listLocations(),
   ]);
   const suggestion = lotId ? await lotSuggestion(lotId) : null;
+
+  // The lot's CURRENT product, pre-selected in the searchable picker (V4 C7 —
+  // the old 200-row dropdown often didn't even contain it).
+  const initialProduct = lot
+    ? {
+        id: lot.product.id,
+        name: lot.product.nameEn,
+        sku: lot.product.sku,
+        brand: lot.product.brand?.nameEn ?? null,
+        thumb: lot.product.images[0]?.url ?? null,
+        basePriceEgp: piastresToEgp(lot.product.basePricePiastres),
+      }
+    : null;
 
   const defaults = lot
     ? {
@@ -46,8 +57,7 @@ export default async function LotEditPage({ params }: { params: Promise<{ locale
       <LotForm
         locale={locale}
         defaults={defaults}
-        products={products.map((p) => ({ value: p.id, label: `${p.nameEn} (${p.sku})` }))}
-        productPrices={Object.fromEntries(products.map((p) => [p.id, piastresToEgp(p.basePricePiastres)]))}
+        initialProduct={initialProduct}
         locations={locations.map((l) => ({ value: l.id, label: l.name }))}
         suggestion={suggestionText}
       />

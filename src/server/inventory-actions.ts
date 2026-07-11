@@ -2,12 +2,42 @@
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
+import { prisma } from '@/lib/prisma';
+import { requirePermission } from '@/lib/auth-guards';
+import { piastresToEgp } from '@/lib/format';
 import { saveLot, setLotPrice, setLotStatus } from '@/lib/inventory-service';
 import { mockShipmentReceived, publishIntakeLot } from '@/lib/intake-service';
 import { saveLocation } from '@/lib/location-service';
 import { createStocktake, recordCount, closeStocktake } from '@/lib/stocktake-service';
+import type { Prisma } from '@/generated/prisma/client';
 
 export type AdminFormState = { error?: string };
+
+/** Product hit for the inventory single-select picker (V4 C8) — includes SKU +
+ *  base price so the lot form's price/discount calculator works per selection. */
+export type InventoryPickerProduct = { id: string; name: string; sku: string; brand: string | null; thumb: string | null; basePriceEgp: number };
+
+export async function searchInventoryProductsAction(q: string): Promise<InventoryPickerProduct[]> {
+  await requirePermission('inventory.manage');
+  const term = q.trim();
+  if (term.length < 2) return [];
+  const or: Prisma.ProductWhereInput[] = [
+    { nameEn: { contains: term, mode: 'insensitive' } },
+    { nameAr: { contains: term } },
+    { sku: { contains: term, mode: 'insensitive' } },
+    { brand: { nameEn: { contains: term, mode: 'insensitive' } } },
+  ];
+  const rows = await prisma.product.findMany({
+    where: { OR: or },
+    include: { brand: { select: { nameEn: true } }, images: { orderBy: { sortOrder: 'asc' }, take: 1 } },
+    orderBy: { nameEn: 'asc' },
+    take: 15,
+  });
+  return rows.map((p) => ({
+    id: p.id, name: p.nameEn, sku: p.sku, brand: p.brand?.nameEn ?? null,
+    thumb: p.images[0]?.url ?? null, basePriceEgp: piastresToEgp(p.basePricePiastres),
+  }));
+}
 
 const localeOf = (fd: FormData) => (fd.get('locale') === 'ar' ? 'ar' : 'en');
 const str = (fd: FormData, k: string) => {

@@ -1,8 +1,8 @@
 import { setRequestLocale } from 'next-intl/server';
 import { listPendingIntake } from '@/lib/intake-service';
-import { listProducts } from '@/lib/catalog-service';
 import { simulateShipmentAction } from '@/server/inventory-actions';
 import { IntakePublishForm } from '@/components/admin/intake-publish-form';
+import { ProductSelect } from '@/components/admin/product-select';
 import { inputCls } from '@/components/admin/ui';
 import { pick } from '@/lib/admin-i18n';
 
@@ -10,7 +10,7 @@ export default async function IntakePage({ params }: { params: Promise<{ locale:
   const { locale } = await params;
   setRequestLocale(locale);
   const tb = pick(locale);
-  const [pending, products] = await Promise.all([listPendingIntake(), listProducts()]);
+  const pending = await listPendingIntake();
 
   return (
     <div className="p-6">
@@ -22,13 +22,10 @@ export default async function IntakePage({ params }: { params: Promise<{ locale:
       {/* Simulate a YeldnIN shipment.received (dev/demo only) */}
       <form action={simulateShipmentAction} className="mb-8 flex flex-wrap items-end gap-2 rounded-lg border border-dashed border-border p-4">
         <span className="w-full text-xs font-medium uppercase text-muted-foreground">{tb('Simulate a received shipment', 'محاكاة شحنة مستلَمة')}</span>
-        <label className="text-xs">
+        <div className="w-80 text-xs">
           {tb('Product', 'المنتج')}
-          <select name="sku" required className={`${inputCls} w-64`}>
-            <option value="">{tb('— Choose —', '— اختر —')}</option>
-            {products.map((p) => <option key={p.id} value={p.sku}>{p.nameEn} ({p.sku})</option>)}
-          </select>
-        </label>
+          <ProductSelect name="sku" emit="sku" required />
+        </div>
         <label className="text-xs">
           {tb('Quantity', 'الكمية')}
           <input type="number" name="qty" min="1" defaultValue={10} className={`${inputCls} w-24`} />

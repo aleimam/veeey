@@ -87,7 +87,13 @@ export function listProductLots(productId: string) {
 }
 
 export function getLot(id: string) {
-  return prisma.lot.findUnique({ where: { id }, include: { product: true, location: true } });
+  return prisma.lot.findUnique({
+    where: { id },
+    include: {
+      product: { include: { brand: { select: { nameEn: true } }, images: { orderBy: { sortOrder: 'asc' }, take: 1 } } },
+      location: true,
+    },
+  });
 }
 
 export async function saveLot(id: string | null, raw: LotInput) {
