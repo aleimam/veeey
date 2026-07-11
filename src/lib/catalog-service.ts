@@ -7,6 +7,7 @@ import { egpToPiastres } from '@/lib/format';
 import { uniqueSlug } from '@/lib/slug';
 import { brandCode, skuFromParts } from '@/lib/sku';
 import { getNumberSetting } from '@/lib/settings-service';
+import { recordPriceDropIfLower } from '@/lib/alert-service';
 
 /**
  * Catalog service (FR-CAT-*). All writes are RBAC-gated and audited. Business
@@ -314,6 +315,8 @@ export async function updateProduct(id: string, raw: ProductWriteInput) {
   const data = productWriteSchema.parse(raw);
   await assertRequiredAttributes(data.kind, data.attributeValueIds);
 
+  const before = await prisma.product.findUnique({ where: { id }, select: { basePricePiastres: true } });
+
   const product = await prisma.product.update({
     where: { id },
     data: {
@@ -329,6 +332,9 @@ export async function updateProduct(id: string, raw: ProductWriteInput) {
         : {}),
     },
   });
+
+  // Wishlist price-drop alert (FR-WSH-02) — fires only when the price went DOWN.
+  if (before) await recordPriceDropIfLower(id, before.basePricePiastres, product.basePricePiastres);
 
   await audit({ actorType: 'USER', actorId: user.id, action: 'product.update', entityType: 'Product', entityId: id });
   return product;

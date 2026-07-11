@@ -44,6 +44,7 @@ export const SETTINGS: SettingDef[] = [
   { key: 'reviews.requestEnabled', label: 'Post-delivery review requests', group: 'Reviews', type: 'text', default: 'true', hint: 'true / false — email customers a review request a few days after their order is delivered (needs SMTP configured).' },
   { key: 'reviews.requestDelayDays', label: 'Review request delay (days)', group: 'Reviews', type: 'days', default: '7', hint: 'Days after delivery before the review-request email is sent.' },
   // Abandoned-cart recovery
+  { key: 'alerts.wishlistEmailEnabled', label: 'Wishlist alert emails', group: 'Alerts', type: 'text', default: 'true', hint: 'true / false — email wishlist price-drop / back-in-stock alerts (needs SMTP). Push alerts always fire for subscribed devices.' },
   { key: 'cart.abandonedReminderEnabled', label: 'Abandoned-cart reminders', group: 'Cart', type: 'text', default: 'true', hint: 'true / false — email signed-in customers a reminder when they leave items in the cart (needs SMTP). Guest carts cannot be emailed.' },
   { key: 'cart.abandonedIdleHours', label: 'Abandoned-cart idle (hours)', group: 'Cart', type: 'number', default: '6', hint: 'Hours a cart must sit untouched before one reminder is sent.' },
   // Storefront

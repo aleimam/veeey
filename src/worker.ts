@@ -49,7 +49,7 @@ async function main() {
   });
 
   await boss.work(QUEUES.alerts, async () => {
-    const r = await processProductChangeEvents(10);
+    const r = await processProductChangeEvents(); // consumes pending events exactly-once
     console.log(`[worker] alerts swept: ${r.events} events → ${r.sent} notifications`);
   });
 

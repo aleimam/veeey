@@ -4,6 +4,7 @@ import { audit } from '@/lib/audit';
 import { deleteProduct, InUseError } from '@/lib/soft-delete-service';
 import { transitionOrder, restockOrder } from '@/lib/order-service';
 import { recomputeRating } from '@/lib/review-service';
+import { recordPriceDropIfLower } from '@/lib/alert-service';
 import type { OrderStatus } from '@/lib/order-status';
 import type { SpecialOrderStatus } from '@/generated/prisma/client';
 
@@ -113,7 +114,7 @@ export async function adjustProductPrices(input: PriceAdjustInput, actorId?: str
   const where = input.scope === 'ids' ? { id: { in: input.ids! } } : {};
   const rows = await prisma.product.findMany({ where, select: { id: true, basePricePiastres: true } });
 
-  const targets: { id: string; next: bigint }[] = [];
+  const targets: { id: string; prev: bigint; next: bigint }[] = [];
   for (const p of rows) {
     const cur = Number(p.basePricePiastres);
     const next =
@@ -121,15 +122,17 @@ export async function adjustProductPrices(input: PriceAdjustInput, actorId?: str
       : input.mode === 'fixed' ? cur + Math.round(input.value * 100)
       : Math.round(input.value * 100);
     const clamped = BigInt(Math.max(0, next));
-    if (clamped !== p.basePricePiastres) targets.push({ id: p.id, next: clamped });
+    if (clamped !== p.basePricePiastres) targets.push({ id: p.id, prev: p.basePricePiastres, next: clamped });
   }
 
-  // Chunked per-product updates → change-log extension records each diff.
+  // Chunked per-product updates → change-log extension records each diff, and
+  // price DROPS raise wishlist alert events (FR-WSH-02).
   const CHUNK = 50;
   let affected = 0;
   for (let i = 0; i < targets.length; i += CHUNK) {
     const chunk = targets.slice(i, i + CHUNK);
     await Promise.all(chunk.map((t) => prisma.product.update({ where: { id: t.id }, data: { basePricePiastres: t.next } })));
+    await Promise.all(chunk.map((t) => recordPriceDropIfLower(t.id, t.prev, t.next)));
     affected += chunk.length;
   }
 

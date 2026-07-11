@@ -74,7 +74,7 @@ function pickContentFields(p: z.infer<typeof contentUpdateSchema>, allowed: read
 const HANDLERS: Record<string, (payload: unknown) => Promise<ApplyResult>> = {
   'product.update': async (payload) => {
     const p = productUpdateSchema.parse(payload);
-    const product = await prisma.product.findFirst({ where: p.id ? { id: p.id } : { sku: p.sku! }, select: { id: true } });
+    const product = await prisma.product.findFirst({ where: p.id ? { id: p.id } : { sku: p.sku! }, select: { id: true, basePricePiastres: true } });
     if (!product) return { ok: false, error: 'Product not found' };
     const data: Record<string, unknown> = {};
     const touched: string[] = [];
@@ -84,6 +84,10 @@ const HANDLERS: Record<string, (payload: unknown) => Promise<ApplyResult>> = {
     if (p.priceEgp !== undefined) { data.basePricePiastres = BigInt(Math.round(p.priceEgp * 100)); touched.push('price'); }
     if (!touched.length) return { ok: false, error: 'No supported fields to update' };
     await prisma.product.update({ where: { id: product.id }, data });
+    if (p.priceEgp !== undefined) {
+      const { recordPriceDropIfLower } = await import('@/lib/alert-service'); // lazy — keeps this module import-light for tests
+      await recordPriceDropIfLower(product.id, product.basePricePiastres, BigInt(Math.round(p.priceEgp * 100)));
+    }
     return { ok: true, summary: `Updated product ${p.sku ?? product.id}: ${touched.join(', ')}` };
   },
   'review.moderate': async (payload) => {

@@ -14,7 +14,14 @@ export const SEED_TEMPLATES: SeedTemplate[] = [
   { key: 'order.shipped', channel: 'EMAIL', locale: 'en', subject: 'Order {{number}} is on its way', body: 'Good news {{name}} — order {{number}} has shipped. Tracking: {{tracking}}.' },
   { key: 'order.delivered', channel: 'EMAIL', locale: 'en', subject: 'Order {{number}} delivered', body: 'Your order {{number}} was delivered. Enjoy — and you have earned loyalty points!' },
   { key: 'alert.price_drop', channel: 'PUSH', locale: 'en', subject: 'Price drop', body: '{{product}} just dropped to {{price}} EGP.' },
+  { key: 'alert.price_drop', channel: 'PUSH', locale: 'ar', subject: 'انخفاض في السعر', body: 'انخفض سعر {{product}} إلى {{price}} ج.م.' },
   { key: 'alert.back_in_stock', channel: 'PUSH', locale: 'en', subject: 'Back in stock', body: '{{product}} is back in stock.' },
+  { key: 'alert.back_in_stock', channel: 'PUSH', locale: 'ar', subject: 'عاد للمخزون', body: '{{product}} أصبح متوفرًا من جديد.' },
+  // Wishlist alerts by email (needs SMTP; gated by alerts.wishlistEmailEnabled).
+  { key: 'alert.price_drop', channel: 'EMAIL', locale: 'en', subject: 'Price drop on your wishlist: {{product}}', body: 'Good news — {{product}} on your wishlist just dropped to {{price}} EGP. Grab it before it goes back up: {{link}}' },
+  { key: 'alert.price_drop', channel: 'EMAIL', locale: 'ar', subject: 'انخفاض سعر منتج في قائمة أمنياتك: {{product}}', body: 'خبر سار — انخفض سعر {{product}} في قائمة أمنياتك إلى {{price}} ج.م. اطلبه قبل أن يعود السعر للارتفاع: {{link}}' },
+  { key: 'alert.back_in_stock', channel: 'EMAIL', locale: 'en', subject: 'Back in stock: {{product}}', body: '{{product}} from your wishlist is back in stock. Stock moves fast — order here: {{link}}' },
+  { key: 'alert.back_in_stock', channel: 'EMAIL', locale: 'ar', subject: 'عاد للمخزون: {{product}}', body: '{{product}} من قائمة أمنياتك أصبح متوفرًا من جديد. الكمية محدودة — اطلب من هنا: {{link}}' },
   // SMS order lifecycle (short — sent when SMS is configured + a phone is on the order).
   { key: 'order.placed', channel: 'SMS', locale: 'en', body: 'Veeey: we received order {{number}} ({{total}} EGP). Thank you!' },
   { key: 'order.placed', channel: 'SMS', locale: 'ar', body: 'Veeey: استلمنا طلبك {{number}} ({{total}} ج.م). شكرًا لك!' },
