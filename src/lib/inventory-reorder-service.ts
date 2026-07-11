@@ -149,7 +149,7 @@ function isSuppressed(ig: { snoozeUntil: Date | null; stockAtIgnore: number | nu
 export async function getReorderView(opts: { tab: ReorderTabKey; page: number; perPage: number }): Promise<ReorderView> {
   const now = Date.now();
   const [published, stockMap, salesMap, preMap, featured, pendingMap, ignores] = await Promise.all([
-    prisma.product.findMany({ where: { status: 'PUBLISHED' }, select: { id: true } }),
+    prisma.product.findMany({ where: { status: 'PUBLISHED' }, select: { id: true, reorderPoint: true } }),
     stockByProduct(),
     salesByProduct(),
     preorderByProduct(),
@@ -165,7 +165,7 @@ export async function getReorderView(opts: { tab: ReorderTabKey; page: number; p
   const meta = new Map<string, Meta>();
   const zero: Sales = { u7: 0, u30: 0, u90: 0, u180: 0, w6: 0, m6: 0 };
 
-  for (const { id } of published) {
+  for (const { id, reorderPoint } of published) {
     const stock = stockMap.get(id) ?? 0;
     const s = salesMap.get(id) ?? zero;
     const isFeatured = featured.has(id);
@@ -190,6 +190,7 @@ export async function getReorderView(opts: { tab: ReorderTabKey; page: number; p
       units7: s.u7,
       monthlyBaseline: [s.m6 / 6],
       preorderUnits,
+      reorderPoint, // manual threshold override (V4 C12)
     };
     const tabs = reorderTabs(input);
     if (tabs.length === 0) continue;

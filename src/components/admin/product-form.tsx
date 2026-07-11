@@ -35,6 +35,7 @@ export type ProductDefaults = {
   productType?: string | null;
   basePriceEgp?: number;
   weightG?: number | null;
+  reorderPoint?: number | null;
   servingsPerUnit?: number | null;
   dailyDosage?: number | null;
   dailyDosageMax?: number | null;
@@ -208,6 +209,7 @@ export function ProductForm({
         <Field label={tb('Weight (g)', 'الوزن (جم)')}><input name="weightG" type="number" min="0" defaultValue={d.weightG ?? ''} className={inputCls} /></Field>
         {kind !== 'DEVICE' && (
           <>
+            <Field label={tb('Reorder point', 'حد إعادة الطلب')} hint={tb('Sellable stock at/below this shows on the To-buy list. Empty = automatic.', 'المخزون القابل للبيع عند هذا الحد أو أقل يظهر في قائمة الشراء. فارغ = تلقائي.')}><input name="reorderPoint" type="number" min="0" defaultValue={d.reorderPoint ?? ''} className={inputCls} /></Field>
             <Field label={tb('Servings per unit', 'عدد الجرعات في العبوة')} hint={tb('Used in the supply-duration calculator.', 'يُستخدم في حاسبة مدة الاستخدام.')}><input name="servingsPerUnit" type="number" min="0" defaultValue={d.servingsPerUnit ?? ''} className={inputCls} /></Field>
             <Field label={tb('Daily dosage — min', 'الجرعة اليومية — الحد الأدنى')} hint={tb('Min servings per day (also the calculator default).', 'أقل عدد جرعات يوميًا (وافتراضي الحاسبة).')}><input name="dailyDosage" type="number" min="0" defaultValue={d.dailyDosage ?? ''} className={inputCls} /></Field>
             <Field label={tb('Daily dosage — max', 'الجرعة اليومية — الحد الأقصى')} hint={tb('Optional upper bound of the dose range.', 'الحد الأعلى الاختياري لنطاق الجرعة.')}><input name="dailyDosageMax" type="number" min="0" defaultValue={d.dailyDosageMax ?? ''} className={inputCls} /></Field>

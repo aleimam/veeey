@@ -68,6 +68,7 @@ export default async function ProductEditPage({
         productType: product.productType,
         basePriceEgp: piastresToEgp(product.basePricePiastres),
         weightG: product.weightG,
+        reorderPoint: product.reorderPoint,
         servingsPerUnit: product.servingsPerUnit,
         dailyDosage: product.dailyDosage,
         dailyDosageMax: product.dailyDosageMax,

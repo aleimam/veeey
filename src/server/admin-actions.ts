@@ -89,6 +89,7 @@ export async function saveProductAction(_p: AdminFormState, fd: FormData): Promi
     longDescEn: str(fd, 'longDescEn'),
     longDescAr: str(fd, 'longDescAr'),
     weightG: str(fd, 'weightG'),
+    reorderPoint: str(fd, 'reorderPoint'),
     servingsPerUnit: str(fd, 'servingsPerUnit'),
     dailyDosage: str(fd, 'dailyDosage'),
     dailyDosageMax: str(fd, 'dailyDosageMax'),

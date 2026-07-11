@@ -30,6 +30,9 @@ export interface ReorderInput {
   monthlyBaseline: number[];
   /** Open (unfulfilled) pre-order demand — OrderItem.preorder = true. Drives the Special-orders tab. */
   preorderUnits: number;
+  /** Manual per-product threshold (V4 C12): sellable ≤ reorderPoint → short stock,
+   *  regardless of the sales-window heuristic. Null/undefined = heuristics only. */
+  reorderPoint?: number | null;
 }
 
 /** A product must sell at least this multiple of its baseline to count as "running fast". */
@@ -50,9 +53,12 @@ export function shortStockThreshold(i: Pick<ReorderInput, 'units90' | 'units180'
   return i.featured ? i.units180 : i.units90;
 }
 
-/** Short stock: still in stock, but below what we sold in the trailing window. */
-export function isShortStock(i: Pick<ReorderInput, 'stock' | 'units90' | 'units180' | 'featured'>): boolean {
-  return i.stock > 0 && i.stock < shortStockThreshold(i);
+/** Short stock: still in stock, but below what we sold in the trailing window —
+ *  or at/below the product's manual reorder point when one is set. */
+export function isShortStock(i: Pick<ReorderInput, 'stock' | 'units90' | 'units180' | 'featured' | 'reorderPoint'>): boolean {
+  if (i.stock <= 0) return false;
+  if (i.reorderPoint != null && i.reorderPoint > 0 && i.stock <= i.reorderPoint) return true;
+  return i.stock < shortStockThreshold(i);
 }
 
 /** Arithmetic mean of a series; 0 for an empty series. */

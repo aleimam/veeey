@@ -58,6 +58,16 @@ describe('short stock', () => {
   it('no sales history → not short', () => {
     expect(isShortStock({ stock: 1, units90: 0, units180: 0, featured: false })).toBe(false);
   });
+  it('manual reorder point overrides the sales heuristic (V4 C12)', () => {
+    // No sales history, but at/below the manual threshold → short.
+    expect(isShortStock({ stock: 5, units90: 0, units180: 0, featured: false, reorderPoint: 5 })).toBe(true);
+    expect(isShortStock({ stock: 6, units90: 0, units180: 0, featured: false, reorderPoint: 5 })).toBe(false);
+    // Threshold never resurrects out-of-stock into this tab.
+    expect(isShortStock({ stock: 0, units90: 0, units180: 0, featured: false, reorderPoint: 5 })).toBe(false);
+    // reorderPoint 0 / null = heuristics only.
+    expect(isShortStock({ stock: 1, units90: 0, units180: 0, featured: false, reorderPoint: 0 })).toBe(false);
+    expect(isShortStock({ stock: 1, units90: 0, units180: 0, featured: false, reorderPoint: null })).toBe(false);
+  });
 });
 
 describe('average', () => {
