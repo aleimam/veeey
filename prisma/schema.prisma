@@ -902,11 +902,12 @@ model Location {
   name              String
   type              String             @default("warehouse")
   isUltraFastZone   Boolean            @default(false)
-  lots              Lot[]
-  movements         MovementLedger[]
-  stocktakeSessions StocktakeSession[]
-  stocktakeCounts   StocktakeCount[]
-  createdAt         DateTime           @default(now())
+  lots               Lot[]
+  movements          MovementLedger[]
+  stocktakeSessions  StocktakeSession[]
+  stocktakeCounts    StocktakeCount[]
+  stocktakeSchedules StocktakeSchedule[]
+  createdAt          DateTime           @default(now())
 }
 
 model Lot {
@@ -1430,10 +1431,40 @@ model StocktakeSession {
   location     Location         @relation(fields: [locationId], references: [id])
   phase        StocktakePhase   @default(FORWARD)
   status       StocktakeStatus  @default(OPEN)
+  // V4 stocktake rework: counts are recorded first, variances reviewed, and an
+  // explicit approval APPLIES the adjustments (appliedAt set). Closing without
+  // applying discards. blind hides Expected during counting; scopeJson narrows
+  // a cycle count ({ categoryId?, brandId? }); assigned/created/approved are
+  // soft User refs (resolved to names at render).
+  blind        Boolean          @default(false)
+  scopeJson    Json?
+  assignedToId String?
+  createdById  String?
+  approvedById String?
+  appliedAt    DateTime?
   snapshotJson Json?
   startedAt    DateTime         @default(now())
   closedAt     DateTime?
   counts       StocktakeCount[]
+}
+
+/// Recurring (cycle) counts (V4 D21): a daily worker cron opens a session from
+/// each due schedule and advances nextAt by intervalDays.
+model StocktakeSchedule {
+  id           String    @id @default(cuid())
+  name         String
+  locationId   String
+  location     Location  @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  scopeJson    Json? // { categoryId?, brandId? } — null = full count
+  blind        Boolean   @default(false)
+  assignedToId String?
+  intervalDays Int
+  nextAt       DateTime
+  active       Boolean   @default(true)
+  lastRunAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([active, nextAt])
 }
 
 model StocktakeCount {
