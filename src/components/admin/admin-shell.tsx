@@ -4,7 +4,6 @@ import { useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { Link, usePathname } from '@/i18n/navigation';
 import { pick } from '@/lib/admin-i18n';
-import { LanguageSwitcher } from '@/components/storefront/language-switcher';
 import { signOutAction } from '@/server/auth-actions';
 import { CommandPalette } from '@/components/admin/command-palette';
 import {
@@ -176,7 +175,16 @@ export function AdminShell({
             <Link href="/" className="hidden items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-sm text-muted-foreground hover:text-foreground lg:inline-flex">
               <ExternalLink size={15} /> {t('View store', 'عرض المتجر')}
             </Link>
-            <LanguageSwitcher className="text-sm text-muted-foreground" />
+            {/* Locale switch: one clear button showing the language it switches TO. */}
+            <Link
+              href={pathname}
+              locale={locale === 'ar' ? 'en' : 'ar'}
+              lang={locale === 'ar' ? 'en' : 'ar'}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+              aria-label={t('Switch language', 'تبديل اللغة')}
+            >
+              <Globe size={15} /> {locale === 'ar' ? 'English' : 'العربية'}
+            </Link>
             <button onClick={toggleDark} className="flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground" aria-label={t('Toggle dark mode', 'تبديل الوضع الداكن')}>
               {isDark ? <Sun size={18} /> : <Moon size={18} />}
             </button>
