@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
 import { prisma } from '@/lib/prisma';
 import { getCustomerAdmin } from '@/lib/customer-admin-service';
-import { saveCustomerDetailsAction, saveCustomerAddressAction, deleteCustomerAddressAction, eraseCustomerAnalyticsAction } from '@/server/customer-admin-actions';
+import { saveCustomerDetailsAction, saveCustomerStandingAction, saveCustomerAddressAction, deleteCustomerAddressAction, eraseCustomerAnalyticsAction } from '@/server/customer-admin-actions';
 import { ConfirmButton } from '@/components/admin/confirm-button';
 import { formatEGP } from '@/lib/format';
 import { GOVERNORATES } from '@/lib/governorates';
@@ -72,6 +72,40 @@ export default async function CustomerProfilePage({ params, searchParams }: { pa
           <div className="flex items-end">
             <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">{tb('Save details', 'حفظ البيانات')}</button>
           </div>
+        </form>
+      </section>
+
+      {/* Standing, marketing & notes (V5 F31/F35) */}
+      <section className="mb-8 max-w-3xl">
+        <h2 className="mb-3 font-heading text-lg font-semibold">{tb('Standing & marketing', 'الحالة والتسويق')}</h2>
+        <form action={saveCustomerStandingAction} className="space-y-4 rounded-lg border border-border p-4">
+          <input type="hidden" name="locale" value={locale} />
+          <input type="hidden" name="id" value={c.id} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label={tb('Account status', 'حالة الحساب')} hint={tb('Blocked customers cannot place orders.', 'العملاء المحظورون لا يمكنهم إتمام الطلبات.')}>
+              <select name="status" defaultValue={c.status} className={inputCls}>
+                <option value="ACTIVE">{tb('Active', 'نشط')}</option>
+                <option value="FLAGGED">{tb('Flagged (suspicious)', 'مُعلَّم (مشتبه به)')}</option>
+                <option value="BLOCKED">{tb('Blocked', 'محظور')}</option>
+              </select>
+            </Field>
+            <div className="text-sm">
+              <div className="mb-1 font-medium">{tb('Verification', 'التحقق')}</div>
+              <p className="text-muted-foreground">
+                {tb('Email:', 'البريد:')} {c.user.emailVerified ? `✓ ${new Date(c.user.emailVerified).toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-GB')}` : tb('not verified', 'غير مؤكد')}
+                <br />
+                {tb('Phone:', 'الهاتف:')} {c.user.phoneVerified ? `✓ ${new Date(c.user.phoneVerified).toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-GB')}` : tb('not verified', 'غير مؤكد')}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-6 text-sm">
+            <label className="flex items-center gap-2"><input type="checkbox" name="marketingConsent" defaultChecked={c.marketingConsent} className="size-4" /> {tb('Email marketing consent', 'موافقة التسويق بالبريد')}</label>
+            <label className="flex items-center gap-2"><input type="checkbox" name="marketingSmsConsent" defaultChecked={c.marketingSmsConsent} className="size-4" /> {tb('SMS marketing consent', 'موافقة التسويق بالرسائل')}</label>
+          </div>
+          <Field label={tb('Internal notes', 'ملاحظات داخلية')} hint={tb('Visible to staff only — never shown to the customer.', 'مرئية للموظفين فقط — لا تظهر للعميل أبدًا.')}>
+            <textarea name="adminNotes" defaultValue={c.adminNotes ?? ''} rows={3} className={`${inputCls} min-h-20`} />
+          </Field>
+          <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">{tb('Save standing', 'حفظ الحالة')}</button>
         </form>
       </section>
 

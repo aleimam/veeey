@@ -3,8 +3,8 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import {
-  searchCustomers, quickCreateCustomer, updateCustomerDetails,
-  saveCustomerAddress, deleteCustomerAddress, type CustomerHit,
+  searchCustomers, quickCreateCustomer, updateCustomerDetails, updateCustomerStanding,
+  scanAndFlagSuspicious, saveCustomerAddress, deleteCustomerAddress, type CustomerHit,
 } from '@/lib/customer-admin-service';
 import { deleteCustomerAnalytics } from '@/lib/analytics/retention-service';
 import { requirePermission } from '@/lib/auth-guards';
@@ -54,6 +54,36 @@ export async function saveCustomerDetailsAction(fd: FormData): Promise<void> {
   } catch (e) {
     const msg = e instanceof Error && e.message === 'EMAIL_TAKEN' ? 'error=email_taken' : 'error=1';
     back(locale, id, msg);
+  }
+  back(locale, id, 'saved=1');
+}
+
+export async function scanSuspiciousAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  let flagged = 0;
+  try {
+    flagged = (await scanAndFlagSuspicious()).flagged;
+  } catch {
+    revalidatePath(`/${locale}/admin/customers`);
+    redirect(`/${locale}/admin/customers?error=scan`);
+  }
+  revalidatePath(`/${locale}/admin/customers`);
+  redirect(`/${locale}/admin/customers?flagged=${flagged}${flagged > 0 ? '&status=FLAGGED' : ''}`);
+}
+
+export async function saveCustomerStandingAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const id = str(fd, 'id') ?? '';
+  try {
+    const status = str(fd, 'status');
+    await updateCustomerStanding(id, {
+      status: status === 'FLAGGED' || status === 'BLOCKED' ? status : 'ACTIVE',
+      marketingConsent: bool(fd, 'marketingConsent'),
+      marketingSmsConsent: bool(fd, 'marketingSmsConsent'),
+      adminNotes: (fd.get('adminNotes') as string | null) ?? '',
+    });
+  } catch {
+    back(locale, id, 'error=1');
   }
   back(locale, id, 'saved=1');
 }

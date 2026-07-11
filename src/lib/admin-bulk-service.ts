@@ -273,14 +273,20 @@ export async function bulkSpecialOrders(op: string, ids: string[], value: string
 }
 
 export async function bulkCustomers(op: string, ids: string[], value: string): Promise<BulkResult> {
-  // Tier assignment is a pricing op; deletion is a stronger customer-write op.
-  const user = await requirePermission(op === 'delete' ? 'customers.write' : 'pricing.manage');
+  // Tier assignment is a pricing op; status/deletion are stronger customer-write ops.
+  const user = await requirePermission(op === 'delete' || op === 'status' ? 'customers.write' : 'pricing.manage');
   if (ids.length === 0) return empty();
   const r = empty();
   switch (op) {
     case 'tier': {
       const tierId = value && value !== '__none__' ? value : null;
       r.affected = (await prisma.customer.updateMany({ where: { id: { in: ids } }, data: { tierId } })).count;
+      break;
+    }
+    case 'status': {
+      // Account standing (V5 F31/F32): BLOCKED customers cannot place orders.
+      if (value !== 'ACTIVE' && value !== 'FLAGGED' && value !== 'BLOCKED') throw new Error('BAD_OP');
+      r.affected = (await prisma.customer.updateMany({ where: { id: { in: ids } }, data: { status: value } })).count;
       break;
     }
     case 'delete': {

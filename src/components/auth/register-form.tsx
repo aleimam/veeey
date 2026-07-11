@@ -4,6 +4,7 @@ import { useActionState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { registerCustomer, type AuthFormState } from '@/server/auth-actions';
+import { RecaptchaToken } from '@/components/auth/recaptcha-token';
 
 const field =
   'mt-1.5 w-full rounded-[8px] border border-[color:var(--slate-border)] bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition-colors placeholder:text-slate-45 focus:border-lime focus:bg-white';
@@ -24,7 +25,7 @@ export function RegisterForm({ locale, referralCode, social }: { locale: string;
 
       <form action={action} className="mt-5">
         <input type="hidden" name="locale" value={locale} />
-        <input type="hidden" name="recaptchaToken" value="" />
+        <RecaptchaToken action="register" />
         {referralCode && <input type="hidden" name="ref" value={referralCode} />}
 
         <label className="block text-sm font-semibold text-ink">

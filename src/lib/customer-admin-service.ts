@@ -79,7 +79,7 @@ export function getCustomerAdmin(id: string) {
   return prisma.customer.findUnique({
     where: { id },
     include: {
-      user: { select: { name: true, email: true, phone: true, username: true } },
+      user: { select: { name: true, email: true, phone: true, username: true, emailVerified: true, phoneVerified: true } },
       tier: true,
       addresses: { orderBy: [{ isDefaultShipping: 'desc' }, { createdAt: 'desc' }] },
       orders: { orderBy: { placedAt: 'desc' }, take: 10, select: { id: true, number: true, status: true, totalPiastres: true, placedAt: true } },
@@ -94,6 +94,65 @@ const detailsSchema = z.object({
   phone: z.string().trim().max(30).optional().or(z.literal('')),
   tierId: z.string().optional().nullable(),
 });
+
+// Standing + marketing + internal notes (V5 F31/F35).
+const standingSchema = z.object({
+  status: z.enum(['ACTIVE', 'FLAGGED', 'BLOCKED']),
+  marketingConsent: z.boolean().default(false),
+  marketingSmsConsent: z.boolean().default(false),
+  adminNotes: z.string().trim().max(4000).optional().default(''),
+});
+
+export async function updateCustomerStanding(id: string, raw: z.input<typeof standingSchema>) {
+  const user = await requirePermission('customers.write');
+  const d = standingSchema.parse(raw);
+  await prisma.customer.update({
+    where: { id },
+    data: { status: d.status, marketingConsent: d.marketingConsent, marketingSmsConsent: d.marketingSmsConsent, adminNotes: d.adminNotes || null },
+  });
+  await audit({ actorType: 'USER', actorId: user.id, action: 'customer.standing', entityType: 'Customer', entityId: id });
+}
+
+/** Heuristic spam scan (V5 F31): flags suspicious ACTIVE accounts as FLAGGED
+ *  (reversible; review via the Flagged filter, then bulk block/delete). The
+ *  reasons are appended to each customer's internal notes for review. */
+export async function scanAndFlagSuspicious(): Promise<{ scanned: number; flagged: number }> {
+  const user = await requirePermission('customers.write');
+  const { findSuspicious } = await import('@/lib/customer-spam');
+
+  const rows = await prisma.customer.findMany({
+    where: { status: 'ACTIVE' },
+    select: {
+      id: true, firstName: true, lastName: true, createdAt: true, adminNotes: true,
+      user: { select: { email: true, name: true, emailVerified: true, phoneVerified: true } },
+      _count: { select: { orders: true } },
+    },
+  });
+  const suspects = findSuspicious(rows.map((r) => ({
+    id: r.id,
+    email: r.user.email,
+    name: r.user.name,
+    firstName: r.firstName,
+    lastName: r.lastName,
+    createdAt: r.createdAt,
+    ordersCount: r._count.orders,
+    emailVerified: r.user.emailVerified,
+    phoneVerified: r.user.phoneVerified,
+  })));
+
+  const notesById = new Map(rows.map((r) => [r.id, r.adminNotes]));
+  const stamp = new Date().toISOString().slice(0, 10);
+  for (const [id, reasons] of suspects) {
+    const line = `[spam-scan ${stamp}] ${reasons.join(', ')}`;
+    const existing = notesById.get(id);
+    await prisma.customer.update({
+      where: { id },
+      data: { status: 'FLAGGED', adminNotes: existing ? `${existing}\n${line}` : line },
+    });
+  }
+  await audit({ actorType: 'USER', actorId: user.id, action: 'customer.spamScan', entityType: 'Customer', entityId: `${suspects.size} flagged of ${rows.length}` });
+  return { scanned: rows.length, flagged: suspects.size };
+}
 
 export async function updateCustomerDetails(id: string, raw: z.input<typeof detailsSchema>) {
   const user = await requirePermission('customers.write');

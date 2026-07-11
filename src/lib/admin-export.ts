@@ -16,7 +16,8 @@ export const EXPORT_PERMISSION: Record<ExportEntity, PermissionKey> = {
   products: 'catalog.read',
   brands: 'catalog.read',
   categories: 'catalog.read',
-  customers: 'customers.read',
+  // Customer PII leaves the building on export — gated above plain read (V5 F36).
+  customers: 'customers.write',
   orders: 'orders.read',
   returns: 'returns.manage',
   reviews: 'reviews.moderate',

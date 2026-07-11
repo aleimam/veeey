@@ -24,6 +24,9 @@ export function evaluateRecaptcha(
 export async function verifyRecaptcha(token: string | undefined): Promise<boolean> {
   const secret = process.env.RECAPTCHA_SECRET_KEY;
   if (!secret) return true; // not configured -> bypass (dev/CI)
+  // Secret without a public site key = clients can never mint tokens — treat as
+  // misconfigured and fail open rather than blocking every login/registration.
+  if (!process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY) return true;
   if (!token) return false;
 
   const minScore = Number(process.env.RECAPTCHA_MIN_SCORE ?? '0.5');
