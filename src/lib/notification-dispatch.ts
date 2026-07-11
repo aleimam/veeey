@@ -1,5 +1,6 @@
 import webpush from 'web-push';
 import { getSmtpConfig, getSmsConfig, getWhatsappConfig, normalizeMobile } from '@/lib/provider-config';
+import { needsUnicodeSms, toUcs2Hex } from '@/lib/sms-encoding';
 
 /**
  * Channel dispatch (FR-NOT-02). Without credentials a send is reported `skipped`
@@ -48,30 +49,25 @@ export async function dispatchEmail(to: string, subject: string, body: string): 
   return { ok: false, skipped: true };
 }
 
-/** True when the text needs SMSMisr's Unicode encoding (language 3): anything
- *  outside printable ASCII (Arabic, em dashes, curly quotes) is rejected with
- *  code 1909 under language 1/2. */
-const needsUnicodeSms = (text: string) => [...text].some((ch) => {
-  const c = ch.codePointAt(0)!;
-  return (c < 0x20 && ch !== '\n' && ch !== '\r') || c > 0x7e;
-});
-
 /** SMS via SMSMisr (sms.com.eg). Mobile may be comma-separated; each is
- *  normalized to the 2011… form. Success response code is 1901. */
+ *  normalized to the 2011… form. Success response code is 1901. Non-GSM text
+ *  (Arabic, em dashes) goes as language 3 with the UCS-2 HEX body SMSMisr
+ *  requires — raw UTF-8 under any language is rejected with 1909. */
 export async function dispatchSms(to: string, message: string): Promise<DispatchResult> {
   const cfg = await getSmsConfig();
   if (!cfg) return { ok: false, skipped: true };
   const mobile = to.split(',').map((m) => normalizeMobile(m)).filter(Boolean).join(',');
   if (!mobile) return { ok: false, error: 'no_mobile' };
   try {
+    const unicode = needsUnicodeSms(message);
     const body = new URLSearchParams({
       environment: cfg.environment,
       username: cfg.username,
       password: cfg.password,
       sender: cfg.sender,
       mobile,
-      language: needsUnicodeSms(message) ? '3' : cfg.language,
-      message,
+      language: unicode ? '3' : cfg.language,
+      message: unicode ? toUcs2Hex(message) : message,
     });
     const res = await fetch('https://smsmisr.com/api/SMS/', {
       method: 'POST',
