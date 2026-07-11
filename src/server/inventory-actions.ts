@@ -61,6 +61,22 @@ function done(locale: string, path: string): never {
   redirect(`/${locale}/admin/${path}`);
 }
 
+// ---- Condition migration (V4 C9) --------------------------------------------
+export async function applyConditionMigrationAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  try {
+    const { applyConditionMigration } = await import('@/lib/condition-migration-service');
+    const r = await applyConditionMigration();
+    revalidatePath(`/${locale}/admin/inventory/condition-migration`);
+    redirect(`/${locale}/admin/inventory/condition-migration?applied=${r.products}&lots=${r.lots}`);
+  } catch (e) {
+    if (e && typeof e === 'object' && 'digest' in e) throw e; // let Next redirects through
+    console.error('condition migration failed', e);
+    revalidatePath(`/${locale}/admin/inventory/condition-migration`);
+    redirect(`/${locale}/admin/inventory/condition-migration?error=1`);
+  }
+}
+
 // ---- Lots ------------------------------------------------------------------
 export async function saveLotAction(_p: AdminFormState, fd: FormData): Promise<AdminFormState> {
   const locale = localeOf(fd);

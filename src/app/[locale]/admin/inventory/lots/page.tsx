@@ -65,6 +65,7 @@ export default async function LotsPage({ params, searchParams }: { params: Promi
       <header className="mb-6 flex items-center justify-between gap-3">
         <h1 className="font-heading text-xl font-semibold">{tb('Lots', 'الدفعات')} ({total})</h1>
         <span className="flex items-center gap-2">
+          <Link href="/admin/inventory/condition-migration" className="rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-surface">{tb('Condition migration', 'ترحيل حالات العبوة')}</Link>
           <ExportBar entity="lots" locale={locale} query={exportQs(sp)} />
           <Link href="/admin/inventory/lots/edit" className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">{tb('New lot', 'دفعة جديدة')}</Link>
         </span>
