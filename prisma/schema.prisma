@@ -268,6 +268,7 @@ model User {
   emailVerified DateTime?
   image         String?
   phone         String?
+  phoneVerified DateTime?
   passwordHash  String?
   roleId        String?
   role          Role?     @relation(fields: [roleId], references: [id])
@@ -378,23 +379,34 @@ model DepartmentMember {
 }
 
 // Storefront customer profile (FR-ACC-*). 1:1 with an Auth.js User.
+// Account standing (V5 F31). UNVERIFIED is derived (no verified email/phone),
+// not stored — only admin-set states live here.
+enum CustomerStatus {
+  ACTIVE
+  FLAGGED
+  BLOCKED
+}
+
 model Customer {
-  id                    String     @id @default(cuid())
-  userId                String     @unique
-  user                  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                    String         @id @default(cuid())
+  userId                String         @unique
+  user                  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   firstName             String?
   lastName              String?
   nameAr                String?
   tierId                String?
-  tier                  Tier?      @relation(fields: [tierId], references: [id])
-  pointsBalance         Int        @default(0)
-  lifetimeSpendPiastres BigInt     @default(0)
-  referralCode          String     @unique
+  tier                  Tier?          @relation(fields: [tierId], references: [id])
+  pointsBalance         Int            @default(0)
+  lifetimeSpendPiastres BigInt         @default(0)
+  referralCode          String         @unique
   referredById          String?
-  referredBy            Customer?  @relation("CustomerReferrals", fields: [referredById], references: [id])
-  referrals             Customer[] @relation("CustomerReferrals")
-  marketingConsent      Boolean    @default(false)
-  locale                String     @default("en")
+  referredBy            Customer?      @relation("CustomerReferrals", fields: [referredById], references: [id])
+  referrals             Customer[]     @relation("CustomerReferrals")
+  marketingConsent      Boolean        @default(false)
+  marketingSmsConsent   Boolean        @default(false)
+  status                CustomerStatus @default(ACTIVE)
+  adminNotes            String?
+  locale                String         @default("en")
   // Link to YeldnIN for special-order dedupe (INTEGRATION_CONTRACT).
   veeeyCustomerId       String?    @unique
   legacyWpId            Int?       @unique
@@ -422,6 +434,7 @@ model Customer {
   pushSubscriptions PushSubscription[]
 
   @@index([tierId])
+  @@index([status])
 }
 
 model Address {
