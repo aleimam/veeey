@@ -769,6 +769,10 @@ model Product {
   preorderEnabled   Boolean           @default(false) // shown on storefront even when out of stock (pre-order / special order)
   productType       OrderProductType? // merchandising tag (FR-ORD-05 list reused)
 
+  // Manual reorder threshold (V4 C12): sellable stock at/below this puts the
+  // product on the To-buy short-stock tab regardless of the sales heuristics.
+  reorderPoint Int?
+
   // Health duration calculator inputs (FR-HEALTH-01 / FR-REPL-01)
   servingsPerUnit     Int?
   dailyDosage         Int? // min daily dose (also the calculator default)
