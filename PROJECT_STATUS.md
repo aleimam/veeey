@@ -7,9 +7,9 @@
 
 ## Current state
 
-- **Live** at **veeey.com**. Latest deployed commit: **`ed204ab`** (2026-07-11). All
-  **40 Prisma migrations applied**; `pm2` processes `veeey` (web) + `veeey-worker` (jobs) healthy;
-  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **316 unit tests** · build.
+- **Live** at **veeey.com**. Latest deployed commit: **`e467731`** (2026-07-11). All
+  **42 Prisma migrations applied**; `pm2` processes `veeey` (web) + `veeey-worker` (jobs) healthy;
+  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **324 unit tests** · build.
 - Stack: Next.js 16 (App Router, Turbopack) · TypeScript strict · Prisma 7 + Postgres ·
   Auth.js · next-intl (AR/EN, RTL) · Tailwind v4 · pg-boss v12.
 
@@ -17,6 +17,8 @@
 
 | Feature | Commits | Notes |
 |---|---|---|
+| **Urgent bugs: expired lots + loyalty (V4 C6 / V5 F29)** | `15fb27b` `e467731` | LIVE lots past expiry auto-flip to EXPIRED (daily 03:10 UTC cron + reserveStock guard + "Expired stock" section on `/admin/inventory/expiry`); backfill expired 1 overdue lot. Loyalty standing (lifetime spend + tier) recomputed canonically from DELIVERED orders — root cause: wc-synced orders never pass transitionOrder; `Tier.minSpendPiastres` (migration, editable in /admin/tiers; ⚠️ starter thresholds VIP 20k / Select 50k EGP — owner to confirm); daily 03:25 UTC cron + after credit/reverse; **backfill updated 6,557/16,213 customers → 15,504 Green / 442 VeeyIP / 267 Select. NO retroactive points (owner decision).** |
+| **Wishlist price-drop alerts (FR-WSH-02/03)** | `3a948d6` `33d8b4c` | PRICE_DROP events now fire on base-price drops (admin edit / bulk tool / AI apply); exactly-once fan-out via `ProductChangeEvent.processedAt` (historical rows pre-stamped); EMAIL (AR/EN, localized deep link, needs SMTP, Setting `alerts.wishlistEmailEnabled`) + PUSH; per-sweep dedupe; pure helpers in `alert-plan.ts`. |
 | **Bugfix: inventory tab links** | `ed204ab` | Requests/Expiry tab links double-prefixed the locale (`/en/en/…` → 404). Root cause + rule in "Code lessons" below. |
 | **Portability + hardening pass** | `62f6bef` | Real README (fresh-clone setup), `SECURITY.md` (secret/PII policy + npm-audit triage), `.nvmrc` (Node 22), completed `.env.example` (added `GEOIP_DB_PATH`, `SHADOW_DATABASE_URL`, real Apple keys); patched dompurify 3.4.10→3.4.11 (only safely-fixable advisory). |
 | **Localized email deep links** | `a02d89c` | Review-request + abandoned-cart emails now use `Customer.locale` for both the link path (`/{locale}/…`) and template locale. |
