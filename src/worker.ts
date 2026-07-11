@@ -32,6 +32,7 @@ async function main() {
   await boss.createQueue(QUEUES.abandonedCart);
   await boss.createQueue(QUEUES.lotExpiry);
   await boss.createQueue(QUEUES.loyaltyStanding);
+  await boss.createQueue(QUEUES.stocktakeCycle);
 
   await boss.work(QUEUES.notify, async ([job]) => {
     await notify(job.data as NotifyInput);
@@ -120,6 +121,13 @@ async function main() {
     console.log(`[worker] loyalty standing: ${r.updated}/${r.scanned} customer(s) updated`);
   });
 
+  // Cycle-count schedules (V4 D21) — open due stocktake sessions.
+  await boss.work(QUEUES.stocktakeCycle, async () => {
+    const { runDueStocktakeSchedules } = await import('@/lib/stocktake-service');
+    const r = await runDueStocktakeSchedules();
+    console.log(`[worker] stocktake schedules: ${r.opened} session(s) opened`);
+  });
+
   // Recurring wishlist-alert sweep every 5 minutes.
   await boss.schedule(QUEUES.alerts, '*/5 * * * *', {});
   // WooCommerce incremental sync every 15 minutes (gated by woo.sync.enabled).
@@ -134,6 +142,8 @@ async function main() {
   // Auto-expire overdue lots daily 03:10 UTC; loyalty standing recompute 03:25 UTC.
   await boss.schedule(QUEUES.lotExpiry, '10 3 * * *', {});
   await boss.schedule(QUEUES.loyaltyStanding, '25 3 * * *', {});
+  // Open due cycle-count sessions daily 02:45 UTC (before the workday).
+  await boss.schedule(QUEUES.stocktakeCycle, '45 2 * * *', {});
   console.log('[worker] started — notify + alerts + woo-sync + audit queues registered, schedules set.');
 }
 

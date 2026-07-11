@@ -8,7 +8,10 @@ import { piastresToEgp } from '@/lib/format';
 import { saveLot, setLotPrice, setLotStatus } from '@/lib/inventory-service';
 import { mockShipmentReceived, publishIntakeLot } from '@/lib/intake-service';
 import { saveLocation } from '@/lib/location-service';
-import { createStocktake, recordCount, closeStocktake } from '@/lib/stocktake-service';
+import {
+  createStocktake, recordCounts, closeStocktake, applyStocktake, deleteStocktake,
+  saveStocktakeSchedule, setStocktakeScheduleActive, deleteStocktakeSchedule,
+} from '@/lib/stocktake-service';
 import type { Prisma } from '@/generated/prisma/client';
 
 export type AdminFormState = { error?: string };
@@ -201,7 +204,13 @@ export async function createStocktakeAction(fd: FormData): Promise<void> {
   if (!name || !locationId) done(locale, 'stocktake');
   let id: string | undefined;
   try {
-    const s = await createStocktake(name!, locationId!);
+    const s = await createStocktake({
+      name: name!,
+      locationId: locationId!,
+      blind: bool(fd, 'blind'),
+      scope: { categoryId: str(fd, 'categoryId') ?? null, brandId: str(fd, 'brandId') ?? null },
+      assignedToId: str(fd, 'assignedToId') ?? null,
+    });
     id = s.id;
   } catch (e) {
     fail(e);
@@ -210,16 +219,28 @@ export async function createStocktakeAction(fd: FormData): Promise<void> {
   redirect(id ? `/${locale}/admin/stocktake/${id}` : `/${locale}/admin/stocktake`);
 }
 
-export async function recordCountAction(fd: FormData): Promise<void> {
+/** Batch save from the count sheet (V4 D17) — entries arrive as JSON. */
+export async function recordCountsAction(
+  sessionId: string,
+  entries: { lotId: string; countedQty: number; reason?: string | null }[],
+): Promise<{ ok: boolean; saved: number }> {
+  try {
+    const r = await recordCounts(sessionId, entries);
+    return { ok: true, saved: r.saved };
+  } catch (e) {
+    console.error('recordCounts failed', e);
+    return { ok: false, saved: 0 };
+  }
+}
+
+export async function applyStocktakeAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
   const sessionId = str(fd, 'sessionId');
-  const lotId = str(fd, 'lotId');
-  const counted = num(fd, 'countedQty');
-  if (sessionId && lotId && counted != null) {
-    try { await recordCount(sessionId, lotId, counted, str(fd, 'reason')); } catch (e) { fail(e); }
+  if (sessionId) {
+    try { await applyStocktake(sessionId); } catch (e) { fail(e); }
   }
   revalidatePath(`/${locale}/admin/stocktake/${sessionId}`);
-  redirect(`/${locale}/admin/stocktake/${sessionId}`);
+  redirect(`/${locale}/admin/stocktake/${sessionId}?applied=1`);
 }
 
 export async function closeStocktakeAction(fd: FormData): Promise<void> {
@@ -227,6 +248,54 @@ export async function closeStocktakeAction(fd: FormData): Promise<void> {
   const sessionId = str(fd, 'sessionId');
   if (sessionId) {
     try { await closeStocktake(sessionId); } catch (e) { fail(e); }
+  }
+  done(locale, 'stocktake');
+}
+
+export async function deleteStocktakeAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const sessionId = str(fd, 'sessionId');
+  if (sessionId) {
+    try { await deleteStocktake(sessionId); } catch (e) { fail(e); }
+  }
+  done(locale, 'stocktake');
+}
+
+// ---- Cycle-count schedules (V4 D21) -----------------------------------------
+export async function createStocktakeScheduleAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const name = str(fd, 'name');
+  const locationId = str(fd, 'locationId');
+  const intervalDays = num(fd, 'intervalDays') ?? 0;
+  if (name && locationId && intervalDays > 0) {
+    try {
+      await saveStocktakeSchedule({
+        name,
+        locationId,
+        intervalDays,
+        blind: bool(fd, 'blind'),
+        scope: { categoryId: str(fd, 'categoryId') ?? null, brandId: str(fd, 'brandId') ?? null },
+        assignedToId: str(fd, 'assignedToId') ?? null,
+      });
+    } catch (e) { fail(e); }
+  }
+  done(locale, 'stocktake');
+}
+
+export async function toggleStocktakeScheduleAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const id = str(fd, 'id');
+  if (id) {
+    try { await setStocktakeScheduleActive(id, fd.get('active') === '1'); } catch (e) { fail(e); }
+  }
+  done(locale, 'stocktake');
+}
+
+export async function deleteStocktakeScheduleAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const id = str(fd, 'id');
+  if (id) {
+    try { await deleteStocktakeSchedule(id); } catch (e) { fail(e); }
   }
   done(locale, 'stocktake');
 }
