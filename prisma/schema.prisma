@@ -974,6 +974,7 @@ model MovementLedger {
 model ShippingZone {
   id          String          @id @default(cuid())
   name        String
+  nameAr      String? // bilingual zones (V4 E26)
   governorate String
   granularity ZoneGranularity @default(GOVERNORATE)
   areas       ShippingArea[]
@@ -985,8 +986,13 @@ model ShippingArea {
   zoneId             String
   zone               ShippingZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
   name               String
+  nameAr             String? // bilingual sub-areas (V4 E26)
   allowsUltraFast    Boolean      @default(false)
   allowsPos          Boolean      @default(false) // POS-on-Delivery eligible (Greater Cairo)
+  // Structured ETA (V4 E25): min/max business days drive a consistent storefront
+  // estimate; etaText remains an optional display override.
+  etaMinDays         Int?
+  etaMaxDays         Int?
   etaText            String?
   shippingTypesJson  Json? // available types for this area
   courierMappingJson Json? // type -> courier suggestion for Ops
