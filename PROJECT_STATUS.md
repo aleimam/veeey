@@ -7,9 +7,9 @@
 
 ## Current state
 
-- **Live** at **veeey.com**. Latest deployed commit: **`c213f55`** (2026-07-11). All
-  **43 Prisma migrations applied**; `pm2` processes `veeey` (web) + `veeey-worker` (jobs) healthy;
-  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **331 unit tests** · build.
+- **Live** at **veeey.com**. Latest deployed commit: **`163134f`** (2026-07-11). All
+  **44 Prisma migrations applied**; `pm2` processes `veeey` (web) + `veeey-worker` (jobs) healthy;
+  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **336 unit tests** · build.
 - Stack: Next.js 16 (App Router, Turbopack) · TypeScript strict · Prisma 7 + Postgres ·
   Auth.js · next-intl (AR/EN, RTL) · Tailwind v4 · pg-boss v12.
 
@@ -17,6 +17,7 @@
 
 | Feature | Commits | Notes |
 |---|---|---|
+| **V4 Inventory stream (C7–C14)** | `535da20`→`163134f` | Searchable `ProductSelect` picker fixes lot-edit preselect (old dropdown capped at 200 rows) + intake; expiring/condition filters + status colors + dashboard deep-link; lots BulkBar (−% discount / status / CSV export via new `lots` adapter) + Reserved column; `Product.reorderPoint` (migration `reorder_point`) feeds the To-buy short-stock tab + product-form field; **condition-migration tool** `/admin/inventory/condition-migration` (dry-run → gated apply: "{Broken bottle}"-named variants' lots move to base product w/ condition, variant archived); YeldnIN receiving preps QUARANTINE intake lots w/ supplier cost behind `INTEGRATION_ENABLED` (⚠️ `unitCostEgp` contract field to confirm at re-baseline); cost editable at intake publish; killed a dormant `loc_main` hardcode in mock intake. |
 | **Gift-with-purchase automation** | `1197db5` `c213f55` | `GiftRule` model + pure engine (`gift-rules.ts`) + `applyGiftRules` inside checkout/staff-order tx (atomic gift-stock claim, skip-not-fail); cart earned/nudge hints; confirmation gift lines; admin `/admin/gifts/rules` (create/pause/delete, product-by-SKU + category + subtotal + window conditions). Migration `gift_rules`. |
 | **Urgent bugs: expired lots + loyalty (V4 C6 / V5 F29)** | `15fb27b` `e467731` | LIVE lots past expiry auto-flip to EXPIRED (daily 03:10 UTC cron + reserveStock guard + "Expired stock" section on `/admin/inventory/expiry`); backfill expired 1 overdue lot. Loyalty standing (lifetime spend + tier) recomputed canonically from DELIVERED orders — root cause: wc-synced orders never pass transitionOrder; `Tier.minSpendPiastres` (migration, editable in /admin/tiers; ⚠️ starter thresholds VIP 20k / Select 50k EGP — owner to confirm); daily 03:25 UTC cron + after credit/reverse; **backfill updated 6,557/16,213 customers → 15,504 Green / 442 VeeyIP / 267 Select. NO retroactive points (owner decision).** |
 | **Wishlist price-drop alerts (FR-WSH-02/03)** | `3a948d6` `33d8b4c` | PRICE_DROP events now fire on base-price drops (admin edit / bulk tool / AI apply); exactly-once fan-out via `ProductChangeEvent.processedAt` (historical rows pre-stamped); EMAIL (AR/EN, localized deep link, needs SMTP, Setting `alerts.wishlistEmailEnabled`) + PUSH; per-sweep dedupe; pure helpers in `alert-plan.ts`. |
