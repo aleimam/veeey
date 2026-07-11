@@ -38,9 +38,10 @@ export default async function ExpiryFightPage({ params, searchParams }: { params
   const { page, perPage } = parseListParams(sp, { sortable: [], defaultSort: '' });
   const view = await getExpiryView({ tab, page, perPage });
 
-  const basePath = `/${locale}/admin/inventory/expiry`;
+  const basePath = `/${locale}/admin/inventory/expiry`; // locale-prefixed: for `back` + ListPagination (plain <a>)
   const back = `${basePath}${listQs(sp, {})}`;
-  const tabHref = (key: ExpiryTab) => `${basePath}${listQs(sp, { tab: key, page: undefined })}`;
+  // Locale-RELATIVE for next-intl <Link>, which prepends the locale itself (avoids /en/en/…).
+  const tabHref = (key: ExpiryTab) => `/admin/inventory/expiry${listQs(sp, { tab: key, page: undefined })}`;
   const flag = one(sp.done) ? 'done' : one(sp.error);
 
   const th = 'px-3 py-2 text-start text-xs font-semibold uppercase tracking-wide text-muted-foreground';

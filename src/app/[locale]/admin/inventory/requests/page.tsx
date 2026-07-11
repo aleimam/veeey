@@ -38,9 +38,10 @@ export default async function ReorderRequestsPage({ params, searchParams }: { pa
   const { page, perPage } = parseListParams(sp, { sortable: [], defaultSort: '' });
   const view = await getReorderView({ tab, page, perPage });
 
-  const basePath = `/${locale}/admin/inventory/requests`;
+  const basePath = `/${locale}/admin/inventory/requests`; // locale-prefixed: for `back` + ListPagination (plain <a>)
   const back = `${basePath}${listQs(sp, {})}`;
-  const tabHref = (key: ReorderTabKey) => `${basePath}${listQs(sp, { tab: key, page: undefined })}`;
+  // Locale-RELATIVE for next-intl <Link>, which prepends the locale itself (avoids /en/en/…).
+  const tabHref = (key: ReorderTabKey) => `/admin/inventory/requests${listQs(sp, { tab: key, page: undefined })}`;
   const isIgnored = tab === 'ignored';
   const flag = one(sp.done) ? 'done' : one(sp.error);
 
