@@ -7,9 +7,18 @@
 
 ## Current state
 
-- **Live** at **veeey.com**. Latest deployed commit: **`be72aaf`** (2026-07-12). All
+- **Live** at **veeey.com**. Latest deployed commit: **`5660d9d`** (2026-07-12). All
   **52 Prisma migrations applied** (`search_suite` — pg_trgm + SearchQuery/SearchClick/SearchSynonym); `pm2` `veeey` (web) + `veeey-worker` healthy;
-  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **383 unit tests** · build.
+  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **391 unit tests** · build.
+- **Bulk attribute editor** (`5660d9d`, no migration): `/admin/attributes/bulk` (catalog.write) — pick an attribute,
+  filter products (category/brand/search/only-missing), multi-select, assign one value to all (SINGLE_SELECT replaces,
+  MULTI_SELECT adds); optional **Suggest with AI** proposes a value per product (`ai.ts`, Anthropic, constrained to the
+  allowed values, degrades to null when AI off) for review. Speeds up filling attributes so the PLP filter sidebar has values.
+- **Trustpilot reviews widget** (`5660d9d`, no migration): `/admin/trustpilot` (settings.manage) — Business Unit ID + domain +
+  locale + theme, per-placement toggles/templates for homepage, footer, checkout. TrustBox loader mirrors the Google-tag
+  pattern. Settings-backed JSON (`trustpilot.config`); **inert until the owner pastes a Business Unit ID** (create a Trustpilot
+  Business account → Integrations → TrustBox). **Refill is currently toggled OFF on prod** via /admin/features (owner choice —
+  `/refill` redirects home by design; see the feature-flags section).
 - **Feature toggles** (`be72aaf`): **`/admin/features`** (settings.manage + audit) switches 15 customer-facing
   features on/off — Refill, Veeey Select, special orders, Learn/Blog, quizzes, compare, wishlist, pre-order,
   buy-again, reviews, Q&A, loyalty points, gift-with-purchase, stock alerts, social login. **OFF hides the
