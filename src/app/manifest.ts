@@ -16,8 +16,12 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     display: 'standalone',
     background_color: '#ffffff',
     theme_color: '#48884d',
-    icons: branding.faviconUrl
-      ? [{ src: branding.faviconUrl, sizes: '64x64', type: 'image/png' }]
-      : [{ src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' }],
+    // Prefer the square icon-only logo for the installed-app icon (bigger/cleaner
+    // than the 64px favicon), then the favicon, then the bundled SVG.
+    icons: branding.logoIconUrl
+      ? [{ src: branding.logoIconUrl, sizes: 'any', type: 'image/png', purpose: 'any' }]
+      : branding.faviconUrl
+        ? [{ src: branding.faviconUrl, sizes: '64x64', type: 'image/png' }]
+        : [{ src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' }],
   };
 }

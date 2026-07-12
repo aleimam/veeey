@@ -55,7 +55,7 @@ export default async function ShopLayout({
         subtotalPiastres={subtotalPiastres}
         isStaff={isStaff}
         help={{ whatsapp: whatsapp ?? undefined, phone: phone ?? undefined }}
-        branding={{ logoUrl: branding.logoUrl, logoLightUrl: branding.logoLightUrl, siteName: brandingSiteName(branding, locale) }}
+        branding={{ logoUrl: branding.logoUrl, logoLightUrl: branding.logoLightUrl, logoIconUrl: branding.logoIconUrl, siteName: brandingSiteName(branding, locale) }}
       />
       <main>{children}</main>
       <SiteFooter />

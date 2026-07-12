@@ -10,10 +10,12 @@ export type Branding = {
   /** Default browser-tab title (pages with their own title override it). */
   titleEn: string;
   titleAr: string;
-  /** Main logo (light backgrounds). Empty = built-in Veeey artwork. */
+  /** Horizontal logo (light backgrounds). Empty = built-in Veeey artwork. */
   logoUrl: string;
-  /** White-knockout logo (green header / dark backgrounds). Empty = built-in. */
+  /** Transparent white-knockout logo (green header). Empty = built-in. */
   logoLightUrl: string;
+  /** Icon-only square mark — compact/mobile header, watermark default, app icon. */
+  logoIconUrl: string;
   /** Favicon URL (uploaded PNG). Empty = bundled favicon.ico. */
   faviconUrl: string;
 };
@@ -25,10 +27,12 @@ export const DEFAULT_BRANDING: Branding = {
   titleAr: 'Veeey — مكملات غذائية وأجهزة صحية مستوردة أصلية في مصر',
   logoUrl: '',
   logoLightUrl: '',
+  logoIconUrl: '',
   faviconUrl: '',
 };
 
 const KEYS = Object.keys(DEFAULT_BRANDING) as (keyof Branding)[];
+const IMAGE_KEYS: (keyof Branding)[] = ['logoUrl', 'logoLightUrl', 'logoIconUrl', 'faviconUrl'];
 
 /** Normalize a raw key→value map into a full Branding (trimmed, defaulted).
  *  Image fields only accept site-relative or http(s) URLs. */
@@ -37,7 +41,7 @@ export function parseBranding(raw: Record<string, string | undefined>): Branding
   for (const key of KEYS) {
     const v = (raw[key] ?? '').trim();
     if (!v) continue;
-    if ((key === 'logoUrl' || key === 'logoLightUrl' || key === 'faviconUrl') && !/^(\/|https?:\/\/)/i.test(v)) continue;
+    if (IMAGE_KEYS.includes(key) && !/^(\/|https?:\/\/)/i.test(v)) continue;
     out[key] = v;
   }
   return out;

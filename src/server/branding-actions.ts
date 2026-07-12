@@ -18,6 +18,7 @@ export async function saveBrandingAction(fd: FormData): Promise<void> {
     titleAr: str(fd, 'titleAr'),
     logoUrl: str(fd, 'logoUrl'),
     logoLightUrl: str(fd, 'logoLightUrl'),
+    logoIconUrl: str(fd, 'logoIconUrl'),
     faviconUrl: str(fd, 'faviconUrl'),
   });
   revalidatePath('/', 'layout');

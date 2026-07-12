@@ -31,7 +31,7 @@ export function ChewyHeader({
   subtotalPiastres?: number;
   isStaff?: boolean;
   help?: { whatsapp?: string; phone?: string };
-  branding?: { logoUrl?: string; logoLightUrl?: string; siteName?: string };
+  branding?: { logoUrl?: string; logoLightUrl?: string; logoIconUrl?: string; siteName?: string };
 }) {
   const loc = useLocale();
   const t = pick(loc);
@@ -56,7 +56,15 @@ export function ChewyHeader({
               </button>
 
               <Link href="/" aria-label={t('Home', 'الرئيسية')} className="me-auto flex shrink-0 items-center md:me-0">
-                <VeeeyLogo variant="light" size={36} priority src={branding?.logoLightUrl || undefined} alt={branding?.siteName || undefined} />
+                {branding?.logoIconUrl ? (
+                  <>
+                    {/* Compact square mark on small screens; full wordmark on md+. */}
+                    <VeeeyLogo size={34} priority src={branding.logoIconUrl} alt={branding?.siteName || undefined} className="md:hidden" />
+                    <VeeeyLogo variant="light" size={36} priority src={branding?.logoLightUrl || undefined} alt={branding?.siteName || undefined} className="hidden md:block" />
+                  </>
+                ) : (
+                  <VeeeyLogo variant="light" size={36} priority src={branding?.logoLightUrl || undefined} alt={branding?.siteName || undefined} />
+                )}
               </Link>
 
               {/* desktop search */}

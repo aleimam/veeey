@@ -73,14 +73,19 @@ export default async function BrandingPage({ params, searchParams }: { params: P
           <h2 className="mb-3 font-heading text-base font-semibold">{tb('Logos', 'الشعارات')}</h2>
           <div className="space-y-5">
             <div>
-              <p className="mb-1 text-sm font-medium">{tb('Main logo — light backgrounds', 'الشعار الرئيسي — للخلفيات الفاتحة')}</p>
-              <p className="mb-2 text-xs text-muted-foreground">{tb('Shown in the footer and mobile menu (white background). Transparent PNG recommended.', 'يظهر في التذييل وقائمة الموبايل (خلفية بيضاء). يُفضَّل PNG بخلفية شفافة.')}</p>
+              <p className="mb-1 text-sm font-medium">{tb('Horizontal logo — light backgrounds', 'الشعار الأفقي — للخلفيات الفاتحة')}</p>
+              <p className="mb-2 text-xs text-muted-foreground">{tb('The full wordmark. Shown in the footer and the mobile menu (white background). Transparent PNG recommended.', 'الشعار الكامل. يظهر في التذييل وقائمة الموبايل (خلفية بيضاء). يُفضَّل PNG بخلفية شفافة.')}</p>
               <SingleImageUploader name="logoUrl" initial={b.logoUrl} />
             </div>
             <div>
-              <p className="mb-1 text-sm font-medium">{tb('Light logo — green header', 'الشعار الفاتح — للهيدر الأخضر')}</p>
+              <p className="mb-1 text-sm font-medium">{tb('Transparent logo — green header', 'الشعار الشفاف — للهيدر الأخضر')}</p>
               <p className="mb-2 text-xs text-muted-foreground">{tb('White/knockout version shown on the green header. If empty, the built-in white Veeey logo is used.', 'نسخة بيضاء تظهر على الهيدر الأخضر. إذا تُرك فارغًا يُستخدم شعار Veeey الأبيض الافتراضي.')}</p>
               <SingleImageUploader name="logoLightUrl" initial={b.logoLightUrl} />
+            </div>
+            <div>
+              <p className="mb-1 text-sm font-medium">{tb('Icon-only logo — square mark', 'شعار الأيقونة — علامة مربعة')}</p>
+              <p className="mb-2 text-xs text-muted-foreground">{tb('A compact square mark (no wordmark). Used on the mobile/compact header, as the default product-photo watermark, and for small brand spots. Transparent PNG recommended.', 'علامة مربعة مدمجة (بدون اسم). تُستخدم في الهيدر المدمج على الموبايل، وكعلامة مائية افتراضية لصور المنتجات، وللمواضع الصغيرة. يُفضَّل PNG شفاف.')}</p>
+              <SingleImageUploader name="logoIconUrl" initial={b.logoIconUrl} />
             </div>
           </div>
         </section>
