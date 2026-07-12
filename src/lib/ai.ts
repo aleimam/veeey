@@ -97,6 +97,69 @@ export async function translateToArabic(fields: Record<string, string>): Promise
   }
 }
 
+export type AttributeSuggestion = { id: string; values: string[] };
+
+/**
+ * Suggest attribute values for a batch of products (bulk attribute editor). Given
+ * one attribute (its name + the allowed values) and a list of products (name /
+ * brand / short description), Claude picks the best-fitting value(s) per product
+ * from the allowed set only — or none when unsure. Assistive: staff review before
+ * it's applied. Returns null when AI is off. `multi` allows more than one value.
+ */
+export async function suggestProductAttributes(input: {
+  attributeName: string;
+  allowed: string[];
+  multi: boolean;
+  products: { id: string; name: string; brand?: string; desc?: string }[];
+}): Promise<AttributeSuggestion[] | null> {
+  if (input.products.length === 0 || input.allowed.length === 0) return null;
+  const r = await resolveClient();
+  if (!r) return null;
+  const schema = {
+    type: 'object',
+    properties: {
+      picks: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            values: { type: 'array', items: { type: 'string', enum: input.allowed } },
+          },
+          required: ['id', 'values'],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ['picks'],
+    additionalProperties: false,
+  } as const;
+  const list = input.products
+    .slice(0, 60)
+    .map((p) => `- id=${p.id} | ${p.name}${p.brand ? ` (${p.brand})` : ''}${p.desc ? ` — ${p.desc.slice(0, 200)}` : ''}`)
+    .join('\n');
+  try {
+    const res = await r.c.messages.create({
+      model: r.model,
+      max_tokens: 3000,
+      output_config: { format: { type: 'json_schema', schema } },
+      messages: [{
+        role: 'user',
+        content:
+          `You are tagging products for "${input.attributeName}" in a premium supplements & health-devices store. ` +
+          `For each product, choose ${input.multi ? 'zero or more' : 'exactly one (or zero if truly unclear)'} value(s) STRICTLY from this allowed list — never invent values:\n${input.allowed.map((v) => `• ${v}`).join('\n')}\n\n` +
+          `Only pick a value you are confident about from the product name/description; return an empty "values" array when unsure. Products:\n${list}\n\nReturn JSON: { "picks": [{ "id", "values": [] }] }.`,
+      }],
+    });
+    const text = firstText(res.content);
+    if (!text) return null;
+    const parsed = JSON.parse(text) as { picks?: AttributeSuggestion[] };
+    return Array.isArray(parsed.picks) ? parsed.picks : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Summarize customer reviews into a short neutral blurb. Null if AI off / no reviews. */
 export async function summarizeReviews(productName: string, reviews: { rating: number; body: string }[]): Promise<string | null> {
   if (reviews.length === 0) return null;

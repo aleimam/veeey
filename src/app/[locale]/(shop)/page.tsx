@@ -4,6 +4,7 @@ import { getHomeLayout, resolveHomeData, type HomeData } from '@/lib/home-layout
 import { getSetting } from '@/lib/settings-service';
 import { getFeatureStates } from '@/lib/feature-service';
 import { ChewyHome } from '@/components/storefront/chewy/chewy-home';
+import { TrustpilotWidget } from '@/components/storefront/trustpilot';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
@@ -55,6 +56,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <ChewyHome locale={locale} blocks={blocks} data={data} states={ff} />
+      <TrustpilotWidget placement="home" className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6 lg:px-8" />
     </>
   );
 }

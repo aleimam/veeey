@@ -14,6 +14,7 @@ import { ChewyHeader, type CartLine } from '@/components/storefront/chewy/chewy-
 import { SiteFooter } from '@/components/storefront/site-footer';
 import { WhatsAppButton } from '@/components/storefront/whatsapp-button';
 import { EntryDisclaimer } from '@/components/storefront/entry-disclaimer';
+import { TrustpilotScript } from '@/components/storefront/trustpilot';
 
 // Storefront reads live catalog/stock per request (SSR). Static/ISR perf tuning is a later pass.
 export const dynamic = 'force-dynamic';
@@ -63,6 +64,7 @@ export default async function ShopLayout({
       <SiteFooter hiddenHrefs={hiddenHrefs} />
       <WhatsAppButton phone={whatsapp} />
       <EntryDisclaimer />
+      <TrustpilotScript />
     </div>
   );
 }

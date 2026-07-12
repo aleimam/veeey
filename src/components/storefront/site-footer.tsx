@@ -6,6 +6,7 @@ import { activeSocialLinks, SOCIAL_PLATFORMS } from "@/lib/social-service"
 import { getAllSettings } from "@/lib/settings-service"
 import { getBranding } from "@/lib/branding-service"
 import { brandingSiteName } from "@/lib/branding"
+import { TrustpilotWidget } from "@/components/storefront/trustpilot"
 
 const columns = [
   { key: "shop", links: ["vitamins", "devices", "refill", "select", "brands", "offers", "specialOrder"] },
@@ -166,6 +167,8 @@ export async function SiteFooter({ hiddenHrefs = [] }: { hiddenHrefs?: string[] 
             ))}
           </div>
         </div>
+
+        <TrustpilotWidget placement="footer" className="mt-10 flex justify-center" />
 
         <div className="mt-12 border-t border-[color:var(--slate-border)] pt-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

@@ -32,6 +32,7 @@ export const NAV_SECTIONS: AdminNavSection[] = [
     { href: '/admin/categories', key: 'categories', permission: 'catalog.write' },
     { href: '/admin/tags', key: 'tags', permission: 'catalog.write' },
     { href: '/admin/attributes', key: 'attributes', permission: 'catalog.write' },
+    { href: '/admin/attributes/bulk', key: 'attributesBulk', permission: 'catalog.write' },
     { href: '/admin/collections', key: 'collections', permission: 'content.manage' },
   ] },
   { title: ['Inventory', 'المخزون'], items: [
@@ -91,6 +92,7 @@ export const NAV_SECTIONS: AdminNavSection[] = [
     { href: '/admin/google', key: 'google', permission: 'settings.manage' },
     { href: '/admin/payments', key: 'payments', permission: 'settings.manage' },
     { href: '/admin/providers', key: 'providers', permission: 'settings.manage' },
+    { href: '/admin/trustpilot', key: 'trustpilot', permission: 'settings.manage' },
     { href: '/admin/login-providers', key: 'loginProviders', permission: 'settings.manage' },
     { href: '/admin/integration', key: 'integration', permission: 'settings.manage' },
   ] },
