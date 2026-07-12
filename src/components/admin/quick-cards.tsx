@@ -13,8 +13,9 @@ export type QuickCard = { href: string; label: string; icon: string };
  */
 export function QuickCards({ items }: { items: QuickCard[] }) {
   if (items.length === 0) return null;
+  // Up to 5 per row on desktop → 3–5 cards fill one row, 6–10 wrap to two.
   return (
-    <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+    <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
       {items.map((it) => {
         const Icon = ICONS[it.icon] ?? LayoutGrid;
         return (

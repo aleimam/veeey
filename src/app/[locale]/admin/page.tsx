@@ -1,6 +1,7 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { prisma } from '@/lib/prisma';
+import { getNumberSetting } from '@/lib/settings-service';
 import { pick } from '@/lib/admin-i18n';
 import { formatEGP } from '@/lib/format';
 import { getCurrentUser } from '@/lib/auth-guards';
@@ -14,7 +15,7 @@ export const dynamic = 'force-dynamic';
 const monthDay = (d: Date) => `${d.getUTCDate()}/${d.getUTCMonth() + 1}`;
 
 // Sections offered until a user has enough visit history of their own.
-const DEFAULT_QUICK = ['/admin/orders', '/admin/products', '/admin/inventory', '/admin/customers', '/admin/analytics', '/admin/returns', '/admin/brands', '/admin/settings'];
+const DEFAULT_QUICK = ['/admin/orders', '/admin/products', '/admin/inventory', '/admin/customers', '/admin/analytics', '/admin/returns', '/admin/brands', '/admin/coupons', '/admin/reviews', '/admin/settings'];
 
 export default async function AdminPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -22,8 +23,10 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
   const tb = pick(locale);
 
   // Personal quick-access cards: this user's most-visited sections (recorded by
-  // AdminShell), permission-filtered, topped up with defaults to 8.
-  const user = await getCurrentUser();
+  // AdminShell), permission-filtered, topped up with defaults. Count is an
+  // admin setting (3–10, one or two rows).
+  const [user, quickCardCountRaw] = await Promise.all([getCurrentUser(), getNumberSetting('dashboard.quickCardCount')]);
+  const quickCardCount = Math.min(10, Math.max(3, Math.round(quickCardCountRaw) || 8));
   const usage = user
     ? await prisma.adminSectionUsage.findMany({ where: { userId: user.id }, orderBy: { count: 'desc' }, take: 30 })
     : [];
@@ -33,7 +36,7 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
   for (const href of [...usage.map((u) => u.section), ...DEFAULT_QUICK]) {
     const item = byHref.get(href);
     if (item && item.href !== '/admin' && allowed(item) && !picks.includes(item)) picks.push(item);
-    if (picks.length === 8) break;
+    if (picks.length === quickCardCount) break;
   }
   const tNav = await getTranslations('admin');
   const quickCards: QuickCard[] = picks.map((i) => ({ href: i.href, label: tNav(`nav.${i.key}`), icon: i.key }));
