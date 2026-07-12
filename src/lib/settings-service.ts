@@ -29,6 +29,9 @@ export const SETTINGS: SettingDef[] = [
   { key: 'audit.weeklyReport', label: 'Weekly activity report', group: 'Audit log', type: 'text', default: 'on', hint: 'on / off — email staff a weekly summary of admin activity (the change log).' },
   { key: 'audit.reportRecipients', label: 'Report recipients', group: 'Audit log', type: 'text', default: '', hint: 'Comma-separated emails. Empty = every staff user with a role.' },
   { key: 'audit.retentionDays', label: 'Change-log retention (days)', group: 'Audit log', type: 'days', default: '365', hint: '0 = keep forever. Entries older than this are purged daily.' },
+  // Search
+  { key: 'search.weeklyDigest', label: 'Weekly search digest', group: 'Search', type: 'text', default: 'off', hint: 'on / off — email staff a weekly summary of top searches, zero-result terms and unstocked demand (needs SMTP).' },
+  { key: 'search.digestRecipients', label: 'Search digest recipients', group: 'Search', type: 'text', default: '', hint: 'Comma-separated emails. Empty = every staff user with a role.' },
   // Shipping
   { key: 'shipping.freeThresholdEgp', label: 'Free-shipping threshold (EGP)', group: 'Shipping', type: 'number', default: '0', hint: '0 = shipping fees come from the per-type config.' },
   // Referrals

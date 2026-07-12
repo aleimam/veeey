@@ -36,6 +36,7 @@ async function main() {
   await boss.createQueue(QUEUES.gscSitemap);
   await boss.createQueue(QUEUES.watermark);
   await boss.createQueue(QUEUES.loyaltyBackfill);
+  await boss.createQueue(QUEUES.searchDigest);
 
   await boss.work(QUEUES.notify, async ([job]) => {
     await notify(job.data as NotifyInput);
@@ -153,6 +154,13 @@ async function main() {
     console.log(`[worker] loyalty backfill: ${r.points} pts across ${r.orders} orders / ${r.customers} customers`);
   });
 
+  // Weekly search digest (top / zero-result / demand) — gated by search.weeklyDigest.
+  await boss.work(QUEUES.searchDigest, async () => {
+    const { sendWeeklySearchDigest } = await import('@/lib/search-digest-service');
+    const r = await sendWeeklySearchDigest();
+    console.log(`[worker] search digest: ${r.skipped ? `skipped (${r.skipped})` : `sent to ${r.sent} recipient(s)`}`);
+  });
+
   // Recurring wishlist-alert sweep every 5 minutes.
   await boss.schedule(QUEUES.alerts, '*/5 * * * *', {});
   // WooCommerce incremental sync every 15 minutes (gated by woo.sync.enabled).
@@ -171,6 +179,8 @@ async function main() {
   await boss.schedule(QUEUES.stocktakeCycle, '45 2 * * *', {});
   // Re-submit the sitemap to Google Search Console daily 05:15 UTC (no-op if not connected).
   await boss.schedule(QUEUES.gscSitemap, '15 5 * * *', {});
+  // Weekly search digest Mondays 06:30 UTC (gated by search.weeklyDigest).
+  await boss.schedule(QUEUES.searchDigest, '30 6 * * 1', {});
   console.log('[worker] started — notify + alerts + woo-sync + audit queues registered, schedules set.');
 }
 
