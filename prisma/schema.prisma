@@ -1919,3 +1919,18 @@ model HomeTrustBadge {
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
 }
+
+// System error / mistake log (admin-toggleable via Setting `errorLog.enabled`).
+// Captures 404s, runtime errors, and caught server failures for the admin viewer.
+model ErrorLog {
+  id        String   @id @default(cuid())
+  level     String // ERROR | WARN | NOT_FOUND
+  message   String
+  source    String? // path or component that produced it
+  stack     String?
+  metaJson  Json?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([level])
+}
