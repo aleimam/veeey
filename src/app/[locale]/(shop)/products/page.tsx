@@ -7,6 +7,7 @@ import { toCardProduct, cardProductInclude, visibleProductWhere } from '@/lib/st
 import { parsePlp, plpWhere, removeParamHref, type SP } from '@/lib/plp-filters';
 import { getZones } from '@/lib/page-zone-service';
 import { resolveHomeData, type HomeData } from '@/lib/home-layout-service';
+import { getFeatureStates } from '@/lib/feature-service';
 import { richToText } from '@/lib/rich-text';
 import { ChewyHome } from '@/components/storefront/chewy/chewy-home';
 import { ChewyProductCard } from '@/components/storefront/chewy/chewy-product-card';
@@ -158,6 +159,7 @@ export default async function ProductsPage({
   const clearAllHref = removeParamHref(base, sp, chips.map((c) => c.key));
 
   const zones = await getZones(['category.top', 'category.bottom']);
+  const ff = await getFeatureStates();
   let zoneData: HomeData = { bestsellers: [], deals: [], rows: {} };
   try {
     zoneData = await resolveHomeData([...zones['category.top'], ...zones['category.bottom']], locale);
@@ -209,7 +211,7 @@ export default async function ProductsPage({
       {breadcrumbLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />}
       </>
     )}
-    {zones['category.top'].length > 0 && <ChewyHome locale={locale} blocks={zones['category.top']} data={zoneData} />}
+    {zones['category.top'].length > 0 && <ChewyHome locale={locale} blocks={zones['category.top']} data={zoneData} states={ff} />}
     <div className="mx-auto max-w-[1440px] px-4 pb-12 pt-5 sm:px-6 lg:px-8">
       <div className="mb-3.5 flex items-center gap-2 text-[13px] text-[color:var(--text-muted)]">
         <Link href="/">{tb('Home', 'الرئيسية')}</Link>
@@ -273,7 +275,7 @@ export default async function ProductsPage({
         </section>
       </div>
     </div>
-    {zones['category.bottom'].length > 0 && <ChewyHome locale={locale} blocks={zones['category.bottom']} data={zoneData} />}
+    {zones['category.bottom'].length > 0 && <ChewyHome locale={locale} blocks={zones['category.bottom']} data={zoneData} states={ff} />}
     </>
   );
 }

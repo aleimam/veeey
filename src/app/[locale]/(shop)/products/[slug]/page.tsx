@@ -180,7 +180,7 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
 
   return (
     <>
-    {zones['pdp.top'].length > 0 && <ChewyHome locale={locale} blocks={zones['pdp.top']} data={zoneData} />}
+    {zones['pdp.top'].length > 0 && <ChewyHome locale={locale} blocks={zones['pdp.top']} data={zoneData} states={ff} />}
     <div className="mx-auto max-w-[1440px] px-4 pb-14 pt-5 sm:px-6 lg:px-8">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
@@ -401,7 +401,7 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
         </section>
       )}
     </div>
-    {zones['pdp.bottom'].length > 0 && <ChewyHome locale={locale} blocks={zones['pdp.bottom']} data={zoneData} />}
+    {zones['pdp.bottom'].length > 0 && <ChewyHome locale={locale} blocks={zones['pdp.bottom']} data={zoneData} states={ff} />}
     </>
   );
 }

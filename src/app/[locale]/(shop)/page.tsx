@@ -36,8 +36,8 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   setRequestLocale(locale);
 
   const ff = await getFeatureStates();
-  // Hide the Learn/Blog home section when the blog feature is switched off.
-  const blocks = (await getHomeLayout()).filter((b) => ff.blog || b.type !== 'learn-blog');
+  // Feature-dedicated blocks + feature-linked items are gated inside ChewyHome (states).
+  const blocks = await getHomeLayout();
   let data: HomeData = { bestsellers: [], deals: [], rows: {} };
   try {
     data = await resolveHomeData(blocks, locale);
@@ -54,7 +54,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <ChewyHome locale={locale} blocks={blocks} data={data} />
+      <ChewyHome locale={locale} blocks={blocks} data={data} states={ff} />
     </>
   );
 }

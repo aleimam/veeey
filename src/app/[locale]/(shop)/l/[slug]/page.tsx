@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { setRequestLocale } from 'next-intl/server';
 import { getPublishedPage } from '@/lib/page-layout-service';
 import { resolveHomeData, type HomeData } from '@/lib/home-layout-service';
+import { getFeatureStates } from '@/lib/feature-service';
 import { ChewyHome } from '@/components/storefront/chewy/chewy-home';
 import { AdminEditLink } from '@/components/storefront/admin-edit-link';
 
@@ -20,6 +21,7 @@ export default async function LandingPage({ params }: { params: Promise<{ locale
   const page = await getPublishedPage(slug);
   if (!page) notFound();
 
+  const ff = await getFeatureStates();
   let data: HomeData = { bestsellers: [], deals: [], rows: {} };
   try {
     data = await resolveHomeData(page.blocks, locale);
@@ -32,7 +34,7 @@ export default async function LandingPage({ params }: { params: Promise<{ locale
       <div className="mx-auto max-w-[1440px] px-4 pt-3 sm:px-6">
         <AdminEditLink href={`/admin/landing/edit/${page.row.id}`} locale={locale} />
       </div>
-      <ChewyHome locale={locale} blocks={page.blocks} data={data} />
+      <ChewyHome locale={locale} blocks={page.blocks} data={data} states={ff} />
     </>
   );
 }

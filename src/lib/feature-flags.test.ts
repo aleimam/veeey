@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { FEATURES, FEATURE_IDS, featureSettingKey, isEnabledValue, featureEnabled, featureForPath, stripLocale, isHrefDisabled, type FeatureId } from './feature-flags';
+import { FEATURES, FEATURE_IDS, featureSettingKey, isEnabledValue, featureEnabled, featureForPath, stripLocale, isHrefDisabled, homeBlockFeature, stripDisabledHrefs, type FeatureId } from './feature-flags';
 
 describe('feature-flags registry', () => {
   it('has unique ids and non-empty bilingual labels', () => {
@@ -61,5 +61,38 @@ describe('stripLocale + isHrefDisabled', () => {
     expect(isHrefDisabled('/refill', states)).toBe(false);
     expect(isHrefDisabled('/products?kind=SUPPLEMENT', { ...states, refill: false })).toBe(false);
     expect(isHrefDisabled('#', states)).toBe(false);
+  });
+});
+
+describe('homeBlockFeature', () => {
+  it('maps dedicated home blocks to their feature', () => {
+    expect(homeBlockFeature('feature-banner')).toBe('refill');
+    expect(homeBlockFeature('learn-blog')).toBe('blog');
+    expect(homeBlockFeature('special-order')).toBe('specialOrders');
+    expect(homeBlockFeature('membership')).toBe('select');
+    expect(homeBlockFeature('hero')).toBeNull();
+  });
+});
+
+describe('stripDisabledHrefs', () => {
+  const off = { ...Object.fromEntries(FEATURE_IDS.map((id) => [id, true])), refill: false } as Record<FeatureId, boolean>;
+  it('removes list items linking to a disabled feature, keeps the rest', () => {
+    const content = {
+      slides: [
+        { title: 'Best sellers', href: '/products' },
+        { title: 'Veeey Refill', href: '/refill' },
+        { title: 'Deals', href: '/products?offers=1' },
+      ],
+      cta: 'Shop',
+    };
+    const out = stripDisabledHrefs(content, off) as typeof content;
+    expect(out.slides.map((s) => s.title)).toEqual(['Best sellers', 'Deals']);
+    expect(out.cta).toBe('Shop');
+  });
+  it('recurses into nested objects and leaves everything when nothing is off', () => {
+    const allOn = Object.fromEntries(FEATURE_IDS.map((id) => [id, true])) as Record<FeatureId, boolean>;
+    const content = { group: { cards: [{ href: '/refill' }, { href: '/select' }] } };
+    expect((stripDisabledHrefs(content, allOn) as typeof content).group.cards).toHaveLength(2);
+    expect((stripDisabledHrefs(content, off) as typeof content).group.cards).toHaveLength(1);
   });
 });

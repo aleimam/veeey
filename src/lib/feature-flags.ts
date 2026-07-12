@@ -97,3 +97,32 @@ export function isHrefDisabled(href: string, states: Record<FeatureId, boolean>)
   const id = featureForPath(stripLocale(href));
   return id ? states[id] === false : false;
 }
+
+/** Home-layout block types that are dedicated to one feature (whole block hidden
+ *  when that feature is off). */
+const HOME_BLOCK_FEATURE: Record<string, FeatureId> = {
+  'feature-banner': 'refill',
+  'learn-blog': 'blog',
+  'special-order': 'specialOrders',
+  membership: 'select',
+};
+export function homeBlockFeature(type: string): FeatureId | null {
+  return HOME_BLOCK_FEATURE[type] ?? null;
+}
+
+/** Deep-clone content, dropping any array item that links to a disabled feature
+ *  (its `href` maps to an off feature). Used to purge feature mentions from home
+ *  gadget lists (hero slides, trust cards, etc.) even when they come from defaults. */
+export function stripDisabledHrefs<T>(value: T, states: Record<FeatureId, boolean>): T {
+  if (Array.isArray(value)) {
+    return value
+      .filter((it) => !(it && typeof it === 'object' && typeof (it as { href?: unknown }).href === 'string' && isHrefDisabled((it as { href: string }).href, states)))
+      .map((it) => stripDisabledHrefs(it, states)) as unknown as T;
+  }
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) out[k] = stripDisabledHrefs(v, states);
+    return out as unknown as T;
+  }
+  return value;
+}

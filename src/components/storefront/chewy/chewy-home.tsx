@@ -7,9 +7,10 @@ import { IlloTile } from '@/components/storefront/chewy/illustration';
 import { ChewyHero, type HeroSlide } from '@/components/storefront/chewy/chewy-hero';
 import { ChewyProductCard } from '@/components/storefront/chewy/chewy-product-card';
 import { RichBlock, ImageBannerBlock, ProductRowBlock, CtaBlock, TilesBlock } from '@/components/storefront/chewy/blocks/gadgets';
-import { builtinContent } from '@/lib/home-defaults';
+import { builtinContent, BUILTIN_DEFAULTS } from '@/lib/home-defaults';
+import { homeBlockFeature, stripDisabledHrefs, type FeatureId } from '@/lib/feature-flags';
 import type { Product } from '@/components/storefront/product-card';
-import type { Block } from '@/lib/home-layout';
+import type { Block, BuiltinType } from '@/lib/home-layout';
 import type { HomeData, HomePost } from '@/lib/home-layout-service';
 
 type T = (en: string, ar: string) => string;
@@ -298,7 +299,9 @@ function BrandStrip({ t, c }: { t: T; c: C }) {
   );
 }
 
-export function ChewyHome({ locale, blocks, data }: { locale: string; blocks: Block[]; data: HomeData }) {
+const ALL_ON = {} as Record<FeatureId, boolean>; // empty map ⇒ nothing gated (missing key ≠ false)
+
+export function ChewyHome({ locale, blocks, data, states = ALL_ON }: { locale: string; blocks: Block[]; data: HomeData; states?: Record<FeatureId, boolean> }) {
   const t = pick(locale);
   const heroImgs = data.bestsellers.map((p) => p.image).filter((x): x is string => !!x);
   const pair = (a: number, b: number) => {
@@ -323,7 +326,14 @@ export function ChewyHome({ locale, blocks, data }: { locale: string; blocks: Bl
 
   const renderBlock = (b: Block) => {
     if (!b.enabled) return null;
-    const props = (b.props ?? {}) as C;
+    // Feature gating: hide a block dedicated to a switched-off feature, and strip
+    // any list item (hero slide, trust card…) that links to an off feature — even
+    // when the content comes from the built-in defaults.
+    const bf = homeBlockFeature(b.type);
+    if (bf && states[bf] === false) return null;
+    const isBuiltin = b.type in BUILTIN_DEFAULTS;
+    const merged = isBuiltin ? builtinContent(b.type as BuiltinType, b.props as C) : (b.props ?? {});
+    const props = stripDisabledHrefs(merged, states) as C;
     switch (b.type) {
       case 'hero': { const slides = heroSlides(props); return slides.length > 0 ? <ChewyHero key={b.id} slides={slides} /> : null; }
       case 'greet-strip': return <GreetStrip key={b.id} t={t} c={builtinContent('greet-strip', props)} />;
