@@ -131,6 +131,12 @@ portable source of truth** — everything below is what the memory contained tha
 
 ## Code lessons (hard-won — follow these)
 
+- **Runtime uploads don't serve from `public/` under `next start`.** `next start` only serves
+  `public/` files that existed **at build time**, so admin-uploaded media (branding logos,
+  favicon, product images) 404 until the next build even though the file is on disk. Fixed by
+  serving `/uploads/*` through a route handler (`src/app/uploads/[...path]/route.ts`) that reads
+  from `public/uploads` at request time (build-time files still served by the static layer first).
+  Do NOT rely on static public serving for anything written after build (`e28b5ba`).
 - **next-intl `<Link>` (from `@/i18n/navigation`) prepends the locale itself.** Pass it
   locale-RELATIVE hrefs (`/admin/...`). Passing `/${locale}/admin/...` produces `/en/en/...`
   → 404 (this shipped as a real bug, fixed in `ed204ab`). By contrast, `redirect()` from
