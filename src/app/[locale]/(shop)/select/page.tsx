@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { setRequestLocale } from 'next-intl/server';
 import { pick } from '@/lib/admin-i18n';
 import { Icon } from '@/components/storefront/ui/icon';
+import { requireFeature } from '@/lib/feature-service';
 import { Link } from '@/i18n/navigation';
 
 export const dynamic = 'force-dynamic';
@@ -22,6 +23,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
 export default async function SelectPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
+  await requireFeature('select', locale);
   const t = pick(locale);
 
   const categories: { icon: string; t: [string, string]; h: [string, string]; s: [string, string]; special?: boolean }[] = [

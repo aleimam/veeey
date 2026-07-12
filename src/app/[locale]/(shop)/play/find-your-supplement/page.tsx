@@ -1,5 +1,6 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
+import { requireFeature } from '@/lib/feature-service';
 import { prisma } from '@/lib/prisma';
 import { GUIDED_QUIZ } from '@/lib/guided-selling';
 import { findSupplementAction } from '@/server/play-actions';
@@ -12,6 +13,7 @@ export default async function FindSupplementPage({ params, searchParams }: { par
   const { locale } = await params;
   const sp = await searchParams;
   setRequestLocale(locale);
+  await requireFeature('quizzes', locale);
   const g = (Array.isArray(sp.g) ? sp.g[0] : sp.g) ?? '';
   const goals = g.split(',').map((s) => s.trim()).filter(Boolean);
 

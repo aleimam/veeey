@@ -1,5 +1,6 @@
 import Image from 'next/image';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
+import { requireFeature } from '@/lib/feature-service';
 import { Link } from '@/i18n/navigation';
 import { readCompareId, getCompareProducts } from '@/lib/compare-service';
 import { toggleCompareAction } from '@/server/engagement-actions';
@@ -11,6 +12,7 @@ const headCell = 'border border-[color:var(--slate-border)] bg-surface p-3 font-
 export default async function ComparePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
+  await requireFeature('compare', locale);
   const t = await getTranslations('storefront.compare');
   const compareId = await readCompareId();
   const products = compareId ? await getCompareProducts(compareId) : [];

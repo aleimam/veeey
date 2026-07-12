@@ -1,4 +1,5 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
+import { requireFeature } from '@/lib/feature-service';
 import { getCurrentUser } from '@/lib/auth-guards';
 import { getNumberSetting } from '@/lib/settings-service';
 import { SpecialOrderForm } from '@/components/storefront/special-order-form';
@@ -10,6 +11,7 @@ export default async function SpecialOrderPage({ params, searchParams }: { param
   const { locale } = await params;
   const sp = await searchParams;
   setRequestLocale(locale);
+  await requireFeature('specialOrders', locale);
   const t = await getTranslations('storefront.specialOrderForm');
   const [user, deposit, leadDays] = await Promise.all([
     getCurrentUser().catch(() => null),

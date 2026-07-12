@@ -7,6 +7,7 @@ import { signOutAction } from '@/server/auth-actions';
 import { buyAgainAction } from '@/server/cart-actions';
 import { listReturnReasons } from '@/lib/return-reason-service';
 import { reorderSuggestions } from '@/lib/replenishment-service';
+import { isFeatureEnabled } from '@/lib/feature-service';
 import { ReturnRequestForm } from '@/components/storefront/return-request-form';
 import { ChewyProductCard } from '@/components/storefront/chewy/chewy-product-card';
 import { formatEGP } from '@/lib/format';
@@ -39,7 +40,7 @@ export default async function AccountPage({ params }: { params: Promise<{ locale
   ]);
   const reasonOptions = returnReasons.map((r) => ({ id: r.id, label: locale === 'ar' ? r.labelAr : r.labelEn, requiresDetail: r.requiresDetail }));
 
-  const reorders = user.customerId ? await reorderSuggestions(user.customerId, locale, currentDate()) : [];
+  const reorders = user.customerId && (await isFeatureEnabled('buyAgain')) ? await reorderSuggestions(user.customerId, locale, currentDate()) : [];
   const t = await getTranslations('storefront.account');
   const tb = pick(locale);
 

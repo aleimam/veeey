@@ -1,10 +1,12 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
+import { requireFeature } from '@/lib/feature-service';
 import { Link } from '@/i18n/navigation';
 import { listPublishedQuizzes, listPublishedGames } from '@/lib/play-service';
 
 export default async function PlayPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
+  await requireFeature('quizzes', locale);
   const [quizzes, games, t] = await Promise.all([listPublishedQuizzes(), listPublishedGames(), getTranslations('storefront.play')]);
 
   const card = 'rounded-[14px] border border-[color:var(--green-dark-05)] bg-white p-5 shadow-[var(--shadow-card)] transition-colors hover:border-green-dark';

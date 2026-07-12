@@ -16,6 +16,7 @@ import { RecentlyViewedTracker } from '@/components/storefront/recently-viewed-t
 import { ChewyProductCard } from '@/components/storefront/chewy/chewy-product-card';
 import { frequentlyBoughtTogether, recentlyViewed } from '@/lib/personalization-service';
 import { publishedQuestions } from '@/lib/qa-service';
+import { getFeatureStates } from '@/lib/feature-service';
 import { askQuestionAction } from '@/server/play-actions';
 import { getZones } from '@/lib/page-zone-service';
 import { resolveHomeData, type HomeData } from '@/lib/home-layout-service';
@@ -79,7 +80,8 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
   const brandName = (locale === 'ar' ? p.brand?.nameAr : p.brand?.nameEn) ?? p.brand?.nameEn ?? undefined;
   const longHtml = sanitizeRichHtml((locale === 'ar' ? p.longDescAr : p.longDescEn) ?? p.longDescEn);
   const shortHtml = sanitizeRichHtml((locale === 'ar' ? p.shortDescAr : p.shortDescEn) ?? p.shortDescEn);
-  const refillEnabled = (await getSetting('refill.enabled')) === 'true'; // visual subscribe upsell off until real Refill ships
+  const ff = await getFeatureStates(); // admin feature switches gate PDP add-ons
+  const refillEnabled = ff.refill && (await getSetting('refill.enabled')) === 'true'; // visual subscribe upsell off until real Refill ships
   const depositPercent = Number(await getSetting('preorder.depositPercent')) || 25;
   const images = p.images.length ? p.images : [{ id: 'ph', url: '/placeholder.svg', alt: name }];
 
@@ -207,25 +209,31 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
               <span aria-hidden>{originBadge.flag}</span> {tb(originBadge.en, originBadge.ar)}
             </div>
           )}
-          <ChewyBuyBox brand={brandName} name={name} rating={p.ratingAvg ?? 0} reviews={p.ratingCount} basePricePiastres={basePrice} lots={buyLots} productId={p.id} points={points} locale={locale} refillEnabled={refillEnabled} preorderEnabled={p.preorderEnabled} depositPercent={depositPercent} servingsPerUnit={p.servingsPerUnit} />
+          <ChewyBuyBox brand={brandName} name={name} rating={p.ratingAvg ?? 0} reviews={ff.reviews ? p.ratingCount : 0} basePricePiastres={basePrice} lots={buyLots} productId={p.id} points={ff.loyalty ? points : 0} locale={locale} refillEnabled={refillEnabled} preorderEnabled={p.preorderEnabled && ff.preorder} depositPercent={depositPercent} servingsPerUnit={p.servingsPerUnit} />
           {/* Key selling points belong beside the price, not below the fold (audit 6.5). */}
           {hasRichContent(shortHtml) && (
             <div className="veeey-rich mt-5 rounded-[12px] border border-[color:var(--green-dark-05)] bg-white p-4 text-[14.5px] font-medium leading-relaxed text-ink" dangerouslySetInnerHTML={{ __html: shortHtml }} />
           )}
-          <div className="mt-4 flex gap-5 text-sm">
-            <form action={toggleWishlistAction}>
-              <input type="hidden" name="locale" value={locale} />
-              <input type="hidden" name="productId" value={p.id} />
-              <input type="hidden" name="back" value={`/products/${slug}`} />
-              <button className="font-medium text-green-dark transition-colors hover:text-lime-press">{t('saveWishlist')}</button>
-            </form>
-            <form action={toggleCompareAction}>
-              <input type="hidden" name="locale" value={locale} />
-              <input type="hidden" name="productId" value={p.id} />
-              <input type="hidden" name="back" value="/compare" />
-              <button className="font-medium text-green-dark transition-colors hover:text-lime-press">{t('addCompare')}</button>
-            </form>
-          </div>
+          {(ff.wishlist || ff.compare) && (
+            <div className="mt-4 flex gap-5 text-sm">
+              {ff.wishlist && (
+                <form action={toggleWishlistAction}>
+                  <input type="hidden" name="locale" value={locale} />
+                  <input type="hidden" name="productId" value={p.id} />
+                  <input type="hidden" name="back" value={`/products/${slug}`} />
+                  <button className="font-medium text-green-dark transition-colors hover:text-lime-press">{t('saveWishlist')}</button>
+                </form>
+              )}
+              {ff.compare && (
+                <form action={toggleCompareAction}>
+                  <input type="hidden" name="locale" value={locale} />
+                  <input type="hidden" name="productId" value={p.id} />
+                  <input type="hidden" name="back" value="/compare" />
+                  <button className="font-medium text-green-dark transition-colors hover:text-lime-press">{t('addCompare')}</button>
+                </form>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -268,6 +276,7 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
           </section>
         )}
 
+        {ff.reviews && (
         <section>
           <h2 className="mb-4 text-xl font-bold text-green-dark">{t('reviews')}</h2>
           {p.aiReviewSummary && (
@@ -344,7 +353,9 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
             <button className="v-btn v-btn--primary v-btn--sm">{t('submitReview')}</button>
           </form>
         </section>
+        )}
 
+        {ff.qa && (
         <section id="qa" className="scroll-mt-24">
           <h2 className="mb-4 text-xl font-bold text-green-dark">{tb('Questions & answers', 'أسئلة وأجوبة')}</h2>
 
@@ -378,6 +389,7 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
             <button className="v-btn v-btn--primary v-btn--sm">{tb('Submit question', 'إرسال السؤال')}</button>
           </form>
         </section>
+        )}
       </div>
 
       {related.length > 0 && (

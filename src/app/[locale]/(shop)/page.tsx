@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { setRequestLocale } from 'next-intl/server';
 import { getHomeLayout, resolveHomeData, type HomeData } from '@/lib/home-layout-service';
 import { getSetting } from '@/lib/settings-service';
+import { getFeatureStates } from '@/lib/feature-service';
 import { ChewyHome } from '@/components/storefront/chewy/chewy-home';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
@@ -34,7 +35,9 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   const { locale } = await params;
   setRequestLocale(locale);
 
-  const blocks = await getHomeLayout();
+  const ff = await getFeatureStates();
+  // Hide the Learn/Blog home section when the blog feature is switched off.
+  const blocks = (await getHomeLayout()).filter((b) => ff.blog || b.type !== 'learn-blog');
   let data: HomeData = { bestsellers: [], deals: [], rows: {} };
   try {
     data = await resolveHomeData(blocks, locale);

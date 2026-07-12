@@ -4,7 +4,8 @@ import { canAccessAdmin } from '@/lib/rbac';
 import { readCartId, cartCount, getCart } from '@/lib/cart-service';
 import { getSetting } from '@/lib/settings-service';
 import { getHomeContent } from '@/lib/home-content-service';
-import { getNavConfig } from '@/lib/nav-service';
+import { getVisibleNavConfig } from '@/lib/nav-service';
+import { getDisabledPaths } from '@/lib/feature-service';
 import { getBranding } from '@/lib/branding-service';
 import { brandingSiteName } from '@/lib/branding';
 import { NavFontLink } from '@/components/storefront/chewy/nav-font-link';
@@ -39,7 +40,8 @@ export default async function ShopLayout({
   const whatsapp = await getSetting('store.whatsappNumber');
   const phone = await getSetting('store.phone');
   const home = await getHomeContent(locale);
-  const nav = await getNavConfig();
+  const nav = await getVisibleNavConfig();
+  const hiddenHrefs = await getDisabledPaths();
   const branding = await getBranding();
   const session = await auth();
   const isStaff = canAccessAdmin(session?.user?.permissions ?? []);
@@ -58,7 +60,7 @@ export default async function ShopLayout({
         branding={{ logoUrl: branding.logoUrl, logoLightUrl: branding.logoLightUrl, logoIconUrl: branding.logoIconUrl, siteName: brandingSiteName(branding, locale) }}
       />
       <main>{children}</main>
-      <SiteFooter />
+      <SiteFooter hiddenHrefs={hiddenHrefs} />
       <WhatsAppButton phone={whatsapp} />
       <EntryDisclaimer />
     </div>

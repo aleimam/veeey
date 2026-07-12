@@ -78,6 +78,7 @@ export const NAV_SECTIONS: AdminNavSection[] = [
   ] },
   { title: ['Administration', 'الإدارة'], items: [
     { href: '/admin/settings', key: 'settings', permission: 'settings.manage' },
+    { href: '/admin/features', key: 'features', permission: 'settings.manage' },
     { href: '/admin/order-statuses', key: 'orderStatuses', permission: 'settings.manage' },
     { href: '/admin/change-log', key: 'changeLog', permission: 'settings.manage' },
     { href: '/admin/error-log', key: 'errorLog', permission: 'settings.manage' },

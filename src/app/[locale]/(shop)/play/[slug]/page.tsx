@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
+import { requireFeature } from '@/lib/feature-service';
 import { getQuiz } from '@/lib/play-service';
 import { submitQuizAction } from '@/server/play-actions';
 
@@ -11,6 +12,7 @@ export default async function QuizPage({ params, searchParams }: { params: Promi
   const { locale, slug } = await params;
   const sp = await searchParams;
   setRequestLocale(locale);
+  await requireFeature('quizzes', locale);
   const quiz = await getQuiz(slug);
   if (!quiz || !quiz.published) notFound();
 

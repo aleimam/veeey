@@ -8,6 +8,7 @@ import { clearCartCookie } from '@/lib/cart-service';
 import { ATTR_COOKIE, parseAttribution } from '@/lib/attribution';
 import { PREORDER_COOKIE, parsePreorderCart } from '@/lib/preorder-cart';
 import { applyGiftRules } from '@/lib/gift-rule-service';
+import { isFeatureEnabled } from '@/lib/feature-service';
 import { getShippingFee, type ShippingTypeKey } from '@/lib/shipping-service';
 import { orderTotal, depositAndBalance } from '@/lib/checkout-math';
 import { scoreOrderRisk } from '@/lib/fraud';
@@ -162,6 +163,7 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
   const attribution = parseAttribution((await cookies()).get(ATTR_COOKIE)?.value);
   // Granular system method (courier not yet known → null for COD; gateway for cards).
   const systemPaymentMethod = await deriveSystemMethod(data.paymentMethod, null);
+  const giftsEnabled = await isFeatureEnabled('giftWithPurchase');
   const addressSnapshot = {
     name: data.name, phone: data.phone, governorate: data.governorate,
     city: data.city, area: data.area, street: data.street,
@@ -248,11 +250,14 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
     }
 
     // Gift-with-purchase: attach any gifts this order earned (best-effort —
-    // out-of-stock gifts are skipped, never blocks checkout).
-    await applyGiftRules(tx, ord.id, {
-      subtotalPiastres: subtotal,
-      productIds: [...reservations.map((r) => r.lot.productId), ...preorders.map((l) => l.productId)],
-    });
+    // out-of-stock gifts are skipped, never blocks checkout). Skipped entirely
+    // when the gift-with-purchase feature is switched off in the admin.
+    if (giftsEnabled) {
+      await applyGiftRules(tx, ord.id, {
+        subtotalPiastres: subtotal,
+        productIds: [...reservations.map((r) => r.lot.productId), ...preorders.map((l) => l.productId)],
+      });
+    }
 
     return ord;
   });

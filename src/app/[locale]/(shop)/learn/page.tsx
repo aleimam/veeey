@@ -6,6 +6,7 @@ import { getSetting } from '@/lib/settings-service';
 import { Icon } from '@/components/storefront/ui/icon';
 import { IlloTile } from '@/components/storefront/chewy/illustration';
 import { Link } from '@/i18n/navigation';
+import { requireFeature } from '@/lib/feature-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,6 +30,7 @@ const FALLBACK = [
 export default async function LearnPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
+  await requireFeature('blog', locale);
   const t = pick(locale);
 
   let posts: { title: string; slug: string; tag: string; illo: string }[] = [];

@@ -83,7 +83,8 @@ function PaymentMark({ kind, label }: { kind: string; label: string }) {
   )
 }
 
-export async function SiteFooter() {
+export async function SiteFooter({ hiddenHrefs = [] }: { hiddenHrefs?: string[] } = {}) {
+  const hidden = new Set(hiddenHrefs)
   const t = await getTranslations("storefront.footer")
   const locale = await getLocale()
   const social = await activeSocialLinks()
@@ -151,13 +152,15 @@ export async function SiteFooter() {
               <div key={col.key}>
                 <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-green-dark">{t(`cols.${col.key}`)}</h3>
                 <ul className="mt-4 flex flex-col gap-2.5 text-sm text-slate">
-                  {col.links.map((link) => (
-                    <li key={link}>
-                      <Link href={HREFS[`${col.key}.${link}`] ?? "#"} className="transition-colors hover:text-green-dark">
-                        {t(`${col.key}.${link}`)}
-                      </Link>
-                    </li>
-                  ))}
+                  {col.links
+                    .filter((link) => !hidden.has(HREFS[`${col.key}.${link}`] ?? "#"))
+                    .map((link) => (
+                      <li key={link}>
+                        <Link href={HREFS[`${col.key}.${link}`] ?? "#"} className="transition-colors hover:text-green-dark">
+                          {t(`${col.key}.${link}`)}
+                        </Link>
+                      </li>
+                    ))}
                 </ul>
               </div>
             ))}

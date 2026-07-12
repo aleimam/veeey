@@ -1,6 +1,7 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { prisma } from '@/lib/prisma';
 import { richToText } from '@/lib/rich-text';
+import { requireFeature } from '@/lib/feature-service';
 import { Link } from '@/i18n/navigation';
 import { Icon } from '@/components/storefront/ui/icon';
 
@@ -11,6 +12,7 @@ export default async function BlogIndex({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
+  await requireFeature('blog', locale);
   const posts = await prisma.blogPost.findMany({
     where: { status: 'PUBLISHED' },
     orderBy: { publishedAt: 'desc' },

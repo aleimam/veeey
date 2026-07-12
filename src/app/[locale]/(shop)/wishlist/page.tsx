@@ -1,6 +1,7 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 import { getCurrentUser } from '@/lib/auth-guards';
+import { requireFeature, isFeatureEnabled } from '@/lib/feature-service';
 import { getWishlistItems } from '@/lib/wishlist-service';
 import { toCardProduct } from '@/lib/storefront';
 import { ProductCard } from '@/components/storefront/product-card';
@@ -9,11 +10,13 @@ import { toggleWishlistAction, setWishlistAlertsAction } from '@/server/engageme
 export default async function WishlistPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
+  await requireFeature('wishlist', locale);
   const user = await getCurrentUser();
   if (!user?.customerId) redirect({ href: '/login', locale });
   if (!user?.customerId) return null;
 
   const items = await getWishlistItems(user.customerId);
+  const alertsOn = await isFeatureEnabled('stockAlerts');
   const t = await getTranslations('storefront.wishlist');
 
   return (
@@ -26,13 +29,15 @@ export default async function WishlistPage({ params }: { params: Promise<{ local
           {items.map((item) => (
             <div key={item.id} className="space-y-2">
               <ProductCard product={toCardProduct(item.product, locale)} locale={locale} />
-              <form action={setWishlistAlertsAction} className="rounded-[10px] border border-[color:var(--slate-border)] p-2.5 text-xs text-ink">
-                <input type="hidden" name="locale" value={locale} />
-                <input type="hidden" name="itemId" value={item.id} />
-                <label className="flex items-center gap-1.5"><input type="checkbox" name="notifyPriceDrop" defaultChecked={item.notifyPriceDrop} className="accent-[color:var(--green-dark)]" /> {t('priceDrop')}</label>
-                <label className="mt-1 flex items-center gap-1.5"><input type="checkbox" name="notifyBackInStock" defaultChecked={item.notifyBackInStock} className="accent-[color:var(--green-dark)]" /> {t('backInStock')}</label>
-                <button className="mt-1.5 font-semibold text-green-dark hover:text-lime-press">{t('saveAlerts')}</button>
-              </form>
+              {alertsOn && (
+                <form action={setWishlistAlertsAction} className="rounded-[10px] border border-[color:var(--slate-border)] p-2.5 text-xs text-ink">
+                  <input type="hidden" name="locale" value={locale} />
+                  <input type="hidden" name="itemId" value={item.id} />
+                  <label className="flex items-center gap-1.5"><input type="checkbox" name="notifyPriceDrop" defaultChecked={item.notifyPriceDrop} className="accent-[color:var(--green-dark)]" /> {t('priceDrop')}</label>
+                  <label className="mt-1 flex items-center gap-1.5"><input type="checkbox" name="notifyBackInStock" defaultChecked={item.notifyBackInStock} className="accent-[color:var(--green-dark)]" /> {t('backInStock')}</label>
+                  <button className="mt-1.5 font-semibold text-green-dark hover:text-lime-press">{t('saveAlerts')}</button>
+                </form>
+              )}
               <form action={toggleWishlistAction}>
                 <input type="hidden" name="locale" value={locale} />
                 <input type="hidden" name="productId" value={item.productId} />

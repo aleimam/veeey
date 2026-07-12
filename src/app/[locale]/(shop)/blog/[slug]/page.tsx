@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { sanitizeRichHtml, richToText } from '@/lib/rich-text';
 import { pick } from '@/lib/admin-i18n';
 import { Link } from '@/i18n/navigation';
+import { requireFeature } from '@/lib/feature-service';
 import { AdminEditLink } from '@/components/storefront/admin-edit-link';
 
 const SITE = 'https://veeey.com';
@@ -41,6 +42,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
 export default async function BlogPostPage({ params }: { params: Promise<{ locale: string; slug: string }> }) {
   const { locale, slug } = await params;
   setRequestLocale(locale);
+  await requireFeature('blog', locale);
   const tb = pick(locale);
   const ar = locale === 'ar';
   const post = await loadPost(slug);

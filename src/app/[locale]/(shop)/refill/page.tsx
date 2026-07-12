@@ -8,6 +8,7 @@ import { formatEGP } from '@/lib/format';
 import { Icon } from '@/components/storefront/ui/icon';
 import { ChewyProductCard } from '@/components/storefront/chewy/chewy-product-card';
 import { RefillFrequency } from '@/components/storefront/chewy/refill-frequency';
+import { requireFeature } from '@/lib/feature-service';
 import { Link } from '@/i18n/navigation';
 
 export const dynamic = 'force-dynamic';
@@ -40,6 +41,7 @@ async function popularProducts(locale: string, take: number) {
 export default async function RefillPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
+  await requireFeature('refill', locale);
   const t = pick(locale);
 
   const products = await popularProducts(locale, 8);
