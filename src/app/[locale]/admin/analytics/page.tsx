@@ -91,6 +91,7 @@ export default async function AnalyticsPage({ params, searchParams }: { params: 
         <h1 className="font-heading text-xl font-semibold">{tb('Analytics', 'التحليلات')}</h1>
         <div className="flex items-center gap-3">
           <Link href="/admin/analytics/sales" className="text-sm font-medium text-primary hover:underline">{tb('Sales & customers →', 'المبيعات والعملاء ←')}</Link>
+          <Link href="/admin/analytics/search" className="text-sm font-medium text-primary hover:underline">{tb('Search →', 'البحث ←')}</Link>
           <Link href="/admin/analytics/report" className="text-sm font-medium text-primary hover:underline">{tb('Report builder →', 'منشئ التقارير ←')}</Link>
           <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
             {RANGES.map((d) => (

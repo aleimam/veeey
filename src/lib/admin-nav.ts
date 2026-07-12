@@ -14,6 +14,7 @@ export const NAV_SECTIONS: AdminNavSection[] = [
     { href: '/admin', key: 'dashboard' },
     { href: '/admin/analytics', key: 'analytics', permission: 'finance.read' },
     { href: '/admin/analytics/sales', key: 'salesAnalytics', permission: 'finance.read' },
+    { href: '/admin/analytics/search', key: 'searchAnalytics', permission: 'finance.read' },
   ] },
   { title: ['Orders', 'الطلبات'], items: [
     { href: '/admin/orders', key: 'orders', permission: 'orders.read' },
@@ -25,6 +26,7 @@ export const NAV_SECTIONS: AdminNavSection[] = [
     { href: '/admin/products', key: 'products', permission: 'catalog.read' },
     { href: '/admin/seo-health', key: 'seoHealth', permission: 'catalog.read' },
     { href: '/admin/search-rules', key: 'searchRules', permission: 'catalog.write' },
+    { href: '/admin/search-synonyms', key: 'searchSynonyms', permission: 'catalog.write' },
     { href: '/admin/go-live', key: 'goLive', permission: 'catalog.write' },
     { href: '/admin/brands', key: 'brands', permission: 'catalog.write' },
     { href: '/admin/categories', key: 'categories', permission: 'catalog.write' },
@@ -36,6 +38,7 @@ export const NAV_SECTIONS: AdminNavSection[] = [
     { href: '/admin/inventory', key: 'inventory', permission: 'inventory.manage' },
     { href: '/admin/inventory/requests', key: 'reorderRequests', permission: 'inventory.manage' },
     { href: '/admin/inventory/expiry', key: 'expiryFight', permission: 'inventory.manage' },
+    { href: '/admin/search-demand', key: 'searchDemand', permission: 'inventory.manage' },
     { href: '/admin/stocktake', key: 'stocktake', permission: 'stocktake.manage' },
   ] },
   { title: ['Shipping', 'الشحن'], items: [
