@@ -7,6 +7,7 @@ import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
 import { dispatchEmail, dispatchSms } from '@/lib/notification-dispatch';
 import { checkProvider, type CheckableProvider } from '@/lib/provider-check';
+import { recordProviderStatus } from '@/lib/provider-status';
 
 const localeOf = (fd: FormData) => (fd.get('locale') === 'ar' ? 'ar' : 'en');
 const str = (fd: FormData, k: string) => {
@@ -29,17 +30,17 @@ export async function saveSmtpConfigAction(fd: FormData): Promise<void> {
   } catch (e) {
     console.error('smtp save failed', e);
     revalidatePath(`/${locale}/admin/providers`);
-    redirect(`/${locale}/admin/providers?error=1`);
+    redirect(`/${locale}/admin/providers?error=email#email`);
   }
   revalidatePath(`/${locale}/admin/providers`);
-  redirect(`/${locale}/admin/providers?saved=1`);
+  redirect(`/${locale}/admin/providers?saved=email#email`);
 }
 
 export async function clearSmtpConfigAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
   try { await clearSmtpConfig(); } catch (e) { console.error('smtp clear failed', e); }
   revalidatePath(`/${locale}/admin/providers`);
-  redirect(`/${locale}/admin/providers?cleared=1`);
+  redirect(`/${locale}/admin/providers?cleared=email#email`);
 }
 
 export async function saveAiConfigAction(fd: FormData): Promise<void> {
@@ -53,17 +54,17 @@ export async function saveAiConfigAction(fd: FormData): Promise<void> {
   } catch (e) {
     console.error('ai save failed', e);
     revalidatePath(`/${locale}/admin/providers`);
-    redirect(`/${locale}/admin/providers?error=1`);
+    redirect(`/${locale}/admin/providers?error=ai#ai`);
   }
   revalidatePath(`/${locale}/admin/providers`);
-  redirect(`/${locale}/admin/providers?saved=1`);
+  redirect(`/${locale}/admin/providers?saved=ai#ai`);
 }
 
 export async function clearAiConfigAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
   try { await clearAiConfig(); } catch (e) { console.error('ai clear failed', e); }
   revalidatePath(`/${locale}/admin/providers`);
-  redirect(`/${locale}/admin/providers?cleared=1`);
+  redirect(`/${locale}/admin/providers?cleared=ai#ai`);
 }
 
 // ---- SMS (SMSMisr) ---------------------------------------------------------
@@ -80,17 +81,17 @@ export async function saveSmsConfigAction(fd: FormData): Promise<void> {
   } catch (e) {
     console.error('sms save failed', e);
     revalidatePath(`/${locale}/admin/providers`);
-    redirect(`/${locale}/admin/providers?error=1`);
+    redirect(`/${locale}/admin/providers?error=sms#sms`);
   }
   revalidatePath(`/${locale}/admin/providers`);
-  redirect(`/${locale}/admin/providers?saved=1`);
+  redirect(`/${locale}/admin/providers?saved=sms#sms`);
 }
 
 export async function clearSmsConfigAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
   try { await clearSmsConfig(); } catch (e) { console.error('sms clear failed', e); }
   revalidatePath(`/${locale}/admin/providers`);
-  redirect(`/${locale}/admin/providers?cleared=1`);
+  redirect(`/${locale}/admin/providers?cleared=sms#sms`);
 }
 
 export async function sendTestSmsAction(fd: FormData): Promise<void> {
@@ -108,9 +109,10 @@ export async function sendTestSmsAction(fd: FormData): Promise<void> {
     const r = await dispatchSms(to, message);
     result = r.ok ? 'ok' : r.skipped ? 'skipped' : 'fail';
     if (!r.ok && r.error) code = r.error;
+    await recordProviderStatus('sms', result === 'ok' ? 'ok' : result === 'skipped' ? 'skip' : 'fail', code || undefined, new Date().toISOString());
   }
   revalidatePath(`/${locale}/admin/providers`);
-  redirect(`/${locale}/admin/providers?smstest=${result}${code ? `&smscode=${encodeURIComponent(code)}` : ''}`);
+  redirect(`/${locale}/admin/providers?smstest=${result}${code ? `&smscode=${encodeURIComponent(code)}` : ''}#sms`);
 }
 
 // ---- Provider connection checks (OPay / Kashier / Aramex / SMSA) ------------
@@ -118,17 +120,19 @@ export async function checkProviderAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
   const user = await requirePermission('settings.manage');
   const raw = str(fd, 'provider');
-  const provider = (['opay', 'kashier', 'aramex', 'smsa'] as const).find((p) => p === raw);
+  const provider = (['opay', 'kashier', 'aramex', 'smsa', 'whatsapp', 'ai'] as const).find((p) => p === raw);
   if (!provider) redirect(`/${locale}/admin/providers`);
+  const p = provider as CheckableProvider;
 
-  const r = await checkProvider(provider as CheckableProvider);
+  const r = await checkProvider(p);
+  await recordProviderStatus(p, r.status, r.code, new Date().toISOString());
   await audit({ actorType: 'USER', actorId: user.id, action: 'provider.check', entityType: 'Setting', entityId: provider, data: { status: r.status, code: r.code } });
 
-  const q = new URLSearchParams({ pcheck: provider, pstatus: r.status });
+  const q = new URLSearchParams({ pcheck: provider!, pstatus: r.status });
   if (r.code) q.set('pcode', r.code);
   if (r.detail) q.set('pdetail', r.detail.slice(0, 140));
   revalidatePath(`/${locale}/admin/providers`);
-  redirect(`/${locale}/admin/providers?${q.toString()}`);
+  redirect(`/${locale}/admin/providers?${q.toString()}#${provider}`);
 }
 
 // ---- WhatsApp (config-only) ------------------------------------------------
@@ -139,17 +143,17 @@ export async function saveWhatsappConfigAction(fd: FormData): Promise<void> {
   } catch (e) {
     console.error('wa save failed', e);
     revalidatePath(`/${locale}/admin/providers`);
-    redirect(`/${locale}/admin/providers?error=1`);
+    redirect(`/${locale}/admin/providers?error=whatsapp#whatsapp`);
   }
   revalidatePath(`/${locale}/admin/providers`);
-  redirect(`/${locale}/admin/providers?saved=1`);
+  redirect(`/${locale}/admin/providers?saved=whatsapp#whatsapp`);
 }
 
 export async function clearWhatsappConfigAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
   try { await clearWhatsappConfig(); } catch (e) { console.error('wa clear failed', e); }
   revalidatePath(`/${locale}/admin/providers`);
-  redirect(`/${locale}/admin/providers?cleared=1`);
+  redirect(`/${locale}/admin/providers?cleared=whatsapp#whatsapp`);
 }
 
 // ---- Payments: OPay --------------------------------------------------------
@@ -165,17 +169,17 @@ export async function saveOpayConfigAction(fd: FormData): Promise<void> {
   } catch (e) {
     console.error('opay save failed', e);
     revalidatePath(`/${locale}/admin/providers`);
-    redirect(`/${locale}/admin/providers?error=1`);
+    redirect(`/${locale}/admin/providers?error=opay#opay`);
   }
   revalidatePath(`/${locale}/admin/providers`);
-  redirect(`/${locale}/admin/providers?saved=1`);
+  redirect(`/${locale}/admin/providers?saved=opay#opay`);
 }
 
 export async function clearOpayConfigAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
   try { await clearOpayConfig(); } catch (e) { console.error('opay clear failed', e); }
   revalidatePath(`/${locale}/admin/providers`);
-  redirect(`/${locale}/admin/providers?cleared=1`);
+  redirect(`/${locale}/admin/providers?cleared=kashier#kashier`);
 }
 
 // ---- Payments: Kashier -----------------------------------------------------
@@ -191,17 +195,17 @@ export async function saveKashierConfigAction(fd: FormData): Promise<void> {
   } catch (e) {
     console.error('kashier save failed', e);
     revalidatePath(`/${locale}/admin/providers`);
-    redirect(`/${locale}/admin/providers?error=1`);
+    redirect(`/${locale}/admin/providers?error=kashier#kashier`);
   }
   revalidatePath(`/${locale}/admin/providers`);
-  redirect(`/${locale}/admin/providers?saved=1`);
+  redirect(`/${locale}/admin/providers?saved=kashier#kashier`);
 }
 
 export async function clearKashierConfigAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
   try { await clearKashierConfig(); } catch (e) { console.error('kashier clear failed', e); }
   revalidatePath(`/${locale}/admin/providers`);
-  redirect(`/${locale}/admin/providers?cleared=1`);
+  redirect(`/${locale}/admin/providers?cleared=aramex#aramex`);
 }
 
 // ---- Shipping carrier: Aramex ----------------------------------------------
@@ -220,16 +224,16 @@ export async function saveAramexConfigAction(fd: FormData): Promise<void> {
   } catch (e) {
     console.error('aramex save failed', e);
     revalidatePath(`/${locale}/admin/providers`);
-    redirect(`/${locale}/admin/providers?error=1`);
+    redirect(`/${locale}/admin/providers?error=aramex#aramex`);
   }
   revalidatePath(`/${locale}/admin/providers`);
-  redirect(`/${locale}/admin/providers?saved=1`);
+  redirect(`/${locale}/admin/providers?saved=aramex#aramex`);
 }
 export async function clearAramexConfigAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
   try { await clearAramexConfig(); } catch (e) { console.error('aramex clear failed', e); }
   revalidatePath(`/${locale}/admin/providers`);
-  redirect(`/${locale}/admin/providers?cleared=1`);
+  redirect(`/${locale}/admin/providers?cleared=smsa#smsa`);
 }
 
 // ---- Shipping carrier: SMSA ------------------------------------------------
@@ -244,16 +248,16 @@ export async function saveSmsaConfigAction(fd: FormData): Promise<void> {
   } catch (e) {
     console.error('smsa save failed', e);
     revalidatePath(`/${locale}/admin/providers`);
-    redirect(`/${locale}/admin/providers?error=1`);
+    redirect(`/${locale}/admin/providers?error=smsa#smsa`);
   }
   revalidatePath(`/${locale}/admin/providers`);
-  redirect(`/${locale}/admin/providers?saved=1`);
+  redirect(`/${locale}/admin/providers?saved=smsa#smsa`);
 }
 export async function clearSmsaConfigAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
   try { await clearSmsaConfig(); } catch (e) { console.error('smsa clear failed', e); }
   revalidatePath(`/${locale}/admin/providers`);
-  redirect(`/${locale}/admin/providers?cleared=1`);
+  redirect(`/${locale}/admin/providers?cleared=smsa#smsa`);
 }
 
 export async function sendTestEmailAction(fd: FormData): Promise<void> {
@@ -264,7 +268,8 @@ export async function sendTestEmailAction(fd: FormData): Promise<void> {
   if (to) {
     const r = await dispatchEmail(to, 'Veeey SMTP test', 'This is a test email from your Veeey admin — SMTP is working.');
     result = r.ok ? 'ok' : r.skipped ? 'skipped' : 'fail';
+    await recordProviderStatus('email', result === 'ok' ? 'ok' : result === 'skipped' ? 'skip' : 'fail', undefined, new Date().toISOString());
   }
   revalidatePath(`/${locale}/admin/providers`);
-  redirect(`/${locale}/admin/providers?test=${result}`);
+  redirect(`/${locale}/admin/providers?test=${result}#email`);
 }

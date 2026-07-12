@@ -1,6 +1,7 @@
 import { setRequestLocale } from 'next-intl/server';
-import { getSmtpFormValues, emailConfigured, getAiFormValues, aiConfigured, getSmsFormValues, smsConfigured, getWhatsappFormValues, getOpayFormValues, opayConfigured, getKashierFormValues, kashierConfigured, getAramexFormValues, aramexConfigured, getSmsaFormValues, smsaConfigured } from '@/lib/provider-config';
+import { getSmtpFormValues, emailConfigured, getAiFormValues, aiConfigured, getSmsFormValues, smsConfigured, getWhatsappFormValues, whatsappConfigured, getOpayFormValues, opayConfigured, getKashierFormValues, kashierConfigured, getAramexFormValues, aramexConfigured, getSmsaFormValues, smsaConfigured } from '@/lib/provider-config';
 import { saveSmtpConfigAction, clearSmtpConfigAction, sendTestEmailAction, saveAiConfigAction, clearAiConfigAction, saveSmsConfigAction, clearSmsConfigAction, sendTestSmsAction, saveWhatsappConfigAction, clearWhatsappConfigAction, saveOpayConfigAction, clearOpayConfigAction, saveKashierConfigAction, clearKashierConfigAction, saveAramexConfigAction, clearAramexConfigAction, saveSmsaConfigAction, clearSmsaConfigAction, checkProviderAction } from '@/server/provider-actions';
+import { getAllProviderStatus, type ProviderKey } from '@/lib/provider-status';
 import { inputCls } from '@/components/admin/ui';
 import { pick } from '@/lib/admin-i18n';
 
@@ -27,10 +28,11 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
   const sp = await searchParams;
   setRequestLocale(locale);
   const tb = pick(locale);
-  const [smtp, configured, ai, aiOn, sms, smsOn, wa, opay, opayOn, kashier, kashierOn, aramex, aramexOn, smsa, smsaOn] = await Promise.all([
-    getSmtpFormValues(), emailConfigured(), getAiFormValues(), aiConfigured(), getSmsFormValues(), smsConfigured(), getWhatsappFormValues(),
+  const [smtp, configured, ai, aiOn, sms, smsOn, wa, waOn, opay, opayOn, kashier, kashierOn, aramex, aramexOn, smsa, smsaOn, statuses] = await Promise.all([
+    getSmtpFormValues(), emailConfigured(), getAiFormValues(), aiConfigured(), getSmsFormValues(), smsConfigured(), getWhatsappFormValues(), whatsappConfigured(),
     getOpayFormValues(), opayConfigured(), getKashierFormValues(), kashierConfigured(),
     getAramexFormValues(), aramexConfigured(), getSmsaFormValues(), smsaConfigured(),
+    getAllProviderStatus(),
   ]);
   const test = one(sp.test);
   const smsTest = one(sp.smstest);
@@ -63,6 +65,36 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
       <button className="rounded-md border border-border px-3 py-2 text-sm hover:bg-surface">{tb('Check connection', 'فحص الاتصال')}</button>
     </form>
   );
+
+  // Per-provider save/clear/error banner (shown at the top of each section).
+  const savedBanner = (provider: string) => {
+    if (one(sp.saved) === provider) return <p className="mb-4 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">{tb('Saved ✓', 'تم الحفظ ✓')}</p>;
+    if (one(sp.cleared) === provider) return <p className="mb-4 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">{tb('Settings cleared.', 'تم مسح الإعدادات.')}</p>;
+    if (one(sp.error) === provider) return <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{tb('Save failed.', 'تعذّر الحفظ.')}</p>;
+    return null;
+  };
+
+  // Top summary: each provider → configured? + last verified result + jump link.
+  const rel = (iso?: string) => (iso ? new Date(iso).toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-GB') : '');
+  const PROVIDERS: { key: ProviderKey; label: string; configured: boolean; checkable: boolean }[] = [
+    { key: 'email', label: tb('Email (SMTP)', 'البريد (SMTP)'), configured, checkable: true },
+    { key: 'sms', label: tb('SMS (SMSMisr)', 'الرسائل (SMSMisr)'), configured: smsOn, checkable: true },
+    { key: 'whatsapp', label: 'WhatsApp', configured: waOn, checkable: true },
+    { key: 'ai', label: tb('AI (Claude)', 'الذكاء الاصطناعي'), configured: aiOn, checkable: true },
+    { key: 'opay', label: 'OPay', configured: opayOn, checkable: true },
+    { key: 'kashier', label: 'Kashier', configured: kashierOn, checkable: true },
+    { key: 'aramex', label: 'Aramex', configured: aramexOn, checkable: true },
+    { key: 'smsa', label: 'SMSA', configured: smsaOn, checkable: true },
+  ];
+  const badge = (p: { key: ProviderKey; configured: boolean }) => {
+    if (!p.configured) return { cls: 'bg-muted text-muted-foreground', text: tb('Not configured', 'غير مُهيّأ') };
+    const st = statuses[p.key];
+    if (st?.status === 'ok') return { cls: 'bg-primary/15 text-primary', text: tb(`✓ Verified · ${rel(st.at)}`, `✓ مُتحقّق · ${rel(st.at)}`) };
+    if (st?.status === 'fail') return { cls: 'bg-destructive/10 text-destructive', text: tb(`✗ Check failed · ${rel(st.at)}`, `✗ فشل الفحص · ${rel(st.at)}`) };
+    if (st?.status === 'warn') return { cls: 'bg-gold/20 text-slate', text: tb(`Reached · ${rel(st.at)}`, `تم الوصول · ${rel(st.at)}`) };
+    return { cls: 'bg-gold/20 text-slate', text: tb('Configured · not checked', 'مُهيّأ · لم يُفحص') };
+  };
+
   const site = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://veeey.com').replace(/\/$/, '');
 
   return (
@@ -72,15 +104,37 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
         {tb('Email, AI, SMS, WhatsApp & payment gateway credentials. Secrets are stored securely and never shown again after saving — leave the password/token blank to keep the current value.', 'بيانات اعتماد البريد والذكاء الاصطناعي والرسائل القصيرة وWhatsApp & بوابات الدفع. تُخزَّن الأسرار بشكل آمن ولا تُعرض مرة أخرى بعد الحفظ — اترك كلمة المرور/الرمز فارغًا للإبقاء على القيمة الحالية.')}
       </p>
 
-      {one(sp.saved) === '1' && <p className="mb-4 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">{tb('Saved.', 'تم الحفظ.')}</p>}
-      {one(sp.cleared) === '1' && <p className="mb-4 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">{tb('SMTP settings cleared.', 'تم مسح إعدادات SMTP.')}</p>}
-      {one(sp.error) === '1' && <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{tb('Save failed.', 'تعذّر الحفظ.')}</p>}
-      {test === 'ok' && <p className="mb-4 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">{tb('Test email sent.', 'تم إرسال بريد الاختبار.')}</p>}
-      {test === 'fail' && <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{tb('Test failed — check SMTP settings.', 'فشل الاختبار — راجع إعدادات SMTP.')}</p>}
-      {test === 'skipped' && <p className="mb-4 rounded-md bg-gold/15 px-3 py-2 text-sm text-slate">{tb('No email provider configured yet.', 'لا يوجد مزوّد بريد مُهيّأ بعد.')}</p>}
+      {/* Top summary — configured/verified at a glance; click to jump to a section. */}
+      <div className="mb-8 overflow-hidden rounded-lg border border-border">
+        <table className="w-full text-sm">
+          <thead className="bg-surface text-xs uppercase text-muted-foreground">
+            <tr>
+              <th className="p-3 text-start">{tb('Provider', 'المزوّد')}</th>
+              <th className="p-3 text-start">{tb('Status', 'الحالة')}</th>
+              <th className="p-3" />
+            </tr>
+          </thead>
+          <tbody>
+            {PROVIDERS.map((p) => {
+              const b = badge(p);
+              return (
+                <tr key={p.key} className="border-t border-border">
+                  <td className="p-3 font-medium"><a href={`#${p.key}`} className="text-primary hover:underline">{p.label}</a></td>
+                  <td className="p-3"><span className={`rounded-full px-2 py-0.5 text-xs font-medium ${b.cls}`}>{b.text}</span></td>
+                  <td className="p-3 text-end"><a href={`#${p.key}`} className="text-xs text-muted-foreground hover:text-primary hover:underline">{tb('Update →', 'تحديث →')}</a></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
 
-      <section className="max-w-2xl">
+      <section id="email" className="scroll-mt-20 max-w-2xl">
         <h2 className="mb-1 font-heading text-lg font-semibold">{tb('Email (SMTP)', 'البريد (SMTP)')}</h2>
+        {savedBanner('email')}
+        {test === 'ok' && <p className="mb-4 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">{tb('Test email sent.', 'تم إرسال بريد الاختبار.')}</p>}
+        {test === 'fail' && <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{tb('Test failed — check SMTP settings.', 'فشل الاختبار — راجع إعدادات SMTP.')}</p>}
+        {test === 'skipped' && <p className="mb-4 rounded-md bg-gold/15 px-3 py-2 text-sm text-slate">{tb('No email provider configured yet.', 'لا يوجد مزوّد بريد مُهيّأ بعد.')}</p>}
         <p className="mb-4 text-sm text-muted-foreground">{tb('Status:', 'الحالة:')} {configured ? tb('✓ configured', '✓ مُهيّأ') : tb('— not configured (email is logged as skipped)', '— غير مُهيّأ (يُسجَّل البريد على أنه متخطّى)')}</p>
 
         <form action={saveSmtpConfigAction} className="space-y-4 rounded-lg border border-border p-4">
@@ -124,8 +178,10 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
         </div>
       </section>
 
-      <section className="mt-10 max-w-2xl">
+      <section id="ai" className="mt-10 scroll-mt-20 max-w-2xl">
         <h2 className="mb-1 font-heading text-lg font-semibold">{tb('AI (Claude)', 'الذكاء الاصطناعي (Claude)')}</h2>
+        {savedBanner('ai')}
+        {checkBanner('ai')}
         <p className="mb-4 text-sm text-muted-foreground">
           {tb('Powers test drafts and review summaries. Status:', 'يشغّل مسوّدات الاختبارات وملخّصات المراجعات. الحالة:')} {aiOn ? tb('✓ enabled', '✓ مُفعّل') : tb('— disabled (features run without AI)', '— مُعطّل (تعمل الميزات بدون ذكاء اصطناعي)')}.
         </p>
@@ -147,10 +203,12 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
           <input type="hidden" name="locale" value={locale} />
           <button className="rounded-md border border-border px-3 py-2 text-sm text-destructive hover:bg-surface">{tb('Clear AI settings', 'مسح إعدادات الذكاء الاصطناعي')}</button>
         </form>
+        {checkForm('ai')}
       </section>
 
-      <section className="mt-10 max-w-2xl">
+      <section id="sms" className="mt-10 scroll-mt-20 max-w-2xl">
         <h2 className="mb-1 font-heading text-lg font-semibold">{tb('SMS (sms.com.eg / SMSMisr)', 'الرسائل القصيرة SMS (sms.com.eg / SMSMisr)')}</h2>
+        {savedBanner('sms')}
         <p className="mb-4 text-sm text-muted-foreground">{tb('Status:', 'الحالة:')} {smsOn ? tb('✓ configured', '✓ مُهيّأ') : tb('— not configured', '— غير مُهيّأ')}. {tb('Find your username, API password & sender code in the SMSMisr dashboard ← Settings.', 'ستجد اسم المستخدم وكلمة مرور API & رمز المُرسِل في لوحة تحكم SMSMisr ← الإعدادات.')}</p>
         {smsTest === 'ok' && <p className="mb-4 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">{tb('Test message sent.', 'تم إرسال رسالة الاختبار.')}</p>}
         {smsTest === 'fail' && (
@@ -206,8 +264,10 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
         </div>
       </section>
 
-      <section className="mt-10 max-w-2xl">
+      <section id="whatsapp" className="mt-10 scroll-mt-20 max-w-2xl">
         <h2 className="mb-1 font-heading text-lg font-semibold">WhatsApp</h2>
+        {savedBanner('whatsapp')}
+        {checkBanner('whatsapp')}
         <p className="mb-4 text-sm text-muted-foreground">{tb('Meta WhatsApp Cloud API. Sender = your WhatsApp Business phone-number ID; token = a permanent access token. Once saved, order confirmations are also sent on WhatsApp.', 'واجهة Meta WhatsApp Cloud. المُرسِل = مُعرّف رقم واتساب للأعمال؛ الرمز = رمز وصول دائم. بعد الحفظ تُرسل تأكيدات الطلب عبر واتساب أيضًا.')}</p>
         <form action={saveWhatsappConfigAction} className="space-y-4 rounded-lg border border-border p-4">
           <input type="hidden" name="locale" value={locale} />
@@ -222,10 +282,12 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
             <button formAction={clearWhatsappConfigAction} className="rounded-md border border-border px-3 py-2 text-sm text-destructive hover:bg-surface">{tb('Clear', 'مسح')}</button>
           </div>
         </form>
+        {checkForm('whatsapp')}
       </section>
 
-      <section className="mt-10 max-w-2xl">
+      <section id="opay" className="mt-10 scroll-mt-20 max-w-2xl">
         <h2 className="mb-1 font-heading text-lg font-semibold">{tb('Payments — OPay (cards)', 'المدفوعات — OPay (البطاقات)')}</h2>
+        {savedBanner('opay')}
         <p className="mb-4 text-sm text-muted-foreground">
           {tb('Hosted card payment (Visa / MasterCard). Status:', 'دفع مُستضاف بالبطاقة (Visa / MasterCard). الحالة:')} {opayOn ? tb('✓ configured', '✓ مُهيّأ') : tb('— not configured', '— غير مُهيّأ')}. {tb('Find these in the OPay merchant dashboard ← API keys. Keep ', 'ستجد هذه في لوحة تحكم تاجر OPay ← مفاتيح API. أبقِ ')}<strong>{tb('Environment', 'البيئة')}</strong>{tb(' on Sandbox until you go live.', ' على Sandbox حتى تنتقل إلى التشغيل المباشر.')}
         </p>
@@ -258,8 +320,9 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
         <p className="mt-2 text-xs text-muted-foreground">{tb('In the OPay dashboard, set the callback/webhook URL to ', 'في لوحة تحكم OPay اضبط رابط رد النداء/الويب هوك على ')}<code className="rounded bg-surface px-1">{site}/api/payments/webhook/opay</code>{tb('. The card method uses the gateway selected in Settings ← Payments (default: automatic).', '. تستخدم طريقة البطاقة البوابة المختارة في الإعدادات ← المدفوعات (الافتراضي: تلقائي).')}</p>
       </section>
 
-      <section className="mt-10 max-w-2xl">
+      <section id="kashier" className="mt-10 scroll-mt-20 max-w-2xl">
         <h2 className="mb-1 font-heading text-lg font-semibold">{tb('Payments — Kashier (cards)', 'المدفوعات — Kashier (البطاقات)')}</h2>
+        {savedBanner('kashier')}
         <p className="mb-4 text-sm text-muted-foreground">
           {tb('Hosted card payment (Visa / MasterCard). Status:', 'دفع مُستضاف بالبطاقة (Visa / MasterCard). الحالة:')} {kashierOn ? tb('✓ configured', '✓ مُهيّأ') : tb('— not configured', '— غير مُهيّأ')}. {tb('Find these in the Kashier dashboard ← Settings ← API. The ', 'ستجد هذه في لوحة تحكم Kashier ← الإعدادات ← API. يوقّع ')}<strong>{tb('payment API key', 'مفتاح API للدفع')}</strong>{tb(' signs the payment; the ', ' عملية الدفع؛ ويتحقّق ')}<strong>{tb('secret key', 'المفتاح السرّي')}</strong>{tb(' verifies the webhook. Keep ', ' من الويب هوك. أبقِ ')}<strong>{tb('Environment', 'البيئة')}</strong>{tb(' on Test until you go live.', ' على Test حتى تنتقل إلى التشغيل المباشر.')}
         </p>
@@ -292,8 +355,9 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
         <p className="mt-2 text-xs text-muted-foreground">{tb('In the Kashier dashboard, set the webhook URL to ', 'في لوحة تحكم Kashier اضبط رابط الويب هوك على ')}<code className="rounded bg-surface px-1">{site}/api/payments/webhook/kashier</code>{tb('. The card method uses the gateway selected in Settings ← Payments (default: automatic).', '. تستخدم طريقة البطاقة البوابة المختارة في الإعدادات ← المدفوعات (الافتراضي: تلقائي).')}</p>
       </section>
 
-      <section className="mt-10 max-w-2xl">
+      <section id="aramex" className="mt-10 scroll-mt-20 max-w-2xl">
         <h2 className="mb-1 font-heading text-lg font-semibold">{tb('Shipping — Aramex', 'الشحن — Aramex')}</h2>
+        {savedBanner('aramex')}
         <p className="mb-4 text-sm text-muted-foreground">
           {tb('Status', 'الحالة')}: {aramexOn ? tb('✓ configured', '✓ مُهيّأ') : tb('— not configured', '— غير مُهيّأ')}. {tb('From your Aramex account (Shipping Services API). Keep Environment on Test until you go live.', 'من حساب Aramex (واجهة خدمات الشحن). أبقِ البيئة على «اختبار» حتى الانتقال للتشغيل.')}
         </p>
@@ -335,8 +399,9 @@ export default async function ProvidersPage({ params, searchParams }: { params: 
         <p className="mt-2 text-xs text-muted-foreground">{tb('Create shipments + labels and track from an order in Orders. Saving keys here readies it.', 'أنشئ الشحنات والملصقات وتتبّعها من صفحة الطلب في «الطلبات». حفظ المفاتيح هنا يجهّزها.')}</p>
       </section>
 
-      <section className="mt-10 max-w-2xl">
+      <section id="smsa" className="mt-10 scroll-mt-20 max-w-2xl">
         <h2 className="mb-1 font-heading text-lg font-semibold">{tb('Shipping — SMSA', 'الشحن — SMSA')}</h2>
+        {savedBanner('smsa')}
         <p className="mb-4 text-sm text-muted-foreground">
           {tb('Status', 'الحالة')}: {smsaOn ? tb('✓ configured', '✓ مُهيّأ') : tb('— not configured', '— غير مُهيّأ')}. {tb('SMSA SOAP web service (pass key). Create shipments + labels and track from an order.', 'خدمة SMSA عبر SOAP (مفتاح المرور). أنشئ الشحنات والملصقات وتتبّعها من صفحة الطلب.')}
         </p>

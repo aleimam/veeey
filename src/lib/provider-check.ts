@@ -1,5 +1,5 @@
 import 'server-only';
-import { getOpayConfig, getKashierConfig, getAramexConfig, getSmsaConfig } from '@/lib/provider-config';
+import { getOpayConfig, getKashierConfig, getAramexConfig, getSmsaConfig, getWhatsappConfig, getAiConfig } from '@/lib/provider-config';
 import { opaySignature } from '@/lib/payment-crypto';
 
 /**
@@ -9,7 +9,7 @@ import { opaySignature } from '@/lib/payment-crypto';
  * `warn` (reached, response inconclusive), `skip` (not configured).
  */
 export type ProviderCheck = { status: 'ok' | 'warn' | 'fail' | 'skip'; code?: string; detail?: string };
-export type CheckableProvider = 'opay' | 'kashier' | 'aramex' | 'smsa';
+export type CheckableProvider = 'opay' | 'kashier' | 'aramex' | 'smsa' | 'whatsapp' | 'ai';
 
 const clip = (s: unknown, n = 140) => String(s ?? '').replace(/\s+/g, ' ').slice(0, n);
 const TIMEOUT = 12_000;
@@ -149,11 +149,52 @@ export async function checkSmsa(): Promise<ProviderCheck> {
   }
 }
 
+/** WhatsApp: read the configured phone-number ID's verified_name from the Meta
+ *  Graph API — proves both the token and the phone-number ID are valid. */
+export async function checkWhatsapp(): Promise<ProviderCheck> {
+  const cfg = await getWhatsappConfig();
+  if (!cfg) return { status: 'skip' };
+  try {
+    const res = await fetch(`https://graph.facebook.com/v20.0/${encodeURIComponent(cfg.sender)}?fields=verified_name,display_phone_number`, {
+      headers: { authorization: `Bearer ${cfg.token}` },
+      signal: AbortSignal.timeout(TIMEOUT),
+    });
+    const json = (await res.json().catch(() => null)) as { verified_name?: string; error?: { code?: number; message?: string } } | null;
+    if (res.ok && json && !json.error) return { status: 'ok', detail: clip(json.verified_name) };
+    return { status: 'fail', code: String(json?.error?.code ?? res.status), detail: clip(json?.error?.message) };
+  } catch (e) {
+    return { status: 'fail', code: 'network', detail: clip(e instanceof Error ? e.message : e) };
+  }
+}
+
+/** AI (Anthropic): a 1-token message ping. 200 = key + model OK; 401 = bad key. */
+export async function checkAi(): Promise<ProviderCheck> {
+  const cfg = await getAiConfig();
+  if (!cfg) return { status: 'skip' };
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-api-key': cfg.apiKey, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: cfg.model, max_tokens: 1, messages: [{ role: 'user', content: 'ping' }] }),
+      signal: AbortSignal.timeout(TIMEOUT),
+    });
+    if (res.ok) return { status: 'ok' };
+    const json = (await res.json().catch(() => null)) as { error?: { type?: string; message?: string } } | null;
+    // A model-name error still proves the API key is valid.
+    if (res.status === 404 || /model/i.test(json?.error?.message ?? '')) return { status: 'warn', code: String(res.status), detail: clip(`key OK; ${json?.error?.message ?? ''}`) };
+    return { status: 'fail', code: json?.error?.type ?? String(res.status), detail: clip(json?.error?.message) };
+  } catch (e) {
+    return { status: 'fail', code: 'network', detail: clip(e instanceof Error ? e.message : e) };
+  }
+}
+
 export async function checkProvider(p: CheckableProvider): Promise<ProviderCheck> {
   switch (p) {
     case 'opay': return checkOpay();
     case 'kashier': return checkKashier();
     case 'aramex': return checkAramex();
     case 'smsa': return checkSmsa();
+    case 'whatsapp': return checkWhatsapp();
+    case 'ai': return checkAi();
   }
 }
