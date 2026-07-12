@@ -1211,6 +1211,9 @@ model SpecialOrder {
   requesterName        String?
   requesterPhone       String?
   requesterEmail       String?
+  size                 String? // requested product size (e.g. 60 caps, 100 ml)
+  concentration        String? // requested concentration/strength (e.g. 1000mg)
+  photoUrls            String[] // customer-uploaded reference photos
   notes                String?
   yeldnRequestUid      String?            @unique
   slaType              String? // Fast 20d / Manufacturer 30d / Injection 40d
