@@ -7,9 +7,15 @@
 
 ## Current state
 
-- **Live** at **veeey.com**. Latest deployed commit: **`b9a7f54`** (2026-07-12). All
-  **49 Prisma migrations applied** (`watermark`); `pm2` processes `veeey` (web) + `veeey-worker` (jobs) healthy;
-  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **367 unit tests** · build.
+- **Live** at **veeey.com**. Latest deployed commit: **`e26e356`** (2026-07-12). All
+  **51 Prisma migrations applied** (`special_order_fields`, `error_log`); `pm2` `veeey` (web) + `veeey-worker` healthy;
+  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **371 unit tests** · build.
+- **Special-order form** revamped (`7e58399`): logged-in shoppers skip name/phone (filled from account),
+  new Size + Concentration fields, optional customer photo upload (`/api/special-order/upload`, rate-limited),
+  phone validation (Egyptian 01…/international, pure `phone.ts`), Notes→Details. **Seed products deleted**:
+  the 6 non-`legacyWpId` sample products removed on prod — catalog is now 2,548, all Egypt Vitamins–synced.
+  **Error system** (`e26e356`): branded 404/500/global-error pages + optional `ErrorLog` (Setting
+  `errorLog.enabled`, admin viewer at `/admin/error-log`, logs 404s + runtime errors, best-effort).
 - **Dashboard quick cards now configurable** (`dashboard.quickCardCount`, 3–10, one/two rows). **New
   `/admin/analytics/sales`** (`b9a7f54`): period presets (MTD default) + auto compare-to-previous;
   Orders/AOV/Revenue for This-vs-Previous, New-vs-Repeat customers, Big-vs-Normal orders
