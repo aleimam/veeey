@@ -7,9 +7,9 @@
 
 ## Current state
 
-- **Live** at **veeey.com**. Latest deployed commit: **`32848fb`** (2026-07-12). All
+- **Live** at **veeey.com**. Latest deployed commit: **`c404952`** (2026-07-12). All
   **48 Prisma migrations applied**; `pm2` processes `veeey` (web) + `veeey-worker` (jobs) healthy;
-  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **353 unit tests** · build.
+  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **357 unit tests** · build.
 - Stack: Next.js 16 (App Router, Turbopack) · TypeScript strict · Prisma 7 + Postgres ·
   Auth.js · next-intl (AR/EN, RTL) · Tailwind v4 · pg-boss v12.
 
@@ -17,6 +17,8 @@
 
 | Feature | Commits | Notes |
 |---|---|---|
+| **Google Search Console API + sitemap (Task 2)** | `c404952` | Sitemap now includes brand + collection detail pages + `/brands`,`/collections` indexes (categories excluded — filter-only). New `/admin/google/search-console`: OAuth Connect Google (offline→refresh token, signed-state CSRF callback), **auto-submit sitemap** (button + daily 05:15 UTC `gsc-sitemap` cron), sitemap status (submitted/indexed/errors), URL Inspection (verdict/coverage), 28-day search performance (totals + top-25 queries). **Inert until owner adds an OAuth client** (Google Cloud → enable Search Console API → Web OAuth client → redirect URI `https://veeey.com/api/admin/google/gsc/callback` → paste client id/secret on the page → Connect). Pure `gsc-config` tested. |
+| **Providers status table + admin RBAC + language button** | `ef4a900` `c914e0a` `021962d` | Providers page: top provider-status table (configured/verified badges + jump links) + per-section save banners + persisted check results + WhatsApp/AI checks. RBAC: grouped 22-privilege matrix (bilingual, select-all) + **admin role now full-trust `*`** (prod admin granted rbac.manage — takes effect at their next sign-in). Visible globe language-switch button in the admin header. |
 | **Dashboard personal quick cards** | `292944a` `32848fb` | Dashboard opens with 8 cards linking to THAT user's most-visited admin sections. AdminShell records visits (fire-and-forget `recordAdminVisitAction` → `AdminSectionUsage` upsert, dashboard excluded); dashboard resolves top hrefs → sidebar labels/icons, permission-filtered, topped up with defaults until history accumulates. NAV_SECTIONS extracted to shared `src/lib/admin-nav.ts` (layout + tracker + dashboard read one source). Migration `admin_usage` (48th). Also `021962d`: visible globe language-switch button in the admin header. |
 | **Provider "Check connection" buttons** | `9c9e344` | `/admin/providers`: live checks for **OPay** (creates a 1-EGP throwaway cashier session → validates merchantId+public key on the real checkout endpoint, then status-queries it → validates the webhook's HMAC private key), **Kashier** (order-inquiry with the payment API key; 404 = key accepted, 401/403 = rejected), **Aramex** (minimal rate calc; ClientInfo notifications = auth failure), **SMSA** (dummy-AWB tracking via REST API-key or legacy SOAP passkey). Results: ok / failed / inconclusive / not-configured + raw provider code, bilingual, audit-logged (`provider.check`), 12s timeouts, zero mutations. |
 | **Arabic SMS fix (UCS-2 HEX)** | `b70d2e2` | SMSMisr language 3 alone wasn't enough — Unicode message bodies must be **UCS-2 HEX** (4-digit uppercase UTF-16 code units, pure `sms-encoding.ts`, tested incl. surrogate pairs) or SMSMisr answers 1909 even with the right language. GSM/English messages unchanged. |
@@ -179,7 +181,11 @@ portable source of truth** — everything below is what the memory contained tha
   (~697 brands missing Arabic; button on `/admin/brands`).
 - **GA4/GTM ids + Measurement Protocol secret** in `/admin/google` → activates analytics P4/P5.
 - **GeoLite2-City.mmdb** at `GEOIP_DB_PATH` on the server → activates visitor geo.
-- **Google Search Console**: verify veeey.com, submit `sitemap.xml`, request-index the homepage.
+- **Google Search Console API** (Task 2, added 2026-07-12): to activate auto-submit + in-admin
+  indexing/performance, create a Google Cloud OAuth client (enable "Google Search Console API",
+  Web app type, redirect URI `https://veeey.com/api/admin/google/gsc/callback`), paste the client
+  id/secret + property at `/admin/google/search-console`, and press Connect Google. (Meta-tag
+  verification + the sitemap already work without this.)
 - **Privacy policy**: lawyer review + registered company name/address in §7.
 
 ### Parked (deferred by owner 2026-07-11)
