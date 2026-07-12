@@ -73,6 +73,7 @@
       "appearance": "Appearance",
       "loginProviders": "Social login",
       "changeLog": "Change log",
+      "errorLog": "Error log",
       "wooConnection": "Connection",
       "wooProducts": "Products",
       "wooCustomers": "Customers",
