@@ -1934,3 +1934,43 @@ model ErrorLog {
   @@index([createdAt])
   @@index([level])
 }
+
+// ── Search analytics + synonyms (search suite) ──────────────────────────────
+// Loose id references (no FK) — this is analytics data that outlives products.
+model SearchQuery {
+  id          String   @id @default(cuid())
+  term        String
+  normalized  String
+  resultCount Int      @default(0)
+  source      String   @default("results") // results | instant
+  sessionId   String?
+  customerId  String?
+  locale      String   @default("en")
+  createdAt   DateTime @default(now())
+
+  @@index([normalized])
+  @@index([createdAt])
+  @@index([sessionId])
+}
+
+model SearchClick {
+  id         String   @id @default(cuid())
+  normalized String // the search term the click came from
+  productId  String?
+  position   Int      @default(0)
+  source     String   @default("results") // results | instant
+  sessionId  String?
+  createdAt  DateTime @default(now())
+
+  @@index([normalized])
+  @@index([productId])
+  @@index([createdAt])
+}
+
+model SearchSynonym {
+  id         String   @id @default(cuid())
+  normalized String   @unique // the term a shopper types (normalized)
+  synonyms   String[] // extra terms to also match
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
