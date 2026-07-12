@@ -37,6 +37,7 @@ async function main() {
   await boss.createQueue(QUEUES.watermark);
   await boss.createQueue(QUEUES.loyaltyBackfill);
   await boss.createQueue(QUEUES.searchDigest);
+  await boss.createQueue(QUEUES.attributeAutofill);
 
   await boss.work(QUEUES.notify, async ([job]) => {
     await notify(job.data as NotifyInput);
@@ -152,6 +153,14 @@ async function main() {
     const { backfillAllOrderPoints } = await import('@/lib/loyalty-service');
     const r = await backfillAllOrderPoints();
     console.log(`[worker] loyalty backfill: ${r.points} pts across ${r.orders} orders / ${r.customers} customers`);
+  });
+
+  // One-click AI auto-fill of all filterable product attributes (only-missing,
+  // never overwrites) — started from /admin/attributes/bulk.
+  await boss.work(QUEUES.attributeAutofill, async () => {
+    const { runAttributeAutofill } = await import('@/lib/attribute-bulk-service');
+    const r = await runAttributeAutofill();
+    console.log(`[worker] attribute autofill: ${r.state} — ${r.applied} applied, ${r.skipped} skipped, ${r.scanned} scanned across ${r.attrTotal} attribute(s)`);
   });
 
   // Weekly search digest (top / zero-result / demand) — gated by search.weeklyDigest.

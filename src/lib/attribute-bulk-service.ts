@@ -3,6 +3,7 @@ import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
 import { richToText } from '@/lib/rich-text';
 import { suggestProductAttributes } from '@/lib/ai';
+import { parseAutofillStatus, type AutofillStatus } from '@/lib/attribute-autofill';
 
 /**
  * Bulk attribute editor (owner tool to fill product attributes fast so the PLP
@@ -53,7 +54,7 @@ export type ProductFilter = { attributeId: string; categoryId?: string; brandId?
 /** Products (with their current values for `attributeId`) matching the filters. */
 export async function productsForBulk(f: ProductFilter): Promise<{ items: BulkProduct[]; total: number }> {
   const valueIds = (await prisma.attributeValue.findMany({ where: { attributeId: f.attributeId }, select: { id: true } })).map((v) => v.id);
-  const where: Record<string, unknown> = { archivedAt: null };
+  const where: Record<string, unknown> = { status: { not: 'ARCHIVED' } }; // Product has no archivedAt — status enum instead
   if (f.categoryId) where.categories = { some: { id: f.categoryId } };
   if (f.brandId) where.brandId = f.brandId;
   if (f.q && f.q.trim()) {
@@ -158,4 +159,125 @@ export async function applyPicks(input: { attributeId: string; pairs: { productI
   const user = await requirePermission('catalog.write');
   const pairs = input.pairs.filter((p) => p.productId && p.attributeValueId);
   return applyAssignments(input.attributeId, pairs, user.id, 'attribute.bulk.ai-apply');
+}
+
+// ---- One-click auto-fill of ALL filterable attributes (worker job) ----------
+// Fills ONLY products missing a value for each filterable attribute — it never
+// overwrites values staff already set, and the AI is constrained to the
+// attribute's allowed values, so auto-apply is safe. Progress lives in the
+// Setting below; the bulk page shows it. Runs in the worker (no session): the
+// enqueuing action is RBAC-gated, mirroring the brand-translate job.
+const AUTOFILL_STATUS_KEY = 'attributes.autofillJob';
+
+async function setAutofillStatus(v: AutofillStatus) {
+  const value = JSON.stringify(v);
+  await prisma.setting.upsert({ where: { key: AUTOFILL_STATUS_KEY }, update: { value }, create: { key: AUTOFILL_STATUS_KEY, value } });
+}
+
+export async function getAutofillStatus(): Promise<AutofillStatus | null> {
+  const row = await prisma.setting.findUnique({ where: { key: AUTOFILL_STATUS_KEY } });
+  return parseAutofillStatus(row?.value);
+}
+
+type FilterableAttr = { id: string; nameEn: string; multi: boolean; values: { id: string; valueEn: string }[] };
+
+async function filterableAttributes(): Promise<FilterableAttr[]> {
+  const rows = await prisma.attribute.findMany({
+    where: { archivedAt: null, isFilterable: true },
+    orderBy: { nameEn: 'asc' },
+    select: { id: true, nameEn: true, inputType: true, values: { select: { id: true, valueEn: true } } },
+  });
+  return rows
+    .filter((a) => a.values.length > 0)
+    .map((a) => ({ id: a.id, nameEn: a.nameEn, multi: a.inputType === 'MULTI_SELECT', values: a.values }));
+}
+
+/** Per-filterable-attribute count of products still missing a value (for the admin card). */
+export async function autofillMissingCounts(): Promise<{ id: string; nameEn: string; missing: number }[]> {
+  const attrs = await filterableAttributes();
+  return Promise.all(
+    attrs.map(async (a) => ({
+      id: a.id,
+      nameEn: a.nameEn,
+      missing: await prisma.product.count({
+        where: { status: { not: 'ARCHIVED' }, attributeValues: { none: { attributeValueId: { in: a.values.map((v) => v.id) } } } },
+      }),
+    })),
+  );
+}
+
+/** Worker entry: for every filterable attribute, AI-tag all products missing a
+ *  value, in batches. Products the AI declines to tag are skipped (not retried). */
+export async function runAttributeAutofill(): Promise<AutofillStatus> {
+  const attrs = await filterableAttributes();
+  const now = () => new Date().toISOString();
+  const startedAt = now();
+  let scanned = 0;
+  let applied = 0;
+  let skipped = 0;
+  let attrDone = 0;
+  const base = () => ({ attrDone, attrTotal: attrs.length, scanned, applied, skipped, startedAt, at: now() });
+  await setAutofillStatus({ state: 'running', current: attrs[0]?.nameEn, ...base() });
+
+  const BATCH = 40;
+  for (const attr of attrs) {
+    const valueIds = attr.values.map((v) => v.id);
+    const valueByName = new Map(attr.values.map((v) => [v.valueEn.toLowerCase(), v.id]));
+    const noPick: string[] = []; // scanned-but-untagged ids, excluded from refetch so the loop terminates
+    for (;;) {
+      const products = await prisma.product.findMany({
+        where: {
+          status: { not: 'ARCHIVED' },
+          id: { notIn: noPick },
+          attributeValues: { none: { attributeValueId: { in: valueIds } } },
+        },
+        orderBy: { nameEn: 'asc' },
+        take: BATCH,
+        select: { id: true, nameEn: true, brand: { select: { nameEn: true } }, shortDescEn: true },
+      });
+      if (products.length === 0) break;
+      scanned += products.length;
+
+      const suggestions = await suggestProductAttributes({
+        attributeName: attr.nameEn,
+        allowed: attr.values.map((v) => v.valueEn),
+        multi: attr.multi,
+        products: products.map((p) => ({ id: p.id, name: p.nameEn, brand: p.brand?.nameEn, desc: p.shortDescEn ? richToText(p.shortDescEn) : undefined })),
+      });
+      if (!suggestions) {
+        // AI off / call failed — fatal on the very first batch, otherwise stop this run cleanly.
+        const fatal = applied === 0 && skipped === 0 && scanned === products.length;
+        const status: AutofillStatus = { state: fatal ? 'error' : 'done', ...base(), error: 'AI unavailable' };
+        await setAutofillStatus(status);
+        return status;
+      }
+
+      const byId = new Map(suggestions.map((s) => [s.id, s.values ?? []]));
+      const pairs: { productId: string; attributeValueId: string }[] = [];
+      for (const p of products) {
+        const values = byId.get(p.id) ?? [];
+        const picked = (attr.multi ? values : values.slice(0, 1))
+          .map((v) => valueByName.get(v.toLowerCase()))
+          .filter((id): id is string => !!id);
+        if (picked.length === 0) {
+          skipped += 1;
+          noPick.push(p.id);
+        } else {
+          for (const id of picked) pairs.push({ productId: p.id, attributeValueId: id });
+        }
+      }
+      if (pairs.length) {
+        await prisma.productAttributeValue.createMany({ data: pairs, skipDuplicates: true });
+        applied += pairs.length;
+      }
+      await setAutofillStatus({ state: 'running', current: attr.nameEn, ...base() });
+    }
+    attrDone += 1;
+    await setAutofillStatus({ state: 'running', current: attr.nameEn, ...base() });
+  }
+
+  const status: AutofillStatus = { state: 'done', ...base() };
+  await setAutofillStatus(status);
+  await audit({ actorType: 'SYSTEM', action: 'attribute.autofill.run', entityType: 'Attribute', entityId: `${applied} applied`, data: { attrTotal: attrs.length, scanned, applied, skipped } });
+  return status;
 }
