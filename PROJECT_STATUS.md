@@ -7,17 +7,26 @@
 
 ## Current state
 
-- **Live** at **veeey.com**. Latest deployed commit: **`6d7e3e7`** (2026-07-12). All
-  **51 Prisma migrations applied** (`special_order_fields`, `error_log`); `pm2` `veeey` (web) + `veeey-worker` healthy;
-  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **371 unit tests** · build.
+- **Live** at **veeey.com**. Latest deployed commit: **`be72aaf`** (2026-07-12). All
+  **52 Prisma migrations applied** (`search_suite` — pg_trgm + SearchQuery/SearchClick/SearchSynonym); `pm2` `veeey` (web) + `veeey-worker` healthy;
+  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **383 unit tests** · build.
+- **Feature toggles** (`be72aaf`): **`/admin/features`** (settings.manage + audit) switches 15 customer-facing
+  features on/off — Refill, Veeey Select, special orders, Learn/Blog, quizzes, compare, wishlist, pre-order,
+  buy-again, reviews, Q&A, loyalty points, gift-with-purchase, stock alerts, social login. **OFF hides the
+  feature everywhere** (header nav, footer, home, product pages, login) **and redirects its route(s) to the
+  homepage.** Settings-backed (`feature.<id>`), no migration; everything defaults ON. Registry +
+  route-guard/link-filter helpers in `feature-flags.ts` (unit-tested) + `feature-service.ts`.
+- **Search analytics + fuzzy suite** (`be72aaf`, migration `search_suite`): every storefront search + result
+  click is logged; `searchProducts` expands synonyms + Arabic-normalized terms and does a pg_trgm fuzzy
+  top-up (typos still match); "did you mean?" on low-result pages; trending searches feed the autocomplete
+  empty state. Admin: **`/admin/analytics/search`** (KPIs, search→click→sale funnel, top/zero-result/
+  purchase-driving terms), **`/admin/search-synonyms`** (bidirectional alias CRUD), **`/admin/search-demand`**
+  (clicked-but-out-of-stock restock list + zero-result demand). Weekly search-digest email cron (Mon 06:30 UTC,
+  gated by Setting `search.weeklyDigest`, needs SMTP). Verified live: fuzzy typo search 200, query logging OK.
 - **Orders list revamp** (`6d7e3e7`): handler shown as photo-avatar (initials fallback, name on hover);
   payment + channel shown as icons (name on hover); Customer column shows the name not email; Date moved
   first; Total is number-only (no EGP); "Open" button removed — order #, total, and item count all link to
   the order. (`order-cell-icons.tsx`.)
-- **NEXT UP — search analytics + fuzzy suite (owner-approved, big)**: log terms/refinements/clicks/
-  conversion, pg_trgm fuzzy search, deep dashboard, + the 6 extras owner OK'd — out-of-stock/unstocked
-  demand report, synonyms & aliases dictionary, "did you mean?", trending searches, search-conversion
-  funnel, weekly search digest.
 - **Special-order form** revamped (`7e58399`): logged-in shoppers skip name/phone (filled from account),
   new Size + Concentration fields, optional customer photo upload (`/api/special-order/upload`, rate-limited),
   phone validation (Egyptian 01…/international, pure `phone.ts`), Notes→Details. **Seed products deleted**:
