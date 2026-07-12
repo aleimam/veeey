@@ -7,9 +7,9 @@
 
 ## Current state
 
-- **Live** at **veeey.com**. Latest deployed commit: **`e3c634b`** (2026-07-12). All
-  **48 Prisma migrations applied**; `pm2` processes `veeey` (web) + `veeey-worker` (jobs) healthy;
-  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **357 unit tests** · build.
+- **Live** at **veeey.com**. Latest deployed commit: **`5231af6`** (2026-07-12). All
+  **49 Prisma migrations applied** (`watermark`); `pm2` processes `veeey` (web) + `veeey-worker` (jobs) healthy;
+  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **362 unit tests** · build.
 - Storefront chrome is admin-editable: **announcement bar show/hide + bilingual text** on
   `/admin/homepage`; **menu-bar font family + base/per-item size + colour** on `/admin/navigation`;
   **logos/favicon/titles** on `/admin/branding` (favicon is now authoritative — the default
@@ -22,6 +22,9 @@
 
 | Feature | Commits | Notes |
 |---|---|---|
+| **Product-photo watermarking (reversible)** | `0cec768` `5231af6` | `/admin/watermark` (Appearance, catalog.write): stamp the brand logo onto product photos with a **live preview** (logo choice / 3×3 position / size / opacity / margin) + auto-stamp-new-uploads toggle. **Non-destructive** — stamped copy is `<name>__wm.webp`, `ProductImage.originalUrl` keeps the source; re-stamp composites from the original, "Remove watermark" restores it. Batch over all / category / brand / collection (primary-only + skip-stamped) runs in a `watermark` pg-boss job. Pure `watermark.ts` tested. Migration `watermark`. Default stamp logo = the icon-only branding mark. |
+| **Branding: icon-only logo slot** | `575d188` | Added a 3rd logo slot (icon-only square mark) beside horizontal + transparent-header; used on the compact/mobile header, as the PWA app icon, and as the default watermark logo. `branding.logoIconUrl`. |
+| **Announcement bar toggle + favicon authority** | `e3c634b` | `/admin/homepage` gains a show/hide + bilingual-text Announcement bar card (layout honours `home.announcementEnabled`). favicon.ico moved to /public so the uploaded favicon is the single authoritative icon link. |
 | **Google Search Console API + sitemap (Task 2)** | `c404952` | Sitemap now includes brand + collection detail pages + `/brands`,`/collections` indexes (categories excluded — filter-only). New `/admin/google/search-console`: OAuth Connect Google (offline→refresh token, signed-state CSRF callback), **auto-submit sitemap** (button + daily 05:15 UTC `gsc-sitemap` cron), sitemap status (submitted/indexed/errors), URL Inspection (verdict/coverage), 28-day search performance (totals + top-25 queries). **Inert until owner adds an OAuth client** (Google Cloud → enable Search Console API → Web OAuth client → redirect URI `https://veeey.com/api/admin/google/gsc/callback` → paste client id/secret on the page → Connect). Pure `gsc-config` tested. |
 | **Providers status table + admin RBAC + language button** | `ef4a900` `c914e0a` `021962d` | Providers page: top provider-status table (configured/verified badges + jump links) + per-section save banners + persisted check results + WhatsApp/AI checks. RBAC: grouped 22-privilege matrix (bilingual, select-all) + **admin role now full-trust `*`** (prod admin granted rbac.manage — takes effect at their next sign-in). Visible globe language-switch button in the admin header. |
 | **Dashboard personal quick cards** | `292944a` `32848fb` | Dashboard opens with 8 cards linking to THAT user's most-visited admin sections. AdminShell records visits (fire-and-forget `recordAdminVisitAction` → `AdminSectionUsage` upsert, dashboard excluded); dashboard resolves top hrefs → sidebar labels/icons, permission-filtered, topped up with defaults until history accumulates. NAV_SECTIONS extracted to shared `src/lib/admin-nav.ts` (layout + tracker + dashboard read one source). Migration `admin_usage` (48th). Also `021962d`: visible globe language-switch button in the admin header. |
