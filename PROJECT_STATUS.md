@@ -7,9 +7,15 @@
 
 ## Current state
 
-- **Live** at **veeey.com**. Latest deployed commit: **`5231af6`** (2026-07-12). All
+- **Live** at **veeey.com**. Latest deployed commit: **`fc72d4f`** (2026-07-12). All
   **49 Prisma migrations applied** (`watermark`); `pm2` processes `veeey` (web) + `veeey-worker` (jobs) healthy;
   `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **362 unit tests** · build.
+- **V4 + V5 docs are fully delivered.** V5 customer segment filters completed (`fc72d4f`): the
+  segment filter now offers Has-ordered / Never-ordered / Repeat buyers (2+) / High value / Lapsed
+  (thresholds `customers.highValueEgp` + `customers.lapsedDays`); CSV export mirrors status + segment.
+  Two intentional V5 spec-changes remain by owner choice: loyalty = spend+tier only (no retroactive
+  points); verification = email-OR-phone at **checkout** (not signup double-opt-in). YeldnIN supplier
+  intake stays prep-behind-`INTEGRATION_ENABLED`.
 - Storefront chrome is admin-editable: **announcement bar show/hide + bilingual text** on
   `/admin/homepage`; **menu-bar font family + base/per-item size + colour** on `/admin/navigation`;
   **logos/favicon/titles** on `/admin/branding` (favicon is now authoritative — the default
