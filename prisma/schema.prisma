@@ -884,13 +884,16 @@ model Product {
 }
 
 model ProductImage {
-  id        String  @id @default(cuid())
-  productId String
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  url       String
-  alt       String?
-  sortOrder Int     @default(0)
-  isPrimary Boolean @default(false)
+  id          String  @id @default(cuid())
+  productId   String
+  product     Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url         String
+  // When watermarked, `url` points at the stamped copy and `originalUrl` holds
+  // the untouched source so stamping is fully reversible / re-stampable.
+  originalUrl String?
+  alt         String?
+  sortOrder   Int     @default(0)
+  isPrimary   Boolean @default(false)
 
   @@index([productId])
 }
