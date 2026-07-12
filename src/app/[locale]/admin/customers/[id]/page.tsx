@@ -3,13 +3,16 @@ import { notFound } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
 import { prisma } from '@/lib/prisma';
 import { getCustomerAdmin } from '@/lib/customer-admin-service';
+import { uncreditedOrderCount, listLoyaltyTransactions } from '@/lib/loyalty-service';
 import { saveCustomerDetailsAction, saveCustomerStandingAction, saveCustomerAddressAction, deleteCustomerAddressAction, eraseCustomerAnalyticsAction } from '@/server/customer-admin-actions';
+import { adjustPointsAction, backfillCustomerPointsAction } from '@/server/loyalty-actions';
 import { ConfirmButton } from '@/components/admin/confirm-button';
 import { formatEGP } from '@/lib/format';
 import { GOVERNORATES } from '@/lib/governorates';
 import { StatusBadge, Field, inputCls } from '@/components/admin/ui';
 import { pick } from '@/lib/admin-i18n';
 import { requirePermission } from '@/lib/auth-guards';
+import { hasPermission } from '@/lib/rbac';
 
 type SP = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
@@ -18,7 +21,7 @@ const cell = 'p-2 align-top';
 export default async function CustomerProfilePage({ params, searchParams }: { params: Promise<{ locale: string; id: string }>; searchParams: Promise<SP> }) {
   // Page-level RBAC (matches the sidebar's permission key) — the sidebar only
   // HIDES the link; without this any staffer with one permission could read it.
-  await requirePermission('customers.read');
+  const user = await requirePermission('customers.read');
   const { locale, id } = await params;
   const sp = await searchParams;
   setRequestLocale(locale);
@@ -26,7 +29,9 @@ export default async function CustomerProfilePage({ params, searchParams }: { pa
 
   const [c, tiers] = await Promise.all([getCustomerAdmin(id), prisma.tier.findMany({ orderBy: { rank: 'asc' } })]);
   if (!c) notFound();
+  const [uncredited, loyaltyTxns] = await Promise.all([uncreditedOrderCount(id), listLoyaltyTransactions(id)]);
   const error = one(sp.error);
+  const canManagePoints = hasPermission(user.permissions, 'pricing.manage');
 
   const govSelect = (name: string, form: string | undefined, defaultValue: string) => (
     <select name={name} form={form} defaultValue={defaultValue} required className={`${inputCls} min-w-36`}>
@@ -51,6 +56,9 @@ export default async function CustomerProfilePage({ params, searchParams }: { pa
       {one(sp.analytics_erased) === '1' && <p className="mb-4 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">{tb('Analytics data erased for this customer.', 'تم مسح بيانات التحليلات لهذا العميل.')}</p>}
       {error === 'email_taken' && <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{tb('That email is already used by another account.', 'هذا البريد مستخدم بحساب آخر.')}</p>}
       {error === 'address_in_use' && <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{tb('This address is used by past orders — it cannot be deleted.', 'هذا العنوان مستخدم في طلبات سابقة — لا يمكن حذفه.')}</p>}
+      {error === 'pts_insufficient' && <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{tb('Not enough points to deduct that amount.', 'النقاط غير كافية لخصم هذا المقدار.')}</p>}
+      {error === 'pts_bad' && <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{tb('Enter a valid points amount.', 'أدخل مقدار نقاط صالحًا.')}</p>}
+      {one(sp.backfilled) != null && <p className="mb-4 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">{tb(`Credited ${one(sp.pts)} points across ${one(sp.backfilled)} past order(s).`, `تم منح ${one(sp.pts)} نقطة عبر ${one(sp.backfilled)} طلب سابق.`)}</p>}
       {error === '1' && <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{tb('Could not save.', 'تعذّر الحفظ.')}</p>}
 
       {/* Details */}
@@ -107,6 +115,59 @@ export default async function CustomerProfilePage({ params, searchParams }: { pa
           </Field>
           <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">{tb('Save standing', 'حفظ الحالة')}</button>
         </form>
+      </section>
+
+      {/* Loyalty points (V5 follow-up) */}
+      <section className="mb-8 max-w-3xl">
+        <h2 className="mb-3 font-heading text-lg font-semibold">{tb('Loyalty points', 'نقاط الولاء')}</h2>
+        <div className="rounded-lg border border-border p-4">
+          <p className="mb-4 text-sm">
+            <span className="text-2xl font-semibold text-foreground">{c.pointsBalance.toLocaleString('en-US')}</span> <span className="text-muted-foreground">{tb('points', 'نقطة')}</span>
+          </p>
+
+          {canManagePoints ? (
+            <>
+              <form action={adjustPointsAction} className="flex flex-wrap items-end gap-3">
+                <input type="hidden" name="locale" value={locale} />
+                <input type="hidden" name="customerId" value={c.id} />
+                <Field label={tb('Amount', 'المقدار')}><input name="amount" type="number" min={1} required className={`${inputCls} w-28`} /></Field>
+                <Field label={tb('Note (optional)', 'ملاحظة (اختياري)')}><input name="note" placeholder={tb('reason…', 'السبب…')} className={`${inputCls} w-56`} /></Field>
+                <button name="op" value="add" className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">{tb('Add points', 'إضافة نقاط')}</button>
+                <button name="op" value="deduct" className="rounded-md border border-border px-4 py-2 text-sm text-destructive hover:bg-surface">{tb('Deduct', 'خصم')}</button>
+              </form>
+
+              {uncredited > 0 && (
+                <form action={backfillCustomerPointsAction} className="mt-4 flex items-center gap-3 border-t border-border pt-4">
+                  <input type="hidden" name="locale" value={locale} />
+                  <input type="hidden" name="customerId" value={c.id} />
+                  <span className="text-sm text-muted-foreground">{tb(`${uncredited} past delivered order(s) never earned points.`, `${uncredited} طلب مُسلَّم سابق لم يكسب نقاطًا.`)}</span>
+                  <ConfirmButton warn={tb(`Credit points for ${uncredited} past order(s)? This cannot be undone.`, `منح نقاط عن ${uncredited} طلب سابق؟ لا يمكن التراجع.`)} className="rounded-md border border-primary px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/10">
+                    {tb('Credit points for past orders', 'منح نقاط عن الطلبات السابقة')}
+                  </ConfirmButton>
+                </form>
+              )}
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">{tb('You do not have permission to change points.', 'ليست لديك صلاحية تعديل النقاط.')}</p>
+          )}
+
+          {loyaltyTxns.length > 0 && (
+            <div className="mt-4 border-t border-border pt-3">
+              <p className="mb-2 text-xs font-medium uppercase text-muted-foreground">{tb('Recent activity', 'أحدث النشاط')}</p>
+              <ul className="space-y-1 text-sm">
+                {loyaltyTxns.map((t) => (
+                  <li key={t.id} className="flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">
+                      <span className={t.points >= 0 ? 'font-medium text-primary' : 'font-medium text-destructive'}>{t.points >= 0 ? '+' : ''}{t.points}</span>
+                      {' '}· {t.type}{t.order ? ` · #${t.order.number}` : ''}{t.note ? ` · ${t.note}` : ''}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{new Date(t.createdAt).toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-GB')}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
       </section>
 
       {/* Addresses */}

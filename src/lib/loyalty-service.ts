@@ -196,3 +196,66 @@ export async function awardBonus(customerId: string, points: number, note: strin
     prisma.customer.update({ where: { id: customerId }, data: { pointsBalance: { increment: points } } }),
   ]);
 }
+
+/** Staff manual points adjustment — signed (positive = add, negative = deduct).
+ *  Never lets the balance go negative. Recorded as an ADJUST ledger entry. */
+export async function adjustCustomerPoints(customerId: string, delta: number, note: string, actorId?: string): Promise<{ balance: number }> {
+  if (!Number.isInteger(delta) || delta === 0) throw new Error('BAD_AMOUNT');
+  const c = await prisma.customer.findUniqueOrThrow({ where: { id: customerId }, select: { pointsBalance: true } });
+  if (delta < 0 && c.pointsBalance + delta < 0) throw new Error('INSUFFICIENT');
+  await prisma.$transaction([
+    prisma.loyaltyTransaction.create({ data: { customerId, points: delta, type: 'ADJUST', note: note.trim() || (delta > 0 ? 'manual add' : 'manual deduct') } }),
+    prisma.customer.update({ where: { id: customerId }, data: { pointsBalance: { increment: delta } } }),
+  ]);
+  await audit({ actorType: 'USER', actorId, action: 'loyalty.adjust', entityType: 'Customer', entityId: customerId, data: { delta, note } });
+  return { balance: c.pointsBalance + delta };
+}
+
+/** How many DELIVERED orders have never earned points (for the backfill button). */
+export function uncreditedOrderCount(customerId: string): Promise<number> {
+  return prisma.order.count({ where: { customerId, status: 'DELIVERED', loyaltyTxns: { none: { type: 'EARN' } } } });
+}
+
+/**
+ * Retroactively credit points for a customer's DELIVERED orders that never
+ * earned any (points ONLY — lifetime spend stays owned by recomputeLoyalty
+ * Standing). Idempotent per order (an EARN txn per order blocks re-credit).
+ */
+export async function backfillCustomerOrderPoints(customerId: string, actorId?: string): Promise<{ orders: number; points: number }> {
+  const customer = await prisma.customer.findUnique({ where: { id: customerId }, include: { tier: true } });
+  if (!customer) return { orders: 0, points: 0 };
+  const rate = customer.tier?.earnRatePerEgp ?? 1;
+  const orders = await prisma.order.findMany({ where: { customerId, status: 'DELIVERED', loyaltyTxns: { none: { type: 'EARN' } } }, select: { id: true, subtotalPiastres: true } });
+  let points = 0, count = 0;
+  for (const o of orders) {
+    const pts = earnedPoints(o.subtotalPiastres, rate);
+    if (pts <= 0) continue;
+    await prisma.$transaction([
+      prisma.loyaltyTransaction.create({ data: { customerId, points: pts, type: 'EARN', orderId: o.id, note: 'retroactive' } }),
+      prisma.customer.update({ where: { id: customerId }, data: { pointsBalance: { increment: pts } } }),
+    ]);
+    points += pts; count++;
+  }
+  if (count) await audit({ actorType: 'USER', actorId, action: 'loyalty.backfill.customer', entityType: 'Customer', entityId: customerId, data: { orders: count, points } });
+  return { orders: count, points };
+}
+
+/** Global retroactive backfill across every customer (worker job). */
+export async function backfillAllOrderPoints(): Promise<{ customers: number; orders: number; points: number }> {
+  const customerIds = await prisma.order.findMany({
+    where: { status: 'DELIVERED', customerId: { not: null }, loyaltyTxns: { none: { type: 'EARN' } } },
+    distinct: ['customerId'], select: { customerId: true }, take: 100_000,
+  });
+  let customers = 0, orders = 0, points = 0;
+  for (const { customerId } of customerIds) {
+    if (!customerId) continue;
+    const r = await backfillCustomerOrderPoints(customerId);
+    if (r.orders) { customers++; orders += r.orders; points += r.points; }
+  }
+  return { customers, orders, points };
+}
+
+/** Recent loyalty ledger entries for the admin profile. */
+export function listLoyaltyTransactions(customerId: string, take = 12) {
+  return prisma.loyaltyTransaction.findMany({ where: { customerId }, orderBy: { createdAt: 'desc' }, take, include: { order: { select: { number: true } } } });
+}

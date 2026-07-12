@@ -35,6 +35,7 @@ async function main() {
   await boss.createQueue(QUEUES.stocktakeCycle);
   await boss.createQueue(QUEUES.gscSitemap);
   await boss.createQueue(QUEUES.watermark);
+  await boss.createQueue(QUEUES.loyaltyBackfill);
 
   await boss.work(QUEUES.notify, async ([job]) => {
     await notify(job.data as NotifyInput);
@@ -143,6 +144,13 @@ async function main() {
     const { runWatermark } = await import('@/lib/watermark-service');
     const r = await runWatermark(job.data as Parameters<typeof runWatermark>[0]);
     console.log(`[worker] watermark ${(job.data as { action?: string }).action}: ${r.done} done, ${r.failed} failed of ${r.total}`);
+  });
+
+  // Global retroactive loyalty-points backfill (owner-triggered).
+  await boss.work(QUEUES.loyaltyBackfill, async () => {
+    const { backfillAllOrderPoints } = await import('@/lib/loyalty-service');
+    const r = await backfillAllOrderPoints();
+    console.log(`[worker] loyalty backfill: ${r.points} pts across ${r.orders} orders / ${r.customers} customers`);
   });
 
   // Recurring wishlist-alert sweep every 5 minutes.
