@@ -1,10 +1,13 @@
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { pick } from '@/lib/admin-i18n';
-import { searchProducts } from '@/lib/search-service';
+import { searchProducts, didYouMean } from '@/lib/search-service';
 import { toCardProduct } from '@/lib/storefront';
 import { affinityCategoryIds } from '@/lib/personalization-service';
 import { rankByAffinity } from '@/lib/personalization';
+import { readCartId } from '@/lib/cart-service';
+import { getCurrentUser } from '@/lib/auth-guards';
 import { ProductCard } from '@/components/storefront/product-card';
+import { SearchResultsTracker } from '@/components/storefront/search-results-tracker';
 import { Select } from '@/components/storefront/ui/select';
 import { Checkbox } from '@/components/storefront/ui/checkbox';
 import { Link, redirect } from '@/i18n/navigation';
@@ -34,7 +37,8 @@ export default async function SearchPage({
   if (rule?.kind === 'REDIRECT' && rule.targetUrl) redirect({ href: rule.targetUrl, locale });
   const effectiveQ = rule?.kind === 'REWRITE' && rule.rewriteTo ? rule.rewriteTo : q;
 
-  const results = q ? await searchProducts(effectiveQ) : [];
+  const [sessionId, user] = q ? await Promise.all([readCartId(), getCurrentUser()]) : [null, null];
+  const results = q ? await searchProducts(effectiveQ, { sessionId, customerId: user?.customerId ?? null, locale, source: 'results' }) : [];
   // Personalized ranking (FR-PERS-03): boost results in the visitor's affinity categories.
   const affinity = q ? await affinityCategoryIds() : new Set<string>();
   const ranked = rankByAffinity(results.map((p) => ({ ...p, categoryIds: p.categories.map((c) => c.id) })), affinity);
@@ -45,6 +49,9 @@ export default async function SearchPage({
   if (sort === 'price_desc') products = [...products].sort((a, b) => b.pricePiastres - a.pricePiastres);
   if (sort === 'rating') products = [...products].sort((a, b) => b.rating - a.rating);
 
+  // "Did you mean?" — a close past query that actually returns results.
+  const suggestion = q && products.length < 3 ? await didYouMean(q) : null;
+
   const t = await getTranslations('storefront.search');
   const tb = pick(locale);
 
@@ -52,6 +59,13 @@ export default async function SearchPage({
     <div className="mx-auto max-w-[1280px] px-4 py-10 sm:px-6 lg:px-8">
       {q && <TrackView name="search" props={{ q, results: products.length }} />}
       <h1 className="mb-6 text-3xl font-bold text-green-dark">{q ? t('withQuery', { q }) : t('title')}</h1>
+
+      {suggestion && suggestion.toLowerCase() !== q.toLowerCase() && (
+        <p className="mb-6 text-sm text-[color:var(--text-muted)]">
+          {tb('Did you mean', 'هل تقصد')}{' '}
+          <Link href={{ pathname: '/search', query: { q: suggestion } }} className="font-semibold text-green-dark underline hover:text-lime-press">{suggestion}</Link>?
+        </p>
+      )}
 
       {q && (
         <form action={`/${locale}/search`} className="mb-6 flex flex-wrap items-end gap-4 rounded-[14px] border border-[color:var(--green-dark-05)] bg-white p-4">
@@ -76,9 +90,11 @@ export default async function SearchPage({
           <Link href="/products" className="mt-4 inline-block text-sm font-semibold text-green-dark hover:text-lime-press">{t('browseAll')}</Link>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-5">
-          {products.map((p) => <ProductCard key={p.slug} product={p} locale={locale} />)}
-        </div>
+        <SearchResultsTracker term={q}>
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-5">
+            {products.map((p) => <ProductCard key={p.slug} product={p} locale={locale} />)}
+          </div>
+        </SearchResultsTracker>
       )}
     </div>
   );

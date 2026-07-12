@@ -69,6 +69,17 @@ export function SearchAutocomplete({ locale, placeholder, className = '' }: { lo
     router.push(href);
   };
 
+  // Log which product was picked from the instant dropdown (search CTR / conversion).
+  const beaconProduct = (slug: string, position: number) => {
+    const term = q.trim();
+    if (!term) return;
+    try {
+      navigator.sendBeacon?.('/api/search/click', new Blob([JSON.stringify({ term, slug, position, source: 'instant' })], { type: 'application/json' }));
+    } catch {
+      /* best-effort */
+    }
+  };
+
   const hasContent = flat.length > 0;
   let cursor = -1; // running index while rendering rows
   const rowCls = (i: number) =>
@@ -144,11 +155,11 @@ export function SearchAutocomplete({ locale, placeholder, className = '' }: { lo
           {data.products.length > 0 && (
             <>
               <div className={heading}>{t('Products', 'المنتجات')}</div>
-              {data.products.map((p) => {
+              {data.products.map((p, pi) => {
                 cursor++;
                 const i = cursor;
                 return (
-                  <button key={`p:${p.slug}`} type="button" className={rowCls(i)} onMouseEnter={() => setActive(i)} onClick={() => go(`/products/${p.slug}`)}>
+                  <button key={`p:${p.slug}`} type="button" className={rowCls(i)} onMouseEnter={() => setActive(i)} onClick={() => { beaconProduct(p.slug, pi); go(`/products/${p.slug}`); }}>
                     <span className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-surface">
                       {p.image ? (
                         <Image src={p.image} alt="" fill sizes="40px" className="object-contain p-1" />
