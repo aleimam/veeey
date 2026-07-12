@@ -7,9 +7,16 @@
 
 ## Current state
 
-- **Live** at **veeey.com**. Latest deployed commit: **`ea8df48`** (2026-07-12). All
+- **Live** at **veeey.com**. Latest deployed commit: **`b9a7f54`** (2026-07-12). All
   **49 Prisma migrations applied** (`watermark`); `pm2` processes `veeey` (web) + `veeey-worker` (jobs) healthy;
-  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **362 unit tests** · build.
+  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **367 unit tests** · build.
+- **Dashboard quick cards now configurable** (`dashboard.quickCardCount`, 3–10, one/two rows). **New
+  `/admin/analytics/sales`** (`b9a7f54`): period presets (MTD default) + auto compare-to-previous;
+  Orders/AOV/Revenue for This-vs-Previous, New-vs-Repeat customers, Big-vs-Normal orders
+  (`analytics.bigOrderEgp`); order-value + customer-lifetime distribution histograms; interactive
+  responsive hover bar charts (`sales-analytics-core` pure + tested). **Still TODO (owner's search
+  analytics + fuzzy request — "Part C"): log search refinements/clicks/conversion, fuzzy pg_trgm,
+  deep search dashboard (top/poor-result/purchase-driving terms).**
 - **V4 + V5 docs fully delivered** (segment filters `fc72d4f`; thresholds `customers.highValueEgp`/`lapsedDays`).
   **Loyalty points are now staff-manageable** (`ea8df48`): customer profile has add/deduct (signed ADJUST,
   never below 0) + ledger + per-customer "credit past orders"; `/admin/tiers` has a global retroactive
