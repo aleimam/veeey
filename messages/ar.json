@@ -23,6 +23,7 @@
     "nav": {
       "dashboard": "اللوحة الرئيسية",
       "analytics": "التحليلات",
+      "salesAnalytics": "المبيعات والعملاء",
       "orders": "الطلبات",
       "returns": "المرتجعات",
       "specialOrders": "الطلبات الخاصة",

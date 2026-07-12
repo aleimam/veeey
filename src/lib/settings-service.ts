@@ -51,6 +51,8 @@ export const SETTINGS: SettingDef[] = [
   { key: 'checkout.requireVerification', label: 'Require verified contact to checkout', group: 'Checkout', type: 'text', default: 'false', hint: 'true / false — shoppers must confirm a one-time code sent to their phone (SMS) or email before placing an order. Needs SMS (and/or SMTP) configured in Providers. Verified accounts skip it on later orders.' },
   // Dashboard
   { key: 'dashboard.quickCardCount', label: 'Dashboard quick cards', group: 'Dashboard', type: 'number', default: '8', hint: 'How many "quick access" shortcut cards show at the top of the dashboard (3–10). They lay out in one or two rows.' },
+  // Analytics
+  { key: 'analytics.bigOrderEgp', label: 'Big order threshold (EGP)', group: 'Analytics', type: 'number', default: '3000', hint: 'Orders at or above this total count as "Big orders" in the sales analytics Big-vs-Normal comparison.' },
   // Customer segments (list filters)
   { key: 'customers.highValueEgp', label: 'High-value customer threshold (EGP)', group: 'Customers', type: 'number', default: '5000', hint: 'Lifetime spend at or above this marks a customer as "High value" in the customers segment filter.' },
   { key: 'customers.lapsedDays', label: 'Lapsed customer window (days)', group: 'Customers', type: 'days', default: '180', hint: 'A customer with past orders but none in this many days is counted as "Lapsed" in the customers segment filter.' },

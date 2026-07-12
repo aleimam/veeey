@@ -13,6 +13,7 @@ export const NAV_SECTIONS: AdminNavSection[] = [
   { title: ['Dashboard', 'الرئيسية'], items: [
     { href: '/admin', key: 'dashboard' },
     { href: '/admin/analytics', key: 'analytics', permission: 'finance.read' },
+    { href: '/admin/analytics/sales', key: 'salesAnalytics', permission: 'finance.read' },
   ] },
   { title: ['Orders', 'الطلبات'], items: [
     { href: '/admin/orders', key: 'orders', permission: 'orders.read' },
