@@ -14,6 +14,7 @@ import { SortableTh } from '@/components/admin/sortable-th';
 import { ListPagination } from '@/components/admin/list-pagination';
 import { BulkBar, type BulkOp } from '@/components/admin/bulk-bar';
 import { parseListParams, listQs, type SP } from '@/lib/admin-list';
+import { getNumberSetting } from '@/lib/settings-service';
 import { pick } from '@/lib/admin-i18n';
 import { requirePermission } from '@/lib/auth-guards';
 
@@ -56,8 +57,33 @@ export default async function CustomersPage({ params, searchParams }: { params: 
   const from = one(sp.from);
   const to = one(sp.to);
   const status = one(sp.status); // ACTIVE / UNVERIFIED / FLAGGED / BLOCKED (V5 F31)
-  const seg = one(sp.seg); // with-orders / no-orders (V5 F33)
+  const seg = one(sp.seg); // orders/value segments (V5 F33)
   const { sort, dir, page, perPage } = parseListParams(sp, { sortable: SORTABLE, defaultSort: 'createdAt' });
+
+  // Admin-configurable segment thresholds.
+  const [highValueEgp, lapsedDays] = await Promise.all([
+    getNumberSetting('customers.highValueEgp'),
+    getNumberSetting('customers.lapsedDays'),
+  ]);
+  const lapsedCutoff = new Date();
+  lapsedCutoff.setDate(lapsedCutoff.getDate() - lapsedDays);
+
+  // "Repeat buyers" = 2+ orders. Prisma has no count filter, so resolve the ids.
+  let repeatIds: string[] | null = null;
+  if (seg === 'repeat') {
+    const rows = await prisma.$queryRaw<{ customerId: string }[]>`
+      SELECT "customerId" FROM "Order" WHERE "customerId" IS NOT NULL
+      GROUP BY "customerId" HAVING COUNT(*) >= 2`;
+    repeatIds = rows.map((r) => r.customerId);
+  }
+
+  const segWhere: Prisma.CustomerWhereInput =
+    seg === 'no-orders' ? { orders: { none: {} } }
+    : seg === 'with-orders' ? { orders: { some: {} } }
+    : seg === 'repeat' ? { id: { in: repeatIds ?? [] } }
+    : seg === 'high-value' ? { lifetimeSpendPiastres: { gte: BigInt(Math.round(highValueEgp * 100)) } }
+    : seg === 'lapsed' ? { AND: [{ orders: { some: {} } }, { orders: { none: { placedAt: { gte: lapsedCutoff } } } }] }
+    : {};
 
   const where: Prisma.CustomerWhereInput = {
     ...(tier ? { tierId: tier } : {}),
@@ -66,7 +92,7 @@ export default async function CustomersPage({ params, searchParams }: { params: 
       : status === 'ACTIVE' || status === 'FLAGGED' || status === 'BLOCKED'
         ? { status }
         : {}),
-    ...(seg === 'no-orders' ? { orders: { none: {} } } : seg === 'with-orders' ? { orders: { some: {} } } : {}),
+    ...segWhere,
     // Join-date range (drives the dashboard "New customers (month)" drill-down).
     ...(from || to ? { createdAt: { ...(from ? { gte: new Date(from) } : {}), ...(to ? { lte: new Date(`${to}T23:59:59`) } : {}) } } : {}),
     ...(q
@@ -142,9 +168,12 @@ export default async function CustomersPage({ params, searchParams }: { params: 
             { value: 'FLAGGED', label: tb('Flagged', 'مُعلَّم') },
             { value: 'BLOCKED', label: tb('Blocked', 'محظور') },
           ] },
-          { name: 'seg', label: tb('Orders', 'الطلبات'), type: 'select', options: [
-            { value: 'with-orders', label: tb('Has orders', 'لديه طلبات') },
-            { value: 'no-orders', label: tb('No orders', 'بلا طلبات') },
+          { name: 'seg', label: tb('Segment', 'الشريحة'), type: 'select', options: [
+            { value: 'with-orders', label: tb('Has ordered', 'اشترى من قبل') },
+            { value: 'no-orders', label: tb('Never ordered', 'لم يشترِ') },
+            { value: 'repeat', label: tb('Repeat buyers (2+)', 'مشترون متكررون (٢+)') },
+            { value: 'high-value', label: tb('High value', 'قيمة عالية') },
+            { value: 'lapsed', label: tb('Lapsed / inactive', 'متوقّف / غير نشط') },
           ] },
           { name: 'tier', label: tb('Tier', 'الفئة'), type: 'select', options: tiers.map((t) => ({ value: t.id, label: t.nameEn })) },
           { name: 'from', label: tb('Joined from', 'انضم من'), type: 'date' },

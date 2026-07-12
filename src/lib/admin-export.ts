@@ -69,10 +69,36 @@ async function categories(sp: SP): Promise<Built> {
   };
 }
 
+/** Customer segment → where clause (mirrors the customers list filters). */
+async function customerSegWhere(seg?: string): Promise<Prisma.CustomerWhereInput> {
+  if (seg === 'no-orders') return { orders: { none: {} } };
+  if (seg === 'with-orders') return { orders: { some: {} } };
+  if (seg === 'repeat') {
+    const rows = await prisma.$queryRaw<{ customerId: string }[]>`SELECT "customerId" FROM "Order" WHERE "customerId" IS NOT NULL GROUP BY "customerId" HAVING COUNT(*) >= 2`;
+    return { id: { in: rows.map((r) => r.customerId) } };
+  }
+  if (seg === 'high-value') {
+    const { getNumberSetting } = await import('@/lib/settings-service');
+    return { lifetimeSpendPiastres: { gte: BigInt(Math.round((await getNumberSetting('customers.highValueEgp')) * 100)) } };
+  }
+  if (seg === 'lapsed') {
+    const { getNumberSetting } = await import('@/lib/settings-service');
+    const cutoff = new Date(Date.now() - (await getNumberSetting('customers.lapsedDays')) * 86_400_000);
+    return { AND: [{ orders: { some: {} } }, { orders: { none: { placedAt: { gte: cutoff } } } }] };
+  }
+  return {};
+}
+
 async function customers(sp: SP): Promise<Built> {
   const where: Prisma.CustomerWhereInput = {
     ...(sp.ids ? { id: { in: sp.ids.split('~') } } : {}),
     ...(sp.tier ? { tierId: sp.tier } : {}),
+    ...(sp.status === 'UNVERIFIED'
+      ? { status: 'ACTIVE', user: { emailVerified: null, phoneVerified: null } }
+      : sp.status === 'ACTIVE' || sp.status === 'FLAGGED' || sp.status === 'BLOCKED'
+        ? { status: sp.status }
+        : {}),
+    ...(await customerSegWhere(sp.seg)),
     ...(sp.q ? { OR: [{ firstName: ci(sp.q) }, { lastName: ci(sp.q) }, { user: { email: ci(sp.q) } }, { user: { phone: ci(sp.q) } }] } : {}),
   };
   const rows = await prisma.customer.findMany({ where, include: { user: { select: { email: true, phone: true } }, tier: true }, orderBy: { createdAt: 'desc' } });
