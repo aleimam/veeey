@@ -14,6 +14,12 @@
   filter products (category/brand/search/only-missing), multi-select, assign one value to all (SINGLE_SELECT replaces,
   MULTI_SELECT adds); optional **Suggest with AI** proposes a value per product (`ai.ts`, Anthropic, constrained to the
   allowed values, degrades to null when AI off) for review. Speeds up filling attributes so the PLP filter sidebar has values.
+- **One-click attribute auto-fill** (`d544caa`, no migration): "Start auto-fill" on the bulk page runs a worker job
+  (`attributeAutofill`, brand-translate pattern: 4h visibility, no retry) that AI-tags every product missing a value for
+  every filterable attribute — only-missing (never overwrites staff-set values), constrained to allowed values; AI-declined
+  products are skipped. Progress in Setting `attributes.autofillJob`, shown on the page with per-attribute missing counts.
+  Needs the Anthropic key in Providers. ⚠️ Code lesson: `Product` has NO `archivedAt` — filter with `status != ARCHIVED`
+  (an untyped where hid this from tsc and briefly shipped a crash in `productsForBulk`; fixed in `d544caa`).
 - **Trustpilot reviews widget** (`5660d9d`, no migration): `/admin/trustpilot` (settings.manage) — Business Unit ID + domain +
   locale + theme, per-placement toggles/templates for homepage, footer, checkout. TrustBox loader mirrors the Google-tag
   pattern. Settings-backed JSON (`trustpilot.config`); **inert until the owner pastes a Business Unit ID** (create a Trustpilot
