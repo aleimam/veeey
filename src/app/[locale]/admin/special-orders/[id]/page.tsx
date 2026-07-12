@@ -31,11 +31,23 @@ export default async function SpecialOrderDetail({ params }: { params: Promise<{
           <h2 className="mb-3 font-heading text-lg font-semibold">{tb('Request', 'الطلب')}</h2>
           <dl className="space-y-1.5">
             <div><dt className="inline text-muted-foreground">{tb('Product', 'المنتج')}: </dt><dd className="inline font-medium">{so.requestedProductText ?? '—'}</dd></div>
+            {so.size && <div><dt className="inline text-muted-foreground">{tb('Size', 'الحجم')}: </dt><dd className="inline">{so.size}</dd></div>}
+            {so.concentration && <div><dt className="inline text-muted-foreground">{tb('Concentration', 'التركيز')}: </dt><dd className="inline">{so.concentration}</dd></div>}
             {so.productUrl && <div><dt className="inline text-muted-foreground">{tb('Link', 'الرابط')}: </dt><dd className="inline"><a href={so.productUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline break-all">{so.productUrl}</a></dd></div>}
             <div><dt className="inline text-muted-foreground">{tb('Requester', 'مقدّم الطلب')}: </dt><dd className="inline">{so.requesterName ?? so.customer?.user.email ?? '—'}</dd></div>
             <div><dt className="inline text-muted-foreground">{tb('Phone', 'الهاتف')}: </dt><dd className="inline">{so.requesterPhone ?? '—'}</dd></div>
             <div><dt className="inline text-muted-foreground">{tb('Email', 'البريد الإلكتروني')}: </dt><dd className="inline">{so.requesterEmail ?? so.customer?.user.email ?? '—'}</dd></div>
-            {so.notes && <div><dt className="inline text-muted-foreground">{tb('Notes', 'ملاحظات')}: </dt><dd className="inline">{so.notes}</dd></div>}
+            {so.notes && <div><dt className="inline text-muted-foreground">{tb('Details', 'التفاصيل')}: </dt><dd className="inline">{so.notes}</dd></div>}
+            {so.photoUrls?.length > 0 && (
+              <div className="flex flex-wrap gap-2 pt-1">
+                {so.photoUrls.map((u: string) => (
+                  <a key={u} href={u} target="_blank" rel="noreferrer">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={u} alt="" className="size-16 rounded-md border border-border object-cover" />
+                  </a>
+                ))}
+              </div>
+            )}
             <div><dt className="inline text-muted-foreground">{tb('Linked order', 'الطلب المرتبط')}: </dt><dd className="inline">{so.order?.number ?? '—'}</dd></div>
             {so.compensationPiastres != null && <div><dt className="inline text-muted-foreground">{tb('Compensation', 'التعويض')}: </dt><dd className="inline">{piastresToEgp(so.compensationPiastres)} {tb('EGP', 'ج.م')}</dd></div>}
           </dl>

@@ -10,7 +10,7 @@ import { pick } from '@/lib/admin-i18n';
  * /api/admin/upload (server converts to WebP) and keeps the returned URLs as
  * hidden `imageUrls` inputs so they submit with the product form.
  */
-export function ImageUploader({ initial = [], context }: { initial?: string[]; context?: 'product' }) {
+export function ImageUploader({ initial = [], context, name = 'imageUrls', endpoint = '/api/admin/upload' }: { initial?: string[]; context?: 'product'; name?: string; endpoint?: string }) {
   const [urls, setUrls] = useState<string[]>(initial);
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -22,7 +22,7 @@ export function ImageUploader({ initial = [], context }: { initial?: string[]; c
       const fd = new FormData();
       fd.append('file', file);
       if (context) fd.append('context', context);
-      const res = await fetch('/api/admin/upload', { method: 'POST', body: fd });
+      const res = await fetch(endpoint, { method: 'POST', body: fd });
       if (res.ok) {
         const { url } = (await res.json()) as { url: string };
         setUrls((u) => [...u, url]);
@@ -71,7 +71,7 @@ export function ImageUploader({ initial = [], context }: { initial?: string[]; c
                 unoptimized
                 className="size-18 rounded-md border border-border object-cover"
               />
-              <input type="hidden" name="imageUrls" value={u} />
+              <input type="hidden" name={name} value={u} />
               <button
                 type="button"
                 onClick={() => setUrls((list) => list.filter((x) => x !== u))}

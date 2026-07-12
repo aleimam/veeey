@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
 import { getNumberSetting } from '@/lib/settings-service';
+import { isValidPhone } from '@/lib/phone';
 import type { SpecialOrderStatus } from '@/generated/prisma/client';
 
 /**
@@ -19,16 +20,23 @@ export const SPECIAL_ORDER_STATUSES: SpecialOrderStatus[] = [
 const requestSchema = z.object({
   requestedProductText: z.string().trim().min(1),
   productUrl: z.string().trim().url().optional().or(z.literal('')),
-  requesterName: z.string().trim().min(1),
-  requesterPhone: z.string().trim().min(6),
+  requesterName: z.string().trim().optional().or(z.literal('')),
+  requesterPhone: z.string().trim().optional().or(z.literal('')),
   requesterEmail: z.string().trim().email().optional().or(z.literal('')),
+  size: z.string().trim().max(120).optional().or(z.literal('')),
+  concentration: z.string().trim().max(120).optional().or(z.literal('')),
+  photoUrls: z.array(z.string().trim()).max(6).optional().default([]),
   notes: z.string().trim().optional().nullable(),
 });
 export type SpecialOrderRequestInput = z.input<typeof requestSchema>;
 
-/** Public: a customer (or guest) submits a special-order request. */
+/** Public: a customer (or guest) submits a special-order request. Phones are
+ *  validated (Egyptian 01… or international) when provided. */
 export async function createSpecialOrderRequest(input: SpecialOrderRequestInput, customerId?: string | null) {
   const d = requestSchema.parse(input);
+  if (d.requesterPhone && !isValidPhone(d.requesterPhone)) throw new Error('BAD_PHONE');
+  // Guests must give a name + valid phone; logged-in requests fill those from the account.
+  if (!customerId && (!d.requesterName || !d.requesterPhone)) throw new Error('MISSING_CONTACT');
   const leadDays = await getNumberSetting('specialOrder.defaultLeadDays');
   const deadlineAt = new Date(Date.now() + Math.max(1, leadDays) * 86_400_000);
   const so = await prisma.specialOrder.create({
@@ -36,9 +44,12 @@ export async function createSpecialOrderRequest(input: SpecialOrderRequestInput,
       customerId: customerId ?? null,
       requestedProductText: d.requestedProductText,
       productUrl: d.productUrl || null,
-      requesterName: d.requesterName,
-      requesterPhone: d.requesterPhone,
+      requesterName: d.requesterName || null,
+      requesterPhone: d.requesterPhone || null,
       requesterEmail: d.requesterEmail || null,
+      size: d.size || null,
+      concentration: d.concentration || null,
+      photoUrls: (d.photoUrls ?? []).filter((u) => /^\/uploads\//.test(u)).slice(0, 6),
       notes: d.notes ?? null,
       status: 'REQUESTED',
       deadlineAt,

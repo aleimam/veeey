@@ -22,19 +22,30 @@ export async function createSpecialOrderRequestAction(_p: SpecialOrderFormState,
   if (!rateLimit(`special-order:${await clientIp()}`, 5, 3_600_000)) return { error: 'invalid' };
   let user = null;
   try { user = await getCurrentUser(); } catch { /* guest */ }
+  // Logged-in: pull name/phone/email from the account (form omits those fields).
+  let account: { name: string | null; phone: string | null; email: string | null } | null = null;
+  if (user) {
+    const { prisma } = await import('@/lib/prisma');
+    account = await prisma.user.findUnique({ where: { id: user.id }, select: { name: true, phone: true, email: true } });
+  }
+  const photoUrls = fd.getAll('photoUrls').filter((v): v is string => typeof v === 'string' && v.trim() !== '');
   try {
     await createSpecialOrderRequest(
       {
         requestedProductText: str(fd, 'requestedProductText') ?? '',
         productUrl: str(fd, 'productUrl') ?? '',
-        requesterName: str(fd, 'requesterName') ?? '',
-        requesterPhone: str(fd, 'requesterPhone') ?? '',
-        requesterEmail: str(fd, 'requesterEmail') ?? '',
+        requesterName: account?.name ?? str(fd, 'requesterName') ?? '',
+        requesterPhone: account?.phone ?? str(fd, 'requesterPhone') ?? '',
+        requesterEmail: account?.email ?? str(fd, 'requesterEmail') ?? '',
+        size: str(fd, 'size') ?? '',
+        concentration: str(fd, 'concentration') ?? '',
+        photoUrls,
         notes: str(fd, 'notes') ?? null,
       },
       user?.customerId ?? null,
     );
-  } catch {
+  } catch (e) {
+    if (e instanceof Error && e.message === 'BAD_PHONE') return { error: 'phone' };
     return { error: 'invalid' };
   }
   revalidatePath(`/${locale}/special-order`);

@@ -30,7 +30,7 @@ export default async function SpecialOrderPage({ params, searchParams }: { param
           <p className="mt-1 text-sm text-ink">{t('submittedNote')}</p>
         </div>
       ) : (
-        <SpecialOrderForm locale={locale} defaultName={user?.name ?? undefined} defaultEmail={user?.email ?? undefined} />
+        <SpecialOrderForm locale={locale} isLoggedIn={!!user} defaultName={user?.name ?? undefined} defaultEmail={user?.email ?? undefined} />
       )}
     </div>
   );
