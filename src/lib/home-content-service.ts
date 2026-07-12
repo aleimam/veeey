@@ -24,8 +24,9 @@ export const HOME_FIELDS: { key: string; label: string; multiline?: boolean }[] 
 ];
 
 export const FEATURED_KEY = 'home.featuredCollectionId';
+export const ANNOUNCEMENT_ENABLED_KEY = 'home.announcementEnabled';
 
-const KNOWN = new Set([...HOME_FIELDS.flatMap((f) => [`${f.key}.en`, `${f.key}.ar`]), FEATURED_KEY]);
+const KNOWN = new Set([...HOME_FIELDS.flatMap((f) => [`${f.key}.en`, `${f.key}.ar`]), FEATURED_KEY, ANNOUNCEMENT_ENABLED_KEY]);
 
 /** Collection chosen to drive the homepage featured row (null = auto top-rated). */
 export async function getFeaturedCollectionId(): Promise<string | null> {
@@ -48,6 +49,7 @@ async function rawMap(): Promise<Record<string, string>> {
 
 export type HomeContent = {
   announcement?: string;
+  announcementEnabled: boolean;
   heroTitle?: string;
   heroSubtitle?: string;
   cards: { title?: string; desc?: string }[];
@@ -59,6 +61,7 @@ export async function getHomeContent(locale: string): Promise<HomeContent> {
   const pick = (base: string) => map[`${base}.${locale}`]?.trim() || undefined;
   return {
     announcement: pick('home.announcement'),
+    announcementEnabled: map['home.announcementEnabled'] !== 'false', // default shown
     heroTitle: pick('home.heroTitle'),
     heroSubtitle: pick('home.heroSubtitle'),
     cards: [1, 2, 3].map((n) => ({ title: pick(`home.card${n}.title`), desc: pick(`home.card${n}.desc`) })),

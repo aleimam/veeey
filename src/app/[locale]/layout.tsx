@@ -73,7 +73,12 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     title: brandingTitle(branding, locale),
     description:
       'Veeey imports premium dietary supplements and health devices directly from the USA, UK and EU. Every product shows its expiry date before you buy.',
-    ...(branding.faviconUrl ? { icons: { icon: [{ url: branding.faviconUrl, type: 'image/png' }] } } : {}),
+    // Favicon is authoritative here (favicon.ico moved to /public so Next no
+    // longer auto-emits a competing icon link). Custom upload wins when set,
+    // else the bundled default + brand SVG.
+    icons: branding.faviconUrl
+      ? { icon: [{ url: branding.faviconUrl, type: 'image/png', sizes: '64x64' }], shortcut: [{ url: branding.faviconUrl }], apple: [{ url: branding.faviconUrl }] }
+      : { icon: [{ url: '/favicon.ico', sizes: 'any' }, { url: '/icon.svg', type: 'image/svg+xml' }], shortcut: [{ url: '/favicon.ico' }] },
   };
 }
 

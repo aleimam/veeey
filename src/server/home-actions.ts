@@ -83,6 +83,25 @@ export async function deletePageLayoutAction(fd: FormData): Promise<void> {
   redirect(`/${locale}/admin/landing`);
 }
 
+export async function saveAnnouncementAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const values: Record<string, string> = {
+    'home.announcement.en': (fd.get('announcementEn') as string | null) ?? '',
+    'home.announcement.ar': (fd.get('announcementAr') as string | null) ?? '',
+    'home.announcementEnabled': fd.get('announcementEnabled') != null ? 'true' : 'false',
+  };
+  try {
+    await saveHomeContent(values);
+  } catch (e) {
+    console.error('announcement save failed', e);
+    revalidatePath(`/${locale}/admin/homepage`);
+    redirect(`/${locale}/admin/homepage?error=1`);
+  }
+  revalidatePath(`/${locale}/admin/homepage`);
+  revalidatePath(`/${locale}`, 'layout');
+  redirect(`/${locale}/admin/homepage?saved=1`);
+}
+
 export async function saveHomeContentAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
   const values: Record<string, string> = {};

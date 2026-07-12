@@ -46,7 +46,7 @@ export default async function ShopLayout({
   return (
     <div className="veeey-shop min-h-screen bg-background">
       <NavFontLink nav={nav} />
-      <AnnouncementBar text={home.announcement} />
+      {home.announcementEnabled && <AnnouncementBar text={home.announcement} />}
       <ChewyHeader
         locale={locale}
         nav={nav}
