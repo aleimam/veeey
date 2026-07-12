@@ -1,5 +1,6 @@
 import { headers } from 'next/headers';
 import { setRequestLocale } from 'next-intl/server';
+import { Link } from '@/i18n/navigation';
 import { requirePermission } from '@/lib/auth-guards';
 import { getGoogleConfig } from '@/lib/google-service';
 import { pick } from '@/lib/admin-i18n';
@@ -58,6 +59,7 @@ export default async function AdminGooglePage({ params, searchParams }: { params
             {tb('Search Console verification', 'تحقّق Search Console')}
             <input name="searchConsole" defaultValue={cfg.searchConsole} placeholder='content token or the whole <meta> tag' className={inputCls} />
             <span className="text-xs font-normal text-muted-foreground">{tb('Use the “HTML tag” method; paste the token or the entire meta tag.', 'استخدم طريقة «وسم HTML»؛ الصق الرمز أو وسم meta كاملًا.')}</span>
+            <Link href="/admin/google/search-console" className="mt-1 inline-block text-xs font-normal text-primary hover:underline">{tb('→ Connect the Search Console API (auto-submit sitemap, indexing & search performance)', '→ اربط واجهة Search Console (إرسال تلقائي لخريطة الموقع والفهرسة وأداء البحث)')}</Link>
           </label>
           <label className={labelCls}>
             {tb('Google Ads conversion ID (optional)', 'معرّف تحويل Google Ads (اختياري)')}

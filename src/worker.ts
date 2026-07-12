@@ -33,6 +33,7 @@ async function main() {
   await boss.createQueue(QUEUES.lotExpiry);
   await boss.createQueue(QUEUES.loyaltyStanding);
   await boss.createQueue(QUEUES.stocktakeCycle);
+  await boss.createQueue(QUEUES.gscSitemap);
 
   await boss.work(QUEUES.notify, async ([job]) => {
     await notify(job.data as NotifyInput);
@@ -128,6 +129,14 @@ async function main() {
     console.log(`[worker] stocktake schedules: ${r.opened} session(s) opened`);
   });
 
+  // Daily sitemap (re)submit to Google Search Console (no-op until connected).
+  await boss.work(QUEUES.gscSitemap, async () => {
+    const { gscConnected, submitSitemap } = await import('@/lib/gsc-service');
+    if (!(await gscConnected())) return;
+    const r = await submitSitemap();
+    console.log(`[worker] GSC sitemap submit: ${r.ok ? 'ok' : r.error}`);
+  });
+
   // Recurring wishlist-alert sweep every 5 minutes.
   await boss.schedule(QUEUES.alerts, '*/5 * * * *', {});
   // WooCommerce incremental sync every 15 minutes (gated by woo.sync.enabled).
@@ -144,6 +153,8 @@ async function main() {
   await boss.schedule(QUEUES.loyaltyStanding, '25 3 * * *', {});
   // Open due cycle-count sessions daily 02:45 UTC (before the workday).
   await boss.schedule(QUEUES.stocktakeCycle, '45 2 * * *', {});
+  // Re-submit the sitemap to Google Search Console daily 05:15 UTC (no-op if not connected).
+  await boss.schedule(QUEUES.gscSitemap, '15 5 * * *', {});
   console.log('[worker] started — notify + alerts + woo-sync + audit queues registered, schedules set.');
 }
 
