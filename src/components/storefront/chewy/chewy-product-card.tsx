@@ -6,6 +6,7 @@ import { addToCartAction } from '@/server/cart-actions';
 import { toggleWishlistAction } from '@/server/engagement-actions';
 import { Icon } from '@/components/storefront/ui/icon';
 import { Rating } from '@/components/storefront/ui/rating';
+import { isFeatureEnabledCached } from '@/lib/feature-service';
 import type { Product } from '@/components/storefront/product-card';
 
 /**
@@ -14,8 +15,9 @@ import type { Product } from '@/components/storefront/product-card';
  * heart, add-to-cart. Wired to real catalog data; Refill is a visual
  * subscribe-&-save cue (no recurring billing yet). Bilingual via pick().
  */
-export function ChewyProductCard({ product, locale = 'en' }: { product: Product; locale?: string }) {
+export async function ChewyProductCard({ product, locale = 'en' }: { product: Product; locale?: string }) {
   const t = pick(locale);
+  const showRefill = await isFeatureEnabledCached('refill'); // hide the "Refill & save" cue when Refill is off
   const pct = product.oldPricePiastres
     ? Math.max(1, Math.round((1 - product.pricePiastres / product.oldPricePiastres) * 100))
     : 0;
@@ -56,9 +58,11 @@ export function ChewyProductCard({ product, locale = 'en' }: { product: Product;
             <Icon name="calendar-clock" size={13} color="var(--gold-deep)" /> {t(`Exp ${product.expiry} lot priced lower`, `سعر أقل لتشغيلة ${product.expiry}`)}
           </div>
         )}
-        <div className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-green-mid">
-          <Icon name="repeat" size={13} color="var(--green-mid)" /> {t('Refill & save 15%', 'ريفيل ووفّر ١٥٪')}
-        </div>
+        {showRefill && (
+          <div className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-green-mid">
+            <Icon name="repeat" size={13} color="var(--green-mid)" /> {t('Refill & save 15%', 'ريفيل ووفّر ١٥٪')}
+          </div>
+        )}
       </div>
 
       <div className="p-[18px]">

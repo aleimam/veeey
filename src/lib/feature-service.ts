@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { getAllSettings, getSetting } from '@/lib/settings-service';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
@@ -22,6 +23,10 @@ export async function isFeatureEnabled(id: FeatureId): Promise<boolean> {
     return def;
   }
 }
+
+/** Per-request memoised single-flag check — safe to call from list items (e.g.
+ *  product cards) without N database reads: React `cache` dedupes by argument. */
+export const isFeatureEnabledCached = cache(isFeatureEnabled);
 
 /** All feature states as a map, for the admin page + nav/footer/home gating. */
 export async function getFeatureStates(): Promise<Record<FeatureId, boolean>> {
