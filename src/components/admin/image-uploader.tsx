@@ -10,7 +10,7 @@ import { pick } from '@/lib/admin-i18n';
  * /api/admin/upload (server converts to WebP) and keeps the returned URLs as
  * hidden `imageUrls` inputs so they submit with the product form.
  */
-export function ImageUploader({ initial = [] }: { initial?: string[] }) {
+export function ImageUploader({ initial = [], context }: { initial?: string[]; context?: 'product' }) {
   const [urls, setUrls] = useState<string[]>(initial);
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -21,6 +21,7 @@ export function ImageUploader({ initial = [] }: { initial?: string[] }) {
     try {
       const fd = new FormData();
       fd.append('file', file);
+      if (context) fd.append('context', context);
       const res = await fetch('/api/admin/upload', { method: 'POST', body: fd });
       if (res.ok) {
         const { url } = (await res.json()) as { url: string };

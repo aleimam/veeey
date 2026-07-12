@@ -51,6 +51,7 @@ export const NAV_SECTIONS: AdminNavSection[] = [
   // Appearance — theming, page-building & site chrome (req: one "Appearance" group).
   { title: ['Appearance', 'المظهر'], items: [
     { href: '/admin/branding', key: 'branding', permission: 'settings.manage' },
+    { href: '/admin/watermark', key: 'watermark', permission: 'catalog.write' },
     { href: '/admin/appearance', key: 'appearance', permission: 'settings.manage' },
     { href: '/admin/homepage', key: 'homepage', permission: 'content.manage' },
     { href: '/admin/navigation', key: 'navigation', permission: 'settings.manage' },

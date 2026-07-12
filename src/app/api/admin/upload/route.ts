@@ -27,5 +27,13 @@ export async function POST(req: Request) {
   const output = kind === 'icon' ? await toFaviconPng(input) : await toWebp(input);
   const name = `${Date.now()}-${randomBytes(4).toString('hex')}.${kind === 'icon' ? 'png' : 'webp'}`;
   const stored = await storeImage(output, name);
+
+  // Auto-watermark product-image uploads when the setting is on (never brand/
+  // branding logos — those don't pass context=product).
+  if (kind === 'image' && form.get('context') === 'product') {
+    const { autoStampUpload } = await import('@/lib/watermark-service');
+    const res = await autoStampUpload(stored.url);
+    return NextResponse.json({ ...stored, ...res });
+  }
   return NextResponse.json(stored);
 }

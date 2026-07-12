@@ -285,7 +285,7 @@ export function ProductForm({
 
       <section>
         <p className="mb-2 text-sm font-medium">{tb('Images', 'الصور')}</p>
-        <ImageUploader initial={d.imageUrls ?? []} />
+        <ImageUploader initial={d.imageUrls ?? []} context="product" />
       </section>
 
       <fieldset className="rounded-md border border-border p-4">

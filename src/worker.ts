@@ -34,6 +34,7 @@ async function main() {
   await boss.createQueue(QUEUES.loyaltyStanding);
   await boss.createQueue(QUEUES.stocktakeCycle);
   await boss.createQueue(QUEUES.gscSitemap);
+  await boss.createQueue(QUEUES.watermark);
 
   await boss.work(QUEUES.notify, async ([job]) => {
     await notify(job.data as NotifyInput);
@@ -135,6 +136,13 @@ async function main() {
     if (!(await gscConnected())) return;
     const r = await submitSitemap();
     console.log(`[worker] GSC sitemap submit: ${r.ok ? 'ok' : r.error}`);
+  });
+
+  // Product-photo watermark batch (stamp / remove) — reversible, originals kept.
+  await boss.work(QUEUES.watermark, async ([job]) => {
+    const { runWatermark } = await import('@/lib/watermark-service');
+    const r = await runWatermark(job.data as Parameters<typeof runWatermark>[0]);
+    console.log(`[worker] watermark ${(job.data as { action?: string }).action}: ${r.done} done, ${r.failed} failed of ${r.total}`);
   });
 
   // Recurring wishlist-alert sweep every 5 minutes.
