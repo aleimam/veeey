@@ -100,7 +100,7 @@ export function listOrders(opts: OrderListOpts = {}) {
   const skip = opts.page != null ? (Math.max(1, opts.page) - 1) * perPage : 0;
   return prisma.order.findMany({
     where: orderWhere(opts),
-    include: { pharmacist: { select: { name: true } }, customer: { include: { user: { select: { email: true } } } }, _count: { select: { items: true } } },
+    include: { pharmacist: { select: { name: true, image: true } }, customer: { select: { firstName: true, lastName: true, user: { select: { name: true, email: true } } } }, _count: { select: { items: true } } },
     orderBy: orderOrderBy(opts.sort, opts.dir),
     skip,
     take,

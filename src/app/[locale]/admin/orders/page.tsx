@@ -6,8 +6,8 @@ import { ORDER_STATUSES } from '@/lib/order-status';
 import { listStatusConfigs } from '@/lib/order-status-service';
 import { CHANNELS, channelLabel } from '@/lib/channels';
 import { customerLabel } from '@/lib/payment-method-service';
-import { formatEGP } from '@/lib/format';
 import { StatusBadge } from '@/components/admin/ui';
+import { StaffAvatar, PaymentIcon, ChannelIcon } from '@/components/admin/order-cell-icons';
 import { ExportBar, exportQs } from '@/components/admin/export-bar';
 import { FilterBar } from '@/components/admin/filter-bar';
 import { SortableTh } from '@/components/admin/sortable-th';
@@ -136,16 +136,16 @@ export default async function OrdersPage({ params, searchParams }: { params: Pro
           <thead className="bg-surface text-xs uppercase text-muted-foreground">
             <tr>
               <th className="w-8 p-3" />
+              <SortableTh col="placedAt" label={tb('Date', 'التاريخ')} sort={sort} dir={dir} sp={sp} basePath={basePath} />
               <SortableTh col="number" label={tb('Order', 'الطلب')} sort={sort} dir={dir} sp={sp} basePath={basePath} />
               <SortableTh col="customer" label={tb('Customer', 'العميل')} sort={sort} dir={dir} sp={sp} basePath={basePath} />
-              <th className="p-3 text-start">{tb('Pharmacist', 'الصيدلي')}</th>
+              <th className="p-3 text-start">{tb('Handler', 'المسؤول')}</th>
               <th className="p-3 text-start">{tb('Channel', 'القناة')}</th>
-              <SortableTh col="payment" label={tb('Payment', 'الدفع')} sort={sort} dir={dir} sp={sp} basePath={basePath} />
+              <SortableTh col="payment" label={tb('Pay', 'الدفع')} sort={sort} dir={dir} sp={sp} basePath={basePath} />
               <th className="p-3 text-start">{tb('Check', 'مراجعة')}</th>
               <SortableTh col="status" label={tb('Status', 'الحالة')} sort={sort} dir={dir} sp={sp} basePath={basePath} />
               <SortableTh col="items" label={tb('Items', 'العناصر')} sort={sort} dir={dir} sp={sp} basePath={basePath} />
               <SortableTh col="total" label={tb('Total', 'الإجمالي')} sort={sort} dir={dir} sp={sp} basePath={basePath} />
-              <SortableTh col="placedAt" label={tb('Placed', 'التاريخ')} sort={sort} dir={dir} sp={sp} basePath={basePath} />
               <th className="p-3" />
             </tr>
           </thead>
@@ -153,29 +153,31 @@ export default async function OrdersPage({ params, searchParams }: { params: Pro
             {orders.map((o) => (
               <tr key={o.id} className="border-t border-border">
                 <td className="p-3"><input type="checkbox" name="ids" value={o.id} form="bulk-orders" className="size-4" aria-label={o.number} /></td>
-                <td className="p-3"><Link href={`/admin/orders/${o.id}`} className="font-medium text-primary hover:underline">{o.number}</Link></td>
-                <td className="p-3 text-muted-foreground">
-                  {o.customer?.user.email
-                    ? <Link href={`/admin/orders?q=${encodeURIComponent(o.customer.user.email)}`} className="hover:text-primary hover:underline">{o.customer.user.email}</Link>
-                    : o.guestEmail
-                      ? <Link href={`/admin/orders?q=${encodeURIComponent(o.guestEmail)}`} className="hover:text-primary hover:underline">{o.guestEmail}</Link>
-                      : tb('Guest', 'زائر')}
+                <td className="whitespace-nowrap p-3 text-muted-foreground" title={new Date(o.placedAt).toISOString()}>
+                  {new Date(o.placedAt).toISOString().slice(0, 10)} <span className="text-xs">{new Date(o.placedAt).toISOString().slice(11, 16)}</span>
                 </td>
-                <td className="p-3 text-muted-foreground">{o.pharmacist?.name ?? '—'}</td>
-                <td className="p-3 text-muted-foreground">{channelLabel(o.source, locale)}</td>
-                <td className="p-3">{customerLabel(o.paymentMethod, locale)}</td>
+                <td className="p-3"><Link href={`/admin/orders/${o.id}`} className="font-medium text-primary hover:underline">{o.number}</Link></td>
+                <td className="p-3">
+                  {(() => {
+                    const name = [o.customer?.firstName, o.customer?.lastName].filter(Boolean).join(' ') || o.customer?.user.name || o.customer?.user.email || o.guestEmail;
+                    const q = o.customer?.user.email || o.guestEmail || name;
+                    return name
+                      ? <Link href={`/admin/orders?q=${encodeURIComponent(q ?? '')}`} className="hover:text-primary hover:underline">{name}</Link>
+                      : <span className="text-muted-foreground">{tb('Guest', 'زائر')}</span>;
+                  })()}
+                </td>
+                <td className="p-3"><StaffAvatar name={o.pharmacist?.name} image={o.pharmacist?.image} /></td>
+                <td className="p-3"><ChannelIcon code={o.source} label={channelLabel(o.source, locale)} /></td>
+                <td className="p-3"><PaymentIcon code={o.paymentMethod} label={customerLabel(o.paymentMethod, locale)} /></td>
                 <td className="p-3"><span className={o.payCheck === 'PROBLEM' ? 'text-destructive' : o.payCheck === 'YES' ? 'text-primary' : 'text-muted-foreground'}>{o.payCheck}</span></td>
                 <td className="p-3"><StatusBadge status={o.status} /></td>
                 <td className="p-3">
-                  {o._count.items}
+                  <Link href={`/admin/orders/${o.id}`} className="hover:text-primary hover:underline">{o._count.items}</Link>
                   {o._count.items === 0 && Number(o.totalPiastres) > 0 && (
                     <span title={tb('No items but a non-zero total — please review', 'لا عناصر مع إجمالي غير صفري — يُرجى المراجعة')} className="ms-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">!</span>
                   )}
                 </td>
-                <td className="p-3">{formatEGP(Number(o.totalPiastres))}</td>
-                <td className="p-3 text-muted-foreground" title={new Date(o.placedAt).toISOString()}>
-                  {new Date(o.placedAt).toISOString().slice(0, 10)} <span className="text-xs">{new Date(o.placedAt).toISOString().slice(11, 16)}</span>
-                </td>
+                <td className="p-3"><Link href={`/admin/orders/${o.id}`} className="font-medium hover:text-primary hover:underline">{(Number(o.totalPiastres) / 100).toLocaleString(locale === 'ar' ? 'ar-EG' : 'en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</Link></td>
                 <td className="p-3">
                   <div className="flex items-center justify-end gap-2">
                     <OrderQuickActions
@@ -187,7 +189,6 @@ export default async function OrdersPage({ params, searchParams }: { params: Pro
                       invoiceHref={`/api/admin/orders/${o.id}/invoice`}
                       labels={qaLabels}
                     />
-                    <Link href={`/admin/orders/${o.id}`} className="text-primary hover:underline">{tb('Open', 'فتح')}</Link>
                   </div>
                 </td>
               </tr>
