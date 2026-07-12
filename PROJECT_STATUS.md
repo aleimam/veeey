@@ -7,9 +7,14 @@
 
 ## Current state
 
-- **Live** at **veeey.com**. Latest deployed commit: **`c404952`** (2026-07-12). All
+- **Live** at **veeey.com**. Latest deployed commit: **`e3c634b`** (2026-07-12). All
   **48 Prisma migrations applied**; `pm2` processes `veeey` (web) + `veeey-worker` (jobs) healthy;
   `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **357 unit tests** · build.
+- Storefront chrome is admin-editable: **announcement bar show/hide + bilingual text** on
+  `/admin/homepage`; **menu-bar font family + base/per-item size + colour** on `/admin/navigation`;
+  **logos/favicon/titles** on `/admin/branding` (favicon is now authoritative — the default
+  favicon.ico moved to /public so it no longer competes). Runtime uploads serve via the
+  `/uploads/[...path]` route handler (see Code lessons).
 - Stack: Next.js 16 (App Router, Turbopack) · TypeScript strict · Prisma 7 + Postgres ·
   Auth.js · next-intl (AR/EN, RTL) · Tailwind v4 · pg-boss v12.
 
