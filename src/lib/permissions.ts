@@ -34,6 +34,43 @@ export type PermissionKey = keyof typeof PERMISSION_CATALOG;
 
 export const PERMISSION_KEYS = Object.keys(PERMISSION_CATALOG) as PermissionKey[];
 
+/** Arabic descriptions (the matrix UI shows EN or AR per the admin locale). */
+export const PERMISSION_CATALOG_AR: Record<PermissionKey, string> = {
+  'catalog.read': 'عرض الكتالوج',
+  'catalog.write': 'إنشاء/تعديل المنتجات والتصنيفات',
+  'inventory.manage': 'إدارة التشغيلات والاستلام والسعر حسب الصلاحية',
+  'stocktake.manage': 'تشغيل جلسات الجرد',
+  'orders.read': 'عرض الطلبات',
+  'orders.write': 'إنشاء/تعديل الطلبات',
+  'orders.fulfill': 'التجهيز والتتبّع وتعيين التوصيل',
+  'pricing.manage': 'إدارة الأسعار والفئات وإعداد الولاء',
+  'coupons.manage': 'إدارة الكوبونات والحملات',
+  'customers.read': 'عرض العملاء',
+  'customers.write': 'تعديل العملاء',
+  'content.manage': 'المحتوى والمدونة والمجموعات والثيمات',
+  'seo.manage': 'حقول وأعلاف SEO/AEO',
+  'marketing.manage': 'التسويق والإحالة وإعداد التحليلات',
+  'finance.read': 'عرض المالية والتقارير',
+  'finance.manage': 'المبالغ المستردة والإيرادات والتصدير',
+  'returns.manage': 'معالجة المرتجعات والحجر',
+  'reviews.moderate': 'إدارة التقييمات',
+  'couriers.access': 'وحدة المندوبين (مهام التوصيل الخاصة)',
+  'rbac.manage': 'إدارة الأدوار والصلاحيات',
+  'settings.manage': 'إعدادات النظام والتكاملات',
+  'ai.manage': 'إعداد وصول الذكاء الاصطناعي/MCP',
+};
+
+/** Logical groupings for the permission matrix (bilingual section titles). */
+export const PERMISSION_GROUPS: { title: [en: string, ar: string]; keys: PermissionKey[] }[] = [
+  { title: ['Catalog & inventory', 'الكتالوج والمخزون'], keys: ['catalog.read', 'catalog.write', 'inventory.manage', 'stocktake.manage'] },
+  { title: ['Orders & returns', 'الطلبات والمرتجعات'], keys: ['orders.read', 'orders.write', 'orders.fulfill', 'returns.manage', 'couriers.access'] },
+  { title: ['Pricing & marketing', 'الأسعار والتسويق'], keys: ['pricing.manage', 'coupons.manage', 'marketing.manage'] },
+  { title: ['Customers & reviews', 'العملاء والتقييمات'], keys: ['customers.read', 'customers.write', 'reviews.moderate'] },
+  { title: ['Content & SEO', 'المحتوى وSEO'], keys: ['content.manage', 'seo.manage'] },
+  { title: ['Finance', 'المالية'], keys: ['finance.read', 'finance.manage'] },
+  { title: ['System & access', 'النظام والوصول'], keys: ['rbac.manage', 'settings.manage', 'ai.manage'] },
+];
+
 export type RoleDefinition = {
   key: string;
   name: string;
@@ -44,11 +81,11 @@ export type RoleDefinition = {
 export const ROLE_DEFINITIONS: RoleDefinition[] = [
   { key: 'super_admin', name: 'Super Admin', permissions: '*' },
   {
+    // Full trust (owner decision 2026-07-12): admins manage everything,
+    // including RBAC + integrations, same surface as super_admin.
     key: 'admin',
     name: 'Admin',
-    permissions: PERMISSION_KEYS.filter(
-      (p) => p !== 'rbac.manage' && p !== 'settings.manage',
-    ),
+    permissions: '*',
   },
   {
     key: 'pharmacist',

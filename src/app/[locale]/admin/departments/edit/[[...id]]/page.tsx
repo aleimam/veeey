@@ -1,7 +1,7 @@
 import { setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { getDepartment } from '@/lib/department-service';
-import { PERMISSION_CATALOG } from '@/lib/permissions';
+import { PERMISSION_CATALOG, PERMISSION_CATALOG_AR, PERMISSION_GROUPS } from '@/lib/permissions';
 import { DepartmentForm } from '@/components/admin/department-form';
 import { pick } from '@/lib/admin-i18n';
 import { requirePermission } from '@/lib/auth-guards';
@@ -15,7 +15,10 @@ export default async function DepartmentEditPage({ params }: { params: Promise<{
   const tb = pick(locale);
   const did = id?.[0];
   const dept = did ? await getDepartment(did) : null;
-  const permissions = Object.entries(PERMISSION_CATALOG).map(([key, description]) => ({ key, description }));
+  const groups = PERMISSION_GROUPS.map((g) => ({
+    title: tb(g.title[0], g.title[1]),
+    perms: g.keys.map((key) => ({ key, description: locale === 'ar' ? PERMISSION_CATALOG_AR[key] : PERMISSION_CATALOG[key] })),
+  }));
 
   return (
     <div className="p-6">
@@ -24,7 +27,7 @@ export default async function DepartmentEditPage({ params }: { params: Promise<{
       <DepartmentForm
         id={did}
         locale={locale}
-        permissions={permissions}
+        groups={groups}
         defaults={dept ? {
           key: dept.key, nameEn: dept.nameEn, nameAr: dept.nameAr, description: dept.description,
           permissionKeys: dept.permissions.map((p) => p.key),
