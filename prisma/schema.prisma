@@ -440,6 +440,7 @@ model Customer {
   referralReceived  Referral?               @relation("ReferralInvitee")
   couponRedemptions CouponRedemption[]
   analyticsSessions AnalyticsSession[]
+  refillPlans       RefillPlan[]
   specialOrders     SpecialOrder[]
   analyticsEvents   AnalyticsEvent[]
   playEntries       PlayEntry[]
@@ -886,6 +887,7 @@ model Product {
   collections      Collection[]            @relation("ProductCollections")
   purchaseRequests PurchaseRequest[]
   reorderIgnore    ReorderIgnore?
+  refillPlans      RefillPlan[]
 
   @@index([brandId])
   @@index([status])
@@ -1982,6 +1984,46 @@ model SearchSynonym {
   synonyms   String[] // extra terms to also match
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+}
+
+/// Veeey Refill (epic #119, owner-approved 2026-07-13): COD autoship. A plan
+/// auto-places an order every `frequencyDays` (worker cron), after an SMS
+/// advance notice. Out-of-stock cycles are skipped (owner choice). The
+/// `manageToken` powers the login-free SMS manage link.
+model RefillPlan {
+  id            String    @id @default(cuid())
+  customerId    String
+  customer      Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  productId     String
+  product       Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  qty           Int       @default(1)
+  frequencyDays Int       @default(30)
+  status        String    @default("ACTIVE") // ACTIVE | PAUSED | CANCELLED
+  nextRunAt     DateTime
+  noticedRunAt  DateTime? // the nextRunAt an advance-notice SMS was sent for
+  skipNext      Boolean   @default(false)
+  manageToken   String    @unique
+  addressJson   Json // { name, phone, governorate, city, area, street } snapshot
+  addressId     String?
+  lastOrderId   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  runs          RefillRun[]
+
+  @@index([customerId])
+  @@index([status, nextRunAt])
+}
+
+model RefillRun {
+  id      String     @id @default(cuid())
+  planId  String
+  plan    RefillPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  at      DateTime   @default(now())
+  outcome String // ORDERED | SKIPPED_CUSTOMER | SKIPPED_OOS | ERROR
+  orderId String?
+  note    String?
+
+  @@index([planId])
 }
 
 /// Variant family (size/count/flavor…): links sibling Products into one PDP
