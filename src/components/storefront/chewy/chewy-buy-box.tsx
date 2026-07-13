@@ -36,6 +36,7 @@ export function ChewyBuyBox({
   slug = '',
   refillFrequencies = [30, 45, 60, 90],
   refillPercent = 15,
+  selectEnabled = true,
 }: {
   brand?: string;
   name: string;
@@ -61,6 +62,8 @@ export function ChewyBuyBox({
   refillFrequencies?: number[];
   /** Refill discount percent (refill.discountPercent setting). */
   refillPercent?: number;
+  /** Veeey Select feature flag — hides the members-pricing upsell when off. */
+  selectEnabled?: boolean;
 }) {
   const t = pick(locale);
   const track = useTrack();
@@ -76,7 +79,11 @@ export function ChewyBuyBox({
   const outOfStock = soldOut && !preorderEnabled;
   const unit = lot ? lot.pricePiastres : basePricePiastres;
   const refillUnit = Math.round(unit * (1 - Math.min(90, Math.max(0, refillPercent)) / 100));
-  const display = mode === 'refill' ? refillUnit : unit;
+  // A condition variant (Open-box/Damaged) is a one-off physical unit — a
+  // recurring plan against it makes no sense, so Refill is forced off there.
+  const refillAllowed = refillEnabled && !soldOut && !variant;
+  const activeMode = refillAllowed ? mode : 'once';
+  const display = activeMode === 'refill' ? refillUnit : unit;
   const showWas = lot ? lot.sale || unit < basePricePiastres : false;
   const depositNow = Math.round((unit * qty * depositPercent) / 100);
   const balanceLater = unit * qty - depositNow;
@@ -182,7 +189,7 @@ export function ChewyBuyBox({
         />
       )}
 
-      {refillEnabled && !soldOut && (
+      {refillAllowed && (
       <div className="flex flex-col gap-2.5">
         {(
           [
@@ -232,7 +239,7 @@ export function ChewyBuyBox({
       </div>
       )}
 
-      {!soldOut && (
+      {!soldOut && selectEnabled && (
         <div className="flex items-center gap-2.5 rounded-[12px] bg-green-wash px-3.5 py-3">
           <TierBadge tier="select" />
           <span className="text-[13px] font-medium text-green-dark">
@@ -246,14 +253,15 @@ export function ChewyBuyBox({
           {t('Out of stock', 'غير متوفر')}
         </button>
       ) : (
-        <form action={mode === 'refill' && !preorderMode ? startRefillPlanAction : preorderMode ? addPreorderToCartAction : addToCartAction} className="flex items-stretch gap-3">
+        <form action={activeMode === 'refill' && !preorderMode ? startRefillPlanAction : preorderMode ? addPreorderToCartAction : addToCartAction} className="flex items-stretch gap-3">
           <input type="hidden" name="productId" value={productId} />
-          {/* A condition variant is a specific physical unit — pin its exact lot. */}
-          {variant && lot && <input type="hidden" name="lotId" value={lot.id} />}
+          {/* Pin the SELECTED lot — the expiry & price chip is a real choice, so the
+              cart must reserve exactly that lot (audit: FEFO used to override it). */}
+          {lot && <input type="hidden" name="lotId" value={lot.id} />}
           <input type="hidden" name="qty" value={qty} />
           <input type="hidden" name="locale" value={locale} />
-          {mode === 'refill' && <input type="hidden" name="frequency" value={freq} />}
-          {mode === 'refill' && <input type="hidden" name="slug" value={slug} />}
+          {activeMode === 'refill' && <input type="hidden" name="frequency" value={freq} />}
+          {activeMode === 'refill' && <input type="hidden" name="slug" value={slug} />}
           <div className="flex flex-none items-center rounded-full border border-[color:var(--slate-border)] px-1.5">
             <button type="button" onClick={() => setQty(Math.max(1, qty - 1))} aria-label={t('Decrease', 'إنقاص')} className="flex size-9 items-center justify-center text-slate">
               <Icon name="minus" size={16} color="var(--slate)" />
@@ -270,7 +278,7 @@ export function ChewyBuyBox({
           </div>
           <button
             type="submit"
-            onClick={() => { if (!preorderMode) track(mode === 'refill' ? 'refill_subscribe' : 'add_to_cart', { productId, qty }); }}
+            onClick={() => { if (!preorderMode) track(activeMode === 'refill' ? 'refill_subscribe' : 'add_to_cart', { productId, qty }); }}
             className="v-btn v-btn--primary v-btn--lg v-btn--block"
           >
             <span className="v-btn__icon" aria-hidden="true">
@@ -278,7 +286,7 @@ export function ChewyBuyBox({
             </span>
             {preorderMode
               ? t('Pre-order now', 'اطلب مسبقًا الآن')
-              : mode === 'refill'
+              : activeMode === 'refill'
                 ? t('Start Refill plan', 'ابدأ خطة ريفيل')
                 : t('Add to Cart', 'أضف للسلة')}
           </button>

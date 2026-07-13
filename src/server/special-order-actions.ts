@@ -18,6 +18,9 @@ const str = (fd: FormData, k: string) => {
 // ---- Customer (public) -----------------------------------------------------
 export async function createSpecialOrderRequestAction(_p: SpecialOrderFormState, fd: FormData): Promise<SpecialOrderFormState> {
   const locale = localeOf(fd);
+  // Feature gate mirrors the page guard (stale page / direct POST while off).
+  const { isFeatureEnabled } = await import('@/lib/feature-service');
+  if (!(await isFeatureEnabled('specialOrders'))) return { error: 'invalid' };
   // Public + guest-allowed → throttle per IP against automated spam.
   if (!rateLimit(`special-order:${await clientIp()}`, 5, 3_600_000)) return { error: 'invalid' };
   let user = null;

@@ -28,7 +28,13 @@ export default async function ComparePage({ params }: { params: Promise<{ locale
   }
 
   // Union of attribute names across all compared products → aligned rows.
-  const attrNames = Array.from(new Set(products.flatMap((p) => p.attributeValues.map((av) => av.attributeValue.attribute.nameEn))));
+  // Keyed by nameEn (stable), displayed localized.
+  const attrLabel = new Map<string, string>();
+  for (const p of products) for (const av of p.attributeValues) {
+    const a = av.attributeValue.attribute;
+    if (!attrLabel.has(a.nameEn)) attrLabel.set(a.nameEn, (locale === 'ar' ? a.nameAr : a.nameEn) ?? a.nameEn);
+  }
+  const attrNames = Array.from(attrLabel.keys());
 
   return (
     <div className="mx-auto max-w-[1200px] px-4 py-10 sm:px-6 lg:px-8">
@@ -41,9 +47,9 @@ export default async function ComparePage({ params }: { params: Promise<{ locale
               {products.map((p) => (
                 <td key={p.id} className="border border-[color:var(--slate-border)] p-3 align-top">
                   <div className="relative mb-2 aspect-square w-full overflow-hidden rounded-[10px] bg-surface">
-                    <Image src={p.images[0]?.url ?? '/placeholder.svg'} alt={p.nameEn} fill sizes="200px" className="object-contain p-2" />
+                    <Image src={p.images[0]?.url ?? '/placeholder.svg'} alt={(locale === 'ar' ? p.nameAr : p.nameEn) ?? p.nameEn} fill sizes="200px" className="object-contain p-2" />
                   </div>
-                  <Link href={`/products/${p.slugEn}`} className="font-semibold text-ink hover:text-green-dark">{p.nameEn}</Link>
+                  <Link href={`/products/${(locale === 'ar' ? p.slugAr : p.slugEn) ?? p.slugEn}`} className="font-semibold text-ink hover:text-green-dark">{(locale === 'ar' ? p.nameAr : p.nameEn) ?? p.nameEn}</Link>
                   <form action={toggleCompareAction} className="mt-1">
                     <input type="hidden" name="locale" value={locale} />
                     <input type="hidden" name="productId" value={p.id} />
@@ -55,7 +61,7 @@ export default async function ComparePage({ params }: { params: Promise<{ locale
             </tr>
             <tr>
               <td className={headCell}>{t('brand')}</td>
-              {products.map((p) => <td key={p.id} className={cell}>{p.brand?.nameEn ?? '—'}</td>)}
+              {products.map((p) => <td key={p.id} className={cell}>{(locale === 'ar' ? p.brand?.nameAr : p.brand?.nameEn) ?? p.brand?.nameEn ?? '—'}</td>)}
             </tr>
             <tr>
               <td className={headCell}>{t('price')}</td>
@@ -71,10 +77,13 @@ export default async function ComparePage({ params }: { params: Promise<{ locale
             </tr>
             {attrNames.map((name) => (
               <tr key={name}>
-                <td className={headCell}>{name}</td>
+                <td className={headCell}>{attrLabel.get(name) ?? name}</td>
                 {products.map((p) => (
                   <td key={p.id} className={cell}>
-                    {p.attributeValues.filter((av) => av.attributeValue.attribute.nameEn === name).map((av) => av.attributeValue.valueEn).join(', ') || '—'}
+                    {p.attributeValues
+                      .filter((av) => av.attributeValue.attribute.nameEn === name)
+                      .map((av) => (locale === 'ar' ? av.attributeValue.valueAr : av.attributeValue.valueEn) ?? av.attributeValue.valueEn)
+                      .join(', ') || '—'}
                   </td>
                 ))}
               </tr>

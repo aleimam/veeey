@@ -223,19 +223,23 @@ export async function runAttributeAutofill(): Promise<AutofillStatus> {
   for (const attr of attrs) {
     const valueIds = attr.values.map((v) => v.id);
     const valueByName = new Map(attr.values.map((v) => [v.valueEn.toLowerCase(), v.id]));
-    const noPick: string[] = []; // scanned-but-untagged ids, excluded from refetch so the loop terminates
+    // Indexed id-cursor pagination: tagged products drop out via the `none`
+    // filter; AI-skipped ones stay behind the advancing cursor. (An earlier
+    // `notIn: [skipped…]` list grew unbounded on large catalogs.)
+    let cursor = '';
     for (;;) {
       const products = await prisma.product.findMany({
         where: {
           status: { not: 'ARCHIVED' },
-          id: { notIn: noPick },
+          id: { gt: cursor },
           attributeValues: { none: { attributeValueId: { in: valueIds } } },
         },
-        orderBy: { nameEn: 'asc' },
+        orderBy: { id: 'asc' },
         take: BATCH,
         select: { id: true, nameEn: true, brand: { select: { nameEn: true } }, shortDescEn: true },
       });
       if (products.length === 0) break;
+      cursor = products[products.length - 1].id;
       scanned += products.length;
 
       const suggestions = await suggestProductAttributes({
@@ -260,8 +264,7 @@ export async function runAttributeAutofill(): Promise<AutofillStatus> {
           .map((v) => valueByName.get(v.toLowerCase()))
           .filter((id): id is string => !!id);
         if (picked.length === 0) {
-          skipped += 1;
-          noPick.push(p.id);
+          skipped += 1; // stays behind the cursor — not retried this run
         } else {
           for (const id of picked) pairs.push({ productId: p.id, attributeValueId: id });
         }

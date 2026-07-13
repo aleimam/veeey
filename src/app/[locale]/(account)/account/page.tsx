@@ -131,7 +131,7 @@ export default async function AccountPage({ params, searchParams }: { params: Pr
             </div>
           )}
 
-          <form action={signOutAction}><button className="v-btn v-btn--secondary v-btn--block">{t('signOut')}</button></form>
+          <form action={signOutAction}><input type="hidden" name="locale" value={locale} /><button className="v-btn v-btn--secondary v-btn--block">{t('signOut')}</button></form>
         </aside>
 
         {/* main */}

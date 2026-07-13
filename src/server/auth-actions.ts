@@ -117,6 +117,14 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+/** Validate a post-login return path (`?next=`): must be a site-relative path —
+ *  never a protocol/host — so login can't become an open redirect. */
+const safeNext = (v: unknown): string | null => {
+  if (typeof v !== 'string') return null;
+  const p = v.trim();
+  return p.startsWith('/') && !p.startsWith('//') && !p.includes('://') ? p : null;
+};
+
 export async function loginCustomer(
   _prev: AuthFormState,
   formData: FormData,
@@ -144,7 +152,7 @@ export async function loginCustomer(
     await signIn('credentials', {
       identifier: parsed.data.identifier,
       password: parsed.data.password,
-      redirectTo: `/${locale}`,
+      redirectTo: safeNext(formData.get('next')) ?? `/${locale}`,
     });
   } catch (error) {
     if (error instanceof AuthError) return { error: 'credentials' };
@@ -170,7 +178,7 @@ export async function loginWithOtp(_prev: AuthFormState, formData: FormData): Pr
   const code = ((formData.get('code') as string) || '').trim();
   if (!phone || !code) return { error: 'invalid' };
   try {
-    await signIn('otp', { phone, code, redirectTo: `/${locale}` });
+    await signIn('otp', { phone, code, redirectTo: safeNext(formData.get('next')) ?? `/${locale}` });
   } catch (error) {
     if (error instanceof AuthError) return { error: 'credentials' };
     throw error;
@@ -178,6 +186,9 @@ export async function loginWithOtp(_prev: AuthFormState, formData: FormData): Pr
   return {};
 }
 
-export async function signOutAction(): Promise<void> {
-  await signOut({ redirectTo: '/en' });
+export async function signOutAction(fd?: FormData): Promise<void> {
+  // Respect the signer-out's language (was hardcoded '/en' — bounced AR users
+  // to the English homepage).
+  const locale = fd?.get('locale') === 'ar' ? 'ar' : 'en';
+  await signOut({ redirectTo: `/${locale}` });
 }

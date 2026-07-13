@@ -92,7 +92,7 @@ export default async function ConfirmationPage({
           {order.items.map((it) => (
             <li key={it.id} className="flex justify-between py-2 text-sm text-ink">
               <span>
-                {it.product.nameEn} × {it.qty}
+                {(locale === 'ar' ? it.product.nameAr : it.product.nameEn) ?? it.product.nameEn} × {it.qty}
                 {it.lineExpiry ? ` · ${t('exp', { date: it.lineExpiry.toISOString().slice(0, 7) })}` : ''}
                 {isConditionVariant(it.condition) ? ` · ${conditionLabel(it.condition, locale)}` : ''}
                 {it.preorder ? ` · ${locale === 'ar' ? 'طلب مسبق' : 'Pre-order'}` : ''}

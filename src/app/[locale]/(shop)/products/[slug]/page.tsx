@@ -223,7 +223,7 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
           )}
           {/* Short description renders INSIDE the buy box, right under the expiry
               & price selector (owner request 2026-07-13; was below the box). */}
-          <ChewyBuyBox brand={brandName} name={name} rating={ratingAvg} reviews={ff.reviews ? ratingCount : 0} basePricePiastres={basePrice} lots={buyLots} productId={p.id} points={ff.loyalty ? points : 0} locale={locale} refillEnabled={refillEnabled} preorderEnabled={p.preorderEnabled && ff.preorder} depositPercent={depositPercent} servingsPerUnit={p.servingsPerUnit} shortHtml={hasRichContent(shortHtml) ? shortHtml : null} variantPicker={variantSel ? <VariantPicker rows={variantSel.rows} locale={locale} /> : null} slug={slug} refillFrequencies={refillCfg?.frequencies} refillPercent={refillCfg?.discountPercent} />
+          <ChewyBuyBox brand={brandName} name={name} rating={ratingAvg} reviews={ff.reviews ? ratingCount : 0} basePricePiastres={basePrice} lots={buyLots} productId={p.id} points={ff.loyalty ? points : 0} locale={locale} refillEnabled={refillEnabled} preorderEnabled={p.preorderEnabled && ff.preorder} depositPercent={depositPercent} servingsPerUnit={p.servingsPerUnit} shortHtml={hasRichContent(shortHtml) ? shortHtml : null} variantPicker={variantSel ? <VariantPicker rows={variantSel.rows} locale={locale} /> : null} slug={slug} refillFrequencies={refillCfg?.frequencies} refillPercent={refillCfg?.discountPercent} selectEnabled={ff.select} />
           {(ff.wishlist || ff.compare) && (
             <div className="mt-4 flex gap-5 text-sm">
               {ff.wishlist && (

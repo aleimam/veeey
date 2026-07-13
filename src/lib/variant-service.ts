@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { Prisma as PrismaRt } from '@/generated/prisma/client';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
 import { normalizeAxes, parseVariantValues, buildAxisRows, MAX_AXES, type AxisRow, type VariantSibling, type VariantAxis } from '@/lib/variant-groups';
@@ -144,10 +145,11 @@ export async function saveVariantGroup(input: SaveGroupInput): Promise<{ id: str
     const group = input.id
       ? await tx.variantGroup.update({ where: { id: input.id }, data: { name, axesJson: axes } })
       : await tx.variantGroup.create({ data: { name, axesJson: axes } });
-    // Unlink products no longer in the member list.
+    // Unlink products no longer in the member list (DbNull actually clears the
+    // Json column — `undefined` would silently leave stale values behind).
     await tx.product.updateMany({
       where: { variantGroupId: group.id, id: { notIn: members.map((m) => m.productId) } },
-      data: { variantGroupId: null, variantJson: undefined, variantSort: 0 },
+      data: { variantGroupId: null, variantJson: PrismaRt.DbNull, variantSort: 0 },
     });
     for (const [i, m] of members.entries()) {
       const variantJson: Record<string, { en: string; ar: string }> = {};
@@ -170,7 +172,7 @@ export async function saveVariantGroup(input: SaveGroupInput): Promise<{ id: str
 export async function deleteVariantGroup(id: string): Promise<void> {
   const user = await requirePermission('catalog.write');
   await prisma.$transaction(async (tx) => {
-    await tx.product.updateMany({ where: { variantGroupId: id }, data: { variantGroupId: null, variantJson: undefined, variantSort: 0 } });
+    await tx.product.updateMany({ where: { variantGroupId: id }, data: { variantGroupId: null, variantJson: PrismaRt.DbNull, variantSort: 0 } });
     await tx.variantGroup.delete({ where: { id } });
   });
   await audit({ actorType: 'USER', actorId: user.id, action: 'variant.group.delete', entityType: 'VariantGroup', entityId: id });

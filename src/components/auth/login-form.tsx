@@ -12,7 +12,7 @@ const errBox = 'rounded-[8px] bg-error-wash px-3 py-2 text-sm text-error';
 const tabCls = (active: boolean) =>
   `flex-1 rounded-full px-3 py-2 text-sm font-semibold transition-colors ${active ? 'bg-green-dark text-white' : 'text-slate-70 hover:bg-surface'}`;
 
-export function LoginForm({ locale, social }: { locale: string; social?: React.ReactNode }) {
+export function LoginForm({ locale, social, next }: { locale: string; social?: React.ReactNode; next?: string }) {
   const t = useTranslations('auth');
   const [mode, setMode] = useState<'password' | 'otp'>('password');
 
@@ -25,7 +25,7 @@ export function LoginForm({ locale, social }: { locale: string; social?: React.R
         <button type="button" onClick={() => setMode('otp')} className={tabCls(mode === 'otp')}>{t('login.withOtp')}</button>
       </div>
 
-      {mode === 'password' ? <PasswordLogin locale={locale} /> : <OtpLogin locale={locale} />}
+      {mode === 'password' ? <PasswordLogin locale={locale} next={next} /> : <OtpLogin locale={locale} next={next} />}
 
       {social}
 
@@ -37,13 +37,14 @@ export function LoginForm({ locale, social }: { locale: string; social?: React.R
   );
 }
 
-function PasswordLogin({ locale }: { locale: string }) {
+function PasswordLogin({ locale, next }: { locale: string; next?: string }) {
   const t = useTranslations('auth');
   const [state, action, pending] = useActionState<AuthFormState, FormData>(loginCustomer, {});
   return (
     <form action={action} className="mt-5">
       {state.error && <p role="alert" className={`mb-4 ${errBox}`}>{t(`errors.${state.error}`)}</p>}
       <input type="hidden" name="locale" value={locale} />
+      {next && <input type="hidden" name="next" value={next} />}
       <RecaptchaToken action="login" />
       <label className="block text-sm font-semibold text-ink">
         {t('login.identifier')}
@@ -58,7 +59,7 @@ function PasswordLogin({ locale }: { locale: string }) {
   );
 }
 
-function OtpLogin({ locale }: { locale: string }) {
+function OtpLogin({ locale, next }: { locale: string; next?: string }) {
   const t = useTranslations('auth');
   const [phone, setPhone] = useState('');
   const [req, reqAction, reqPending] = useActionState<AuthFormState, FormData>(requestOtpAction, {});
@@ -84,6 +85,7 @@ function OtpLogin({ locale }: { locale: string }) {
       {sent && (
         <form action={loginAction}>
           <input type="hidden" name="locale" value={locale} />
+          {next && <input type="hidden" name="next" value={next} />}
           <input type="hidden" name="phone" value={phone} />
           {login.error && <p role="alert" className={`mb-3 ${errBox}`}>{t(`errors.${login.error}`)}</p>}
           <label className="block text-sm font-semibold text-ink">

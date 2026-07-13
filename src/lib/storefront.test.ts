@@ -43,7 +43,7 @@ describe('toCardProduct', () => {
   it('marks a product with no stock as pre-order', () => {
     const c = toCardProduct(base, 'en');
     expect(c.expiry).toBe('Pre-order');
-    expect(c.badge).toEqual({ type: 'pre-order', label: 'Pre-order · 25% deposit' });
+    expect(c.badge).toEqual({ type: 'pre-order', label: 'Pre-order · deposit' });
   });
 
   it('uses Arabic slug + name in the ar locale', () => {

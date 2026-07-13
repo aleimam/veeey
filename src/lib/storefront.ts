@@ -15,7 +15,7 @@ export type DbCardProduct = {
   basePricePiastres: bigint;
   ratingAvg: number | null;
   ratingCount: number;
-  brand: { nameEn: string } | null;
+  brand: { nameEn: string; nameAr?: string | null } | null;
   images: { url: string }[];
   lots: { expiryDate: Date | null; saleFlag: boolean; priceOverridePiastres: bigint | null }[];
 };
@@ -47,22 +47,29 @@ export function toCardProduct(p: DbCardProduct, locale: string): CardProduct {
   const pricePiastres = Number(saleLot?.priceOverridePiastres ?? p.basePricePiastres);
   const oldPricePiastres = saleLot ? Number(p.basePricePiastres) : undefined;
 
+  const ar = locale === 'ar';
   return {
     id: p.id,
-    slug: (locale === 'ar' ? p.slugAr : p.slugEn) ?? p.slugEn,
-    brand: p.brand?.nameEn ?? '',
-    name: (locale === 'ar' ? p.nameAr : p.nameEn) ?? p.nameEn,
+    slug: (ar ? p.slugAr : p.slugEn) ?? p.slugEn,
+    brand: (ar ? p.brand?.nameAr : p.brand?.nameEn) ?? p.brand?.nameEn ?? '',
+    name: (ar ? p.nameAr : p.nameEn) ?? p.nameEn,
     image: p.images[0]?.url ?? '/placeholder.svg',
     rating: p.ratingAvg ?? 0,
     reviews: p.ratingCount,
-    expiry: nearest ? (nearest.expiryDate ? `Exp ${monthYear(nearest.expiryDate)}` : 'No expiry') : 'Pre-order',
+    // Localized here — these strings render verbatim on cards (audit: AR pages
+    // showed English expiry/badge labels).
+    expiry: nearest
+      ? nearest.expiryDate
+        ? ar ? `الصلاحية ${monthYear(nearest.expiryDate)}` : `Exp ${monthYear(nearest.expiryDate)}`
+        : ar ? 'بدون صلاحية' : 'No expiry'
+      : ar ? 'طلب مسبق' : 'Pre-order',
     pricePiastres,
     oldPricePiastres,
     points: Math.round(pricePiastres / 100), // default 1 pt / EGP
     badge: saleLot
-      ? { type: 'short-expiry', label: 'Short expiry' }
+      ? { type: 'short-expiry', label: ar ? 'صلاحية قصيرة' : 'Short expiry' }
       : !nearest
-        ? { type: 'pre-order', label: 'Pre-order · 25% deposit' }
+        ? { type: 'pre-order', label: ar ? 'طلب مسبق بعربون' : 'Pre-order · deposit' }
         : undefined,
   };
 }

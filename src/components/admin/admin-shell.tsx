@@ -207,6 +207,7 @@ export function AdminShell({
               </span>
             </Link>
             <form action={signOutAction}>
+              <input type="hidden" name="locale" value={locale} />
               <button className="flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground" aria-label={t('Sign out', 'تسجيل الخروج')}><LogOut size={17} /></button>
             </form>
           </div>

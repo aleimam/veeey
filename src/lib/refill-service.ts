@@ -6,7 +6,7 @@ import { getSetting, getNumberSetting } from '@/lib/settings-service';
 import { getShippingFee } from '@/lib/shipping-service';
 import { deriveSystemMethod } from '@/lib/payment-method-service';
 import { dispatchSms } from '@/lib/notification-dispatch';
-import { allocateOrderLine } from '@/lib/order-service';
+import { allocateOrderLine, type Tx } from '@/lib/order-service';
 import { isFeatureEnabled } from '@/lib/feature-service';
 import { parseFrequencies, advanceNextRun, noticeDue, refillDiscount, parseRefillAddress, type RefillAddress } from '@/lib/refill';
 
@@ -52,8 +52,14 @@ const fmtDate = (d: Date, locale: string) => d.toLocaleDateString(locale === 'ar
 // ---- Order placement ---------------------------------------------------------
 
 /** Place one COD refill order for a plan. Throws Error('OOS') (tx rolled back)
- *  when stock can't cover the quantity — the sweep records a skipped cycle. */
-async function placeRefillOrder(plan: PlanRow, discountPercent: number): Promise<{ orderId: string; number: string; totalPiastres: bigint }> {
+ *  when stock can't cover the quantity — the sweep records a skipped cycle.
+ *  `finalize` runs INSIDE the same transaction so run-log/plan bookkeeping can
+ *  never desync from the order (audit: post-commit failures left phantom orders). */
+async function placeRefillOrder(
+  plan: PlanRow,
+  discountPercent: number,
+  finalize?: (tx: Tx, orderId: string) => Promise<void>,
+): Promise<{ orderId: string; number: string; totalPiastres: bigint }> {
   const addr = parseRefillAddress(plan.addressJson);
   if (!addr) throw new Error('NO_ADDRESS');
   const shipping = await getShippingFee('FAST_FREE');
@@ -79,6 +85,7 @@ async function placeRefillOrder(plan: PlanRow, discountPercent: number): Promise
     const discount = refillDiscount(res.subtotal, discountPercent);
     const total = res.subtotal - discount + shipping;
     await tx.order.update({ where: { id: ord.id }, data: { subtotalPiastres: res.subtotal, discountPiastres: discount, totalPiastres: total } });
+    if (finalize) await finalize(tx, ord.id);
     return { orderId: ord.id, number, totalPiastres: total };
   });
 }
@@ -126,9 +133,11 @@ export async function sweepRefills(now = new Date()): Promise<RefillSweep> {
   const { discountPercent, noticeDays } = await refillSettings();
   let notified = 0, ordered = 0, skipped = 0, errors = 0;
 
-  // Phase A — advance-notice SMS for upcoming runs.
+  // Phase A — advance-notice SMS for upcoming (strictly FUTURE) runs. Already-due
+  // plans are excluded: after worker downtime they'd otherwise get a future-tense
+  // notice for a past date immediately followed by the "ordered" SMS.
   const upcoming = await prisma.refillPlan.findMany({
-    where: { status: 'ACTIVE', nextRunAt: { lte: new Date(now.getTime() + noticeDays * 86_400_000) } },
+    where: { status: 'ACTIVE', nextRunAt: { gt: now, lte: new Date(now.getTime() + noticeDays * 86_400_000) } },
     include: planInclude,
   });
   for (const plan of upcoming) {
@@ -138,31 +147,39 @@ export async function sweepRefills(now = new Date()): Promise<RefillSweep> {
     notified += 1;
   }
 
-  // Phase B — place due orders (or record the skip).
+  // Phase B — place due orders (or record the skip). Each plan's cycle is
+  // CLAIMED first with a compare-and-swap on nextRunAt (mirrors transitionOrder):
+  // a concurrent sweep (pg-boss retry/overlap) or a crash-and-rerun can never
+  // place the same COD order twice — at-most-once per cycle by construction.
   const due = await prisma.refillPlan.findMany({ where: { status: 'ACTIVE', nextRunAt: { lte: now } }, include: planInclude });
   for (const plan of due) {
     const next = advanceNextRun(plan.nextRunAt, plan.frequencyDays, now);
+    const claimed = await prisma.refillPlan.updateMany({
+      where: { id: plan.id, status: 'ACTIVE', nextRunAt: plan.nextRunAt },
+      data: { nextRunAt: next, skipNext: false },
+    });
+    if (claimed.count === 0) continue; // another sweep owns this cycle
     try {
       if (plan.skipNext) {
         await prisma.refillRun.create({ data: { planId: plan.id, outcome: 'SKIPPED_CUSTOMER' } });
-        await prisma.refillPlan.update({ where: { id: plan.id }, data: { skipNext: false, nextRunAt: next } });
         await sendPlanSms(plan, 'skipped_customer', { date: next });
         skipped += 1;
         continue;
       }
-      const res = await placeRefillOrder(plan, discountPercent);
-      await prisma.refillRun.create({ data: { planId: plan.id, outcome: 'ORDERED', orderId: res.orderId } });
-      await prisma.refillPlan.update({ where: { id: plan.id }, data: { nextRunAt: next, lastOrderId: res.orderId } });
+      const res = await placeRefillOrder(plan, discountPercent, async (tx, orderId) => {
+        await tx.refillRun.create({ data: { planId: plan.id, outcome: 'ORDERED', orderId } });
+        await tx.refillPlan.update({ where: { id: plan.id }, data: { lastOrderId: orderId } });
+      });
       await sendPlanSms(plan, 'ordered', { total: res.totalPiastres });
       ordered += 1;
     } catch (e) {
       if (e instanceof Error && e.message === 'OOS') {
         await prisma.refillRun.create({ data: { planId: plan.id, outcome: 'SKIPPED_OOS' } });
-        await prisma.refillPlan.update({ where: { id: plan.id }, data: { nextRunAt: next } });
         await sendPlanSms(plan, 'skipped_oos');
         skipped += 1;
       } else {
-        // Unexpected — log the run, DON'T advance (retried next sweep).
+        // Unexpected — the cycle is consumed (claim already advanced nextRunAt):
+        // a missed delivery beats a duplicate COD order. Staff see it in the runs.
         await prisma.refillRun.create({ data: { planId: plan.id, outcome: 'ERROR', note: e instanceof Error ? e.message.slice(0, 200) : 'unknown' } }).catch(() => {});
         errors += 1;
       }
@@ -184,7 +201,9 @@ export async function createRefillPlan(input: { customerId: string; productId: s
   const [product, customer, address] = await Promise.all([
     prisma.product.findFirst({ where: { id: input.productId, status: 'PUBLISHED' }, select: { id: true } }),
     prisma.customer.findUnique({ where: { id: input.customerId }, select: { firstName: true, lastName: true, user: { select: { name: true, phone: true } } } }),
-    prisma.address.findFirst({ where: { customerId: input.customerId }, orderBy: { id: 'desc' } }),
+    // Default-shipping address first, else the newest — this snapshot routes
+    // EVERY future auto-order, so the pick matters (audit: id-desc was neither).
+    prisma.address.findFirst({ where: { customerId: input.customerId }, orderBy: [{ isDefaultShipping: 'desc' }, { createdAt: 'desc' }] }),
   ]);
   if (!product || !customer) return { error: 'INVALID' };
   if (!address) return { error: 'NO_ADDRESS' };
@@ -202,15 +221,20 @@ export async function createRefillPlan(input: { customerId: string; productId: s
     include: planInclude,
   });
   try {
-    const res = await placeRefillOrder(plan, discountPercent);
+    // Run-log + schedule advance commit INSIDE the order transaction — a failure
+    // anywhere rolls back everything, so the catch below can never orphan a
+    // committed order (audit fix).
     const next = advanceNextRun(plan.nextRunAt, plan.frequencyDays, new Date());
-    await prisma.refillRun.create({ data: { planId: plan.id, outcome: 'ORDERED', orderId: res.orderId } });
-    await prisma.refillPlan.update({ where: { id: plan.id }, data: { nextRunAt: next, lastOrderId: res.orderId } });
+    const res = await placeRefillOrder(plan, discountPercent, async (tx, orderId) => {
+      await tx.refillRun.create({ data: { planId: plan.id, outcome: 'ORDERED', orderId } });
+      await tx.refillPlan.update({ where: { id: plan.id }, data: { nextRunAt: next, lastOrderId: orderId } });
+    });
     await sendPlanSms(plan, 'ordered', { total: res.totalPiastres });
     await audit({ actorType: 'SYSTEM', action: 'refill.plan.create', entityType: 'RefillPlan', entityId: plan.id, data: { productId: input.productId, qty, frequencyDays: input.frequencyDays } });
     return { planId: plan.id, orderNumber: res.number };
   } catch (e) {
-    // First delivery must succeed for a subscription to make sense — undo the plan.
+    // First delivery must succeed for a subscription to make sense — undo the
+    // plan (the order tx above rolled back in full, so nothing is orphaned).
     await prisma.refillPlan.delete({ where: { id: plan.id } }).catch(() => {});
     return { error: e instanceof Error && e.message === 'OOS' ? 'OOS' : 'INVALID' };
   }

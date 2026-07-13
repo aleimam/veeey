@@ -317,7 +317,7 @@ export function getOrderByNumber(number: string) {
   return prisma.order.findUnique({
     where: { number },
     include: {
-      items: { include: { product: { select: { nameEn: true, sku: true } } } },
+      items: { include: { product: { select: { nameEn: true, nameAr: true, sku: true } } } },
       gifts: { include: { gift: { select: { internalName: true } } } },
     },
   });
