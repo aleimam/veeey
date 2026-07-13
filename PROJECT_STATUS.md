@@ -7,13 +7,23 @@
 
 ## Current state
 
-- **Live** at **veeey.com**. Latest deployed commit: **`d544caa`** (2026-07-12; doc-only HEAD `1f206a5`). All
-  **52 Prisma migrations applied** (`search_suite` — pg_trgm + SearchQuery/SearchClick/SearchSynonym); `pm2` `veeey` (web) + `veeey-worker` healthy;
-  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **396 unit tests** · build.
-- **⚠️ Live feature-state to know: Refill is switched OFF on prod** (owner choice, via `/admin/features`):
-  `/refill` 307-redirects home, and every Refill entry point (header nav, footer, home blocks, product-card
-  badge) is hidden **by design** — not a bug. Flip it back anytime at `/admin/features`. The only remaining
-  "Veeey Refill" text is the SEO meta description default (`seo.homeDescEn` — edit in Settings › SEO if desired).
+- **Live** at **veeey.com**. Latest deployed commit: **`cd8f366`** (2026-07-13). All
+  **54 Prisma migrations applied** (latest `product_variants` + `refill_plans`); `pm2` `veeey` (web) + `veeey-worker` healthy;
+  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **408 unit tests** · build.
+- **Refill module is now FULLY BUILT (epic #119, `05b706f`+`cd8f366`) but still switched OFF on prod** —
+  the feature toggle at `/admin/features` is off (owner choice), so `/refill` redirects home and the sweep
+  no-ops. **To launch Refill: (1) `/admin/features` → Refill ON; (2) Settings › Refill → `refill.enabled=true`**
+  (shows the buy-box subscribe option); optionally tune `refill.discountPercent` (15) / `refill.noticeDays` (3) /
+  `refill.frequencies` (30,45,60,90). How it works: customer picks "Subscribe with Refill" + a frequency on the
+  PDP → first COD order places immediately → the worker (daily 07:00 UTC) SMSes an advance notice then
+  auto-places each cycle as COD via FEFO allocation with the Refill discount; out-of-stock cycles are skipped
+  with an SMS; every SMS carries a login-free manage link (`/refill/manage/<token>`); customers also manage
+  plans (frequency/skip/pause/cancel) from their account page; staff oversee at **`/admin/refill`**.
+- **Product variants shipped** (audit P1 §5.4, `e0e2fbd`+`31df542`, migration `product_variants`):
+  sibling products linked into **variant groups** with structured axes (Size / Flavor…) — PDP shows chip
+  selectors linking between siblings (each keeps its SKU/lots/URL), and **reviews + rating aggregate across
+  the family**. Admin: **`/admin/variant-groups`** (name, up to 3 bilingual axes, members with one EN/AR
+  value per axis; row order = chip order). Cart/orders/inventory/WooCommerce sync untouched by design.
 - **Bulk attribute editor** (`5660d9d`, no migration): `/admin/attributes/bulk` (catalog.write) — pick an attribute,
   filter products (category/brand/search/only-missing), multi-select, assign one value to all (SINGLE_SELECT replaces,
   MULTI_SELECT adds); optional **Suggest with AI** proposes a value per product (`ai.ts`, Anthropic, constrained to the
@@ -273,14 +283,16 @@ portable source of truth** — everything below is what the memory contained tha
 
 ### Blocked on the owner (decision / account / credentials)
 - **Payments Stage B** — live OPay + Kashier checkout; needs **sandbox credentials** (Stage A creds UI done).
-- **Variant selector** (size/flavor/count) — catalog is single-SKU; needs owner **OK for a schema change**.
+  (Once cards + tokenization exist, Refill can gain online-payment autoship on top of today's COD engine.)
+- ~~**Variant selector**~~ — **✅ BUILT 2026-07-13** (owner approved the schema change; see Current state).
 - **YeldnIN integration** (epic V) — gated behind `INTEGRATION_ENABLED`; needs
   `INTEGRATION_CONTRACT.md` re-baselined. Also lights up the To-buy page's "Incoming" column +
   real dispatch of reorder requests (currently captured locally only).
 
 ### Deprioritized by owner (do not re-propose unless asked)
-- **Real Autoship/Refill subscriptions** (epic #119) — owner said "ignore refill epic" (2026-07-08);
-  buy-box subscribe-&-save stays visual-only (`refill.enabled` default false).
+- ~~**Real Autoship/Refill subscriptions** (epic #119)~~ — **un-parked by the owner 2026-07-13 and ✅ BUILT
+  the same day** (see the Refill module entry in Current state; activation = feature toggle + `refill.enabled`).
+- (nothing currently parked)
 
 ### Owner in-admin / content actions (not code)
 Populate product **attributes** (goal/form/dietary) so PLP facets fill — **use
