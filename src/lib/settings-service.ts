@@ -29,6 +29,10 @@ export const SETTINGS: SettingDef[] = [
   { key: 'audit.weeklyReport', label: 'Weekly activity report', group: 'Audit log', type: 'text', default: 'on', hint: 'on / off — email staff a weekly summary of admin activity (the change log).' },
   { key: 'audit.reportRecipients', label: 'Report recipients', group: 'Audit log', type: 'text', default: '', hint: 'Comma-separated emails. Empty = every staff user with a role.' },
   { key: 'audit.retentionDays', label: 'Change-log retention (days)', group: 'Audit log', type: 'days', default: '365', hint: '0 = keep forever. Entries older than this are purged daily.' },
+  // Refill (COD autoship)
+  { key: 'refill.discountPercent', label: 'Refill discount (%)', group: 'Refill', type: 'number', default: '15', hint: 'Discount applied to every Refill auto-order subtotal.' },
+  { key: 'refill.noticeDays', label: 'Advance-notice days', group: 'Refill', type: 'days', default: '3', hint: 'SMS the customer this many days before each auto-order (with a skip link).' },
+  { key: 'refill.frequencies', label: 'Frequency presets (days)', group: 'Refill', type: 'text', default: '30,45,60,90', hint: 'Comma-separated delivery intervals customers can pick (7–180 days each).' },
   // Search
   { key: 'search.weeklyDigest', label: 'Weekly search digest', group: 'Search', type: 'text', default: 'off', hint: 'on / off — email staff a weekly summary of top searches, zero-result terms and unstocked demand (needs SMTP).' },
   { key: 'search.digestRecipients', label: 'Search digest recipients', group: 'Search', type: 'text', default: '', hint: 'Comma-separated emails. Empty = every staff user with a role.' },

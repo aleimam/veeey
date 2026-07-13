@@ -8,6 +8,8 @@ import { buyAgainAction } from '@/server/cart-actions';
 import { listReturnReasons } from '@/lib/return-reason-service';
 import { reorderSuggestions } from '@/lib/replenishment-service';
 import { isFeatureEnabled } from '@/lib/feature-service';
+import { listCustomerPlans, refillSettings } from '@/lib/refill-service';
+import { refillPlanOpAction } from '@/server/refill-actions';
 import { ReturnRequestForm } from '@/components/storefront/return-request-form';
 import { ChewyProductCard } from '@/components/storefront/chewy/chewy-product-card';
 import { formatEGP } from '@/lib/format';
@@ -22,9 +24,11 @@ const currentDate = () => new Date();
 
 const card = 'rounded-[16px] border border-[color:var(--green-dark-05)] bg-white p-5 shadow-[var(--shadow-card)]';
 
-export default async function AccountPage({ params }: { params: Promise<{ locale: string }> }) {
+export default async function AccountPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { locale } = await params;
+  const sp = await searchParams;
   setRequestLocale(locale);
+  const refillFlag = Array.isArray(sp.refill) ? sp.refill[0] : sp.refill;
 
   const user = await getCurrentUser();
   if (!user) redirect({ href: '/login', locale });
@@ -41,6 +45,9 @@ export default async function AccountPage({ params }: { params: Promise<{ locale
   const reasonOptions = returnReasons.map((r) => ({ id: r.id, label: locale === 'ar' ? r.labelAr : r.labelEn, requiresDetail: r.requiresDetail }));
 
   const reorders = user.customerId && (await isFeatureEnabled('buyAgain')) ? await reorderSuggestions(user.customerId, locale, currentDate()) : [];
+  const refillOn = user.customerId ? await isFeatureEnabled('refill') : false;
+  const refillPlans = refillOn && user.customerId ? await listCustomerPlans(user.customerId) : [];
+  const refillFreqs = refillPlans.length ? (await refillSettings()).frequencies : [];
   const t = await getTranslations('storefront.account');
   const tb = pick(locale);
 
@@ -139,6 +146,75 @@ export default async function AccountPage({ params }: { params: Promise<{ locale
                 <div className="text-sm text-[color:var(--text-muted)]">{t('points')}</div>
                 <div className="mt-1 text-lg font-bold text-green-dark">{customer.pointsBalance.toLocaleString('en-US')}</div>
                 <div className="text-xs text-[color:var(--text-muted)]">{t('pointsNote')}</div>
+              </div>
+            </div>
+          )}
+
+          {refillOn && (refillPlans.length > 0 || refillFlag) && (
+            <div>
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-[22px] font-bold text-green-dark" style={{ fontFamily: 'var(--font-display)' }}>{tb('My Refill plans', 'خطط ريفيل الخاصة بي')}</h2>
+                <Link href="/refill" className="text-[13.5px] font-bold text-green-dark hover:text-lime-press">{tb('How Refill works', 'كيف يعمل ريفيل')} →</Link>
+              </div>
+              {refillFlag === 'started' && <div className="mb-3 rounded-[12px] bg-green-wash px-4 py-3 text-sm font-medium text-green-dark">{tb('Refill plan started — your first order is on its way (cash on delivery). 🎉', 'بدأت خطة ريفيل — طلبك الأول في الطريق (دفع عند الاستلام). 🎉')}</div>}
+              {refillFlag === 'updated' && <div className="mb-3 rounded-[12px] bg-green-wash px-4 py-3 text-sm font-medium text-green-dark">{tb('Refill plan updated.', 'تم تحديث خطة ريفيل.')}</div>}
+              {refillFlag === 'failed' && <div className="mb-3 rounded-[12px] bg-gold-wash px-4 py-3 text-sm font-medium text-ink">{tb('Could not update the plan — try again.', 'تعذّر تحديث الخطة — حاول مجددًا.')}</div>}
+              {refillPlans.length === 0 && <p className="text-sm text-[color:var(--text-muted)]">{tb('No active plans. Choose "Subscribe with Refill" on any product to start one.', 'لا خطط نشطة. اختر «اشترك مع ريفيل» على أي منتج للبدء.')}</p>}
+              <div className="space-y-3">
+                {refillPlans.map((p) => {
+                  const pname = locale === 'ar' ? p.productNameAr ?? p.productName : p.productName;
+                  const paused = p.status === 'PAUSED';
+                  return (
+                    <div key={p.id} className={card}>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Link href={`/products/${p.slugEn}`} className="font-bold text-ink hover:text-green-dark">{pname}</Link>
+                        <span className="text-[12.5px] text-[color:var(--text-muted)]">×{p.qty}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${paused ? 'bg-gold-wash text-gold-deep' : 'bg-green-wash text-green-dark'}`}>
+                          {paused ? tb('Paused', 'موقوفة') : tb('Active', 'نشطة')}
+                        </span>
+                        {!paused && (
+                          <span className="text-[12.5px] text-[color:var(--text-muted)]">
+                            {tb(`Next: ${p.nextRunAt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`, `التالي: ${p.nextRunAt.toLocaleDateString('ar-EG', { day: 'numeric', month: 'short' })}`)}
+                            {p.skipNext && <span className="ms-1 font-bold text-gold-deep">{tb('(skipping)', '(سيُتخطى)')}</span>}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-[12.5px]">
+                        <form action={refillPlanOpAction} className="flex items-center gap-1.5">
+                          <input type="hidden" name="locale" value={locale} />
+                          <input type="hidden" name="planId" value={p.id} />
+                          <input type="hidden" name="op" value="frequency" />
+                          <select name="frequency" defaultValue={p.frequencyDays} className="rounded-[8px] border border-[color:var(--slate-border)] bg-white px-2 py-1.5 text-[12.5px]">
+                            {(refillFreqs.includes(p.frequencyDays) ? refillFreqs : [p.frequencyDays, ...refillFreqs]).map((d) => (
+                              <option key={d} value={d}>{tb(`Every ${d} days`, `كل ${d} يومًا`)}</option>
+                            ))}
+                          </select>
+                          <button className="rounded-[8px] border border-[color:var(--slate-border)] px-2.5 py-1.5 font-semibold text-slate hover:border-green-dark">{tb('Update', 'تحديث')}</button>
+                        </form>
+                        {!paused && (
+                          <form action={refillPlanOpAction}>
+                            <input type="hidden" name="locale" value={locale} />
+                            <input type="hidden" name="planId" value={p.id} />
+                            <input type="hidden" name="op" value={p.skipNext ? 'unskip' : 'skip'} />
+                            <button className="rounded-[8px] border border-[color:var(--slate-border)] px-2.5 py-1.5 font-semibold text-slate hover:border-green-dark">{p.skipNext ? tb('Undo skip', 'إلغاء التخطي') : tb('Skip next', 'تخطَّ القادم')}</button>
+                          </form>
+                        )}
+                        <form action={refillPlanOpAction}>
+                          <input type="hidden" name="locale" value={locale} />
+                          <input type="hidden" name="planId" value={p.id} />
+                          <input type="hidden" name="op" value={paused ? 'resume' : 'pause'} />
+                          <button className="rounded-[8px] border border-[color:var(--slate-border)] px-2.5 py-1.5 font-semibold text-slate hover:border-green-dark">{paused ? tb('Resume', 'استئناف') : tb('Pause', 'إيقاف مؤقت')}</button>
+                        </form>
+                        <form action={refillPlanOpAction}>
+                          <input type="hidden" name="locale" value={locale} />
+                          <input type="hidden" name="planId" value={p.id} />
+                          <input type="hidden" name="op" value="cancel" />
+                          <button className="rounded-[8px] border border-[color:var(--slate-border)] px-2.5 py-1.5 font-semibold text-[color:var(--error,#b3261e)] hover:border-[color:var(--error,#b3261e)]">{tb('Cancel plan', 'إلغاء الخطة')}</button>
+                        </form>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

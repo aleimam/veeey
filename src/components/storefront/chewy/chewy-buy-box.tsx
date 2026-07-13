@@ -5,6 +5,7 @@ import { pick } from '@/lib/admin-i18n';
 import { formatEGP } from '@/lib/format';
 import { conditionLabel, isConditionVariant } from '@/lib/lot-condition';
 import { addToCartAction, addPreorderToCartAction } from '@/server/cart-actions';
+import { startRefillPlanAction } from '@/server/refill-actions';
 import { useTrack } from '@/components/analytics/analytics-provider';
 import { Icon } from '@/components/storefront/ui/icon';
 import { Rating } from '@/components/storefront/ui/rating';
@@ -32,6 +33,9 @@ export function ChewyBuyBox({
   servingsPerUnit = null,
   shortHtml = null,
   variantPicker = null,
+  slug = '',
+  refillFrequencies = [30, 45, 60, 90],
+  refillPercent = 15,
 }: {
   brand?: string;
   name: string;
@@ -51,12 +55,19 @@ export function ChewyBuyBox({
   shortHtml?: string | null;
   /** Server-rendered variant selector (size/flavor chips) — shown above the expiry picker. */
   variantPicker?: React.ReactNode;
+  /** Product slug (EN or localized) — used by the Refill subscribe redirect. */
+  slug?: string;
+  /** Refill frequency presets (days) from the admin setting. */
+  refillFrequencies?: number[];
+  /** Refill discount percent (refill.discountPercent setting). */
+  refillPercent?: number;
 }) {
   const t = pick(locale);
   const track = useTrack();
   const [selected, setSelected] = useState(0);
   const [mode, setMode] = useState<'once' | 'refill'>('once');
   const [qty, setQty] = useState(1);
+  const [freq, setFreq] = useState(refillFrequencies[0] ?? 30);
   const lot = lots.length ? lots[selected] : null;
   const variant = isConditionVariant(lot?.condition); // Open-box / Damaged / Broken unit
   // No live lots → pre-order (if enabled) or plain out-of-stock.
@@ -64,7 +75,7 @@ export function ChewyBuyBox({
   const preorderMode = soldOut && preorderEnabled;
   const outOfStock = soldOut && !preorderEnabled;
   const unit = lot ? lot.pricePiastres : basePricePiastres;
-  const refillUnit = Math.round(unit * 0.85);
+  const refillUnit = Math.round(unit * (1 - Math.min(90, Math.max(0, refillPercent)) / 100));
   const display = mode === 'refill' ? refillUnit : unit;
   const showWas = lot ? lot.sale || unit < basePricePiastres : false;
   const depositNow = Math.round((unit * qty * depositPercent) / 100);
@@ -176,7 +187,7 @@ export function ChewyBuyBox({
         {(
           [
             { k: 'once', tEn: 'Buy once', tAr: 'شراء لمرة', sEn: 'Single delivery', sAr: 'توصيلة واحدة', price: unit, badge: false },
-            { k: 'refill', tEn: 'Subscribe with Refill', tAr: 'اشترك مع ريفيل', sEn: 'Save 15% · every 30 days · cancel anytime', sAr: 'وفّر ١٥٪ · كل ٣٠ يومًا · ألغِ متى شئت', price: refillUnit, badge: true },
+            { k: 'refill', tEn: 'Subscribe with Refill', tAr: 'اشترك مع ريفيل', sEn: `Save ${refillPercent}% · every ${freq} days · cash on delivery · cancel anytime`, sAr: `وفّر ${refillPercent}٪ · كل ${freq} يومًا · دفع عند الاستلام · ألغِ متى شئت`, price: refillUnit, badge: true },
           ] as const
         ).map((o) => {
           const on = mode === o.k;
@@ -201,6 +212,23 @@ export function ChewyBuyBox({
             </button>
           );
         })}
+        {mode === 'refill' && (
+          <div>
+            <div className="mb-2 text-[13px] font-bold text-slate">{t('Deliver every', 'التوصيل كل')}</div>
+            <div className="flex flex-wrap gap-2">
+              {refillFrequencies.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setFreq(d)}
+                  className={`rounded-full px-3.5 py-2 text-[13px] font-bold ${freq === d ? 'border-[1.5px] border-green-dark bg-green-wash text-green-dark' : 'border border-[color:var(--slate-border)] bg-white text-ink'}`}
+                >
+                  {t(`${d} days`, `${d} يومًا`)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
       )}
 
@@ -218,12 +246,14 @@ export function ChewyBuyBox({
           {t('Out of stock', 'غير متوفر')}
         </button>
       ) : (
-        <form action={preorderMode ? addPreorderToCartAction : addToCartAction} className="flex items-stretch gap-3">
+        <form action={mode === 'refill' && !preorderMode ? startRefillPlanAction : preorderMode ? addPreorderToCartAction : addToCartAction} className="flex items-stretch gap-3">
           <input type="hidden" name="productId" value={productId} />
           {/* A condition variant is a specific physical unit — pin its exact lot. */}
           {variant && lot && <input type="hidden" name="lotId" value={lot.id} />}
           <input type="hidden" name="qty" value={qty} />
           <input type="hidden" name="locale" value={locale} />
+          {mode === 'refill' && <input type="hidden" name="frequency" value={freq} />}
+          {mode === 'refill' && <input type="hidden" name="slug" value={slug} />}
           <div className="flex flex-none items-center rounded-full border border-[color:var(--slate-border)] px-1.5">
             <button type="button" onClick={() => setQty(Math.max(1, qty - 1))} aria-label={t('Decrease', 'إنقاص')} className="flex size-9 items-center justify-center text-slate">
               <Icon name="minus" size={16} color="var(--slate)" />
@@ -240,7 +270,7 @@ export function ChewyBuyBox({
           </div>
           <button
             type="submit"
-            onClick={() => { if (!preorderMode) track('add_to_cart', { productId, qty }); }}
+            onClick={() => { if (!preorderMode) track(mode === 'refill' ? 'refill_subscribe' : 'add_to_cart', { productId, qty }); }}
             className="v-btn v-btn--primary v-btn--lg v-btn--block"
           >
             <span className="v-btn__icon" aria-hidden="true">
@@ -249,7 +279,7 @@ export function ChewyBuyBox({
             {preorderMode
               ? t('Pre-order now', 'اطلب مسبقًا الآن')
               : mode === 'refill'
-                ? t('Add Refill to Cart', 'أضف ريفيل للسلة')
+                ? t('Start Refill plan', 'ابدأ خطة ريفيل')
                 : t('Add to Cart', 'أضف للسلة')}
           </button>
         </form>

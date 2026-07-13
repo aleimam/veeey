@@ -38,6 +38,7 @@ async function main() {
   await boss.createQueue(QUEUES.loyaltyBackfill);
   await boss.createQueue(QUEUES.searchDigest);
   await boss.createQueue(QUEUES.attributeAutofill);
+  await boss.createQueue(QUEUES.refillSweep);
 
   await boss.work(QUEUES.notify, async ([job]) => {
     await notify(job.data as NotifyInput);
@@ -155,6 +156,14 @@ async function main() {
     console.log(`[worker] loyalty backfill: ${r.points} pts across ${r.orders} orders / ${r.customers} customers`);
   });
 
+  // Veeey Refill autoship sweep: advance-notice SMS + place due COD orders.
+  // No-ops while the Refill feature toggle is OFF.
+  await boss.work(QUEUES.refillSweep, async () => {
+    const { sweepRefills } = await import('@/lib/refill-service');
+    const r = await sweepRefills();
+    console.log(`[worker] refill sweep: ${r.skippedReason ?? `${r.notified} notified, ${r.ordered} ordered, ${r.skipped} skipped, ${r.errors} error(s)`}`);
+  });
+
   // One-click AI auto-fill of all filterable product attributes (only-missing,
   // never overwrites) — started from /admin/attributes/bulk.
   await boss.work(QUEUES.attributeAutofill, async () => {
@@ -190,6 +199,8 @@ async function main() {
   await boss.schedule(QUEUES.gscSitemap, '15 5 * * *', {});
   // Weekly search digest Mondays 06:30 UTC (gated by search.weeklyDigest).
   await boss.schedule(QUEUES.searchDigest, '30 6 * * 1', {});
+  // Refill autoship sweep daily 07:00 UTC (≈09:00 Cairo — orders land in the workday).
+  await boss.schedule(QUEUES.refillSweep, '0 7 * * *', {});
   console.log('[worker] started — notify + alerts + woo-sync + audit queues registered, schedules set.');
 }
 

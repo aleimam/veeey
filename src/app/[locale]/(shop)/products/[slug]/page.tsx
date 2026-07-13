@@ -18,6 +18,7 @@ import { frequentlyBoughtTogether, recentlyViewed } from '@/lib/personalization-
 import { publishedQuestions } from '@/lib/qa-service';
 import { getFeatureStates } from '@/lib/feature-service';
 import { variantSelectorFor, sharedReviewsFor } from '@/lib/variant-service';
+import { refillSettings } from '@/lib/refill-service';
 import { VariantPicker } from '@/components/storefront/variant-picker';
 import { askQuestionAction } from '@/server/play-actions';
 import { getZones } from '@/lib/page-zone-service';
@@ -83,7 +84,8 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
   const longHtml = sanitizeRichHtml((locale === 'ar' ? p.longDescAr : p.longDescEn) ?? p.longDescEn);
   const shortHtml = sanitizeRichHtml((locale === 'ar' ? p.shortDescAr : p.shortDescEn) ?? p.shortDescEn);
   const ff = await getFeatureStates(); // admin feature switches gate PDP add-ons
-  const refillEnabled = ff.refill && (await getSetting('refill.enabled')) === 'true'; // visual subscribe upsell off until real Refill ships
+  const refillEnabled = ff.refill && (await getSetting('refill.enabled')) === 'true'; // owner enables the subscribe option per store
+  const refillCfg = refillEnabled ? await refillSettings() : null;
   const depositPercent = Number(await getSetting('preorder.depositPercent')) || 25;
   const images = p.images.length ? p.images : [{ id: 'ph', url: '/placeholder.svg', alt: name }];
 
@@ -221,7 +223,7 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
           )}
           {/* Short description renders INSIDE the buy box, right under the expiry
               & price selector (owner request 2026-07-13; was below the box). */}
-          <ChewyBuyBox brand={brandName} name={name} rating={ratingAvg} reviews={ff.reviews ? ratingCount : 0} basePricePiastres={basePrice} lots={buyLots} productId={p.id} points={ff.loyalty ? points : 0} locale={locale} refillEnabled={refillEnabled} preorderEnabled={p.preorderEnabled && ff.preorder} depositPercent={depositPercent} servingsPerUnit={p.servingsPerUnit} shortHtml={hasRichContent(shortHtml) ? shortHtml : null} variantPicker={variantSel ? <VariantPicker rows={variantSel.rows} locale={locale} /> : null} />
+          <ChewyBuyBox brand={brandName} name={name} rating={ratingAvg} reviews={ff.reviews ? ratingCount : 0} basePricePiastres={basePrice} lots={buyLots} productId={p.id} points={ff.loyalty ? points : 0} locale={locale} refillEnabled={refillEnabled} preorderEnabled={p.preorderEnabled && ff.preorder} depositPercent={depositPercent} servingsPerUnit={p.servingsPerUnit} shortHtml={hasRichContent(shortHtml) ? shortHtml : null} variantPicker={variantSel ? <VariantPicker rows={variantSel.rows} locale={locale} /> : null} slug={slug} refillFrequencies={refillCfg?.frequencies} refillPercent={refillCfg?.discountPercent} />
           {(ff.wishlist || ff.compare) && (
             <div className="mt-4 flex gap-5 text-sm">
               {ff.wishlist && (

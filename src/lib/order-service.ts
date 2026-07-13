@@ -125,7 +125,7 @@ export function getOrder(id: string) {
 }
 
 /** Interactive-transaction client of the (extended) prisma singleton. */
-type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+export type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
 async function recomputeTotals(tx: Tx, orderId: string) {
   const items = await tx.orderItem.findMany({ where: { orderId, lost: false } }); // LOST lines excluded from totals/revenue
@@ -452,7 +452,7 @@ type LineAlloc = { subtotal: bigint; shortfall: number; productName: string; pro
  * quantity beyond available stock becomes a PRE-ORDER line (no lot bound, no
  * stock decrement — owner decision: deduct what exists, flag the shortfall).
  */
-async function allocateOrderLine(
+export async function allocateOrderLine(
   tx: Tx,
   orderId: string,
   item: { productId: string; qty: number; lotId?: string | null },
