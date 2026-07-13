@@ -3,7 +3,8 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
-import { requirePermission } from '@/lib/auth-guards';
+import { getCurrentUser } from '@/lib/auth-guards';
+import { hasAnyPermission } from '@/lib/rbac';
 import { piastresToEgp } from '@/lib/format';
 import { saveLot, setLotPrice, setLotStatus } from '@/lib/inventory-service';
 import { mockShipmentReceived, publishIntakeLot } from '@/lib/intake-service';
@@ -21,7 +22,11 @@ export type AdminFormState = { error?: string };
 export type InventoryPickerProduct = { id: string; name: string; sku: string; brand: string | null; thumb: string | null; basePriceEgp: number };
 
 export async function searchInventoryProductsAction(q: string): Promise<InventoryPickerProduct[]> {
-  await requirePermission('inventory.manage');
+  // The picker also serves catalog tools (variant groups) — either permission works.
+  const user = await getCurrentUser();
+  if (!user || !hasAnyPermission(user.permissions, ['inventory.manage', 'catalog.write'])) {
+    throw Object.assign(new Error('FORBIDDEN'), { digest: 'FORBIDDEN' });
+  }
   const term = q.trim();
   if (term.length < 2) return [];
   const or: Prisma.ProductWhereInput[] = [

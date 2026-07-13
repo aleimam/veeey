@@ -17,6 +17,8 @@ import { ChewyProductCard } from '@/components/storefront/chewy/chewy-product-ca
 import { frequentlyBoughtTogether, recentlyViewed } from '@/lib/personalization-service';
 import { publishedQuestions } from '@/lib/qa-service';
 import { getFeatureStates } from '@/lib/feature-service';
+import { variantSelectorFor, sharedReviewsFor } from '@/lib/variant-service';
+import { VariantPicker } from '@/components/storefront/variant-picker';
 import { askQuestionAction } from '@/server/play-actions';
 import { getZones } from '@/lib/page-zone-service';
 import { resolveHomeData, type HomeData } from '@/lib/home-layout-service';
@@ -108,7 +110,15 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
   const [fbt, alsoViewed, qa] = await Promise.all([frequentlyBoughtTogether(p.id, locale), recentlyViewed(locale, p.id), publishedQuestions(p.id)]);
   const related = (fbt.length ? fbt : alsoViewed).slice(0, 5);
 
-  const counts = [5, 4, 3, 2, 1].map((s) => p.reviews.filter((r) => r.rating === s).length);
+  // Variant family (audit P1 §5.4): selector chips + reviews shared across the
+  // whole group (owner choice — a new pack size inherits its siblings' reviews).
+  const variantSel = p.variantGroupId ? await variantSelectorFor(p.id, p.variantGroupId) : null;
+  const shared = variantSel ? await sharedReviewsFor(variantSel.memberIds) : null;
+  const displayReviews = shared ? shared.reviews : p.reviews;
+  const ratingAvg = shared ? shared.ratingAvg : p.ratingAvg ?? 0;
+  const ratingCount = shared ? shared.ratingCount : p.ratingCount;
+
+  const counts = [5, 4, 3, 2, 1].map((s) => displayReviews.filter((r) => r.rating === s).length);
   const totalReviews = counts.reduce((a, b) => a + b, 0);
   const bars = [5, 4, 3, 2, 1].map((s, i) => ({ stars: s, pct: totalReviews ? Math.round((counts[i] / totalReviews) * 100) : 0 }));
 
@@ -125,7 +135,7 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
     sku: p.sku,
     image: p.ogImage || images[0]?.url,
     offers: { '@type': 'Offer', price: piastresToEgp(BigInt(offerPrice)), priceCurrency: 'EGP', availability: buyLots.length ? 'https://schema.org/InStock' : p.preorderEnabled ? 'https://schema.org/PreOrder' : 'https://schema.org/OutOfStock' },
-    ...(p.ratingCount > 0 ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: p.ratingAvg ?? 0, reviewCount: p.ratingCount } } : {}),
+    ...(ratingCount > 0 ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: ratingAvg, reviewCount: ratingCount } } : {}),
     // Admin-edited overrides from the SEO module win over the auto values.
     ...schemaOverrides,
   };
@@ -211,7 +221,7 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
           )}
           {/* Short description renders INSIDE the buy box, right under the expiry
               & price selector (owner request 2026-07-13; was below the box). */}
-          <ChewyBuyBox brand={brandName} name={name} rating={p.ratingAvg ?? 0} reviews={ff.reviews ? p.ratingCount : 0} basePricePiastres={basePrice} lots={buyLots} productId={p.id} points={ff.loyalty ? points : 0} locale={locale} refillEnabled={refillEnabled} preorderEnabled={p.preorderEnabled && ff.preorder} depositPercent={depositPercent} servingsPerUnit={p.servingsPerUnit} shortHtml={hasRichContent(shortHtml) ? shortHtml : null} />
+          <ChewyBuyBox brand={brandName} name={name} rating={ratingAvg} reviews={ff.reviews ? ratingCount : 0} basePricePiastres={basePrice} lots={buyLots} productId={p.id} points={ff.loyalty ? points : 0} locale={locale} refillEnabled={refillEnabled} preorderEnabled={p.preorderEnabled && ff.preorder} depositPercent={depositPercent} servingsPerUnit={p.servingsPerUnit} shortHtml={hasRichContent(shortHtml) ? shortHtml : null} variantPicker={variantSel ? <VariantPicker rows={variantSel.rows} locale={locale} /> : null} />
           {(ff.wishlist || ff.compare) && (
             <div className="mt-4 flex gap-5 text-sm">
               {ff.wishlist && (
@@ -288,10 +298,10 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
             <div className="mb-6 grid gap-8 sm:grid-cols-[260px_1fr]">
               <div>
                 <div className="flex items-baseline gap-2.5">
-                  <span className="text-5xl font-bold text-green-dark" style={{ fontFamily: 'var(--font-display)' }}>{(p.ratingAvg ?? 0).toFixed(1)}</span>
+                  <span className="text-5xl font-bold text-green-dark" style={{ fontFamily: 'var(--font-display)' }}>{ratingAvg.toFixed(1)}</span>
                   <div>
-                    <Rating value={p.ratingAvg ?? 0} />
-                    <div className="mt-0.5 text-[13px] text-[color:var(--text-muted)]">{t('reviewsCount', { count: p.ratingCount })}</div>
+                    <Rating value={ratingAvg} />
+                    <div className="mt-0.5 text-[13px] text-[color:var(--text-muted)]">{t('reviewsCount', { count: ratingCount })}</div>
                   </div>
                 </div>
                 <div className="mt-4 flex flex-col gap-1.5">
@@ -305,7 +315,7 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
                 </div>
               </div>
               <ul className="flex flex-col gap-4">
-                {p.reviews.slice(0, 6).map((r) => (
+                {displayReviews.slice(0, 6).map((r) => (
                   <li key={r.id} className="border-b border-[color:var(--slate-border)] pb-4">
                     <div className="flex items-center gap-2.5">
                       <span className="flex size-9 items-center justify-center rounded-full bg-green-wash text-[15px] font-bold text-green-dark">{(r.authorName ?? 'V').slice(0, 1).toUpperCase()}</span>

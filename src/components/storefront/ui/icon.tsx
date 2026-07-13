@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import {
+  Layers,
   Menu,
   X,
   ChevronDown,
@@ -66,6 +67,7 @@ import {
  * design-system's stated icon substitute for the (future) custom leaf-pill set.
  */
 const MAP: Record<string, LucideIcon> = {
+  layers: Layers,
   menu: Menu,
   x: X,
   'chevron-down': ChevronDown,

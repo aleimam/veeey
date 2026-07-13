@@ -45,6 +45,7 @@
       "tags": "Tags",
       "attributes": "Attributes",
       "attributesBulk": "Bulk attributes",
+      "variantGroups": "Variant groups",
       "customers": "Customers",
       "abandonedCarts": "Abandoned carts",
       "tiers": "Tiers",

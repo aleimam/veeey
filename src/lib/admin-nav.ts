@@ -33,6 +33,7 @@ export const NAV_SECTIONS: AdminNavSection[] = [
     { href: '/admin/tags', key: 'tags', permission: 'catalog.write' },
     { href: '/admin/attributes', key: 'attributes', permission: 'catalog.write' },
     { href: '/admin/attributes/bulk', key: 'attributesBulk', permission: 'catalog.write' },
+    { href: '/admin/variant-groups', key: 'variantGroups', permission: 'catalog.write' },
     { href: '/admin/collections', key: 'collections', permission: 'content.manage' },
   ] },
   { title: ['Inventory', 'المخزون'], items: [

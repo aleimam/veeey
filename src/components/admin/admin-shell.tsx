@@ -12,7 +12,7 @@ import {
   FolderTree, Tags, SlidersHorizontal, LayoutGrid, Boxes, ClipboardCheck, Truck, Users,
   Crown, Ticket, Star, Home, FileText, Newspaper, Share2, HelpCircle, Bell, UserCog,
   ShieldCheck, Settings, Plug, Palette, Webhook, Menu, X, Search, PanelLeftClose,
-  PanelLeftOpen, Sun, Moon, LogOut, ExternalLink, ChevronRight, KeyRound, Cable, DatabaseZap, RefreshCw, Trash2, CreditCard, ListChecks, Rocket, LayoutTemplate, History, Bot, Inbox, LineChart, MessageCircleQuestion, Gauge, ClipboardList, CalendarClock, SearchCheck, ShoppingBag, Stamp, Droplets, TrendingUp, TriangleAlert, Shuffle, PackageSearch, ToggleRight, Wand2,
+  PanelLeftOpen, Sun, Moon, LogOut, ExternalLink, ChevronRight, KeyRound, Cable, DatabaseZap, RefreshCw, Trash2, CreditCard, ListChecks, Rocket, LayoutTemplate, History, Bot, Inbox, LineChart, MessageCircleQuestion, Gauge, ClipboardList, CalendarClock, SearchCheck, ShoppingBag, Stamp, Droplets, TrendingUp, TriangleAlert, Shuffle, PackageSearch, ToggleRight, Wand2, Layers,
 } from 'lucide-react';
 
 export type NavItem = { href: string; label: string; icon: string };
@@ -21,7 +21,7 @@ export type NavSection = { title: string; items: NavItem[] };
 export const ICONS: Record<string, LucideIcon> = {
   dashboard: LayoutDashboard, analytics: BarChart3, salesAnalytics: TrendingUp, searchAnalytics: Search, searchSynonyms: Shuffle, searchDemand: PackageSearch, orders: ShoppingCart, returns: RotateCcw,
   specialOrders: Globe, gifts: Gift, products: Package, brands: Award, categories: FolderTree,
-  tags: Tags, attributes: SlidersHorizontal, attributesBulk: Wand2, collections: LayoutGrid, inventory: Boxes,
+  tags: Tags, attributes: SlidersHorizontal, attributesBulk: Wand2, variantGroups: Layers, collections: LayoutGrid, inventory: Boxes,
   reorderRequests: ClipboardList, expiryFight: CalendarClock, searchRules: SearchCheck, abandonedCarts: ShoppingBag,
   stocktake: ClipboardCheck, shipping: Truck, customers: Users, tiers: Crown, coupons: Ticket,
   reviews: Star, questions: MessageCircleQuestion, homepage: Home, navigation: Menu, landing: LayoutTemplate, pageSections: LayoutGrid, cmsPages: FileText, blog: Newspaper, social: Share2,

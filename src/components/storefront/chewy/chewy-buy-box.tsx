@@ -31,6 +31,7 @@ export function ChewyBuyBox({
   depositPercent = 25,
   servingsPerUnit = null,
   shortHtml = null,
+  variantPicker = null,
 }: {
   brand?: string;
   name: string;
@@ -48,6 +49,8 @@ export function ChewyBuyBox({
   servingsPerUnit?: number | null;
   /** Sanitized short-description HTML, shown under the expiry & price selector. */
   shortHtml?: string | null;
+  /** Server-rendered variant selector (size/flavor chips) — shown above the expiry picker. */
+  variantPicker?: React.ReactNode;
 }) {
   const t = pick(locale);
   const track = useTrack();
@@ -93,6 +96,8 @@ export function ChewyBuyBox({
           </div>
         )}
       </div>
+
+      {variantPicker}
 
       {preorderMode && (
         <div className="rounded-[12px] border border-[color:var(--gold)] bg-gold-wash p-4">
