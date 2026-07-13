@@ -2,14 +2,18 @@
 
 > Living status/handoff doc. **Repo-committed so it travels with the code** (unlike per-user
 > assistant memory). Update it when features ship or the backlog changes.
-> **Last updated: 2026-07-12.** Authoritative product docs: `VEEEY_PRD.md`, `VEEEY_SPEC.md`,
+> **Last updated: 2026-07-13.** Authoritative product docs: `VEEEY_PRD.md`, `VEEEY_SPEC.md`,
 > `BUILD_PLAN.md`, `AGENTS.md` (build rules — read first), `DEPLOYMENT.md`, `SECURITY.md`, `README.md`.
 
 ## Current state
 
-- **Live** at **veeey.com**. Latest deployed commit: **`5660d9d`** (2026-07-12). All
+- **Live** at **veeey.com**. Latest deployed commit: **`d544caa`** (2026-07-12; doc-only HEAD `1f206a5`). All
   **52 Prisma migrations applied** (`search_suite` — pg_trgm + SearchQuery/SearchClick/SearchSynonym); `pm2` `veeey` (web) + `veeey-worker` healthy;
-  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **391 unit tests** · build.
+  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **396 unit tests** · build.
+- **⚠️ Live feature-state to know: Refill is switched OFF on prod** (owner choice, via `/admin/features`):
+  `/refill` 307-redirects home, and every Refill entry point (header nav, footer, home blocks, product-card
+  badge) is hidden **by design** — not a bug. Flip it back anytime at `/admin/features`. The only remaining
+  "Veeey Refill" text is the SEO meta description default (`seo.homeDescEn` — edit in Settings › SEO if desired).
 - **Bulk attribute editor** (`5660d9d`, no migration): `/admin/attributes/bulk` (catalog.write) — pick an attribute,
   filter products (category/brand/search/only-missing), multi-select, assign one value to all (SINGLE_SELECT replaces,
   MULTI_SELECT adds); optional **Suggest with AI** proposes a value per product (`ai.ts`, Anthropic, constrained to the
@@ -52,9 +56,11 @@
   `/admin/analytics/sales`** (`b9a7f54`): period presets (MTD default) + auto compare-to-previous;
   Orders/AOV/Revenue for This-vs-Previous, New-vs-Repeat customers, Big-vs-Normal orders
   (`analytics.bigOrderEgp`); order-value + customer-lifetime distribution histograms; interactive
-  responsive hover bar charts (`sales-analytics-core` pure + tested). **Still TODO (owner's search
-  analytics + fuzzy request — "Part C"): log search refinements/clicks/conversion, fuzzy pg_trgm,
-  deep search dashboard (top/poor-result/purchase-driving terms).**
+  responsive hover bar charts (`sales-analytics-core` pure + tested). (The "Part C" search suite
+  that was TODO here **shipped** — see the search analytics bullet above.)
+- **PDP short description moved** (`61ef860`, 2026-07-13): the key-selling-points block now renders
+  INSIDE the buy box directly under the "Choose your expiry & price" selector (was below Add to Cart) —
+  owner screenshot request. New optional `shortHtml` prop on `ChewyBuyBox`; sanitized server-side as before.
 - **V4 + V5 docs fully delivered** (segment filters `fc72d4f`; thresholds `customers.highValueEgp`/`lapsedDays`).
   **Loyalty points are now staff-manageable** (`ea8df48`): customer profile has add/deduct (signed ADJUST,
   never below 0) + ledger + per-customer "credit past orders"; `/admin/tiers` has a global retroactive
@@ -239,11 +245,18 @@ portable source of truth** — everything below is what the memory contained tha
 - **Optionally run the spam scan**: `/admin/customers` → "Scan for suspicious" → review the
   Flagged filter → bulk Block or Delete (no-orders-only safeguard applies).
 - **Configure SMTP** (`/admin/providers` or Settings) → activates abandoned-cart + review-request
-  emails (built, enabled, currently log-only) + order emails + email OTP verification.
+  emails (built, enabled, currently log-only) + order emails + email OTP verification + the weekly
+  **search digest** (Setting `search.weeklyDigest`) and weekly audit report.
 - **reCAPTCHA (optional)**: set `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` + `RECAPTCHA_SECRET_KEY` env vars
   on the server to activate the now-wired v3 check on login/register.
-- **Add an AI provider key** (`/admin/providers`) → unblocks the brands **AR-translate job**
-  (~697 brands missing Arabic; button on `/admin/brands`).
+- **Add an AI provider key** (`/admin/providers` → AI section) → unblocks the brands **AR-translate
+  job** (~697 brands missing Arabic; button on `/admin/brands`) AND the **attribute AI-suggest +
+  one-click auto-fill** on `/admin/attributes/bulk` (+ quiz drafting, review summaries).
+  Get the key at **console.anthropic.com** → add billing (pay-as-you-go) → API Keys → Create Key
+  (`sk-ant-…`, shown once) → paste + "Check connection" on the Providers page. Treat it like a password.
+- **Trustpilot** (built 2026-07-12): create a Trustpilot Business account → Integrations → TrustBox →
+  copy the **Business Unit ID** → paste at `/admin/trustpilot`. Widgets (homepage/footer/checkout)
+  render nothing until then.
 - **GA4/GTM ids + Measurement Protocol secret** in `/admin/google` → activates analytics P4/P5.
 - **GeoLite2-City.mmdb** at `GEOIP_DB_PATH` on the server → activates visitor geo.
 - **Google Search Console API** (Task 2, added 2026-07-12): to activate auto-submit + in-admin
@@ -260,7 +273,6 @@ portable source of truth** — everything below is what the memory contained tha
 
 ### Blocked on the owner (decision / account / credentials)
 - **Payments Stage B** — live OPay + Kashier checkout; needs **sandbox credentials** (Stage A creds UI done).
-- **Trustpilot** homepage strip + TrustBox — needs a **Trustpilot account**.
 - **Variant selector** (size/flavor/count) — catalog is single-SKU; needs owner **OK for a schema change**.
 - **YeldnIN integration** (epic V) — gated behind `INTEGRATION_ENABLED`; needs
   `INTEGRATION_CONTRACT.md` re-baselined. Also lights up the To-buy page's "Incoming" column +
@@ -271,7 +283,9 @@ portable source of truth** — everything below is what the memory contained tha
   buy-box subscribe-&-save stays visual-only (`refill.enabled` default false).
 
 ### Owner in-admin / content actions (not code)
-Populate product **attributes** (goal/form/dietary) so PLP facets fill; add **brand
+Populate product **attributes** (goal/form/dietary) so PLP facets fill — **use
+`/admin/attributes/bulk`**: assign-to-selected, per-selection AI-suggest, or the one-click
+**"Start auto-fill"** background job (needs the AI key; fills only missing values); add **brand
 logos/stories**; set **`store.phone`**; add photos to the 3 real private products missing images
 (Ipamorelin 10mg, Nordic Naturals Vit D3 Kids, Tesamorelin 10mg); set **gift stock counts**;
 toggle **`preorderEnabled`** per product; run the **category restructure Apply**
