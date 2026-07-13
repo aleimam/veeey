@@ -209,11 +209,9 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
               <span aria-hidden>{originBadge.flag}</span> {tb(originBadge.en, originBadge.ar)}
             </div>
           )}
-          <ChewyBuyBox brand={brandName} name={name} rating={p.ratingAvg ?? 0} reviews={ff.reviews ? p.ratingCount : 0} basePricePiastres={basePrice} lots={buyLots} productId={p.id} points={ff.loyalty ? points : 0} locale={locale} refillEnabled={refillEnabled} preorderEnabled={p.preorderEnabled && ff.preorder} depositPercent={depositPercent} servingsPerUnit={p.servingsPerUnit} />
-          {/* Key selling points belong beside the price, not below the fold (audit 6.5). */}
-          {hasRichContent(shortHtml) && (
-            <div className="veeey-rich mt-5 rounded-[12px] border border-[color:var(--green-dark-05)] bg-white p-4 text-[14.5px] font-medium leading-relaxed text-ink" dangerouslySetInnerHTML={{ __html: shortHtml }} />
-          )}
+          {/* Short description renders INSIDE the buy box, right under the expiry
+              & price selector (owner request 2026-07-13; was below the box). */}
+          <ChewyBuyBox brand={brandName} name={name} rating={p.ratingAvg ?? 0} reviews={ff.reviews ? p.ratingCount : 0} basePricePiastres={basePrice} lots={buyLots} productId={p.id} points={ff.loyalty ? points : 0} locale={locale} refillEnabled={refillEnabled} preorderEnabled={p.preorderEnabled && ff.preorder} depositPercent={depositPercent} servingsPerUnit={p.servingsPerUnit} shortHtml={hasRichContent(shortHtml) ? shortHtml : null} />
           {(ff.wishlist || ff.compare) && (
             <div className="mt-4 flex gap-5 text-sm">
               {ff.wishlist && (

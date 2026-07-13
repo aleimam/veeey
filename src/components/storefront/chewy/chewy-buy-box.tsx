@@ -30,6 +30,7 @@ export function ChewyBuyBox({
   preorderEnabled = false,
   depositPercent = 25,
   servingsPerUnit = null,
+  shortHtml = null,
 }: {
   brand?: string;
   name: string;
@@ -45,6 +46,8 @@ export function ChewyBuyBox({
   depositPercent?: number;
   /** Servings/doses per pack — enables the "≈ EGP X / serving" line. */
   servingsPerUnit?: number | null;
+  /** Sanitized short-description HTML, shown under the expiry & price selector. */
+  shortHtml?: string | null;
 }) {
   const t = pick(locale);
   const track = useTrack();
@@ -153,6 +156,14 @@ export function ChewyBuyBox({
             )}
           </span>
         </div>
+      )}
+
+      {/* Key selling points right under the expiry & price selector (owner request). */}
+      {shortHtml && (
+        <div
+          className="veeey-rich rounded-[12px] border border-[color:var(--green-dark-05)] bg-white p-4 text-[14.5px] font-medium leading-relaxed text-ink"
+          dangerouslySetInnerHTML={{ __html: shortHtml }}
+        />
       )}
 
       {refillEnabled && !soldOut && (
