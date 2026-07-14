@@ -1145,6 +1145,8 @@ model Gift {
   id           String         @id @default(cuid())
   code         String         @unique // Gx-*
   internalName String
+  nameEn       String? // customer-facing name (order confirmation); falls back to internalName
+  nameAr       String?
   stock        Int            @default(0)
   expiry       DateTime?
   costPiastres BigInt?
