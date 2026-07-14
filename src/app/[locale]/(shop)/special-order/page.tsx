@@ -2,6 +2,7 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { requireFeature } from '@/lib/feature-service';
 import { getCurrentUser } from '@/lib/auth-guards';
 import { getNumberSetting } from '@/lib/settings-service';
+import { prisma } from '@/lib/prisma';
 import { SpecialOrderForm } from '@/components/storefront/special-order-form';
 
 type SP = Record<string, string | string[] | undefined>;
@@ -19,6 +20,11 @@ export default async function SpecialOrderPage({ params, searchParams }: { param
     getNumberSetting('specialOrder.defaultLeadDays'),
   ]);
   const submitted = one(sp.submitted) === '1';
+  // A logged-in account may have no phone on file; the action requires one, so
+  // surface the phone field instead of dead-ending on a BAD_PHONE error the
+  // hidden-contact form couldn't fix.
+  const acctPhone = user ? (await prisma.user.findUnique({ where: { id: user.id }, select: { phone: true } }))?.phone : null;
+  const needsPhone = !!user && !acctPhone;
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
@@ -32,7 +38,7 @@ export default async function SpecialOrderPage({ params, searchParams }: { param
           <p className="mt-1 text-sm text-ink">{t('submittedNote')}</p>
         </div>
       ) : (
-        <SpecialOrderForm locale={locale} isLoggedIn={!!user} defaultName={user?.name ?? undefined} defaultEmail={user?.email ?? undefined} />
+        <SpecialOrderForm locale={locale} isLoggedIn={!!user} needsPhone={needsPhone} defaultName={user?.name ?? undefined} defaultEmail={user?.email ?? undefined} />
       )}
     </div>
   );

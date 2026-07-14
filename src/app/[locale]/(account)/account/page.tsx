@@ -167,7 +167,7 @@ export default async function AccountPage({ params, searchParams }: { params: Pr
                   return (
                     <div key={p.id} className={card}>
                       <div className="flex flex-wrap items-center gap-3">
-                        <Link href={`/products/${p.slugEn}`} className="font-bold text-ink hover:text-green-dark">{pname}</Link>
+                        <Link href={`/products/${(locale === 'ar' ? p.slugAr : p.slugEn) ?? p.slugEn}`} className="font-bold text-ink hover:text-green-dark">{pname}</Link>
                         <span className="text-[12.5px] text-[color:var(--text-muted)]">×{p.qty}</span>
                         <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${paused ? 'bg-gold-wash text-gold-deep' : 'bg-green-wash text-green-dark'}`}>
                           {paused ? tb('Paused', 'موقوفة') : tb('Active', 'نشطة')}

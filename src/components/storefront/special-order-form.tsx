@@ -9,7 +9,7 @@ import { PHONE_PATTERN } from '@/lib/phone';
 const field =
   'mt-1.5 w-full rounded-[8px] border border-[color:var(--slate-border)] bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition-colors placeholder:text-slate-45 focus:border-lime focus:bg-white';
 
-export function SpecialOrderForm({ locale, isLoggedIn, defaultName, defaultEmail }: { locale: string; isLoggedIn: boolean; defaultName?: string; defaultEmail?: string }) {
+export function SpecialOrderForm({ locale, isLoggedIn, needsPhone = false, defaultName, defaultEmail }: { locale: string; isLoggedIn: boolean; needsPhone?: boolean; defaultName?: string; defaultEmail?: string }) {
   const t = useTranslations('storefront.specialOrderForm');
   const [state, action] = useActionState<SpecialOrderFormState, FormData>(createSpecialOrderRequestAction, {});
 
@@ -35,7 +35,14 @@ export function SpecialOrderForm({ locale, isLoggedIn, defaultName, defaultEmail
 
       {/* Contact — skipped for logged-in shoppers (taken from the account). */}
       {isLoggedIn ? (
-        <p className="rounded-[8px] bg-green-wash px-3 py-2 text-sm text-green-dark">{t('loggedInContact', { name: defaultName ?? defaultEmail ?? '' })}</p>
+        <>
+          <p className="rounded-[8px] bg-green-wash px-3 py-2 text-sm text-green-dark">{t('loggedInContact', { name: defaultName ?? defaultEmail ?? '' })}</p>
+          {needsPhone && (
+            <label className="block text-sm font-semibold text-ink">{t('phone')}
+              <input name="requesterPhone" required inputMode="tel" pattern={PHONE_PATTERN} title={t('phoneHint')} placeholder="01XXXXXXXXX" className={field} />
+            </label>
+          )}
+        </>
       ) : (
         <>
           <div className="grid gap-4 sm:grid-cols-2">

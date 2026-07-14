@@ -19,6 +19,7 @@ import { publishedQuestions } from '@/lib/qa-service';
 import { getFeatureStates } from '@/lib/feature-service';
 import { variantSelectorFor, sharedReviewsFor } from '@/lib/variant-service';
 import { refillSettings } from '@/lib/refill-service';
+import { effectiveTierPrice } from '@/lib/pricing-service';
 import { VariantPicker } from '@/components/storefront/variant-picker';
 import { askQuestionAction } from '@/server/play-actions';
 import { getZones } from '@/lib/page-zone-service';
@@ -120,9 +121,25 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
   const ratingAvg = shared ? shared.ratingAvg : p.ratingAvg ?? 0;
   const ratingCount = shared ? shared.ratingCount : p.ratingCount;
 
-  const counts = [5, 4, 3, 2, 1].map((s) => displayReviews.filter((r) => r.rating === s).length);
+  // Rating histogram from the FULL approved set (groupBy), not the ≤20 loaded
+  // reviews — the bars used to disagree with the displayed review count.
+  const reviewMemberIds = variantSel ? variantSel.memberIds : [p.id];
+  const dist = await prisma.review.groupBy({
+    by: ['rating'],
+    where: { productId: { in: reviewMemberIds }, status: 'APPROVED' },
+    _count: { _all: true },
+  });
+  const distByStar = new Map(dist.map((d) => [d.rating, d._count._all]));
+  const counts = [5, 4, 3, 2, 1].map((s) => distByStar.get(s) ?? 0);
   const totalReviews = counts.reduce((a, b) => a + b, 0);
   const bars = [5, 4, 3, 2, 1].map((s, i) => ({ stars: s, pct: totalReviews ? Math.round((counts[i] / totalReviews) * 100) : 0 }));
+
+  // Veeey Select teaser: resolve the product's ACTUAL best Select-tier price
+  // (FR-PRC-03 rules) instead of a hard-coded percentage. selectFrac < 1 only
+  // when a Select PRICE rule matches this product; otherwise the hint is hidden.
+  const selectTier = ff.select ? await prisma.tier.findUnique({ where: { key: 'SELECT' }, select: { id: true } }) : null;
+  const selectPrice = selectTier ? await effectiveTierPrice(p.id, selectTier.id) : null;
+  const selectFrac = selectPrice != null && basePrice > 0 ? Number(selectPrice) / basePrice : 1;
 
   const offerPrice = buyLots[0]?.pricePiastres ?? basePrice;
   const schemaOverrides =
@@ -201,11 +218,11 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
 
       <div className="mb-5 flex flex-wrap items-center gap-2 text-[13px] text-[color:var(--text-muted)]">
         <Link href="/">{tb('Home', 'الرئيسية')}</Link>
-        <Icon name="chevron-right" size={14} color="var(--slate-45)" />
+        <Icon name={locale === 'ar' ? 'chevron-left' : 'chevron-right'} size={14} color="var(--slate-45)" />
         <Link href="/products">{tb('Shop', 'المتجر')}</Link>
         {brandName && (
           <>
-            <Icon name="chevron-right" size={14} color="var(--slate-45)" />
+            <Icon name={locale === 'ar' ? 'chevron-left' : 'chevron-right'} size={14} color="var(--slate-45)" />
             <span className="font-semibold text-slate">{brandName}</span>
           </>
         )}
@@ -223,7 +240,7 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
           )}
           {/* Short description renders INSIDE the buy box, right under the expiry
               & price selector (owner request 2026-07-13; was below the box). */}
-          <ChewyBuyBox brand={brandName} name={name} rating={ratingAvg} reviews={ff.reviews ? ratingCount : 0} basePricePiastres={basePrice} lots={buyLots} productId={p.id} points={ff.loyalty ? points : 0} locale={locale} refillEnabled={refillEnabled} preorderEnabled={p.preorderEnabled && ff.preorder} depositPercent={depositPercent} servingsPerUnit={p.servingsPerUnit} shortHtml={hasRichContent(shortHtml) ? shortHtml : null} variantPicker={variantSel ? <VariantPicker rows={variantSel.rows} locale={locale} /> : null} slug={slug} refillFrequencies={refillCfg?.frequencies} refillPercent={refillCfg?.discountPercent} selectEnabled={ff.select} />
+          <ChewyBuyBox brand={brandName} name={name} rating={ratingAvg} reviews={ff.reviews ? ratingCount : 0} basePricePiastres={basePrice} lots={buyLots} productId={p.id} points={ff.loyalty ? points : 0} locale={locale} refillEnabled={refillEnabled} preorderEnabled={p.preorderEnabled && ff.preorder} depositPercent={depositPercent} servingsPerUnit={p.servingsPerUnit} shortHtml={hasRichContent(shortHtml) ? shortHtml : null} variantPicker={variantSel ? <VariantPicker rows={variantSel.rows} locale={locale} /> : null} slug={slug} refillFrequencies={refillCfg?.frequencies} refillPercent={refillCfg?.discountPercent} selectEnabled={ff.select && selectFrac < 1} selectFrac={selectFrac} />
           {(ff.wishlist || ff.compare) && (
             <div className="mt-4 flex gap-5 text-sm">
               {ff.wishlist && (

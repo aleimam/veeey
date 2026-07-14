@@ -88,9 +88,9 @@ export default async function BrandPage({ params }: { params: Promise<{ locale: 
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
       <div className="mb-3.5 flex items-center gap-2 text-[13px] text-[color:var(--text-muted)]">
         <Link href="/">{tb('Home', 'الرئيسية')}</Link>
-        <Icon name="chevron-right" size={14} color="var(--slate-45)" />
+        <Icon name={locale === 'ar' ? 'chevron-left' : 'chevron-right'} size={14} color="var(--slate-45)" />
         <Link href="/brands">{tb('Brands', 'العلامات التجارية')}</Link>
-        <Icon name="chevron-right" size={14} color="var(--slate-45)" />
+        <Icon name={locale === 'ar' ? 'chevron-left' : 'chevron-right'} size={14} color="var(--slate-45)" />
         <span className="font-semibold text-slate">{name}</span>
       </div>
 

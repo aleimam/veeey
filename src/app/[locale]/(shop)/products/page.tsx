@@ -215,7 +215,7 @@ export default async function ProductsPage({
     <div className="mx-auto max-w-[1440px] px-4 pb-12 pt-5 sm:px-6 lg:px-8">
       <div className="mb-3.5 flex items-center gap-2 text-[13px] text-[color:var(--text-muted)]">
         <Link href="/">{tb('Home', 'الرئيسية')}</Link>
-        <Icon name="chevron-right" size={14} color="var(--slate-45)" />
+        <Icon name={locale === 'ar' ? 'chevron-left' : 'chevron-right'} size={14} color="var(--slate-45)" />
         <span className="font-semibold text-slate">{heading}</span>
       </div>
 

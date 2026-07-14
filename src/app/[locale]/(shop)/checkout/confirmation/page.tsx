@@ -102,7 +102,7 @@ export default async function ConfirmationPage({
           ))}
           {order.gifts.map((g) => (
             <li key={g.id} className="flex justify-between text-green-dark">
-              <span>🎁 {locale === 'ar' ? 'هدية مجانية' : 'Free gift'}: {g.gift.internalName}{g.qty > 1 ? ` × ${g.qty}` : ''}</span>
+              <span>🎁 {locale === 'ar' ? 'هدية مجانية' : 'Free gift'}: {(locale === 'ar' ? g.gift.nameAr : g.gift.nameEn) || g.gift.internalName}{g.qty > 1 ? ` × ${g.qty}` : ''}</span>
               <span className="font-semibold">{locale === 'ar' ? 'مجانًا' : 'FREE'}</span>
             </li>
           ))}

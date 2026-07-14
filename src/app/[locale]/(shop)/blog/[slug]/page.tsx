@@ -80,7 +80,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ local
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
       <div className="mb-3.5 flex items-center gap-2 text-[13px] text-[color:var(--text-muted)]">
         <Link href="/">{tb('Home', 'الرئيسية')}</Link>
-        <span aria-hidden>›</span>
+        <span aria-hidden>{ar ? '‹' : '›'}</span>
         <Link href="/blog">{tb('Blog', 'المدوّنة')}</Link>
       </div>
       <div className="mb-3"><AdminEditLink href={`/admin/content/blog/edit/${post.id}`} locale={locale} /></div>

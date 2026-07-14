@@ -17,8 +17,16 @@ export function SearchResultsTracker({ term, children }: { term: string; childre
       const m = a.getAttribute('href')?.match(/\/products\/([^/?#]+)/);
       const slug = m?.[1] ? decodeURIComponent(m[1]) : undefined;
       if (!slug) return;
-      const cards = Array.from(el.querySelectorAll('a[href*="/products/"]'));
-      const position = Math.max(0, cards.indexOf(a));
+      // Rank among UNIQUE product slugs in DOM order — a card has several
+      // /products/ links (image + title), so indexing raw links doubled the
+      // reported position.
+      const seen: string[] = [];
+      for (const link of el.querySelectorAll('a[href*="/products/"]')) {
+        const mm = link.getAttribute('href')?.match(/\/products\/([^/?#]+)/);
+        const s = mm?.[1] ? decodeURIComponent(mm[1]) : null;
+        if (s && !seen.includes(s)) seen.push(s);
+      }
+      const position = Math.max(0, seen.indexOf(slug));
       navigator.sendBeacon?.('/api/search/click', new Blob([JSON.stringify({ term, slug, position, source: 'results' })], { type: 'application/json' }));
     };
     el.addEventListener('click', onClick, true);

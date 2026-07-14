@@ -8,6 +8,8 @@ import { pick, type Pick } from '@/lib/admin-i18n';
 const fields = (tb: Pick): FieldSpec[] => [
   { name: 'code', label: tb('Code (Gx-…)', 'الكود (Gx-…)'), type: 'text', required: true },
   { name: 'internalName', label: tb('Internal name', 'الاسم الداخلي'), type: 'text', required: true },
+  { name: 'nameEn', label: tb('Customer name (EN) — shown on order confirmation', 'اسم العميل (EN) — يظهر في تأكيد الطلب'), type: 'text' },
+  { name: 'nameAr', label: tb('Customer name (AR)', 'اسم العميل (AR)'), type: 'text' },
   { name: 'stock', label: tb('Stock', 'المخزون'), type: 'text' },
   { name: 'expiry', label: tb('Expiry date (YYYY-MM-DD)', 'تاريخ الصلاحية (YYYY-MM-DD)'), type: 'text' },
   { name: 'costEgp', label: tb('Cost (EGP)', 'التكلفة (ج.م)'), type: 'text' },

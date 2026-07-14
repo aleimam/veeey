@@ -83,9 +83,9 @@ export default async function CollectionPage({ params }: { params: Promise<{ loc
     <div className="mx-auto max-w-[1440px] px-4 pb-12 pt-5 sm:px-6 lg:px-8">
       <div className="mb-3.5 flex items-center gap-2 text-[13px] text-[color:var(--text-muted)]">
         <Link href="/">{tb('Home', 'الرئيسية')}</Link>
-        <span>›</span>
+        <span aria-hidden>{ar ? '‹' : '›'}</span>
         <Link href="/collections">{tb('Collections', 'المجموعات')}</Link>
-        <span>›</span>
+        <span aria-hidden>{ar ? '‹' : '›'}</span>
         <span className="font-semibold text-slate">{name}</span>
       </div>
 

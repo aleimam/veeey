@@ -164,7 +164,7 @@ export function CheckoutForm({
             </label>
             {isLoggedIn && pointsBalance > 0 && (
               <label className="block text-sm font-semibold text-ink">{t('redeemPoints')} <span className="font-normal text-[color:var(--text-muted)]">{t('redeemPointsHint', { balance: pointsBalance, rate: pointsPerEgp })}</span>
-                <input name="redeemPoints" type="number" min="0" max={pointsBalance} step="200" defaultValue="0" className={field} />
+                <input name="redeemPoints" type="number" min="0" max={pointsBalance} step={pointsPerEgp} defaultValue="0" className={field} />
               </label>
             )}
           </div>

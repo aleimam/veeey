@@ -244,18 +244,18 @@ export async function createRefillPlan(input: { customerId: string; productId: s
 
 export type PlanView = {
   id: string; status: string; qty: number; frequencyDays: number; nextRunAt: Date; skipNext: boolean;
-  productName: string; productNameAr: string | null; slugEn: string; image: string | null; lastOrderId: string | null;
+  productName: string; productNameAr: string | null; slugEn: string; slugAr: string | null; image: string | null; lastOrderId: string | null;
 };
 
 const viewInclude = {
-  product: { select: { nameEn: true, nameAr: true, slugEn: true, images: { take: 1, orderBy: { sortOrder: 'asc' as const }, select: { url: true } } } },
+  product: { select: { nameEn: true, nameAr: true, slugEn: true, slugAr: true, images: { take: 1, orderBy: { sortOrder: 'asc' as const }, select: { url: true } } } },
 } as const;
 
-type PlanWithView = { id: string; status: string; qty: number; frequencyDays: number; nextRunAt: Date; skipNext: boolean; lastOrderId: string | null; product: { nameEn: string; nameAr: string | null; slugEn: string; images: { url: string }[] } };
+type PlanWithView = { id: string; status: string; qty: number; frequencyDays: number; nextRunAt: Date; skipNext: boolean; lastOrderId: string | null; product: { nameEn: string; nameAr: string | null; slugEn: string; slugAr: string | null; images: { url: string }[] } };
 
 const toView = (p: PlanWithView): PlanView => ({
   id: p.id, status: p.status, qty: p.qty, frequencyDays: p.frequencyDays, nextRunAt: p.nextRunAt, skipNext: p.skipNext,
-  productName: p.product.nameEn, productNameAr: p.product.nameAr, slugEn: p.product.slugEn, image: p.product.images[0]?.url ?? null, lastOrderId: p.lastOrderId,
+  productName: p.product.nameEn, productNameAr: p.product.nameAr, slugEn: p.product.slugEn, slugAr: p.product.slugAr, image: p.product.images[0]?.url ?? null, lastOrderId: p.lastOrderId,
 });
 
 export async function listCustomerPlans(customerId: string): Promise<PlanView[]> {

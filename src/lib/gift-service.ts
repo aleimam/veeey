@@ -18,6 +18,8 @@ export const listGiftMovements = (giftId: string, take = 50) =>
 const giftSchema = z.object({
   code: z.string().trim().min(1),
   internalName: z.string().trim().min(1),
+  nameEn: z.string().trim().optional().nullable(),
+  nameAr: z.string().trim().optional().nullable(),
   stock: z.coerce.number().int().nonnegative().default(0),
   expiry: z.string().optional().nullable(),
   costEgp: z.coerce.number().nonnegative().optional().nullable(),
@@ -30,6 +32,8 @@ export async function saveGift(id: string | null, raw: GiftInput) {
   const data = {
     code: d.code,
     internalName: d.internalName,
+    nameEn: d.nameEn?.trim() || null,
+    nameAr: d.nameAr?.trim() || null,
     stock: d.stock,
     expiry: d.expiry ? new Date(d.expiry) : null,
     costPiastres: d.costEgp != null ? egpToPiastres(d.costEgp) : null,

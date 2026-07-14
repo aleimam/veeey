@@ -37,6 +37,7 @@ export function ChewyBuyBox({
   refillFrequencies = [30, 45, 60, 90],
   refillPercent = 15,
   selectEnabled = true,
+  selectFrac = 1,
 }: {
   brand?: string;
   name: string;
@@ -64,6 +65,9 @@ export function ChewyBuyBox({
   refillPercent?: number;
   /** Veeey Select feature flag — hides the members-pricing upsell when off. */
   selectEnabled?: boolean;
+  /** Effective Select price as a fraction of base (from FR-PRC-03 tier rules).
+   *  1 = no Select discount for this product. */
+  selectFrac?: number;
 }) {
   const t = pick(locale);
   const track = useTrack();
@@ -239,11 +243,11 @@ export function ChewyBuyBox({
       </div>
       )}
 
-      {!soldOut && selectEnabled && (
+      {!soldOut && selectEnabled && selectFrac < 1 && (
         <div className="flex items-center gap-2.5 rounded-[12px] bg-green-wash px-3.5 py-3">
           <TierBadge tier="select" />
           <span className="text-[13px] font-medium text-green-dark">
-            {t(`Select members pay ${formatEGP(Math.round(display * 0.92))} — sign in to unlock.`, `أعضاء سيلكت يدفعون ${formatEGP(Math.round(display * 0.92))} — سجّل الدخول.`)}
+            {t(`Select members pay ${formatEGP(Math.round(display * selectFrac))} — sign in to unlock.`, `أعضاء سيلكت يدفعون ${formatEGP(Math.round(display * selectFrac))} — سجّل الدخول.`)}
           </span>
         </div>
       )}

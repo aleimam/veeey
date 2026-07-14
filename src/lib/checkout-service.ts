@@ -318,7 +318,7 @@ export function getOrderByNumber(number: string) {
     where: { number },
     include: {
       items: { include: { product: { select: { nameEn: true, nameAr: true, sku: true } } } },
-      gifts: { include: { gift: { select: { internalName: true } } } },
+      gifts: { include: { gift: { select: { internalName: true, nameEn: true, nameAr: true } } } },
     },
   });
 }
