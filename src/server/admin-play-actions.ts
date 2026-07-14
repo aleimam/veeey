@@ -35,10 +35,13 @@ export async function generateQuizAction(fd: FormData): Promise<void> {
 export async function toggleQuizPublishedAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
   const id = str(fd, 'id');
-  await requirePermission('content.manage');
+  const user = await requirePermission('content.manage');
   if (id) {
     const q = await prisma.quiz.findUnique({ where: { id } });
-    if (q) await prisma.quiz.update({ where: { id }, data: { published: !q.published } });
+    if (q) {
+      await prisma.quiz.update({ where: { id }, data: { published: !q.published } });
+      await audit({ actorType: 'USER', actorId: user.id, action: 'quiz.publish.toggle', entityType: 'Quiz', entityId: id, data: { published: !q.published } });
+    }
   }
   revalidatePath(`/${locale}/admin/quizzes`);
   redirect(`/${locale}/admin/quizzes`);

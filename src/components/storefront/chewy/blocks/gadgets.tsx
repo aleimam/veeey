@@ -66,7 +66,7 @@ export function ProductRowBlock({ props, locale, items }: { props: Props; locale
         <h2 className="text-[clamp(24px,3vw,30px)] font-bold text-green-dark">{title || t('Featured', 'مميّز')}</h2>
         {action && (
           <Link href={action} className="inline-flex items-center gap-1.5 text-sm font-semibold text-green-dark hover:text-lime-press">
-            {t('View all', 'عرض الكل')} <Icon name="arrow-right" size={16} color="var(--green-dark)" />
+            {t('View all', 'عرض الكل')} <Icon name="arrow-right" size={16} color="var(--green-dark)" className="rtl:rotate-180" />
           </Link>
         )}
       </div>

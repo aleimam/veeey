@@ -34,7 +34,7 @@ export default async function BrandsPage({ params }: { params: Promise<{ locale:
     <div className="mx-auto max-w-[1440px] px-4 py-10 sm:px-6 lg:px-8">
       <div className="mb-3.5 flex items-center gap-2 text-[13px] text-[color:var(--text-muted)]">
         <Link href="/">{tb('Home', 'الرئيسية')}</Link>
-        <Icon name="chevron-right" size={14} color="var(--slate-45)" />
+        <Icon name={ar ? 'chevron-left' : 'chevron-right'} size={14} color="var(--slate-45)" />
         <span className="font-semibold text-slate">{tb('Brands', 'العلامات التجارية')}</span>
       </div>
       <h1 className="text-[clamp(28px,3.4vw,38px)] font-bold text-green-dark">{tb('Our brands', 'علاماتنا التجارية')}</h1>

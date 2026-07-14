@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-guards';
 import { requirePermission } from '@/lib/auth-guards';
+import { audit } from '@/lib/audit';
 import { SEED_TEMPLATES } from '@/lib/notify-templates';
 
 const localeOf = (fd: FormData) => (fd.get('locale') === 'ar' ? 'ar' : 'en');
@@ -27,7 +28,7 @@ export async function saveNotificationPrefsAction(fd: FormData): Promise<void> {
 /** Admin: seed the editable default notification templates into the DB. */
 export async function loadDefaultTemplatesAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
-  await requirePermission('content.manage');
+  const user = await requirePermission('content.manage');
   for (const t of SEED_TEMPLATES) {
     await prisma.notificationTemplate.upsert({
       where: { key_channel_locale: { key: t.key, channel: t.channel, locale: t.locale } },
@@ -35,6 +36,7 @@ export async function loadDefaultTemplatesAction(fd: FormData): Promise<void> {
       create: { key: t.key, channel: t.channel, locale: t.locale, subject: t.subject ?? null, body: t.body },
     });
   }
+  await audit({ actorType: 'USER', actorId: user.id, action: 'notification.templates.loadDefaults', entityType: 'NotificationTemplate', entityId: 'seed', data: { count: SEED_TEMPLATES.length } });
   revalidatePath(`/${locale}/admin/notifications`);
   redirect(`/${locale}/admin/notifications`);
 }

@@ -179,7 +179,7 @@ export async function clearOpayConfigAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
   try { await clearOpayConfig(); } catch (e) { console.error('opay clear failed', e); }
   revalidatePath(`/${locale}/admin/providers`);
-  redirect(`/${locale}/admin/providers?cleared=kashier#kashier`);
+  redirect(`/${locale}/admin/providers?cleared=opay#opay`);
 }
 
 // ---- Payments: Kashier -----------------------------------------------------
@@ -205,7 +205,7 @@ export async function clearKashierConfigAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
   try { await clearKashierConfig(); } catch (e) { console.error('kashier clear failed', e); }
   revalidatePath(`/${locale}/admin/providers`);
-  redirect(`/${locale}/admin/providers?cleared=aramex#aramex`);
+  redirect(`/${locale}/admin/providers?cleared=kashier#kashier`);
 }
 
 // ---- Shipping carrier: Aramex ----------------------------------------------
@@ -233,7 +233,7 @@ export async function clearAramexConfigAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
   try { await clearAramexConfig(); } catch (e) { console.error('aramex clear failed', e); }
   revalidatePath(`/${locale}/admin/providers`);
-  redirect(`/${locale}/admin/providers?cleared=smsa#smsa`);
+  redirect(`/${locale}/admin/providers?cleared=aramex#aramex`);
 }
 
 // ---- Shipping carrier: SMSA ------------------------------------------------

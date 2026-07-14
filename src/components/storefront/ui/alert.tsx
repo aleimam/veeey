@@ -33,12 +33,15 @@ export function Alert({
   title,
   children,
   onClose,
+  dismissLabel = 'Dismiss',
   className = '',
 }: {
   variant?: AlertVariant;
   title?: ReactNode;
   children?: ReactNode;
   onClose?: () => void;
+  /** Accessible label for the dismiss button — pass the Arabic string on RTL pages. */
+  dismissLabel?: string;
   className?: string;
 }) {
   return (
@@ -53,7 +56,7 @@ export function Alert({
         {children && <p className="v-alert__msg">{children}</p>}
       </div>
       {onClose && (
-        <button className="v-alert__close" aria-label="Dismiss" onClick={onClose} type="button">
+        <button className="v-alert__close" aria-label={dismissLabel} onClick={onClose} type="button">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <path d="M18 6 6 18M6 6l12 12" />
           </svg>

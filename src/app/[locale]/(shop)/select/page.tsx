@@ -122,7 +122,7 @@ export default async function SelectPage({ params }: { params: Promise<{ locale:
                 <h3 className="mt-2 text-[23px] font-bold leading-tight text-ink" style={{ fontFamily: 'var(--font-display)' }}>{t(c.h[0], c.h[1])}</h3>
                 <p className="mt-2.5 text-sm leading-relaxed text-[color:var(--text-muted)]">{t(c.s[0], c.s[1])}</p>
                 <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold" style={{ color: c.special ? GOLD : 'var(--green-dark)' }}>
-                  {c.special ? t('Request', 'اطلب') : t('Discover', 'اكتشف')} <Icon name="arrow-right" size={16} color={c.special ? GOLD : 'var(--green-dark)'} />
+                  {c.special ? t('Request', 'اطلب') : t('Discover', 'اكتشف')} <Icon name="arrow-right" size={16} color={c.special ? GOLD : 'var(--green-dark)'} className="rtl:rotate-180" />
                 </span>
               </Link>
             );

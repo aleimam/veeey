@@ -105,7 +105,7 @@ export default async function LearnPage({ params }: { params: Promise<{ locale: 
                 </div>
                 <p className="mt-2 text-[14.5px] leading-relaxed text-[color:var(--text-muted)]">{t(h.s[0], h.s[1])}</p>
                 <span className="mt-3 inline-flex items-center gap-1.5 text-sm font-bold text-green-dark">
-                  {t('Explore', 'استكشف')} <Icon name="arrow-right" size={16} color="var(--green-dark)" />
+                  {t('Explore', 'استكشف')} <Icon name="arrow-right" size={16} color="var(--green-dark)" className="rtl:rotate-180" />
                 </span>
               </div>
             </Link>
@@ -118,7 +118,7 @@ export default async function LearnPage({ params }: { params: Promise<{ locale: 
         <div className="mb-6 flex items-end justify-between">
           <h2 className="text-[clamp(26px,3.2vw,36px)] font-bold text-green-dark" style={{ fontFamily: 'var(--font-display)' }}>{t('Featured guides', 'أدلّة مختارة')}</h2>
           <Link href="/blog" className="inline-flex items-center gap-1.5 text-sm font-bold text-green-dark hover:text-lime-press">
-            {t('All articles', 'كل المقالات')} <Icon name="arrow-right" size={16} color="var(--green-dark)" />
+            {t('All articles', 'كل المقالات')} <Icon name="arrow-right" size={16} color="var(--green-dark)" className="rtl:rotate-180" />
           </Link>
         </div>
         <div className="grid gap-[22px] sm:grid-cols-2 lg:grid-cols-3">

@@ -28,7 +28,7 @@ function SectionHead({ eyebrow, title, actionHref, actionLabel }: { eyebrow?: st
       </div>
       {actionHref && (
         <Link href={actionHref} className="inline-flex items-center gap-1.5 text-sm font-semibold text-green-dark hover:text-lime-press">
-          {actionLabel} <Icon name="arrow-right" size={16} color="var(--green-dark)" />
+          {actionLabel} <Icon name="arrow-right" size={16} color="var(--green-dark)" className="rtl:rotate-180" />
         </Link>
       )}
     </div>
@@ -117,7 +117,7 @@ function DealRail({ t, c, deals, locale }: { t: T; c: C; deals: Product[]; local
               <div className="text-2xl font-bold leading-tight" style={{ fontFamily: 'var(--font-display)' }}>{cx(t, c, 'promoTitle')}</div>
               <p className="mt-2 text-[13.5px] text-white/85">{cx(t, c, 'promoText')}</p>
               <Link href={action} className="mt-3 inline-flex items-center gap-1.5 text-[13.5px] font-bold text-lime">
-                {t('Shop all', 'تسوّق الكل')} <Icon name="arrow-right" size={15} color="var(--lime)" />
+                {t('Shop all', 'تسوّق الكل')} <Icon name="arrow-right" size={15} color="var(--lime)" className="rtl:rotate-180" />
               </Link>
             </div>
           </div>
@@ -292,7 +292,7 @@ function BrandStrip({ t, c }: { t: T; c: C }) {
       </div>
       <div className="mt-5 text-center">
         <Link href="/brands" className="inline-flex items-center gap-1.5 text-sm font-semibold text-green-dark hover:text-lime-press">
-          {t('Explore all brands', 'استكشف كل العلامات')} <Icon name="arrow-right" size={15} color="var(--green-dark)" />
+          {t('Explore all brands', 'استكشف كل العلامات')} <Icon name="arrow-right" size={15} color="var(--green-dark)" className="rtl:rotate-180" />
         </Link>
       </div>
     </section>

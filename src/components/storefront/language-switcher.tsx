@@ -14,7 +14,7 @@ export function LanguageSwitcher({ className }: { className?: string }) {
     active ? 'font-medium text-slate-foreground' : 'text-slate-foreground/70 transition-colors hover:text-lime';
 
   return (
-    <div className={className ?? 'flex items-center gap-2'} aria-label="Language switch">
+    <div className={className ?? 'flex items-center gap-2'} aria-label={locale === 'ar' ? 'تبديل اللغة' : 'Language switch'}>
       <Link href={pathname} locale="en" className={cls(locale === 'en')}>EN</Link>
       <span className="text-slate-foreground/40">|</span>
       <Link href={pathname} locale="ar" lang="ar" className={cls(locale === 'ar')}>العربية</Link>

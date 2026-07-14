@@ -189,7 +189,7 @@ export default async function RefillPage({ params }: { params: Promise<{ locale:
           <div className="mb-5 flex items-end justify-between">
             <h2 className="text-[clamp(24px,3vw,30px)] font-bold text-green-dark" style={{ fontFamily: 'var(--font-display)' }}>{t('Popular on Refill', 'الأكثر رواجًا على ريفيل')}</h2>
             <Link href="/products" className="inline-flex items-center gap-1.5 text-sm font-semibold text-green-dark hover:text-lime-press">
-              {t('View all', 'عرض الكل')} <Icon name="arrow-right" size={16} color="var(--green-dark)" />
+              {t('View all', 'عرض الكل')} <Icon name="arrow-right" size={16} color="var(--green-dark)" className="rtl:rotate-180" />
             </Link>
           </div>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 lg:gap-[18px]">

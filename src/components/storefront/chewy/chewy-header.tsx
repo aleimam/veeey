@@ -250,7 +250,7 @@ function MegaMenu({ item, t, onClose }: { item: NavItem; t: T; onClose: () => vo
               </div>
             </div>
             <span className="mt-4 inline-flex items-center gap-1.5 text-[13px] font-bold text-lime">
-              {t(mega.promo.ctaEn, mega.promo.ctaAr)} <Icon name="arrow-right" size={15} color="var(--lime)" />
+              {t(mega.promo.ctaEn, mega.promo.ctaAr)} <Icon name="arrow-right" size={15} color="var(--lime)" className="rtl:rotate-180" />
             </span>
           </Link>
         )}
@@ -282,12 +282,12 @@ function MobileNav({ nav, t, onClose, logoUrl, siteName }: { nav: NavConfig; t: 
                 {n.icon && <Icon name={n.icon} size={17} color="var(--green-dark)" />}
                 {t(n.labelEn, n.labelAr)}
               </span>
-              <Icon name="chevron-right" size={18} color="var(--slate-45)" />
+              <Icon name="chevron-right" size={18} color="var(--slate-45)" className="rtl:rotate-180" />
             </Link>
           ))}
           <Link href="/account" onClick={onClose} className="flex items-center justify-between py-3.5 text-[16px] font-semibold text-slate">
             {t('My account', 'حسابي')}
-            <Icon name="chevron-right" size={18} color="var(--slate-45)" />
+            <Icon name="chevron-right" size={18} color="var(--slate-45)" className="rtl:rotate-180" />
           </Link>
         </div>
       </div>
