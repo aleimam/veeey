@@ -2,14 +2,25 @@
 
 > Living status/handoff doc. **Repo-committed so it travels with the code** (unlike per-user
 > assistant memory). Update it when features ship or the backlog changes.
-> **Last updated: 2026-07-13.** Authoritative product docs: `VEEEY_PRD.md`, `VEEEY_SPEC.md`,
+> **Last updated: 2026-07-14.** Authoritative product docs: `VEEEY_PRD.md`, `VEEEY_SPEC.md`,
 > `BUILD_PLAN.md`, `AGENTS.md` (build rules — read first), `DEPLOYMENT.md`, `SECURITY.md`, `README.md`.
 
 ## Current state
 
-- **Live** at **veeey.com**. Latest deployed commit: **`cd8f366`** (2026-07-13). All
-  **54 Prisma migrations applied** (latest `product_variants` + `refill_plans`); `pm2` `veeey` (web) + `veeey-worker` healthy;
+- **Live** at **veeey.com**. Latest deployed commit: **`cd1b6f8`** (2026-07-14). All
+  **55 Prisma migrations applied** (latest `gift_customer_name`); `pm2` `veeey` (web) + `veeey-worker` healthy;
   `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **408 unit tests** · build.
+- **Full-system UI/UX + bug review done (3 audit passes, 2026-07-13/14).** `e822e60` (self-audit,
+  committed cross-account): buy-box **lot pinning** so the chosen expiry/price lot is the one charged
+  (FR-INV-02), refill sweep **at-most-once CAS** + atomic finalize + default-shipping address, login
+  `?next=` open-redirect guard + locale-aware sign-out, server-side feature-gates on wishlist/compare/
+  alerts/special-order actions, variant unlink `Prisma.DbNull`, AR string fixes. Then the LOW pass
+  (`3faf136`) + admin/i18n/RTL pass (`cd1b6f8`): RTL breadcrumb & CTA/nav-drawer icon flips, real
+  Select-tier teaser price (no hard-coded 8%), full rating-histogram from groupBy, redeem stepper =
+  configured rate, special-order phone field when the account has none, gift bilingual customer name
+  (`gift_customer_name` migration), search-CTR unique-slug ranking, **provider "clear config" redirect
+  typo** (OPay/Kashier/Aramex pointed at the next provider), two missing `audit()` calls, a11y aria
+  labels. Audit verified admin RBAC/audit coverage, redirect-in-try, storefront RTL classes CLEAN.
 - **Refill module is now FULLY BUILT (epic #119, `05b706f`+`cd8f366`) but still switched OFF on prod** —
   the feature toggle at `/admin/features` is off (owner choice), so `/refill` redirects home and the sweep
   no-ops. **To launch Refill: (1) `/admin/features` → Refill ON; (2) Settings › Refill → `refill.enabled=true`**
