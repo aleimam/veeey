@@ -10,6 +10,13 @@
 - **Live** at **veeey.com**. Latest deployed commit: **`cd1b6f8`** (2026-07-14). All
   **55 Prisma migrations applied** (latest `gift_customer_name`); `pm2` `veeey` (web) + `veeey-worker` healthy;
   `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **408 unit tests** · build.
+- 🔸 **THIS CODEBASE NOW RUNS TWO INDEPENDENT STORES.** Besides veeey.com, a **second, separate
+  store is live at veeey.net** (own DB/customers/orders, **not synced** with veeey.com) — deployed
+  2026-07-15, co-hosted on the CyberPanel/OpenLiteSpeed box that also runs the egyptvitamins.net
+  WordPress copy. **It is wired differently** (app at `/opt/veeey`, pm2 `veeey-net`, OLS proxy,
+  tarball deploys, and it **must run `server.js` not `next start`** — see the Origin bug).
+  **Read `DEPLOYMENT.md` → "Second deployment — veeey.net" before touching it.** Its catalog is
+  still empty; the import plan is `../VEEEY_NET_MIGRATION.md`.
 - **Full-system UI/UX + bug review done (3 audit passes, 2026-07-13/14).** `e822e60` (self-audit,
   committed cross-account): buy-box **lot pinning** so the chosen expiry/price lot is the one charged
   (FR-INV-02), refill sweep **at-most-once CAS** + atomic finalize + default-shipping address, login

@@ -266,3 +266,129 @@ More gotchas (firewall bans, ad-hoc DB queries, health checks): see the
 OS + Node + Postgres updates, PM2/process health, SSL renewal (CWP automates),
 backups (`pg_dump` on a cron), and running the redeploy steps. No usage fees, full
 control, app + DB + worker co-located.
+
+---
+
+# Second deployment — veeey.net (independent store, co-hosted)
+
+> **veeey.net is a SEPARATE, independent Veeey store** running this same codebase: its own
+> Postgres, customers and orders — **NOT synced with veeey.com** (owner's explicit choice over a
+> shared backend). Deployed **2026-07-15**. Both are test sites for now, so it is **co-hosted** on
+> the box that also runs the `egyptvitamins.net` WordPress copy, to save cost. Shared blast
+> radius is accepted while both are test.
+>
+> **Everything below differs from the veeey.com runbook above — read it before touching that box.**
+
+## Box & access
+
+- Host **178.105.234.110** — AlmaLinux 9.8, 4 cores / 8 GB RAM, hostname `YeldnIN`.
+  Runs **CyberPanel + OpenLiteSpeed (OLS) + MariaDB**, serving `egyptvitamins.net` (WordPress)
+  and `veeey.net` side by side.
+- SSH uses a **separate config file**, not the default one:
+  ```bash
+  ssh -F ~/.ssh_ev/config evnew          # this box (root, key ~/.ssh_ev/id_rsa)
+  ssh -F ~/.ssh_ev/config evnet          # 46.62.135.225 — the OTHER Egypt Vitamins box
+  ```
+  The aliases live in `C:\Users\<you>\.ssh_ev\config`. ⚠️ **This is per-Windows-user** — a new
+  account must recreate `~/.ssh_ev/` (config + key) or its own key in the box's
+  `/root/.ssh/authorized_keys`. Plain `ssh evnew` will NOT resolve.
+
+## How it is wired (differs from veeey.com!)
+
+| | veeey.com | **veeey.net** |
+|---|---|---|
+| App path | `/home/veeey/app` | **`/opt/veeey`** |
+| pm2 processes | `veeey`, `veeey-worker` | **`veeey-net`, `veeey-net-worker`** |
+| Web server | nginx | **OpenLiteSpeed reverse proxy** |
+| Start command | `next start` | **`node server.js`** ← see the Origin bug below |
+| Code delivery | `git pull` | **git-archive tarball** (no git remote on the box) |
+| DB | Postgres @ localhost | own **Postgres 13** @ localhost:5432 (DB `veeey`, role `veeey`, `pg_trgm` pre-created) |
+
+- `.env` at **`/opt/veeey/.env`** (chmod 600) — own `AUTH_SECRET`, `DATABASE_URL`,
+  `NEXT_PUBLIC_SITE_URL=https://veeey.net`, `JOBS_DISABLED=0`, plus `AUTH_URL`/`AUTH_TRUST_HOST`.
+  It is gitignored, so a tarball redeploy leaves it intact.
+- Node binds **127.0.0.1:3100** (not firewall-open). OLS proxies to it via
+  `/usr/local/lsws/conf/vhosts/veeey.net/vhost.conf`:
+  ```
+  extprocessor veeeyapp { type proxy; address 127.0.0.1:3100 }
+  context / { type proxy; handler veeeyapp }
+  ```
+  (backup kept at `vhost.conf.bak.pre-proxy`; the `/.well-known/acme-challenge` context is
+  preserved for SSL). Restart OLS: `/usr/local/lsws/bin/lswsctrl restart`.
+  ⚠️ **A CyberPanel panel action can regenerate `vhost.conf` and drop the proxy** — if veeey.net
+  starts serving the placeholder PHP page, re-append those two blocks.
+- SSL issued by CyberPanel (Let's Encrypt at `/etc/letsencrypt/live/veeey.net/`).
+
+## ⚠️ The Origin bug — why this box runs `server.js`, not `next start`
+
+**Do not "simplify" this back to `next start`. It will break login and registration.**
+
+**Symptom:** login/register page GET is fine, but submitting the form 500s with
+`TypeError: Invalid URL`.
+
+**Root cause:** OLS injects a **duplicate `Origin` request header**. Every proxied request reaches
+Node with *two* `Origin: https://veeey.net` headers (the client's + one OLS adds — confirmed with a
+header-echo capture; not HTTP/2-specific). Node joins duplicates into
+`"https://veeey.net, https://veeey.net"`, which crashes **Next's Server-Action CSRF origin check**
+(`new URL(origin)`).
+
+**What did NOT fix it** (don't retry these):
+- `AUTH_URL` — fixes the NextAuth *route handler*, not the server-action check. (Still set; harmless.)
+- An Origin-collapse in `proxy.ts` middleware — Next validates the action Origin *before* middleware runs.
+- OLS `RequestHeader set Origin` in the vhost — OLS ignores it for proxy backends.
+
+**The actual fix:** a custom Node server at **`/opt/veeey/server.js`** that wraps Next and dedupes
+`req.headers.origin` at the raw socket before Next reads it. The app runs
+`pm2 start server.js --name veeey-net`. **Any rebuild/redeploy must keep using `server.js`.**
+
+Harmless leftovers that may be cleaned up: the `proxy.ts` origin guard, and the ineffective
+`extraHeaders RequestHeader set Origin` in the vhost — both no-ops now.
+
+## Redeploy (no git remote — tarball)
+
+From the local repo (`C:\Claude\eCommerce\veeey`):
+
+```bash
+# 1. Pack the committed tree
+git archive --format=tar.gz -o /c/Users/<you>/AppData/Local/Temp/veeey-deploy.tar.gz HEAD
+
+# 2. Ship it.  Use the /c/Users/... MSYS path form — scp misreads "C:" as a hostname.
+scp -F ~/.ssh_ev/config /c/Users/<you>/AppData/Local/Temp/veeey-deploy.tar.gz evnew:/tmp/
+
+# 3. On the box
+ssh -F ~/.ssh_ev/config evnew
+cd /opt/veeey
+tar xzf /tmp/veeey-deploy.tar.gz -C /opt/veeey     # .env is gitignored → survives
+npm install                                        # postinstall runs prisma generate
+npx prisma migrate deploy
+npm run build
+pm2 reload veeey-net veeey-net-worker
+```
+
+First deploy was commit `dad59dc` (56 migrations). Consider adding a git remote/clone on the box
+later to make this a normal `git pull` deploy.
+
+## Current state & open items
+
+- **Catalog is NOT populated.** The DB has only the sample seed (`npm run db:seed`: 22 perms,
+  9 roles, 3 tiers, 6 sample products / 7 lots, 2 zones; Settings empty → code defaults).
+  Populating it with the real Egypt Vitamins catalog is planned — see
+  **`../VEEEY_NET_MIGRATION.md`** (in the parent project folder, next to the CSV exports).
+- **Admin user exists:** `aleimam@live.com`, role `super_admin`. Password login works end-to-end.
+  **OTP login needs an SMS provider** configured in `/admin/providers` (none on veeey.net yet) —
+  password is the way in for now. To grant another admin, set `User.roleId` to a Role id
+  (`super_admin`/`admin` = full).
+- ⚠️ **RBAC gotcha — the "Sales" department trap (bites every fresh Veeey store).** The
+  `departments` migration seeds an empty **Sales** department, and TEAM RBAC gates on department
+  membership: **a membership OVERRIDES the legacy role** (`auth.ts` jwt:
+  `depts.length ? unionPerms : role.perms`). If an owner account gets added to Sales (0 perms),
+  its `super_admin` role is masked and admin pages vanish. Fix:
+  `DELETE FROM "DepartmentMember"` for that user (→ 0 memberships → role fallback), **then the
+  user must sign out and back in** (permissions are JWT-cached at login).
+  **Keep owner accounts OUT of departments**, or give the department full permissions.
+- **Security owed:** that box's root had **4 plaintext passwords** committed in the
+  egyptvitamins.net session's `.claude/settings.local.json` — **rotate them and move to key-only
+  SSH**. (Same class as the veeey.com `/root/.ssh/id_rsa` exposure still owed — see
+  PROJECT_STATUS.md → "Open security action".)
+- Verified live 2026-07-15: `https://veeey.net` → 307 → `/en` 200, `/ar` 200, `/en/products` 200
+  (6 sample products), `/en/admin` 307 → login. The `egyptvitamins.net` co-tenant still serves 200.
