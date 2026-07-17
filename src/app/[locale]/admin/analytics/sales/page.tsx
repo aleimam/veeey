@@ -4,7 +4,7 @@ import { Link } from '@/i18n/navigation';
 import { requirePermission } from '@/lib/auth-guards';
 import { pick } from '@/lib/admin-i18n';
 import { formatEGP } from '@/lib/format';
-import { salesAnalytics, salesPeriodRange, type PeriodPreset, type Metrics } from '@/lib/sales-analytics';
+import { salesAnalytics, salesPeriodRange, topSellers, type PeriodPreset, type Metrics, type TopSeller } from '@/lib/sales-analytics';
 import { NON_BOOKED_STATUSES } from '@/lib/sales-analytics-core';
 import { BarChart } from '@/components/admin/analytics/bar-chart';
 import { TimeSeriesChart } from '@/components/admin/analytics/time-series-chart';
@@ -116,10 +116,43 @@ function PanelsSkeleton({ tb }: { tb: (en: string, ar: string) => string }) {
   );
 }
 
+/**
+ * S10: what actually sold. Ranked by revenue, with the count of units beside it
+ * so a cheap high-volume line and one big-ticket sale are told apart.
+ */
+function TopSellers({ rows, locale, tb, hrefFor }: { rows: TopSeller[]; locale: string; tb: (en: string, ar: string) => string; hrefFor: (id: string) => string }) {
+  if (rows.length === 0) return <p className="py-4 text-center text-sm text-muted-foreground">{tb('Nothing sold in this period', 'لا مبيعات في هذه الفترة')}</p>;
+  return (
+    <table className="w-full text-sm">
+      <thead>
+        <tr className="text-xs uppercase text-muted-foreground">
+          <th scope="col" className="pb-1 text-start font-normal">{tb('Name', 'الاسم')}</th>
+          <th scope="col" className="pb-1 text-end font-normal">{tb('Units', 'الوحدات')}</th>
+          <th scope="col" className="pb-1 text-end font-normal">{tb('Revenue', 'الإيراد')}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r) => (
+          <tr key={r.id} className="border-t border-border">
+            <td className="py-2 pe-2">
+              <Link href={hrefFor(r.id)} className="text-primary hover:underline">{locale === 'ar' ? (r.nameAr ?? r.nameEn) : r.nameEn}</Link>
+            </td>
+            <td className="py-2 text-end tabular-nums">{num(r.units, locale)}</td>
+            <td className="py-2 text-end tabular-nums">{formatEGP(r.revenue)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 /** The DB-backed half, suspended so the heading + filter render immediately. */
 async function SalesPanels({ preset, from, to, locale }: { preset: PeriodPreset; from?: string; to?: string; locale: string }) {
   const tb = pick(locale);
   const a = await salesAnalytics(preset, from, to);
+  // Sequential on purpose: top-sellers must use the exact window the cards
+  // resolved, not a range re-derived a few milliseconds later.
+  const top = await topSellers(a.range);
   const basisBookings = tb('Bookings · selected period', 'الحجوزات · الفترة المحددة');
   const csvLabel = tb('CSV', 'CSV');
 
@@ -209,6 +242,32 @@ async function SalesPanels({ preset, from, to, locale }: { preset: PeriodPreset;
             partition the period's orders exactly as the cards do. */}
         <MetricRow label={tb('Big orders', 'طلبات كبيرة')} m={a.bigSeg} locale={locale} href={salesOrdersHref(a.range.start, a.range.end, { minTotal: bigEgp })} />
         <MetricRow label={tb('Normal orders', 'طلبات عادية')} m={a.normalSeg} locale={locale} href={salesOrdersHref(a.range.start, a.range.end, { maxTotal: bigEgp })} />
+      </Card>
+
+      {/* Line-item revenue deliberately does NOT tie back to the period card:
+          that counts whole order totals, which carry shipping and order-level
+          discounts. Saying so beats letting someone find the gap themselves
+          (the S4 lesson). */}
+      <Card
+        title={tb('Top products', 'أفضل المنتجات')}
+        basis={basisBookings}
+        note={tb('By line-item revenue — excludes shipping & order discounts', 'حسب إيراد بنود الطلب — لا يشمل الشحن وخصومات الطلب')}
+        csvHref={csv('top-products')}
+        csvLabel={csvLabel}
+      >
+        <TopSellers rows={top.products} locale={locale} tb={tb} hrefFor={(id) => salesOrdersHref(a.range.start, a.range.end, { productId: id })} />
+      </Card>
+
+      <Card
+        title={tb('Top brands', 'أفضل العلامات التجارية')}
+        basis={basisBookings}
+        note={tb('By line-item revenue — excludes shipping & order discounts', 'حسب إيراد بنود الطلب — لا يشمل الشحن وخصومات الطلب')}
+        csvHref={csv('top-brands')}
+        csvLabel={csvLabel}
+      >
+        {/* Brands link to their catalogue, not to Orders: an order can span
+            several brands, so "orders for this brand" wouldn't mean its revenue. */}
+        <TopSellers rows={top.brands} locale={locale} tb={tb} hrefFor={(id) => `/admin/products?brand=${id}`} />
       </Card>
 
       <Card title={tb('Order size distribution', 'توزيع حجم الطلبات')} basis={basisBookings} note={tb('By order value (EGP)', 'حسب قيمة الطلب (ج.م)')} csvHref={csv('order-value-hist')} csvLabel={csvLabel}>

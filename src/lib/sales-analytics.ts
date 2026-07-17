@@ -1,3 +1,4 @@
+import { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getNumberSetting } from '@/lib/settings-service';
 import { periodRange, bucketByValue, bucketLabels, salesTrend, trendGrain, LIFETIME_EDGES, NON_BOOKED_STATUSES, type Metrics, type PeriodPreset, type Range, type Bucket, type TrendPoint, type TrendGrain } from '@/lib/sales-analytics-core';
@@ -19,6 +20,64 @@ const metricsOf = (orders: { totalPiastres: bigint }[]): Metrics => {
   const revenue = orders.reduce((s, o) => s + Number(o.totalPiastres), 0);
   return { count, revenue, aov: count ? Math.round(revenue / count) : 0 };
 };
+
+export type TopSeller = { id: string; nameEn: string; nameAr: string | null; revenue: number; units: number };
+
+/**
+ * Best-selling products and brands in the window (V6 audit S10).
+ *
+ * ⚠️ Basis: this sums ORDER LINES (qty × unit price, excluding lines marked
+ * lost), so it will NOT add up to the period card's revenue — that counts whole
+ * order totals, which also carry shipping and order-level discounts. The panel
+ * says so on screen; see the note in the Sales page.
+ *
+ * Raw SQL because the revenue is a product of two columns, which Prisma's
+ * groupBy cannot sum. Column names are the real ones: Order.placedAt (NOT
+ * createdAt — assuming otherwise 500'd the search analytics in V5 F1).
+ */
+export async function topSellers(range: Range, limit = 10): Promise<{ products: TopSeller[]; brands: TopSeller[] }> {
+  const rows = async (groupCol: Prisma.Sql, extra: Prisma.Sql) =>
+    prisma.$queryRaw<{ id: string; revenue: bigint; units: number }[]>`
+      SELECT ${groupCol} AS id,
+             SUM(oi.qty * oi."unitPricePiastres")::bigint AS revenue,
+             SUM(oi.qty)::int AS units
+      FROM "OrderItem" oi
+      JOIN "Order" o ON o.id = oi."orderId"
+      ${extra}
+      WHERE o."placedAt" >= ${range.start}
+        AND o."placedAt" <= ${range.end}
+        AND o.status NOT IN (${Prisma.join(NON_BOOKED_STATUSES)})
+        AND oi.lost = false
+        AND ${groupCol} IS NOT NULL
+      GROUP BY ${groupCol}
+      ORDER BY revenue DESC
+      LIMIT ${limit}
+    `;
+
+  const [prodRows, brandRows] = await Promise.all([
+    rows(Prisma.sql`oi."productId"`, Prisma.empty),
+    rows(Prisma.sql`p."brandId"`, Prisma.sql`JOIN "Product" p ON p.id = oi."productId"`),
+  ]);
+
+  const [products, brands] = await Promise.all([
+    prisma.product.findMany({ where: { id: { in: prodRows.map((r) => r.id) } }, select: { id: true, nameEn: true, nameAr: true } }),
+    prisma.brand.findMany({ where: { id: { in: brandRows.map((r) => r.id) } }, select: { id: true, nameEn: true, nameAr: true } }),
+  ]);
+
+  // Re-join in SQL's order — findMany returns its own, and re-sorting by revenue
+  // in JS would silently disagree with the LIMIT the DB applied.
+  const merge = (agg: { id: string; revenue: bigint; units: number }[], names: { id: string; nameEn: string; nameAr: string | null }[]): TopSeller[] => {
+    const byId = new Map(names.map((n) => [n.id, n]));
+    return agg.map((r) => ({
+      id: r.id,
+      nameEn: byId.get(r.id)?.nameEn ?? r.id,
+      nameAr: byId.get(r.id)?.nameAr ?? null,
+      revenue: Number(r.revenue),
+      units: Number(r.units),
+    }));
+  };
+  return { products: merge(prodRows, products), brands: merge(brandRows, brands) };
+}
 
 /**
  * The window a selection resolves to, without touching the DB. Lets the page

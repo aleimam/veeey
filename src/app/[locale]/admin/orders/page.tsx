@@ -1,6 +1,7 @@
 import { setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { listOrders, countOrders } from '@/lib/order-service';
+import { prisma } from '@/lib/prisma';
 import { salesStaff } from '@/lib/department-service';
 import { ORDER_STATUSES } from '@/lib/order-status';
 import { listStatusConfigs } from '@/lib/order-status-service';
@@ -44,14 +45,17 @@ export default async function OrdersPage({ params, searchParams }: { params: Pro
   const to = one(sp.to);
   const minTotal = one(sp.minTotal);
   const maxTotal = one(sp.maxTotal);
+  const productId = one(sp.productId);
   const { sort, dir, page, perPage } = parseListParams(sp, { sortable: SORTABLE, defaultSort: 'placedAt' });
-  const filters = { q, status, payment, payCheck, from, to, minTotal, maxTotal };
+  const filters = { q, status, payment, payCheck, from, to, minTotal, maxTotal, productId };
 
-  const [orders, total, statusCfgs, staff] = await Promise.all([
+  const [orders, total, statusCfgs, staff, filterProduct] = await Promise.all([
     listOrders({ ...filters, sort, dir, page, perPage }),
     countOrders(filters),
     listStatusConfigs(),
     salesStaff(), // pharmacist/handler picker = Sales department members (TEAM epic)
+    // Name the product the chip is filtering by; a raw id tells the reader nothing.
+    productId ? prisma.product.findUnique({ where: { id: productId }, select: { nameEn: true, nameAr: true } }) : null,
   ]);
 
   // Quick-edit props (serializable).
@@ -79,6 +83,7 @@ export default async function OrdersPage({ params, searchParams }: { params: Pro
     // a chip reading "Total: 500" would hide that (V6 audit S13).
     minTotal ? { name: 'minTotal', label: `${tb('Total', 'الإجمالي')} ≥ ${minTotal}` } : null,
     maxTotal ? { name: 'maxTotal', label: `${tb('Total', 'الإجمالي')} < ${maxTotal}` } : null,
+    productId ? { name: 'productId', label: `${tb('Product', 'المنتج')}: ${filterProduct ? (locale === 'ar' ? (filterProduct.nameAr ?? filterProduct.nameEn) : filterProduct.nameEn) : productId}` } : null,
   ].filter(Boolean) as { name: string; label: string }[]);
 
   const ops: BulkOp[] = [
@@ -111,6 +116,9 @@ export default async function OrdersPage({ params, searchParams }: { params: Pro
         locale={locale}
         path="orders"
         values={{ q, status, payment, payCheck, from, to }}
+        // Arrive here from a Sales drill-through and these have no field to
+        // live in; carry them so filtering again doesn't silently widen the list.
+        keep={{ minTotal, maxTotal, productId }}
         fields={[
           { name: 'q', label: tb('Search', 'بحث'), type: 'text', placeholder: tb('Order # or customer', 'رقم الطلب أو العميل') },
           { name: 'status', label: tb('Status', 'الحالة'), type: 'select', options: ORDER_STATUSES.map((s) => ({ value: s, label: s })) },

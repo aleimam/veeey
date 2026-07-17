@@ -7,7 +7,7 @@ import { ymd } from '@/lib/analytics-range';
  * different range than the screen, and a drill-through that lands on a
  * different row count is the same class of lie.
  */
-export type SalesPanel = 'period' | 'customer-type' | 'order-size' | 'order-value-hist' | 'lifetime-hist' | 'trend';
+export type SalesPanel = 'period' | 'customer-type' | 'order-size' | 'order-value-hist' | 'lifetime-hist' | 'trend' | 'top-products' | 'top-brands';
 export type SalesWindow = { preset: string; from?: string; to?: string };
 
 /** CSV for one panel, on the page's exact range. */
@@ -26,9 +26,10 @@ export const salesExportHref = (panel: SalesPanel, w: SalesWindow): string => {
  *
  * Locale-relative: pass to next-intl's <Link>, which prepends the locale.
  */
-export const salesOrdersHref = (start: Date, end: Date, bounds: { minTotal?: number; maxTotal?: number } = {}): string => {
+export const salesOrdersHref = (start: Date, end: Date, bounds: { minTotal?: number; maxTotal?: number; productId?: string } = {}): string => {
   const qs = new URLSearchParams({ status: 'booked', from: ymd(start), to: ymd(end) });
   if (bounds.minTotal != null) qs.set('minTotal', String(bounds.minTotal));
   if (bounds.maxTotal != null) qs.set('maxTotal', String(bounds.maxTotal));
+  if (bounds.productId) qs.set('productId', bounds.productId);
   return `/admin/orders?${qs}`;
 };

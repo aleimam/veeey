@@ -74,6 +74,12 @@ export async function GET(req: Request) {
       csv = toCsv(['band_egp', 'orders'], a.orderValueHist.map((b) => [b.label, b.count]));
     } else if (panel === 'lifetime-hist') {
       csv = toCsv(['band_egp', 'customers'], a.lifetimeHist.map((b) => [b.label, b.count]));
+    } else if (panel === 'top-products' || panel === 'top-brands') {
+      const { topSellers } = await import('@/lib/sales-analytics');
+      // 50, not the page's 10: an export is where you go to see the tail.
+      const top = await topSellers(a.range, 50);
+      const list = panel === 'top-products' ? top.products : top.brands;
+      csv = toCsv(['name_en', 'name_ar', 'units', 'line_revenue_egp'], list.map((r) => [r.nameEn, r.nameAr ?? '', r.units, (r.revenue / 100).toFixed(2)]));
     } else if (panel === 'trend') {
       // `period_start` not `date`: a row is a whole day/week/month depending on
       // how long the window is, and calling that "date" would misread.

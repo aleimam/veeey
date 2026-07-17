@@ -17,16 +17,25 @@ export function FilterBar({
   values,
   locale,
   path,
+  keep = {},
 }: {
   fields: FilterField[];
   values: Record<string, string | undefined>;
   locale: string;
   path: string;
+  /**
+   * Active filters that have no field here (e.g. Orders' minTotal/productId,
+   * arrived at from a Sales drill-through). Without carrying them, submitting
+   * this form drops them: the list quietly widens while still saying "filtered".
+   */
+  keep?: Record<string, string | undefined>;
 }) {
   const t = pick(locale);
-  const active = fields.some((f) => values[f.name]);
+  const kept = Object.entries(keep).filter(([, v]) => v);
+  const active = fields.some((f) => values[f.name]) || kept.length > 0;
   return (
     <form className="mb-4 flex flex-wrap items-end gap-2">
+      {kept.map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
       {fields.map((f) => (
         <label key={f.name} className="flex flex-col gap-1 text-xs text-muted-foreground">
           {f.label}

@@ -49,6 +49,13 @@ describe('salesOrdersHref (V6 audit S13)', () => {
     expect(salesOrdersHref(start, end).startsWith('/admin/')).toBe(true);
   });
 
+  it('S10: a top product opens the orders that contain it, in the same window', () => {
+    const href = salesOrdersHref(start, end, { productId: 'prod_1' });
+    expect(href).toContain('productId=prod_1');
+    expect(href).toContain('status=booked');
+    expect(href).toContain('from=2026-03-01');
+  });
+
   it('uses local calendar days, not UTC — a late-evening end must not slip a day', () => {
     const lateEnd = new Date(2026, 2, 31, 23, 30);
     expect(salesOrdersHref(start, lateEnd)).toContain('to=2026-03-31');

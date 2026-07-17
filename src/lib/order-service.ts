@@ -55,6 +55,8 @@ export type OrderListOpts = {
    *  split the Sales "big vs normal" cards use, so their links land on the same
    *  rows (V6 audit S13). Both are labelled in the filter chips. */
   minTotal?: string; maxTotal?: string;
+  /** Orders containing this product — the Sales top-sellers drill-through (S10). */
+  productId?: string;
   sort?: string; dir?: 'asc' | 'desc'; page?: number; perPage?: number;
 };
 
@@ -77,6 +79,9 @@ function orderWhere(opts: OrderListOpts): Prisma.OrderWhereInput {
           ? { status: opts.status as OrderStatus }
           : {}),
     ...(opts.payment ? { paymentMethod: opts.payment as Prisma.OrderWhereInput['paymentMethod'] } : {}),
+    // `lost` lines are excluded from revenue everywhere, so an order that only
+    // contains a lost line of this product isn't one of "its" orders.
+    ...(opts.productId ? { items: { some: { productId: opts.productId, lost: false } } } : {}),
     ...(opts.payCheck ? { payCheck: opts.payCheck as 'NO' | 'YES' | 'PROBLEM' } : {}),
     // Order-number search now also matches the customer (email / name / phone)
     // and guest email, so staff can look up an order by who placed it.
