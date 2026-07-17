@@ -11,26 +11,49 @@ import { TimeSeriesChart } from '@/components/admin/analytics/time-series-chart'
 import { AnalyticsDateRange, dateRangeLabels } from '@/components/admin/analytics/date-range';
 import { resolveAnalyticsRange } from '@/lib/analytics-range';
 import { salesExportHref, salesOrdersHref, type SalesPanel } from '@/lib/sales-links';
+import { trendToneClass, deltaAriaLabel } from '@/lib/kpi-trend';
 
 export const dynamic = 'force-dynamic';
 type SP = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
 const num = (n: number, locale: string) => n.toLocaleString(locale === 'ar' ? 'ar-EG' : 'en-US');
-const deltaOf = (cur: number, prev: number): { txt: string; cls: string } => {
-  if (!prev) return cur ? { txt: '▲ new', cls: 'text-primary' } : { txt: '—', cls: 'text-muted-foreground' };
-  const pct = Math.round(((cur - prev) / prev) * 100);
-  return { txt: `${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct)}%`, cls: pct >= 0 ? 'text-primary' : 'text-destructive' };
-};
 
-function Cell({ value, cur, prev, egp, locale }: { value: number; cur?: number; prev?: number; egp?: boolean; locale: string }) {
-  const d = cur != null && prev != null ? deltaOf(cur, prev) : null;
+export type DeltaWords = { up: string; down: string; flat: string; vs: string; isNew: string };
+
+/** Percent change, or null when there is no baseline to compare against. */
+const deltaPct = (cur: number, prev: number): number | null => (prev ? Math.round(((cur - prev) / prev) * 100) : null);
+
+/**
+ * V6 audit S11: the delta was a coloured ▲/▼ and nothing else — a screen reader
+ * got a triangle, and a zero delta rendered as a green ▲ ("up"). It now shares
+ * the dashboard's kpi-trend helper, so zero reads neutral (the bug V5 D-01 fixed
+ * there) and the direction is spoken as a word. The glyph stays visible rather
+ * than the dashboard's full "up 12% vs …" line: these cells are a dense 4-column
+ * table, and three sentences per row would bury the numbers.
+ */
+function Cell({ value, cur, prev, egp, locale, words }: { value: number; cur?: number; prev?: number; egp?: boolean; locale: string; words: DeltaWords }) {
+  const comparing = cur != null && prev != null;
+  const pct = comparing ? deltaPct(cur, prev) : null;
   return (
-    <span>{egp ? formatEGP(value) : num(value, locale)}{d && <span className={`ms-1 text-xs ${d.cls}`}>{d.txt}</span>}</span>
+    <span>
+      {egp ? formatEGP(value) : num(value, locale)}
+      {comparing && pct === null && cur > 0 && (
+        // No previous-period baseline: a percentage would be a division by zero
+        // dressed up as growth.
+        <span className="ms-1 text-xs font-medium text-primary">{words.isNew}</span>
+      )}
+      {pct !== null && (
+        <span className={`ms-1 text-xs font-medium ${trendToneClass(pct)}`}>
+          <span aria-hidden>{pct > 0 ? '▲' : pct < 0 ? '▼' : '—'} {Math.abs(pct)}%</span>
+          <span className="sr-only">{deltaAriaLabel(pct, words)}</span>
+        </span>
+      )}
+    </span>
   );
 }
 
-function MetricRow({ label, m, compare, locale, href }: { label: string; m: Metrics; compare?: Metrics; locale: string; href?: string }) {
+function MetricRow({ label, m, compare, locale, href, words }: { label: string; m: Metrics; compare?: Metrics; locale: string; href?: string; words: DeltaWords }) {
   return (
     <div className="grid grid-cols-4 items-baseline gap-2 border-t border-border py-2 text-sm first:border-t-0">
       {/* S13: the label opens exactly these orders. Only rows an Orders filter
@@ -38,9 +61,9 @@ function MetricRow({ label, m, compare, locale, href }: { label: string; m: Metr
       {href
         ? <Link href={href} className="font-medium text-primary hover:underline">{label}</Link>
         : <span className="font-medium text-foreground">{label}</span>}
-      <Cell value={m.count} cur={compare && m.count} prev={compare?.count} locale={locale} />
-      <Cell value={m.aov} cur={compare && m.aov} prev={compare?.aov} egp locale={locale} />
-      <Cell value={m.revenue} cur={compare && m.revenue} prev={compare?.revenue} egp locale={locale} />
+      <Cell value={m.count} cur={compare && m.count} prev={compare?.count} locale={locale} words={words} />
+      <Cell value={m.aov} cur={compare && m.aov} prev={compare?.aov} egp locale={locale} words={words} />
+      <Cell value={m.revenue} cur={compare && m.revenue} prev={compare?.revenue} egp locale={locale} words={words} />
     </div>
   );
 }
@@ -155,6 +178,14 @@ async function SalesPanels({ preset, from, to, locale }: { preset: PeriodPreset;
   const top = await topSellers(a.range);
   const basisBookings = tb('Bookings · selected period', 'الحجوزات · الفترة المحددة');
   const csvLabel = tb('CSV', 'CSV');
+  // S11: spoken wording for the deltas, shared with the dashboard's helper.
+  const words: DeltaWords = {
+    up: tb('up', 'ارتفاع'),
+    down: tb('down', 'انخفاض'),
+    flat: tb('unchanged', 'بدون تغيير'),
+    vs: tb('vs previous period', 'مقارنة بالفترة السابقة'),
+    isNew: tb('new', 'جديد'),
+  };
 
   // S13: exports + drill-throughs carry the SAME window the page resolved.
   const win = { preset, from, to };
@@ -222,8 +253,8 @@ async function SalesPanels({ preset, from, to, locale }: { preset: PeriodPreset;
 
       <Card title={tb('This period vs previous', 'هذه الفترة مقابل السابقة')} basis={basisBookings} csvHref={csv('period')} csvLabel={csvLabel}>
         <MetricHeader tb={tb} />
-        <MetricRow label={tb('Current', 'الحالية')} m={a.current} compare={a.previous} locale={locale} href={salesOrdersHref(a.range.start, a.range.end)} />
-        <MetricRow label={tb('Previous', 'السابقة')} m={a.previous} locale={locale} href={salesOrdersHref(a.range.prevStart, a.range.prevEnd)} />
+        <MetricRow label={tb('Current', 'الحالية')} m={a.current} compare={a.previous} locale={locale} href={salesOrdersHref(a.range.start, a.range.end)} words={words} />
+        <MetricRow label={tb('Previous', 'السابقة')} m={a.previous} locale={locale} href={salesOrdersHref(a.range.prevStart, a.range.prevEnd)} words={words} />
       </Card>
 
       {/* No drill-through here on purpose: "repeat" means "ordered before this
@@ -232,16 +263,16 @@ async function SalesPanels({ preset, from, to, locale }: { preset: PeriodPreset;
           — the very confusion S4 was raised about. */}
       <Card title={tb('New vs repeat customers', 'العملاء الجدد مقابل المتكررين')} basis={basisBookings} note={tb('Repeat = ordered before this period', 'متكرر = طلب قبل هذه الفترة')} csvHref={csv('customer-type')} csvLabel={csvLabel}>
         <MetricHeader tb={tb} />
-        <MetricRow label={tb('New / first-time', 'جدد / أول مرة')} m={a.newSeg} locale={locale} />
-        <MetricRow label={tb('Repeat', 'متكررون')} m={a.repeatSeg} locale={locale} />
+        <MetricRow label={tb('New / first-time', 'جدد / أول مرة')} m={a.newSeg} locale={locale} words={words} />
+        <MetricRow label={tb('Repeat', 'متكررون')} m={a.repeatSeg} locale={locale} words={words} />
       </Card>
 
       <Card title={tb('Big vs normal orders', 'الطلبات الكبيرة مقابل العادية')} basis={basisBookings} note={tb(`Big = order ≥ ${formatEGP(bigEgp * 100)}`, `الكبيرة = طلب ≥ ${formatEGP(bigEgp * 100)}`)} csvHref={csv('order-size')} csvLabel={csvLabel}>
         <MetricHeader tb={tb} />
         {/* min is inclusive / max exclusive on both sides, so the two links
             partition the period's orders exactly as the cards do. */}
-        <MetricRow label={tb('Big orders', 'طلبات كبيرة')} m={a.bigSeg} locale={locale} href={salesOrdersHref(a.range.start, a.range.end, { minTotal: bigEgp })} />
-        <MetricRow label={tb('Normal orders', 'طلبات عادية')} m={a.normalSeg} locale={locale} href={salesOrdersHref(a.range.start, a.range.end, { maxTotal: bigEgp })} />
+        <MetricRow label={tb('Big orders', 'طلبات كبيرة')} m={a.bigSeg} locale={locale} href={salesOrdersHref(a.range.start, a.range.end, { minTotal: bigEgp })} words={words} />
+        <MetricRow label={tb('Normal orders', 'طلبات عادية')} m={a.normalSeg} locale={locale} href={salesOrdersHref(a.range.start, a.range.end, { maxTotal: bigEgp })} words={words} />
       </Card>
 
       {/* Line-item revenue deliberately does NOT tie back to the period card:

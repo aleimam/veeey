@@ -13,6 +13,7 @@ import { AnalyticsProvider } from '@/components/analytics/analytics-provider';
 import { PostHogLoader } from '@/components/analytics/posthog-loader';
 import { ClarityLoader } from '@/components/analytics/clarity-loader';
 import { GoogleTags } from '@/components/analytics/google-tags';
+import { StorefrontOnly } from '@/components/analytics/storefront-only';
 import { getBranding } from '@/lib/branding-service';
 import { brandingTitle } from '@/lib/branding';
 import '../globals.css';
@@ -119,9 +120,14 @@ export default async function LocaleLayout({
           </AnalyticsProvider>
         </NextIntlClientProvider>
         <ServiceWorkerRegister />
-        <PostHogLoader />
-        <ClarityLoader />
-        <GoogleTags />
+        {/* V6 audit S15: no marketing / session-replay tags on admin pages.
+            (The first-party AnalyticsProvider above stays mounted everywhere —
+            it carries the useTrack context — but mutes itself on admin.) */}
+        <StorefrontOnly>
+          <PostHogLoader />
+          <ClarityLoader />
+          <GoogleTags />
+        </StorefrontOnly>
       </body>
     </html>
   );

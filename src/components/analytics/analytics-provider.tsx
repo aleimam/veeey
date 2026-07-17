@@ -9,6 +9,7 @@ import {
   useSyncExternalStore,
 } from 'react';
 import { usePathname } from '@/i18n/navigation';
+import { isAdminPath } from '@/lib/admin-path';
 import { getConsent, subscribeConsent } from '@/lib/consent';
 import { pushDataLayer } from '@/lib/analytics/datalayer';
 import type { ClientEvent } from '@/lib/analytics/events';
@@ -103,6 +104,12 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
 
   const track = useCallback<TrackFn>(
     (name, props) => {
+      // V6 audit S15: admin activity is staff work, not visitor behaviour — it
+      // must reach neither the first-party clickstream (it would inflate the
+      // visitor dashboards) nor the GTM dataLayer (after a storefront→admin
+      // SPA navigation the tag is already loaded, so a push here WOULD become
+      // a live GA4 event).
+      if (typeof location !== 'undefined' && isAdminPath(location.pathname)) return;
       queue.current.push({ name, path: typeof location !== 'undefined' ? location.pathname : undefined, props, ts: Date.now() });
       // Mirror ecommerce events into the GTM dataLayer / GA4 (P4). Consent Mode +
       // the GoogleLoader gate the actual send; this is inert without a loaded tag.
@@ -127,7 +134,14 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   // Route change → close out the previous page, open the new one.
   useEffect(() => {
     leaveCurrentPage();
-    pagePath.current = typeof location !== 'undefined' ? location.pathname : pathname;
+    const path = typeof location !== 'undefined' ? location.pathname : pathname;
+    if (isAdminPath(path)) {
+      // S15: an admin page is never "the current page" — otherwise navigating
+      // back to the storefront would emit a page_leave for an /admin URL.
+      pagePath.current = '';
+      return;
+    }
+    pagePath.current = path;
     pageEnter.current = Date.now();
     track('page_view');
   }, [pathname, track, leaveCurrentPage]);
