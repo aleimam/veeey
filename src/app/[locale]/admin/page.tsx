@@ -8,6 +8,7 @@ import { getCurrentUser } from '@/lib/auth-guards';
 import { NAV_ITEMS, type AdminNavItem } from '@/lib/admin-nav';
 import { QuickCards, type QuickCard } from '@/components/admin/quick-cards';
 import { RecentOrdersTable } from '@/components/admin/recent-orders-table';
+import { BarChart } from '@/components/admin/analytics/bar-chart';
 import { trendToneClass, trendCornerClass, deltaAriaLabel } from '@/lib/kpi-trend';
 import { TrendingUp, TrendingDown, ShoppingCart, UserPlus, PackageX, ArrowUpRight, ArrowDownRight, Minus, ArrowRight } from 'lucide-react';
 
@@ -29,8 +30,10 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
   const [user, quickCardCountRaw] = await Promise.all([getCurrentUser(), getNumberSetting('dashboard.quickCardCount')]);
   const quickCardCount = Math.min(10, Math.max(3, Math.round(quickCardCountRaw) || 8));
   const usage = user
-    ? await prisma.adminSectionUsage.findMany({ where: { userId: user.id }, orderBy: { count: 'desc' }, take: 30 })
+    ? await prisma.adminSectionUsage.findMany({ where: { userId: user.id }, orderBy: [{ count: 'desc' }, { section: 'asc' }], take: 30 })
     : [];
+  // V5 audit D-09: deterministic order — count desc with a stable alphabetical
+  // tie-break, so equal-usage tiles never shuffle between visits.
   const byHref = new Map(NAV_ITEMS.map((i) => [i.href, i]));
   const allowed = (i: AdminNavItem) => !i.permission || (user?.permissions.includes(i.permission) ?? false);
   const picks: AdminNavItem[] = [];
@@ -82,7 +85,6 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
     const idx = Math.floor((o.placedAt.getTime() - weekAgo.getTime()) / 86400000);
     if (idx >= 0 && idx < 7) buckets[idx].total += Number(o.totalPiastres);
   }
-  const maxBucket = Math.max(1, ...buckets.map((b) => b.total));
   const weekTotal = buckets.reduce((s, b) => s + b.total, 0);
 
   // Local YYYY-MM-DD for the orders/customers date-range drill-downs.
@@ -127,7 +129,8 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
         )}
       </div>
 
-      <QuickCards items={quickCards} />
+      {/* V5 audit D-09: dynamic tiles get an explicit heading naming the logic */}
+      <QuickCards items={quickCards} heading={tb('Quick access — your most-visited sections', 'وصول سريع — أقسامك الأكثر زيارة')} />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {kpis.map((k) => {
@@ -163,33 +166,57 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
             <h2 className="text-sm font-semibold text-foreground">{tb('Revenue · last 7 days', 'الإيرادات · آخر ٧ أيام')}</h2>
             <Link href={`/admin/orders?from=${weekAgoStr}&to=${todayStr}`} className="text-sm text-muted-foreground hover:text-primary hover:underline">{formatEGP(weekTotal)}</Link>
           </div>
-          <div className="flex h-40 w-full min-w-0 items-end gap-2">
-            {buckets.map((b, i) => (
-              <div key={i} className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
-                <div className="flex w-full items-end justify-center" style={{ height: '128px' }}>
-                  <div className="w-full max-w-[34px] rounded-t-md bg-primary/80" style={{ height: `${Math.max(4, Math.round((b.total / maxBucket) * 128))}px` }} title={formatEGP(b.total)} />
-                </div>
-                <span className="truncate text-[11px] text-muted-foreground">{b.label}</span>
-              </div>
-            ))}
-          </div>
+          {/* V5 audit D-11: interactive bars (hover/focus tooltip, aria-labels,
+              sr-only data table) via the shared BarChart. */}
+          <BarChart data={buckets.map((b) => ({ label: b.label, value: b.total }))} unit="egp" />
         </div>
 
         <div className="min-w-0 rounded-xl border border-border bg-card p-4">
-          <h2 className="mb-3 text-sm font-semibold text-foreground">{tb('Expiry & stock alerts', 'تنبيهات الصلاحية والمخزون')}</h2>
+          <h2 className="mb-1 text-sm font-semibold text-foreground">{tb('Expiry & stock alerts', 'تنبيهات الصلاحية والمخزون')}</h2>
+          {/* V5 audit D-08: legend + non-color severity cue (days-left text) */}
+          <div className="mb-2 flex flex-wrap gap-3 text-[11px] text-muted-foreground">
+            <span className="inline-flex items-center gap-1"><span className="size-2 rounded-full bg-destructive" />≤60 {tb('days', 'يوم')}</span>
+            <span className="inline-flex items-center gap-1"><span className="size-2 rounded-full bg-gold" />≤150 {tb('days', 'يوم')}</span>
+            <span className="inline-flex items-center gap-1"><span className="size-2 rounded-full bg-primary" />{tb('later', 'أبعد')}</span>
+          </div>
           {expiryLots.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">{tb('No expiring stock.', 'لا يوجد مخزون قارب على الانتهاء.')}</p>
           ) : (
             <ul className="flex flex-col">
-              {expiryLots.map((l) => {
+              <li className="flex items-center gap-2.5 pb-1 text-[11px] uppercase text-muted-foreground" aria-hidden>
+                <span className="size-2 shrink-0" />
+                <span className="min-w-0 flex-1">{tb('Product', 'المنتج')}</span>
+                <span>{tb('Expiry', 'الصلاحية')}</span>
+                <span className="w-10 text-end">{tb('Qty in stock', 'الكمية')}</span>
+              </li>
+              {expiryLots.map((l, idx) => {
                 const days = l.expiryDate ? expDays(l.expiryDate) : 999;
+                const sev = days <= 60 ? 'high' : days <= 150 ? 'medium' : 'low';
                 const dot = days <= 60 ? 'bg-destructive' : days <= 150 ? 'bg-gold' : 'bg-primary';
+                const dayTone = days <= 60 ? 'text-destructive' : days <= 150 ? 'text-gold' : 'text-muted-foreground';
+                const name = (locale === 'ar' ? l.product.nameAr : l.product.nameEn) ?? l.product.nameEn;
+                const dateStr = l.expiryDate ? monthDay(l.expiryDate) + '/' + l.expiryDate.getUTCFullYear() : '—';
+                // D-07: same product + same expiry twice = two REAL lots — disambiguate
+                // with the lot-id tail instead of looking like an accidental duplicate.
+                const dup = expiryLots.some((o, i) => i !== idx && o.product.nameEn === l.product.nameEn && String(o.expiryDate) === String(l.expiryDate));
+                const sevLabel = sev === 'high' ? tb('urgent', 'عاجل') : sev === 'medium' ? tb('soon', 'قريبًا') : tb('later', 'لاحقًا');
                 return (
-                  <li key={l.id} className="flex items-center gap-2.5 border-t border-border py-2 text-sm first:border-t-0">
-                    <span className={`size-2 shrink-0 rounded-full ${dot}`} />
-                    <span className="min-w-0 flex-1 truncate text-foreground">{(locale === 'ar' ? l.product.nameAr : l.product.nameEn) ?? l.product.nameEn}</span>
-                    <span className="text-xs text-muted-foreground">{l.expiryDate ? monthDay(l.expiryDate) + '/' + l.expiryDate.getUTCFullYear() : '—'}</span>
-                    <span className="w-10 text-end text-xs font-medium text-foreground">{l.qtyOnHand}</span>
+                  <li key={l.id} className="border-t border-border">
+                    {/* D-06: the whole row is a focusable link to this product's lots */}
+                    <Link
+                      href={`/admin/inventory/lots?q=${encodeURIComponent(l.product.nameEn)}&status=LIVE`}
+                      aria-label={`${name} — ${tb('expires', 'تنتهي في')} ${dateStr} (${days} ${tb('days', 'يوم')}, ${sevLabel}), ${l.qtyOnHand} ${tb('in stock', 'بالمخزون')}`}
+                      className="flex items-center gap-2.5 py-2 text-sm transition-colors hover:bg-primary/5"
+                    >
+                      <span className={`size-2 shrink-0 rounded-full ${dot}`} aria-hidden />
+                      <span className="min-w-0 flex-1 truncate text-foreground">
+                        {name}
+                        {dup && <span className="ms-1 text-[10px] text-muted-foreground">#{l.id.slice(-4)}</span>}
+                      </span>
+                      <span className={`text-xs font-medium ${dayTone}`}>{days}d</span>
+                      <span className="text-xs text-muted-foreground">{dateStr}</span>
+                      <span className="w-10 text-end text-xs font-medium text-foreground">{l.qtyOnHand}</span>
+                    </Link>
                   </li>
                 );
               })}

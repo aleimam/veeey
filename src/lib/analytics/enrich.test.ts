@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseUserAgent, clientIp, truncateIp, primaryLanguage } from './enrich';
+import { parseUserAgent, clientIp, truncateIp, primaryLanguage, isCrawlerReferrer } from './enrich';
 
 describe('truncateIp', () => {
   it('zeroes the last IPv4 octet', () => {
@@ -67,5 +67,19 @@ describe('parseUserAgent', () => {
     const r = parseUserAgent(null);
     expect(r.isBot).toBe(false);
     expect(r.deviceType).toBe('desktop');
+  });
+});
+
+describe('isCrawlerReferrer (V5 audit F8)', () => {
+  it('flags SEO-tool and referrer-spam domains incl. subdomains', () => {
+    expect(isCrawlerReferrer('https://semrush.com/report')).toBe(true);
+    expect(isCrawlerReferrer('https://app.ahrefs.com/x')).toBe(true);
+    expect(isCrawlerReferrer('http://buttons-for-website.com')).toBe(true);
+  });
+  it('does NOT flag real referrers or direct traffic', () => {
+    expect(isCrawlerReferrer('https://www.google.com/search?q=vitamins')).toBe(false);
+    expect(isCrawlerReferrer('https://facebook.com')).toBe(false);
+    expect(isCrawlerReferrer(null)).toBe(false);
+    expect(isCrawlerReferrer('not-a-url')).toBe(false);
   });
 });

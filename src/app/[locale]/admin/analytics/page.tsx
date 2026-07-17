@@ -8,14 +8,14 @@ import { pick } from '@/lib/admin-i18n';
 import { sourceLabel } from '@/lib/attribution';
 import { requirePermission } from '@/lib/auth-guards';
 import { TrafficChart } from '@/components/admin/analytics/traffic-chart';
+import { AnalyticsDateRange, dateRangeLabels } from '@/components/admin/analytics/date-range';
+import { resolveAnalyticsRange, ymd } from '@/lib/analytics-range';
 
-const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
 const dwell = (ms: number) => (ms >= 60000 ? `${Math.floor(ms / 60000)}m ${Math.round((ms % 60000) / 1000)}s` : `${(ms / 1000).toFixed(1)}s`);
 
 const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
-const RANGES = [7, 30, 90] as const;
 
 function Bars({ rows }: { rows: Array<{ key: string; count: number }> }) {
   const max = Math.max(1, ...rows.map((r) => r.count));
@@ -33,7 +33,7 @@ function Bars({ rows }: { rows: Array<{ key: string; count: number }> }) {
   );
 }
 
-export default async function AnalyticsPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<{ days?: string; from?: string; to?: string }> }) {
+export default async function AnalyticsPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<{ preset?: string; days?: string; from?: string; to?: string; psort?: string; pdir?: string; pall?: string }> }) {
   await requirePermission('finance.read');
   const { locale } = await params;
   const sp = await searchParams;
@@ -41,26 +41,30 @@ export default async function AnalyticsPage({ params, searchParams }: { params: 
   const tb = pick(locale);
   const ar = locale === 'ar';
 
-  // Window: preset `?days=` OR custom `?from=&to=` (V5 audit F10, URL-shareable).
-  // Inverted custom ranges are auto-swapped instead of silently returning zeros (F9).
-  const parseYmd = (s?: string) => (s && /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(`${s}T00:00:00`) : null);
-  let fromD = parseYmd(sp.from);
-  let toD = parseYmd(sp.to);
-  let swapped = false;
-  if (fromD && toD && fromD > toD) { [fromD, toD] = [toD, fromD]; swapped = true; }
-  const custom = fromD && toD ? { from: ymd(fromD), to: ymd(toD) } : null;
-  let days = RANGES.includes(Number(sp.days) as (typeof RANGES)[number]) ? Number(sp.days) : 30;
-  let endAt: Date | undefined;
-  if (fromD && toD) {
-    const endOfTo = new Date(toD.getFullYear(), toD.getMonth(), toD.getDate() + 1).getTime() - 1; // inclusive end-of-day
-    endAt = new Date(endOfTo);
-    days = Math.max(1, Math.ceil((endOfTo - fromD.getTime()) / 86_400_000));
-  }
+  // ONE shared range contract across dashboard/Sales/Report (V5 audit F11):
+  // presets + custom from/to, URL-shareable (F10), inverted input auto-swapped (F9).
+  const range = resolveAnalyticsRange(sp, { defaultPreset: '30d' });
+  const { days, endAt } = range;
+  const custom = range.preset === 'custom' ? { from: range.from!, to: range.to! } : null;
+
+  // V5 audit F14: URL-driven sort + expand for the product-performance table.
+  const psort = (['views', 'units', 'conv'] as const).find((k2) => k2 === sp.psort) ?? 'views';
+  const pdir = sp.pdir === 'asc' ? 'asc' : 'desc';
+  const ppLimit = sp.pall ? 50 : 12;
+  const qsWith = (over: Record<string, string | undefined>) => {
+    const merged: Record<string, string | undefined> = { preset: sp.preset, days: sp.days, from: sp.from, to: sp.to, psort: sp.psort, pdir: sp.pdir, pall: sp.pall, ...over };
+    const q = new URLSearchParams();
+    for (const [k2, v] of Object.entries(merged)) if (v) q.set(k2, v);
+    const s = q.toString();
+    return `/admin/analytics${s ? `?${s}` : ''}`;
+  };
 
   const [counts, k, m, sources, ts, aud, nr, eng, cf, si, pp] = await Promise.all([
     funnelCounts(days, endAt), kpis(days, endAt), commerceMetrics({ days, endAt }), ordersBySource(days, endAt),
-    visitorTimeSeries(days, endAt), audienceBreakdown(days, endAt), newVsReturning(days, endAt), engagement(days, endAt), cartFunnel(days, endAt), searchInsights(days, 15, endAt), productPerformance(days, 12, endAt),
+    visitorTimeSeries(days, endAt), audienceBreakdown(days, endAt), newVsReturning(days, endAt), engagement(days, endAt), cartFunnel(days, endAt), searchInsights(days, 15, endAt), productPerformance(days, ppLimit, endAt),
   ]);
+  const ppMetric = (p: { views: number; units: number; conversion: number }) => (psort === 'views' ? p.views : psort === 'units' ? p.units : p.conversion);
+  const ppSorted = [...pp].sort((a, b) => (pdir === 'asc' ? ppMetric(a) - ppMetric(b) : ppMetric(b) - ppMetric(a)));
   const funnel = buildFunnel(counts);
   const topN = funnel[0].count || 1;
 
@@ -94,10 +98,12 @@ export default async function AnalyticsPage({ params, searchParams }: { params: 
     { key: 'products', label: tb('Products', 'المنتجات') },
   ];
 
+  // V5 audit F13: clickable KPI cards carry an accessible destination name +
+  // explicit pointer affordance (hover border/shadow + the shared focus ring).
   const card = (c: { label: string; value: string; href?: string }) => {
     const inner = (<><div className="text-xs text-muted-foreground">{c.label}</div><div className="mt-1 text-lg font-semibold text-foreground">{c.value}</div></>);
     return c.href
-      ? <Link key={c.label} href={c.href} className="block rounded-lg border border-border p-3 transition hover:border-primary hover:shadow-sm">{inner}</Link>
+      ? <Link key={c.label} href={c.href} aria-label={`${c.label}: ${c.value} — ${tb('open details', 'فتح التفاصيل')}`} className="block cursor-pointer rounded-lg border border-border p-3 transition hover:border-primary hover:shadow-sm">{inner}</Link>
       : <div key={c.label} className="rounded-lg border border-border p-3">{inner}</div>;
   };
 
@@ -109,30 +115,13 @@ export default async function AnalyticsPage({ params, searchParams }: { params: 
           <Link href="/admin/analytics/sales" className="text-sm font-medium text-primary hover:underline">{tb('Sales & customers →', 'المبيعات والعملاء ←')}</Link>
           <Link href="/admin/analytics/search" className="text-sm font-medium text-primary hover:underline">{tb('Search →', 'البحث ←')}</Link>
           <Link href="/admin/analytics/report" className="text-sm font-medium text-primary hover:underline">{tb('Report builder →', 'منشئ التقارير ←')}</Link>
-          <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
-            {RANGES.map((d) => (
-              <Link key={d} href={`/admin/analytics?days=${d}`} className={`rounded-md px-3 py-1 text-sm ${!custom && d === days ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-surface'}`}>
-                {tb(`${d}d`, `${d} يوم`)}
-              </Link>
-            ))}
-          </div>
-          {/* Custom range, URL-shareable (V5 audit F10); inverted input is auto-swapped (F9). */}
-          <form method="get" className="flex items-center gap-1.5 text-sm">
-            <input type="date" name="from" defaultValue={custom?.from ?? ''} max={ymd(now)} aria-label={tb('From date', 'من تاريخ')} className="rounded-md border border-border bg-card px-2 py-1 text-sm" />
-            <span className="text-muted-foreground">–</span>
-            <input type="date" name="to" defaultValue={custom?.to ?? ''} max={ymd(now)} aria-label={tb('To date', 'إلى تاريخ')} className="rounded-md border border-border bg-card px-2 py-1 text-sm" />
-            <button type="submit" className={`rounded-md px-2.5 py-1 text-sm font-medium ${custom ? 'bg-primary text-primary-foreground' : 'border border-border text-muted-foreground hover:border-primary'}`}>
-              {tb('Apply', 'تطبيق')}
-            </button>
-          </form>
         </div>
       </div>
-      {swapped && (
-        <p className="mb-4 rounded-md bg-gold/15 px-3 py-2 text-xs font-medium text-foreground">{tb('The date range was reversed — showing', 'تم عكس نطاق التاريخ — يُعرض')} {since} → {until}.</p>
-      )}
-      {custom && !swapped && (
-        <p className="mb-4 text-xs text-muted-foreground">{tb('Custom range:', 'نطاق مخصص:')} {since} → {until} ({days} {tb('days', 'يوم')})</p>
-      )}
+      <AnalyticsDateRange
+        value={range}
+        labels={dateRangeLabels(tb)}
+        note={`${since} → ${until} · ${days} ${tb('days', 'يوم')}`}
+      />
 
       {/* Traffic KPIs */}
       <div className="mb-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">{trafficCards.map(card)}</div>
@@ -187,7 +176,14 @@ export default async function AnalyticsPage({ params, searchParams }: { params: 
       </div>
 
       <section className="mb-8">
-        <h2 className="mb-3 text-sm font-semibold">{tb('Audience', 'الجمهور')}</h2>
+        <h2 className="mb-1 text-sm font-semibold">{tb('Audience', 'الجمهور')}</h2>
+        {/* V5 audit F18: say WHY "Unknown" dominates instead of leaving it unexplained. */}
+        <p className="mb-3 text-xs text-muted-foreground">
+          {tb(
+            'Country/region need the GeoLite2 database on the server (GEOIP_DB_PATH) and the visitor’s full consent — sessions without either show as "Unknown".',
+            'تتطلّب الدولة/المنطقة قاعدة GeoLite2 على الخادم (GEOIP_DB_PATH) وموافقة الزائر الكاملة — الجلسات بدونهما تظهر كـ«غير معروف».',
+          )}
+        </p>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div><h3 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">{tb('Device', 'الجهاز')}</h3><Bars rows={aud.devices} /></div>
           <div><h3 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">{tb('Country', 'الدولة')}</h3><Bars rows={aud.countries} /></div>
@@ -244,15 +240,31 @@ export default async function AnalyticsPage({ params, searchParams }: { params: 
       </section>
 
       <section className="mb-8">
-        <h2 className="mb-3 text-sm font-semibold">{tb('Product performance (view → buy)', 'أداء المنتجات (مشاهدة ← شراء)')}</h2>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold">{tb('Product performance (view → buy)', 'أداء المنتجات (مشاهدة ← شراء)')}</h2>
+          {/* V5 audit F14: expand beyond the top 12 */}
+          <Link href={qsWith({ pall: sp.pall ? undefined : '1' })} className="text-xs font-medium text-primary hover:underline">
+            {sp.pall ? tb('Show top 12', 'أفضل ١٢ فقط') : tb('Show all (50)', 'عرض الكل (٥٠)')}
+          </Link>
+        </div>
         <div className="overflow-hidden rounded-lg border border-border">
           <table className="w-full text-sm">
-            <thead className="bg-surface text-xs uppercase text-muted-foreground"><tr><th className="p-2 text-start">{tb('Product', 'المنتج')}</th><th className="p-2">{tb('Views', 'المشاهدات')}</th><th className="p-2">{tb('Units sold', 'الوحدات')}</th><th className="p-2">{tb('View→buy', 'مشاهدة←شراء')}</th></tr></thead>
+            {/* V5 audit F14: numeric columns sort via URL (keyboard-operable links + aria-sort) */}
+            <thead className="bg-surface text-xs uppercase text-muted-foreground"><tr>
+              <th scope="col" className="p-2 text-start">{tb('Product', 'المنتج')}</th>
+              {([['views', tb('Views', 'المشاهدات')], ['units', tb('Units sold', 'الوحدات')], ['conv', tb('View→buy', 'مشاهدة←شراء')]] as const).map(([key, label]) => (
+                <th key={key} scope="col" className="p-2" aria-sort={psort === key ? (pdir === 'asc' ? 'ascending' : 'descending') : undefined}>
+                  <Link href={qsWith({ psort: key, pdir: psort === key && pdir === 'desc' ? 'asc' : 'desc' })} className="inline-flex items-center gap-0.5 hover:text-primary hover:underline">
+                    {label}{psort === key ? (pdir === 'asc' ? ' ↑' : ' ↓') : ''}
+                  </Link>
+                </th>
+              ))}
+            </tr></thead>
             <tbody>
-              {pp.map((p) => (
+              {ppSorted.map((p) => (
                 <tr key={p.sku} className="border-t border-border hover:bg-surface"><td className="p-2"><Link href={`/admin/products?q=${encodeURIComponent(p.sku)}`} className="text-primary hover:underline">{p.name}</Link></td><td className="p-2 text-center">{p.views}</td><td className="p-2 text-center font-medium">{p.units}</td><td className="p-2 text-center text-muted-foreground">{pct(p.conversion)}</td></tr>
               ))}
-              {pp.length === 0 && <tr><td colSpan={4} className="p-4 text-center text-muted-foreground">{tb('No product views yet.', 'لا توجد مشاهدات بعد.')}</td></tr>}
+              {ppSorted.length === 0 && <tr><td colSpan={4} className="p-4 text-center text-muted-foreground">{tb('No product views yet.', 'لا توجد مشاهدات بعد.')}</td></tr>}
             </tbody>
           </table>
         </div>

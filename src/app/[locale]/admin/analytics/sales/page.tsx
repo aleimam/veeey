@@ -3,9 +3,10 @@ import { Link } from '@/i18n/navigation';
 import { requirePermission } from '@/lib/auth-guards';
 import { pick } from '@/lib/admin-i18n';
 import { formatEGP } from '@/lib/format';
-import { inputCls } from '@/components/admin/ui';
 import { salesAnalytics, type PeriodPreset, type Metrics } from '@/lib/sales-analytics';
 import { BarChart } from '@/components/admin/analytics/bar-chart';
+import { AnalyticsDateRange, dateRangeLabels } from '@/components/admin/analytics/date-range';
+import { resolveAnalyticsRange } from '@/lib/analytics-range';
 
 export const dynamic = 'force-dynamic';
 type SP = Record<string, string | string[] | undefined>;
@@ -61,38 +62,27 @@ export default async function SalesAnalyticsPage({ params, searchParams }: { par
   setRequestLocale(locale);
   const tb = pick(locale);
 
-  const preset = (['mtd', '7d', '30d', '90d', 'custom'] as const).find((p) => p === one(sp.preset)) ?? 'mtd';
-  const from = one(sp.from);
-  const to = one(sp.to);
-  const a = await salesAnalytics(preset, from, to);
+  // Shared range contract (V5 audit F11): same params/labels as the analytics
+  // dashboard + Report builder; inverted custom bounds auto-swap (F9).
+  const resolved = resolveAnalyticsRange(
+    { preset: one(sp.preset), from: one(sp.from), to: one(sp.to) },
+    { defaultPreset: 'mtd' },
+  );
+  const preset = resolved.preset as PeriodPreset;
+  const a = await salesAnalytics(preset, resolved.from ?? undefined, resolved.to ?? undefined);
 
   const dateFmt = (d: Date) => d.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-GB');
-  const presets: [PeriodPreset, string][] = [
-    ['mtd', tb('Month to date', 'الشهر حتى تاريخه')],
-    ['7d', tb('Last 7 days', 'آخر ٧ أيام')],
-    ['30d', tb('Last 30 days', 'آخر ٣٠ يومًا')],
-    ['90d', tb('Last 90 days', 'آخر ٩٠ يومًا')],
-    ['custom', tb('Custom range', 'نطاق مخصص')],
-  ];
 
   return (
     <div className="max-w-4xl p-6">
       <Link href="/admin/analytics" className="text-sm text-primary hover:underline">← {tb('Analytics', 'التحليلات')}</Link>
       <h1 className="mb-4 mt-1 font-heading text-xl font-semibold">{tb('Sales & customers', 'المبيعات والعملاء')}</h1>
 
-      <form className="mb-6 flex flex-wrap items-end gap-3 rounded-lg border border-border p-3">
-        <label className="text-sm font-medium">{tb('Period', 'الفترة')}
-          <select name="preset" defaultValue={preset} className={`${inputCls} w-44`}>
-            {presets.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
-        </label>
-        <label className="text-sm font-medium">{tb('From', 'من')}<input type="date" name="from" defaultValue={from ?? ''} className={inputCls} /></label>
-        <label className="text-sm font-medium">{tb('To', 'إلى')}<input type="date" name="to" defaultValue={to ?? ''} className={inputCls} /></label>
-        <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">{tb('Apply', 'تطبيق')}</button>
-        <span className="pb-2 text-xs text-muted-foreground">
-          {dateFmt(a.range.start)} → {dateFmt(a.range.end)} · {tb('vs', 'مقابل')} {dateFmt(a.range.prevStart)} → {dateFmt(a.range.prevEnd)}
-        </span>
-      </form>
+      <AnalyticsDateRange
+        value={resolved}
+        labels={dateRangeLabels(tb)}
+        note={<>{dateFmt(a.range.start)} → {dateFmt(a.range.end)} · {tb('vs', 'مقابل')} {dateFmt(a.range.prevStart)} → {dateFmt(a.range.prevEnd)}</>}
+      />
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card title={tb('This period vs previous', 'هذه الفترة مقابل السابقة')}>

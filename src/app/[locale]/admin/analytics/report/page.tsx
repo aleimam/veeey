@@ -4,9 +4,9 @@ import { requirePermission } from '@/lib/auth-guards';
 import { pick } from '@/lib/admin-i18n';
 import { inputCls } from '@/components/admin/ui';
 import { REPORT_DIMENSIONS, REPORT_METRICS, resolveReportConfig, runReport } from '@/lib/analytics-report';
+import { dateRangeLabels } from '@/components/admin/analytics/date-range';
 
-type SP = { dimension?: string; metric?: string; days?: string; fdim?: string; fval?: string };
-const RANGES = [7, 30, 90] as const;
+type SP = { dimension?: string; metric?: string; days?: string; preset?: string; from?: string; to?: string; fdim?: string; fval?: string };
 
 export default async function ReportBuilderPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<SP> }) {
   await requirePermission('finance.read');
@@ -24,7 +24,8 @@ export default async function ReportBuilderPage({ params, searchParams }: { para
   const lbl = (o: { labelEn: string; labelAr: string }) => (ar ? o.labelAr : o.labelEn);
 
   const exportHref =
-    `/api/admin/analytics/export?report=custom&dimension=${cfg.dimension}&metric=${cfg.metric}&days=${cfg.days}` +
+    `/api/admin/analytics/export?report=custom&dimension=${cfg.dimension}&metric=${cfg.metric}&preset=${cfg.range.preset}` +
+    (cfg.range.from ? `&from=${cfg.range.from}&to=${cfg.range.to}` : '') +
     (cfg.filterDim ? `&fdim=${cfg.filterDim}&fval=${encodeURIComponent(cfg.filterVal)}` : '');
 
   return (
@@ -47,11 +48,21 @@ export default async function ReportBuilderPage({ params, searchParams }: { para
             {REPORT_DIMENSIONS.map((d) => <option key={d.key} value={d.key}>{lbl(d)}</option>)}
           </select>
         </label>
+        {/* Same range contract as the analytics dashboard + Sales (V5 audit F10/F11) */}
         <label className="flex flex-col gap-1 text-sm">
           <span className="text-muted-foreground">{tb('Range', 'المدى')}</span>
-          <select name="days" defaultValue={String(cfg.days)} className={inputCls}>
-            {RANGES.map((d) => <option key={d} value={d}>{tb(`Last ${d} days`, `آخر ${d} يوم`)}</option>)}
+          <select name="preset" defaultValue={cfg.range.preset} className={inputCls}>
+            {(['mtd', '7d', '30d', '90d', 'custom'] as const).map((p) => (
+              <option key={p} value={p}>{dateRangeLabels(tb).presets[p]}</option>
+            ))}
           </select>
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="text-muted-foreground">{tb('From / To (custom)', 'من / إلى (مخصص)')}</span>
+          <div className="flex gap-2">
+            <input type="date" name="from" defaultValue={cfg.range.from ?? ''} className={inputCls} />
+            <input type="date" name="to" defaultValue={cfg.range.to ?? ''} min={cfg.range.from ?? undefined} className={inputCls} />
+          </div>
         </label>
         <label className="flex flex-col gap-1 text-sm">
           <span className="text-muted-foreground">{tb('Filter by (optional)', 'تصفية حسب (اختياري)')}</span>

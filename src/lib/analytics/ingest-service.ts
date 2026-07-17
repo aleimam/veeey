@@ -2,7 +2,7 @@ import type { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/auth';
 import { ingestSchema } from './events';
-import { parseUserAgent, truncateIp, primaryLanguage } from './enrich';
+import { parseUserAgent, truncateIp, primaryLanguage, isCrawlerReferrer } from './enrich';
 import { lookupGeo } from './geoip';
 
 /** Request-derived metadata the browser can't be trusted to send (extracted from
@@ -62,9 +62,11 @@ export async function ingestEvents(raw: unknown, meta: RequestMeta = NO_META): P
   const dev = parseUserAgent(meta.userAgent);
   // Coarse, non-PII classifiers — captured regardless of consent. Precise /
   // identifying fields are layered on only under full consent.
+  // V5 audit F8: UA-based isbot misses SEO crawlers that fake a browser UA but
+  // arrive from a tool domain — the referrer blocklist catches those too.
   const enrich: EnrichFields = {
     deviceType: dev.deviceType,
-    isBot: dev.isBot,
+    isBot: dev.isBot || isCrawlerReferrer(data.referrer),
     os: dev.os,
     browser: dev.browser,
   };

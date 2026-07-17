@@ -11,11 +11,14 @@ export type QuickCard = { href: string; label: string; icon: string };
  * sections (visit counts recorded by AdminShell), topped up with sensible
  * defaults until enough history exists.
  */
-export function QuickCards({ items }: { items: QuickCard[] }) {
+export function QuickCards({ items, heading }: { items: QuickCard[]; heading?: string }) {
   if (items.length === 0) return null;
   // Up to 5 per row on desktop → 3–5 cards fill one row, 6–10 wrap to two.
   return (
-    <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+    <div className="mb-6">
+      {/* V5 audit D-09: the tiles are dynamic (usage-based) — say so */}
+      {heading && <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">{heading}</h2>}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
       {items.map((it) => {
         const Icon = ICONS[it.icon] ?? LayoutGrid;
         return (
@@ -31,6 +34,7 @@ export function QuickCards({ items }: { items: QuickCard[] }) {
           </Link>
         );
       })}
+      </div>
     </div>
   );
 }

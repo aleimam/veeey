@@ -18,11 +18,12 @@ export function BarChart({ data, unit = 'count', color = 'var(--primary)' }: { d
           <button
             type="button"
             key={d.label}
+            aria-label={`${d.label}: ${fmt(d.value)}`}
             onMouseEnter={() => setHover(i)}
             onMouseLeave={() => setHover(null)}
             onFocus={() => setHover(i)}
             onBlur={() => setHover(null)}
-            className="group relative flex h-full flex-1 flex-col items-center justify-end outline-none"
+            className="group relative flex h-full flex-1 flex-col items-center justify-end"
           >
             {hover === i && (
               <span className="absolute -top-1 z-10 -translate-y-full whitespace-nowrap rounded-md bg-foreground px-2 py-1 text-xs font-medium text-background shadow">
@@ -41,6 +42,14 @@ export function BarChart({ data, unit = 'count', color = 'var(--primary)' }: { d
           <div key={d.label} className="flex-1 truncate text-center text-[10px] leading-tight text-muted-foreground" title={d.label}>{d.label}</div>
         ))}
       </div>
+      {/* accessible data table (V5 audit D-11) */}
+      <table className="sr-only">
+        <tbody>
+          {data.map((d) => (
+            <tr key={d.label}><td>{d.label}</td><td>{fmt(d.value)}</td></tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

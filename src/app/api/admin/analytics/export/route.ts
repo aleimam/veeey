@@ -48,6 +48,9 @@ export async function GET(req: Request) {
       dimension: url.searchParams.get('dimension') ?? undefined,
       metric: url.searchParams.get('metric') ?? undefined,
       days: url.searchParams.get('days') ?? undefined,
+      preset: url.searchParams.get('preset') ?? undefined,
+      from: url.searchParams.get('from') ?? undefined,
+      to: url.searchParams.get('to') ?? undefined,
       fdim: url.searchParams.get('fdim') ?? undefined,
       fval: url.searchParams.get('fval') ?? undefined,
     });
