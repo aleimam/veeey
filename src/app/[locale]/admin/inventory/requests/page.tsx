@@ -86,6 +86,7 @@ export default async function ReorderRequestsPage({ params, searchParams }: { pa
           formId="reorderbulk"
           locale={locale}
           back={back}
+          tab={tab}
           requestAction={bulkRequestAction}
           ignoreAction={bulkIgnoreAction}
           labels={{
@@ -164,6 +165,7 @@ export default async function ReorderRequestsPage({ params, searchParams }: { pa
                       <form action={requestToBuyAction} className="flex items-center gap-1">
                         <input type="hidden" name="locale" value={locale} />
                         <input type="hidden" name="back" value={back} />
+                        <input type="hidden" name="tab" value={tab} />
                         <input type="hidden" name="productId" value={r.productId} />
                         <input type="number" name="qty" min={1} defaultValue={r.suggestedQty} className="h-8 w-16 rounded-md border border-border bg-card px-2 text-sm tabular-nums outline-none focus:ring-2 focus:ring-ring" aria-label={tb('Quantity', 'الكمية')} />
                         <button type="submit" className="h-8 rounded-md bg-primary px-2.5 text-xs font-medium text-primary-foreground hover:opacity-90">{tb('Request', 'طلب')}</button>

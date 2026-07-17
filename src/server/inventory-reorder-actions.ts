@@ -7,9 +7,10 @@ import { audit } from '@/lib/audit';
 import {
   ignoreProduct,
   unignoreProduct,
-  createPurchaseRequest,
   suggestedQtyFor,
 } from '@/lib/inventory-reorder-service';
+import { createQuickRequest } from '@/lib/request-service';
+import { reorderTabToRequestType } from '@/lib/request-logic';
 
 const str = (fd: FormData, k: string) => {
   const v = fd.get(k);
@@ -46,12 +47,16 @@ async function finish(path: string, work: () => Promise<void>): Promise<void> {
 export async function requestToBuyAction(fd: FormData): Promise<void> {
   const path = listPath(fd);
   await finish(path, async () => {
+    // Suggestion-surface "Request" now creates a typed Request (A5). The tab sets
+    // the type (out-of-stock/last-piece→OUT_OF_STOCK, short/fast→RESTOCK).
+    // createQuickRequest owns the requests.manage gate + audit.
     const user = await requirePermission('inventory.manage');
     const productId = str(fd, 'productId');
     const qty = Math.floor(Number(str(fd, 'qty') ?? '0'));
     if (!productId || !Number.isFinite(qty) || qty < 1) throw new Error('INVALID');
-    const reqId = await createPurchaseRequest(productId, qty, { id: user.id, name: user.name ?? null }, str(fd, 'note'));
-    await audit({ actorType: 'USER', actorId: user.id, action: 'inventory.request.create', entityType: 'PurchaseRequest', entityId: reqId, data: { productId, qty } });
+    const type = reorderTabToRequestType(str(fd, 'tab') ?? 'out_of_stock');
+    const req = await createQuickRequest(productId, qty, type);
+    await audit({ actorType: 'USER', actorId: user.id, action: 'inventory.request.create', entityType: 'Request', entityId: req.id, data: { productId, qty, type } });
   });
 }
 
@@ -61,13 +66,14 @@ export async function bulkRequestAction(fd: FormData): Promise<void> {
     const user = await requirePermission('inventory.manage');
     const ids = idList(fd);
     if (ids.length === 0) throw new Error('INVALID');
+    const type = reorderTabToRequestType(str(fd, 'tab') ?? 'out_of_stock');
     let created = 0;
     for (const productId of ids) {
       const qty = await suggestedQtyFor(productId);
-      await createPurchaseRequest(productId, qty, { id: user.id, name: user.name ?? null });
+      await createQuickRequest(productId, qty, type);
       created += 1;
     }
-    await audit({ actorType: 'USER', actorId: user.id, action: 'inventory.request.bulk', entityType: 'PurchaseRequest', data: { count: created } });
+    await audit({ actorType: 'USER', actorId: user.id, action: 'inventory.request.bulk', entityType: 'Request', data: { count: created, type } });
   });
 }
 

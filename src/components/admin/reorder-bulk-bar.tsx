@@ -12,6 +12,7 @@ export function ReorderBulkBar({
   formId,
   locale,
   back,
+  tab,
   requestAction,
   ignoreAction,
   labels,
@@ -19,6 +20,8 @@ export function ReorderBulkBar({
   formId: string;
   locale: string;
   back: string;
+  /** Active reorder tab — sets the type of the Requests the bulk button creates (A5). */
+  tab: string;
   requestAction: (fd: FormData) => void | Promise<void>;
   ignoreAction: (fd: FormData) => void | Promise<void>;
   labels: { selectAll: string; selected: string; request: string; ignore: string; requestConfirm: string; ignoreConfirm: string };
@@ -63,6 +66,7 @@ export function ReorderBulkBar({
     <form id={formId} ref={formRef} className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-2">
       <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="back" value={back} />
+      <input type="hidden" name="tab" value={tab} />
       <label className="flex items-center gap-1.5 px-1 text-sm">
         <input type="checkbox" checked={allChecked} onChange={(e) => toggleAll(e.target.checked)} className="size-4" />
         {labels.selectAll}

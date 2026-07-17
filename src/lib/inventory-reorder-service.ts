@@ -125,14 +125,29 @@ async function featuredProductIds(): Promise<Set<string>> {
   return new Set(ids.map((p) => p.id));
 }
 
-/** Local pending reorder requests per product (PENDING or SENT), summed by qty. */
+/**
+ * Open requested units per product, summed by qty. The Request model (A5)
+ * supersedes the flat PurchaseRequest, but any legacy pending PurchaseRequest is
+ * still counted so nothing in flight is lost. New Requests contribute their open
+ * (not archived, PENDING/APPROVED) line counts.
+ */
 async function pendingRequestsByProduct(): Promise<Map<string, number>> {
-  const rows = await prisma.purchaseRequest.groupBy({
-    by: ['productId'],
-    where: { status: { in: ['PENDING', 'SENT'] } },
-    _sum: { qtyRequested: true },
-  });
-  return new Map(rows.map((r) => [r.productId, r._sum.qtyRequested ?? 0]));
+  const [legacy, lines] = await Promise.all([
+    prisma.purchaseRequest.groupBy({
+      by: ['productId'],
+      where: { status: { in: ['PENDING', 'SENT'] } },
+      _sum: { qtyRequested: true },
+    }),
+    prisma.requestLine.groupBy({
+      by: ['productId'],
+      where: { request: { archivedAt: null, status: { in: ['PENDING', 'APPROVED'] } } },
+      _sum: { count: true },
+    }),
+  ]);
+  const map = new Map<string, number>();
+  for (const r of legacy) map.set(r.productId, r._sum.qtyRequested ?? 0);
+  for (const l of lines) map.set(l.productId, (map.get(l.productId) ?? 0) + (l._sum.count ?? 0));
+  return map;
 }
 
 /** True while an ignore suppresses a product: snooze still active AND stock hasn't risen above the ignored level. */

@@ -63,6 +63,27 @@ export function expectedDepositPiastres(pct: number, lines: { count: number; sel
 }
 
 /**
+ * Map an inventory reorder-suggestion tab to the request type its quick "Request"
+ * button should create (A5). Out-of-stock and last-piece (only one left) default
+ * to OUT_OF_STOCK; short-stock and running-fast are RESTOCK. The special-orders
+ * suggestion tab is aggregated demand with no per-customer context, so its quick
+ * request is a purchasing top-up (OUT_OF_STOCK) — a true customer-linked
+ * SPECIAL_ORDER request is placed from the order flow, not here.
+ */
+export function reorderTabToRequestType(tab: string): RequestType {
+  switch (tab) {
+    case 'short_stock':
+    case 'running_fast':
+      return 'RESTOCK';
+    case 'out_of_stock':
+    case 'last_piece':
+    case 'special_orders':
+    default:
+      return 'OUT_OF_STOCK';
+  }
+}
+
+/**
  * The human request key REQ<YY><MM><seq3> (e.g. REQ2607014), shared with
  * YeldnIN. `seq` is the 1-based count within the given month. Pure — the caller
  * (service) supplies the current month's next sequence.

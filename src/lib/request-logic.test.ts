@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   isRequestType, isRequestStatus, requiresCustomer, allowsPhotos, requestEditable,
-  validateRequest, expectedDepositPiastres, requestUid, REQUEST_TYPES,
+  validateRequest, expectedDepositPiastres, requestUid, REQUEST_TYPES, reorderTabToRequestType,
 } from './request-logic';
 
 describe('request type + status guards', () => {
@@ -66,6 +66,25 @@ describe('expectedDepositPiastres', () => {
   it('treats a missing price as zero and a zero percent as zero', () => {
     expect(expectedDepositPiastres(25, [{ count: 3, sellingPricePiastres: null }])).toBe(0);
     expect(expectedDepositPiastres(0, [{ count: 1, sellingPricePiastres: 10000 }])).toBe(0);
+  });
+});
+
+describe('reorderTabToRequestType', () => {
+  it('maps stock-shortage tabs to OUT_OF_STOCK and demand tabs to RESTOCK', () => {
+    expect(reorderTabToRequestType('out_of_stock')).toBe('OUT_OF_STOCK');
+    expect(reorderTabToRequestType('last_piece')).toBe('OUT_OF_STOCK');
+    expect(reorderTabToRequestType('short_stock')).toBe('RESTOCK');
+    expect(reorderTabToRequestType('running_fast')).toBe('RESTOCK');
+  });
+
+  it('maps the special-orders suggestion tab to a purchasing top-up (no customer here)', () => {
+    // A customer-linked SPECIAL_ORDER is placed from the order flow, not the tab.
+    expect(reorderTabToRequestType('special_orders')).toBe('OUT_OF_STOCK');
+  });
+
+  it('defaults unknown tabs to OUT_OF_STOCK and always returns a valid type', () => {
+    expect(reorderTabToRequestType('mystery')).toBe('OUT_OF_STOCK');
+    expect(isRequestType(reorderTabToRequestType('ignored'))).toBe(true);
   });
 });
 
