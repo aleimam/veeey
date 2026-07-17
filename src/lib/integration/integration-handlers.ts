@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import type { SpecialOrderStatus } from '@/generated/prisma/client';
+import { parseWireRequest } from '@/lib/integration/request-sync';
 
 /**
  * Inbound YeldnIN webhook handlers (INTEGRATION_CONTRACT §5). `shipment.received`
@@ -85,10 +86,63 @@ export async function handleDeliveryStatusChanged(p: { veeeyOrderId?: string | n
   return { matched: true };
 }
 
+/**
+ * Requests epic Phase D: a request created/updated on the YeldnIN side lands
+ * here. Upsert the Veeey `Request` by its shared `uid`, matching lines to
+ * products by SKU (unknown SKUs are dropped — push the product first). This
+ * writes DIRECTLY (never via emitRequestSync), which is what stops the sync
+ * from echoing back to YeldnIN. Lenient: an inbound SPECIAL_ORDER without a
+ * matching Veeey customer is still stored (customerId null).
+ */
+export async function handleRequestUpsert(payload: unknown): Promise<{ matched: boolean; created?: boolean; unmatchedLines?: number; skipped?: string }> {
+  const wire = parseWireRequest(payload);
+  if (!wire) return { matched: false, skipped: 'invalid' };
+
+  const skus = wire.lines.map((l) => l.sku).filter((s): s is string => !!s);
+  const products = skus.length ? await prisma.product.findMany({ where: { sku: { in: skus } }, select: { id: true, sku: true } }) : [];
+  const bySku = new Map(products.map((p) => [p.sku, p.id] as const));
+  const lineCreates = wire.lines
+    .map((l) => {
+      const pid = l.sku ? bySku.get(l.sku) : undefined;
+      if (!pid) return null;
+      return { productId: pid, count: l.quantity, sellingPricePiastres: l.sellingPriceEgp != null ? BigInt(Math.round(l.sellingPriceEgp * 100)) : null, notes: l.notes };
+    })
+    .filter((l): l is NonNullable<typeof l> => l != null);
+  const unmatchedLines = wire.lines.length - lineCreates.length;
+  if (!lineCreates.length) return { matched: false, unmatchedLines, skipped: 'no_known_products' };
+
+  const customerId = wire.customer?.veeeyCustomerId
+    ? (await prisma.customer.findUnique({ where: { id: wire.customer.veeeyCustomerId }, select: { id: true } }))?.id ?? null
+    : null;
+  const depositPiastres = wire.depositEgp != null ? BigInt(Math.round(wire.depositEgp * 100)) : null;
+  const photoCreates = wire.photoUrls.filter((u) => /^(https?:\/\/|\/uploads\/)/.test(u)).slice(0, 6).map((url) => ({ url }));
+  const base = {
+    type: wire.type, status: wire.status, scope: wire.scope, notes: wire.notes, depositPiastres,
+    autoOptional: wire.autoOptional, archivedAt: wire.archived ? new Date() : null,
+    customerId, requestedByName: 'YeldnIN sync',
+  };
+
+  const existing = await prisma.request.findUnique({ where: { uid: wire.uid }, select: { id: true } });
+  if (existing) {
+    await prisma.$transaction(async (tx) => {
+      await tx.requestLine.deleteMany({ where: { requestId: existing.id } });
+      await tx.requestPhoto.deleteMany({ where: { requestId: existing.id } });
+      await tx.request.update({ where: { id: existing.id }, data: { ...base, lines: { create: lineCreates }, photos: { create: photoCreates } } });
+    });
+    return { matched: true, created: false, unmatchedLines };
+  }
+  await prisma.request.create({ data: { uid: wire.uid, ...base, lines: { create: lineCreates }, photos: { create: photoCreates } } });
+  return { matched: true, created: true, unmatchedLines };
+}
+
 export async function dispatchInboundEvent(type: string, payload: unknown): Promise<{ handled: boolean; detail?: unknown }> {
   switch (type) {
     case 'shipment.received':
       return { handled: true, detail: await handleShipmentReceived(payload as ShipmentPayload) };
+    case 'request.upsert':
+    case 'request.created':
+    case 'request.updated':
+      return { handled: true, detail: await handleRequestUpsert(payload) };
     case 'request.status_changed':
       return { handled: true, detail: await handleRequestStatusChanged(payload as { requestUid: string; salesStatusCode: string; changedAt?: string }) };
     case 'special_order.milestone':

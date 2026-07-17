@@ -102,6 +102,46 @@ export async function requestTabCounts(): Promise<Record<string, number>> {
 }
 
 /**
+ * Best-effort: mirror a request to YeldnIN via the outbox (Phase D). Dormant
+ * until INTEGRATION_ENABLED — early-returns with no DB work when off, so the
+ * common (disabled) path costs nothing. Never throws: a sync hiccup must not
+ * fail the request write. Inbound (YeldnIN-sourced) upserts do NOT call this,
+ * which is what breaks the echo loop.
+ */
+export async function emitRequestSync(id: string): Promise<void> {
+  try {
+    const { integrationEnabled } = await import('@/lib/integration/config');
+    if (!integrationEnabled()) return;
+    const [{ recordOutbox }, { requestToWire }] = await Promise.all([
+      import('@/lib/integration/integration-service'),
+      import('@/lib/integration/request-sync'),
+    ]);
+    const r = await prisma.request.findUnique({
+      where: { id },
+      include: {
+        customer: { select: { id: true, firstName: true, lastName: true, user: { select: { phone: true } } } },
+        order: { select: { number: true } },
+        lines: { include: { product: { select: { sku: true, nameEn: true } } } },
+        photos: true,
+      },
+    });
+    if (!r?.uid) return;
+    const payload = requestToWire({
+      uid: r.uid, type: r.type, status: r.status, scope: r.scope, notes: r.notes,
+      depositPiastres: r.depositPiastres, autoOptional: r.autoOptional, archivedAt: r.archivedAt,
+      customer: r.customer ? { id: r.customer.id, name: `${r.customer.firstName ?? ''} ${r.customer.lastName ?? ''}`.trim(), phone: r.customer.user?.phone ?? null } : null,
+      orderNumber: r.order?.number ?? null,
+      lines: r.lines.map((l) => ({ count: l.count, sellingPricePiastres: l.sellingPricePiastres, notes: l.notes, sku: l.product.sku, productName: l.product.nameEn })),
+      photoUrls: r.photos.map((p) => p.url),
+    });
+    const ev = await recordOutbox('requests.upsert', r.uid, payload);
+    if (ev) await prisma.request.update({ where: { id }, data: { outboxEventId: ev.id } });
+  } catch (e) {
+    console.error('request sync emit failed', e);
+  }
+}
+
+/**
  * Create a request. Staff-driven (human-in-the-loop): the caller has already
  * confirmed type + quantities. `orderId` links a pre-order / special-order.
  */
@@ -145,6 +185,7 @@ export async function createRequest(input: RequestCreateInput) {
     },
   });
   await audit({ actorType: 'USER', actorId: user.id, action: 'request.create', entityType: 'Request', entityId: req.id, data: { type: d.type, uid } });
+  await emitRequestSync(req.id);
   return req;
 }
 
@@ -187,6 +228,7 @@ export async function createRequestFromOrder(orderId: string) {
     },
   });
   await audit({ actorType: 'USER', actorId: user.id, action: 'request.create', entityType: 'Request', entityId: req.id, data: { type: 'SPECIAL_ORDER', uid, orderId } });
+  await emitRequestSync(req.id);
   return req;
 }
 
@@ -198,6 +240,7 @@ export async function approveRequest(id: string) {
     data: { status: 'APPROVED', approvedById: user.id, approvedByName: user.name ?? user.email ?? null, approvedAt: new Date() },
   });
   await audit({ actorType: 'USER', actorId: user.id, action: 'request.approve', entityType: 'Request', entityId: id });
+  await emitRequestSync(id);
   return req;
 }
 
@@ -205,6 +248,7 @@ export async function rejectRequest(id: string, note?: string) {
   const user = await requirePermission('requests.manage');
   const req = await prisma.request.update({ where: { id }, data: { status: 'REJECTED', rejectedNote: note?.trim() || null } });
   await audit({ actorType: 'USER', actorId: user.id, action: 'request.reject', entityType: 'Request', entityId: id });
+  await emitRequestSync(id);
   return req;
 }
 
@@ -212,6 +256,7 @@ export async function archiveRequest(id: string) {
   const user = await requirePermission('requests.manage');
   const req = await prisma.request.update({ where: { id }, data: { archivedAt: new Date() } });
   await audit({ actorType: 'USER', actorId: user.id, action: 'request.archive', entityType: 'Request', entityId: id });
+  await emitRequestSync(id);
   return req;
 }
 
@@ -241,6 +286,7 @@ export async function updateRequest(id: string, input: RequestCreateInput) {
     });
   });
   await audit({ actorType: 'USER', actorId: user.id, action: 'request.update', entityType: 'Request', entityId: id });
+  await emitRequestSync(id);
   return req;
 }
 
@@ -284,6 +330,7 @@ async function createAutoOptional(productId: string, count: number, now: Date) {
     },
   });
   await audit({ actorType: 'SYSTEM', action: 'request.optional.refill', entityType: 'Request', entityId: req.id, data: { productId, count } });
+  await emitRequestSync(req.id);
   return req;
 }
 
