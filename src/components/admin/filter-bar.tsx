@@ -1,14 +1,20 @@
 import { pick } from '@/lib/admin-i18n';
+import { ComboFilter, type ComboOption } from '@/components/admin/combo-filter';
 
 /**
  * Generic admin list filter bar (FR-ADM). Renders a GET <form>, so filters live
  * in the URL — shareable, and the CSV export ("respects filters") reuses the same
  * params. Field names must match what the list service + export adapter read.
+ *
+ * `combo` = searchable single-select for long option lists (V7 audit C2) — a
+ * native select stops being scannable at a few dozen entries, and the brand
+ * filter has ~650.
  */
 export type FilterField =
   | { name: string; label: string; type: 'text'; placeholder?: string }
   | { name: string; label: string; type: 'date' }
-  | { name: string; label: string; type: 'select'; options: { value: string; label: string }[] };
+  | { name: string; label: string; type: 'select'; options: { value: string; label: string }[] }
+  | { name: string; label: string; type: 'combo'; options: ComboOption[]; placeholder?: string };
 
 const cls = 'h-9 rounded-md border border-border bg-card px-2.5 text-sm outline-none focus:ring-2 focus:ring-ring';
 
@@ -39,7 +45,9 @@ export function FilterBar({
       {fields.map((f) => (
         <label key={f.name} className="flex flex-col gap-1 text-xs text-muted-foreground">
           {f.label}
-          {f.type === 'select' ? (
+          {f.type === 'combo' ? (
+            <ComboFilter name={f.name} options={f.options} value={values[f.name]} placeholder={f.placeholder} allLabel={t('All', 'الكل')} />
+          ) : f.type === 'select' ? (
             <select name={f.name} defaultValue={values[f.name] ?? ''} className={`${cls} min-w-36`}>
               <option value="">{t('All', 'الكل')}</option>
               {f.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}

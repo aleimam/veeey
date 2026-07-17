@@ -4,6 +4,7 @@ import { listProducts, countProducts } from '@/lib/catalog-service';
 import { listBrands, listCategories } from '@/lib/taxonomy-service';
 import { formatEGP } from '@/lib/format';
 import { StatusBadge } from '@/components/admin/ui';
+import { ConfirmButton } from '@/components/admin/confirm-button';
 import { InUseNotice } from '@/components/admin/row-actions';
 import { deleteEntityAction } from '@/server/admin-actions';
 import { bulkProductsAction } from '@/server/bulk-actions';
@@ -97,6 +98,10 @@ export default async function ProductsPage({ params, searchParams }: { params: P
         locale={locale}
         path="products"
         values={{ q, kind, status, brand, flag, origin }}
+        // tag/category arrive via links, not filter fields — without carrying
+        // them, submitting this form silently drops them (V7 C18, the same
+        // FilterBar bug V6 fixed on Orders).
+        keep={{ tag, category }}
         fields={[
           { name: 'q', label: tb('Search', 'بحث'), type: 'text', placeholder: tb('Name / SKU', 'الاسم / رمز المنتج') },
           { name: 'kind', label: tb('Kind', 'النوع'), type: 'select', options: [
@@ -110,7 +115,8 @@ export default async function ProductsPage({ params, searchParams }: { params: P
             { value: 'DRAFT', label: tb('Draft', 'مسودة') },
             { value: 'ARCHIVED', label: tb('Archived', 'مؤرشف') },
           ] },
-          { name: 'brand', label: tb('Brand', 'العلامة التجارية'), type: 'select', options: brandOptions },
+          // combo, not select: ~650 brands (V7 audit C2) — type to filter.
+          { name: 'brand', label: tb('Brand', 'العلامة التجارية'), type: 'combo', options: brandOptions, placeholder: tb('Search brands…', 'ابحث في العلامات…') },
           { name: 'flag', label: tb('Data filter', 'تصفية البيانات'), type: 'select', options: [
             { value: 'missing_brand', label: tb('Missing brand', 'بدون علامة تجارية') },
             { value: 'missing_image', label: tb('Missing image', 'بدون صورة') },
@@ -171,7 +177,18 @@ export default async function ProductsPage({ params, searchParams }: { params: P
                       <input type="hidden" name="id" value={p.id} />
                       <input type="hidden" name="path" value="products" />
                       <input type="hidden" name="locale" value={locale} />
-                      <button className="text-destructive hover:underline">{tb('Delete', 'حذف')}</button>
+                      {/* V7 audit C8: this fired on a single click. The server
+                          still refuses in-use products; the dialog covers the
+                          fresh ones that would vanish without a question. */}
+                      <ConfirmButton
+                        warn={tb(
+                          `Delete "${p.nameEn}" permanently? Products with orders or stock are refused.`,
+                          `حذف "${p.nameEn}" نهائيًا؟ المنتجات المرتبطة بطلبات أو مخزون يُرفض حذفها.`,
+                        )}
+                        className="text-destructive hover:underline"
+                      >
+                        {tb('Delete', 'حذف')}
+                      </ConfirmButton>
                     </form>
                   </div>
                 </td>

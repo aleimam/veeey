@@ -77,7 +77,21 @@ export default async function BrandsPage({ params, searchParams }: { params: Pro
           {tjob === 'started' && <p className="mb-4 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">{tb('Translation job started — Arabic names fill in as the background job runs. Refresh to see progress.', 'بدأت مهمة الترجمة — تُملأ الأسماء العربية أثناء عمل المهمة في الخلفية. حدّث الصفحة لمتابعة التقدم.')}</p>}
           {tjob === 'offline' && <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{tb('Could not start the job — the background worker is not reachable.', 'تعذّر بدء المهمة — عامل الخلفية غير متاح.')}</p>}
           {job?.state === 'running' && <p className="mb-4 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">{tb(`Translating… ${job.done}/${job.total} done${job.failed ? `, ${job.failed} failed` : ''}.`, `جارٍ الترجمة… ${job.done}/${job.total}${job.failed ? `، ${job.failed} فشل` : ''}.`)}</p>}
-          {job?.state === 'error' && <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{tb('Last translation job failed — is the AI provider configured (Providers page)?', 'فشلت مهمة الترجمة الأخيرة — هل مزوّد الذكاء الاصطناعي مُفعّل (صفحة المزوّدين)؟')}</p>}
+          {/* V7 audit C5: show the provider's ACTUAL error; guessing at the
+              cause was the finding. Falls back to the config hint when an old
+              status row predates the error field. */}
+          {job?.state === 'error' && (
+            <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {tb('Last translation job failed', 'فشلت مهمة الترجمة الأخيرة')}
+              {': '}
+              {job.error ?? tb('is the AI provider configured (Providers page)?', 'هل مزوّد الذكاء الاصطناعي مُفعّل (صفحة المزوّدين)؟')}
+            </p>
+          )}
+          {job?.state === 'done' && job.failed > 0 && job.error && (
+            <p className="mb-4 rounded-md bg-gold/15 px-3 py-2 text-sm text-foreground">
+              {tb(`${job.failed} name(s) failed to translate. Last error: `, `تعذّرت ترجمة ${job.failed} اسم. آخر خطأ: `)}{job.error}
+            </p>
+          )}
         </>}
         toolbar={
           <div className="flex flex-wrap items-center gap-3">

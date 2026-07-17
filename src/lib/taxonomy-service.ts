@@ -140,7 +140,12 @@ export async function saveBrand(id: string | null, raw: BrandInput) {
 // Runs in the WORKER (no session): the enqueuing action is RBAC-gated. Progress
 // is written to the generic Setting KV so the brands page can show status.
 const TRANSLATE_STATUS_KEY = 'brands.translateJob';
-export type BrandTranslateStatus = { state: 'running' | 'done' | 'error'; done: number; total: number; failed: number; at: string };
+export type BrandTranslateStatus = {
+  state: 'running' | 'done' | 'error';
+  done: number; total: number; failed: number; at: string;
+  /** V7 audit C5: the actual failure cause, verbatim, for the admin banner. */
+  error?: string;
+};
 
 async function setTranslateStatus(v: BrandTranslateStatus) {
   const value = JSON.stringify(v);
@@ -154,9 +159,12 @@ export async function getBrandTranslateStatus(): Promise<BrandTranslateStatus | 
 }
 
 /** Translate every empty Arabic brand name via AI, in chunks. Each write goes
- *  through prisma.brand.update so the field-level change log records it. */
+ *  through prisma.brand.update so the field-level change log records it.
+ *  V7 audit C5: failures carry the provider's actual message into the status
+ *  (the banner used to guess), transient errors get retried with backoff, and
+ *  a missing key aborts up front instead of burning through every chunk. */
 export async function runBrandNameTranslation(): Promise<BrandTranslateStatus> {
-  const { translateToArabic } = await import('@/lib/ai');
+  const { translateToArabicDetailed } = await import('@/lib/ai');
   const brands = await prisma.brand.findMany({
     where: { archivedAt: null, OR: [{ nameAr: null }, { nameAr: '' }] },
     select: { id: true, nameEn: true },
@@ -165,18 +173,36 @@ export async function runBrandNameTranslation(): Promise<BrandTranslateStatus> {
   const total = brands.length;
   let done = 0;
   let failed = 0;
+  let lastError: string | undefined;
   const now = () => new Date().toISOString();
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
   await setTranslateStatus({ state: 'running', done, total, failed, at: now() });
 
   const CHUNK = 10;
+  const RETRIES = 2; // worker context — a short backoff costs nothing
   for (let i = 0; i < brands.length; i += CHUNK) {
     const chunk = brands.slice(i, i + CHUNK);
-    const out = await translateToArabic(Object.fromEntries(chunk.map((b) => [b.id, b.nameEn])));
+
+    let out: Record<string, string> | null = null;
+    for (let attempt = 0; attempt <= RETRIES; attempt++) {
+      const res = await translateToArabicDetailed(Object.fromEntries(chunk.map((b) => [b.id, b.nameEn])));
+      if (res.ok) { out = res.values; break; }
+      lastError = res.message;
+      if (res.reason === 'not_configured') {
+        // No key means every remaining chunk fails identically — stop now and
+        // say so, instead of reporting 647 "failed" with no explanation.
+        const status: BrandTranslateStatus = { state: 'error', done, total, failed: total - done, at: now(), error: res.message };
+        await setTranslateStatus(status);
+        return status;
+      }
+      if (attempt < RETRIES) await sleep(2000 * (attempt + 1));
+    }
+
     if (!out) {
-      // AI off or the call failed — on the very first chunk treat as fatal.
       failed += chunk.length;
       if (i === 0) {
-        const status: BrandTranslateStatus = { state: 'error', done, total, failed, at: now() };
+        // Persistent provider failure on the very first chunk — fatal.
+        const status: BrandTranslateStatus = { state: 'error', done, total, failed, at: now(), error: lastError };
         await setTranslateStatus(status);
         return status;
       }
@@ -194,7 +220,7 @@ export async function runBrandNameTranslation(): Promise<BrandTranslateStatus> {
     await setTranslateStatus({ state: 'running', done, total, failed, at: now() });
   }
 
-  const status: BrandTranslateStatus = { state: 'done', done, total, failed, at: now() };
+  const status: BrandTranslateStatus = { state: 'done', done, total, failed, at: now(), error: failed ? lastError : undefined };
   await setTranslateStatus(status);
   await audit({ actorType: 'SYSTEM', action: 'brands.translate.run', entityType: 'Brand', entityId: `${done}/${total} translated`, data: { done, total, failed } });
   return status;

@@ -64,16 +64,30 @@ export async function generateQuiz(topic: string, count = 5): Promise<GeneratedQ
   }
 }
 
+export type TranslateOutcome =
+  | { ok: true; values: Record<string, string> }
+  | { ok: false; reason: 'not_configured' | 'provider_error'; message: string };
+
 /**
- * Translate a set of English fields to Arabic (#D1). Returns a map keyed by the
- * same field names, or null when AI is off / unavailable. Assistive — staff
- * review and can edit the result. Empty inputs are skipped.
+ * Like translateToArabic, but says WHY it failed (V7 audit C5). The bulk brand
+ * job used to collapse "no key configured" and "provider rejected the call"
+ * into one null, so the admin banner could only guess at the cause.
  */
-export async function translateToArabic(fields: Record<string, string>): Promise<Record<string, string> | null> {
+export async function translateToArabicDetailed(fields: Record<string, string>): Promise<TranslateOutcome> {
   const entries = Object.entries(fields).filter(([, v]) => typeof v === 'string' && v.trim());
-  if (entries.length === 0) return null;
+  if (entries.length === 0) return { ok: true, values: {} };
   const r = await resolveClient();
-  if (!r) return null;
+  if (!r) return { ok: false, reason: 'not_configured', message: 'No AI provider key is configured — add one under Providers → AI.' };
+  const out = await callTranslate(r, entries);
+  return out;
+}
+
+export async function translateToArabic(fields: Record<string, string>): Promise<Record<string, string> | null> {
+  const out = await translateToArabicDetailed(fields);
+  return out.ok && Object.keys(out.values).length ? out.values : null;
+}
+
+async function callTranslate(r: { c: Anthropic; model: string }, entries: [string, string][]): Promise<TranslateOutcome> {
   const schema = {
     type: 'object',
     properties: Object.fromEntries(entries.map(([k]) => [k, { type: 'string' }])),
@@ -91,9 +105,12 @@ export async function translateToArabic(fields: Record<string, string>): Promise
       }],
     });
     const text = firstText(res.content);
-    return text ? (JSON.parse(text) as Record<string, string>) : null;
-  } catch {
-    return null;
+    if (!text) return { ok: false, reason: 'provider_error', message: 'The provider returned an empty response.' };
+    return { ok: true, values: JSON.parse(text) as Record<string, string> };
+  } catch (e) {
+    // The raw provider message names the actual cause (invalid key, quota,
+    // model gone, network) — exactly what the admin banner needs to show.
+    return { ok: false, reason: 'provider_error', message: e instanceof Error ? e.message : String(e) };
   }
 }
 
