@@ -33,25 +33,41 @@ function Bars({ rows }: { rows: Array<{ key: string; count: number }> }) {
   );
 }
 
-export default async function AnalyticsPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<{ days?: string }> }) {
+export default async function AnalyticsPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<{ days?: string; from?: string; to?: string }> }) {
   await requirePermission('finance.read');
   const { locale } = await params;
   const sp = await searchParams;
   setRequestLocale(locale);
   const tb = pick(locale);
   const ar = locale === 'ar';
-  const days = RANGES.includes(Number(sp.days) as (typeof RANGES)[number]) ? Number(sp.days) : 30;
+
+  // Window: preset `?days=` OR custom `?from=&to=` (V5 audit F10, URL-shareable).
+  // Inverted custom ranges are auto-swapped instead of silently returning zeros (F9).
+  const parseYmd = (s?: string) => (s && /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(`${s}T00:00:00`) : null);
+  let fromD = parseYmd(sp.from);
+  let toD = parseYmd(sp.to);
+  let swapped = false;
+  if (fromD && toD && fromD > toD) { [fromD, toD] = [toD, fromD]; swapped = true; }
+  const custom = fromD && toD ? { from: ymd(fromD), to: ymd(toD) } : null;
+  let days = RANGES.includes(Number(sp.days) as (typeof RANGES)[number]) ? Number(sp.days) : 30;
+  let endAt: Date | undefined;
+  if (fromD && toD) {
+    const endOfTo = new Date(toD.getFullYear(), toD.getMonth(), toD.getDate() + 1).getTime() - 1; // inclusive end-of-day
+    endAt = new Date(endOfTo);
+    days = Math.max(1, Math.ceil((endOfTo - fromD.getTime()) / 86_400_000));
+  }
 
   const [counts, k, m, sources, ts, aud, nr, eng, cf, si, pp] = await Promise.all([
-    funnelCounts(days), kpis(days), commerceMetrics({ days }), ordersBySource(days),
-    visitorTimeSeries(days), audienceBreakdown(days), newVsReturning(days), engagement(days), cartFunnel(days), searchInsights(days), productPerformance(days),
+    funnelCounts(days, endAt), kpis(days, endAt), commerceMetrics({ days, endAt }), ordersBySource(days, endAt),
+    visitorTimeSeries(days, endAt), audienceBreakdown(days, endAt), newVsReturning(days, endAt), engagement(days, endAt), cartFunnel(days, endAt), searchInsights(days, 15, endAt), productPerformance(days, 12, endAt),
   ]);
   const funnel = buildFunnel(counts);
   const topN = funnel[0].count || 1;
 
   const now = new Date();
-  const since = ymd(new Date(now.getTime() - days * 86_400_000));
-  const ordersRange = `/admin/orders?from=${since}&to=${ymd(now)}`;
+  const since = custom ? custom.from : ymd(new Date(now.getTime() - days * 86_400_000));
+  const until = custom ? custom.to : ymd(now);
+  const ordersRange = `/admin/orders?from=${since}&to=${until}`;
 
   const trafficCards = [
     { label: tb('Visitors', 'الزوّار'), value: String(eng.visitors) },
@@ -95,13 +111,28 @@ export default async function AnalyticsPage({ params, searchParams }: { params: 
           <Link href="/admin/analytics/report" className="text-sm font-medium text-primary hover:underline">{tb('Report builder →', 'منشئ التقارير ←')}</Link>
           <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
             {RANGES.map((d) => (
-              <Link key={d} href={`/admin/analytics?days=${d}`} className={`rounded-md px-3 py-1 text-sm ${d === days ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-surface'}`}>
+              <Link key={d} href={`/admin/analytics?days=${d}`} className={`rounded-md px-3 py-1 text-sm ${!custom && d === days ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-surface'}`}>
                 {tb(`${d}d`, `${d} يوم`)}
               </Link>
             ))}
           </div>
+          {/* Custom range, URL-shareable (V5 audit F10); inverted input is auto-swapped (F9). */}
+          <form method="get" className="flex items-center gap-1.5 text-sm">
+            <input type="date" name="from" defaultValue={custom?.from ?? ''} max={ymd(now)} aria-label={tb('From date', 'من تاريخ')} className="rounded-md border border-border bg-card px-2 py-1 text-sm" />
+            <span className="text-muted-foreground">–</span>
+            <input type="date" name="to" defaultValue={custom?.to ?? ''} max={ymd(now)} aria-label={tb('To date', 'إلى تاريخ')} className="rounded-md border border-border bg-card px-2 py-1 text-sm" />
+            <button type="submit" className={`rounded-md px-2.5 py-1 text-sm font-medium ${custom ? 'bg-primary text-primary-foreground' : 'border border-border text-muted-foreground hover:border-primary'}`}>
+              {tb('Apply', 'تطبيق')}
+            </button>
+          </form>
         </div>
       </div>
+      {swapped && (
+        <p className="mb-4 rounded-md bg-gold/15 px-3 py-2 text-xs font-medium text-foreground">{tb('The date range was reversed — showing', 'تم عكس نطاق التاريخ — يُعرض')} {since} → {until}.</p>
+      )}
+      {custom && !swapped && (
+        <p className="mb-4 text-xs text-muted-foreground">{tb('Custom range:', 'نطاق مخصص:')} {since} → {until} ({days} {tb('days', 'يوم')})</p>
+      )}
 
       {/* Traffic KPIs */}
       <div className="mb-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">{trafficCards.map(card)}</div>
@@ -111,7 +142,17 @@ export default async function AnalyticsPage({ params, searchParams }: { params: 
       <section className="mb-8">
         <h2 className="mb-3 text-sm font-semibold">{tb('Traffic over time', 'الزيارات عبر الوقت')}</h2>
         <div className="rounded-lg border border-border p-4">
-          <TrafficChart series={ts} labels={{ visitors: tb('Visitors', 'الزوّار'), pageviews: tb('Pageviews', 'مشاهدات الصفحات') }} />
+          <TrafficChart
+            series={ts}
+            labels={{
+              visitors: tb('Visitors', 'الزوّار'),
+              pageviews: tb('Pageviews', 'مشاهدات الصفحات'),
+              line: tb('Line', 'خط'),
+              area: tb('Area', 'مساحة'),
+              bar: tb('Bars', 'أعمدة'),
+              scaled: tb('(own scale)', '(مقياس مستقل)'),
+            }}
+          />
         </div>
       </section>
 
@@ -119,6 +160,10 @@ export default async function AnalyticsPage({ params, searchParams }: { params: 
         <section>
           <h2 className="mb-3 text-sm font-semibold">{tb('Conversion funnel', 'مسار التحويل')}</h2>
           <div className="space-y-2 rounded-lg border border-border p-4">
+            {/* V5 audit F6: the Orders step counts STOREFRONT orders only (source
+                DIRECT) so it stays comparable to the clickstream stages — staff/
+                phone/migrated orders never touched the funnel. Say so in the UI. */}
+            <p className="text-xs text-muted-foreground">{tb('Orders = storefront (website) orders only — staff and imported orders are excluded so the funnel matches the web journey.', 'الطلبات = طلبات المتجر الإلكتروني فقط — تُستبعد طلبات الموظفين والمستوردة ليطابق المسار رحلة الويب.')}</p>
             {funnel.map((s, i) => (
               <div key={s.label} className="flex items-center gap-3 text-sm">
                 <div className="w-28 text-muted-foreground">{s.label}</div>
@@ -188,7 +233,9 @@ export default async function AnalyticsPage({ params, searchParams }: { params: 
         <h2 className="mb-3 text-sm font-semibold">{tb('Traffic sources (orders)', 'مصادر الزيارات (الطلبات)')}</h2>
         <div className="overflow-hidden rounded-lg border border-border">
           <table className="w-full text-sm">
-            <thead className="bg-surface text-xs uppercase text-muted-foreground"><tr><th className="p-2 text-start">{tb('Source', 'المصدر')}</th><th className="p-2">{tb('Orders', 'الطلبات')}</th><th className="p-2 text-end">{tb('Revenue (delivered)', 'الإيرادات (تم التسليم)')}</th></tr></thead>
+            {/* V5 audit F5: the two columns deliberately use different status bases —
+                say so explicitly in each header so counts reconcile with Orders/KPIs. */}
+            <thead className="bg-surface text-xs uppercase text-muted-foreground"><tr><th className="p-2 text-start">{tb('Source', 'المصدر')}</th><th className="p-2">{tb('Orders (all statuses)', 'الطلبات (كل الحالات)')}</th><th className="p-2 text-end">{tb('Revenue (delivered only)', 'الإيرادات (المُسلَّم فقط)')}</th></tr></thead>
             <tbody>
               {sources.map((s) => (<tr key={s.key} className="border-t border-border"><td className="p-2">{sourceLabel(s.key, locale)}</td><td className="p-2 text-center font-medium">{s.orders}</td><td className="p-2 text-end">{formatEGP(s.revenue)}</td></tr>))}
             </tbody>

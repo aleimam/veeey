@@ -7,26 +7,32 @@ import { fillDailySeries, topBuckets, pct, abandonmentRate, bounceRate, type Buc
  * The persistent-visitor model: one AnalyticsSession per browser (localStorage id),
  * so "visitor" = distinct session; "active in window" = lastSeenAt within it.
  */
-const sinceDate = (days: number) => new Date(Date.now() - days * 86_400_000);
+/** Window = the `days` ending at `endAt` (default now) — V5 audit F10 lets the
+ *  dashboard pass a custom, historical range; every loader bounds BOTH ends. */
+const windowOf = (days: number, endAt?: Date) => {
+  const end = endAt ?? new Date();
+  return { start: new Date(end.getTime() - days * 86_400_000), end };
+};
 
 /** Daily visitors + pageviews for the traffic chart (gaps filled with zeros). */
-export async function visitorTimeSeries(days = 30): Promise<Array<{ date: string; visitors: number; pageviews: number }>> {
-  const start = sinceDate(days);
+export async function visitorTimeSeries(days = 30, endAt?: Date): Promise<Array<{ date: string; visitors: number; pageviews: number }>> {
+  const { start, end } = windowOf(days, endAt);
   const rows = await prisma.$queryRaw<Array<{ d: string; visitors: number; pageviews: number }>>`
     SELECT to_char(date_trunc('day', e."createdAt"), 'YYYY-MM-DD') AS d,
            count(*)::int AS pageviews,
            count(DISTINCT e."sessionId")::int AS visitors
     FROM "AnalyticsEvent" e
     JOIN "AnalyticsSession" s ON s."sessionId" = e."sessionId"
-    WHERE e.type = 'page_view' AND e."createdAt" >= ${start} AND s."isBot" = false
+    WHERE e.type = 'page_view' AND e."createdAt" >= ${start} AND e."createdAt" <= ${end} AND s."isBot" = false
     GROUP BY 1 ORDER BY 1`;
   const byDate = new Map(rows.map((r) => [r.d, { visitors: r.visitors, pageviews: r.pageviews }]));
-  return fillDailySeries(Date.now(), days, byDate, { visitors: 0, pageviews: 0 });
+  return fillDailySeries(end.getTime(), days, byDate, { visitors: 0, pageviews: 0 });
 }
 
 /** Audience breakdown from the enriched sessions (device / country / browser / OS). */
-export async function audienceBreakdown(days = 30): Promise<{ devices: Bucket[]; countries: Bucket[]; browsers: Bucket[]; os: Bucket[] }> {
-  const where = { isBot: false, lastSeenAt: { gte: sinceDate(days) } };
+export async function audienceBreakdown(days = 30, endAt?: Date): Promise<{ devices: Bucket[]; countries: Bucket[]; browsers: Bucket[]; os: Bucket[] }> {
+  const { start, end } = windowOf(days, endAt);
+  const where = { isBot: false, lastSeenAt: { gte: start, lte: end } };
   const [devices, countries, browsers, oses] = await Promise.all([
     prisma.analyticsSession.groupBy({ by: ['deviceType'], where, _count: { _all: true } }),
     prisma.analyticsSession.groupBy({ by: ['country'], where, _count: { _all: true } }),
@@ -44,17 +50,17 @@ export async function audienceBreakdown(days = 30): Promise<{ devices: Bucket[];
 }
 
 /** New vs returning visitors active in the window. */
-export async function newVsReturning(days = 30): Promise<{ new: number; returning: number; total: number }> {
-  const start = sinceDate(days);
+export async function newVsReturning(days = 30, endAt?: Date): Promise<{ new: number; returning: number; total: number }> {
+  const { start, end } = windowOf(days, endAt);
   const [active, newcomers] = await Promise.all([
-    prisma.analyticsSession.count({ where: { isBot: false, lastSeenAt: { gte: start } } }),
-    prisma.analyticsSession.count({ where: { isBot: false, startedAt: { gte: start } } }),
+    prisma.analyticsSession.count({ where: { isBot: false, lastSeenAt: { gte: start, lte: end } } }),
+    prisma.analyticsSession.count({ where: { isBot: false, startedAt: { gte: start, lte: end } } }),
   ]);
   return { new: newcomers, returning: Math.max(0, active - newcomers), total: active };
 }
 
 /** Engagement: avg dwell, single-page (bounce) rate, pages/visitor, top pages by dwell. */
-export async function engagement(days = 30): Promise<{
+export async function engagement(days = 30, endAt?: Date): Promise<{
   visitors: number;
   pageviews: number;
   pagesPerVisitor: number;
@@ -62,26 +68,26 @@ export async function engagement(days = 30): Promise<{
   avgDwellMs: number;
   topPages: Array<{ path: string; views: number; avgDwellMs: number }>;
 }> {
-  const start = sinceDate(days);
+  const { start, end } = windowOf(days, endAt);
   const [sessRows, dwellRow, topPages] = await Promise.all([
     prisma.$queryRaw<Array<{ visitors: number; pageviews: number; single_page: number }>>`
       WITH pv AS (
         SELECT e."sessionId" AS sid, count(*)::int AS views
         FROM "AnalyticsEvent" e JOIN "AnalyticsSession" s ON s."sessionId" = e."sessionId"
-        WHERE e.type = 'page_view' AND e."createdAt" >= ${start} AND s."isBot" = false AND e."sessionId" IS NOT NULL
+        WHERE e.type = 'page_view' AND e."createdAt" >= ${start} AND e."createdAt" <= ${end} AND s."isBot" = false AND e."sessionId" IS NOT NULL
         GROUP BY 1
       )
       SELECT count(*)::int AS visitors, coalesce(sum(views),0)::int AS pageviews, count(*) FILTER (WHERE views = 1)::int AS single_page FROM pv`,
     prisma.$queryRaw<Array<{ avg_dwell_ms: number }>>`
       SELECT coalesce(round(avg(e."durationMs")),0)::int AS avg_dwell_ms
       FROM "AnalyticsEvent" e JOIN "AnalyticsSession" s ON s."sessionId" = e."sessionId"
-      WHERE e.type = 'page_leave' AND e."durationMs" IS NOT NULL AND e."createdAt" >= ${start} AND s."isBot" = false`,
+      WHERE e.type = 'page_leave' AND e."durationMs" IS NOT NULL AND e."createdAt" >= ${start} AND e."createdAt" <= ${end} AND s."isBot" = false`,
     prisma.$queryRaw<Array<{ path: string; views: number; avg_dwell_ms: number }>>`
       SELECT e.path AS path,
              count(*) FILTER (WHERE e.type = 'page_view')::int AS views,
              coalesce(round(avg(e."durationMs") FILTER (WHERE e.type = 'page_leave' AND e."durationMs" IS NOT NULL)),0)::int AS avg_dwell_ms
       FROM "AnalyticsEvent" e JOIN "AnalyticsSession" s ON s."sessionId" = e."sessionId"
-      WHERE e."createdAt" >= ${start} AND s."isBot" = false AND e.path IS NOT NULL
+      WHERE e."createdAt" >= ${start} AND e."createdAt" <= ${end} AND s."isBot" = false AND e.path IS NOT NULL
       GROUP BY e.path ORDER BY views DESC LIMIT 15`,
   ]);
   const s = sessRows[0] ?? { visitors: 0, pageviews: 0, single_page: 0 };
@@ -96,20 +102,20 @@ export async function engagement(days = 30): Promise<{
 }
 
 /** Cart → checkout → order abandonment (distinct sessions per stage + real orders). */
-export async function cartFunnel(days = 30): Promise<{
+export async function cartFunnel(days = 30, endAt?: Date): Promise<{
   cartSessions: number;
   checkoutSessions: number;
   webOrders: number;
   cartAbandonment: number;
   checkoutAbandonment: number;
 }> {
-  const start = sinceDate(days);
+  const { start, end } = windowOf(days, endAt);
   const distinctSessions = async (type: string) =>
-    (await prisma.analyticsEvent.groupBy({ by: ['sessionId'], where: { type, createdAt: { gte: start }, sessionId: { not: null }, session: { is: { isBot: false } } } })).length;
+    (await prisma.analyticsEvent.groupBy({ by: ['sessionId'], where: { type, createdAt: { gte: start, lte: end }, sessionId: { not: null }, session: { is: { isBot: false } } } })).length;
   const [cartSessions, checkoutSessions, webOrders] = await Promise.all([
     distinctSessions('add_to_cart'),
     distinctSessions('checkout_step'),
-    prisma.order.count({ where: { placedAt: { gte: start }, source: 'DIRECT' } }),
+    prisma.order.count({ where: { placedAt: { gte: start, lte: end }, source: 'DIRECT' } }),
   ]);
   return {
     cartSessions,
@@ -121,8 +127,9 @@ export async function cartFunnel(days = 30): Promise<{
 }
 
 /** Internal search: most-searched terms + terms returning zero results (merchandising gaps). */
-export async function searchInsights(days = 30, limit = 15): Promise<{ top: Array<{ q: string; count: number }>; zeroResults: Array<{ q: string; count: number }> }> {
-  const events = await prisma.analyticsEvent.findMany({ where: { type: 'search', createdAt: { gte: sinceDate(days) } }, select: { propsJson: true }, take: 8000 });
+export async function searchInsights(days = 30, limit = 15, endAt?: Date): Promise<{ top: Array<{ q: string; count: number }>; zeroResults: Array<{ q: string; count: number }> }> {
+  const { start, end } = windowOf(days, endAt);
+  const events = await prisma.analyticsEvent.findMany({ where: { type: 'search', createdAt: { gte: start, lte: end } }, select: { propsJson: true }, take: 8000 });
   const tally = new Map<string, { count: number; zero: number }>();
   for (const e of events) {
     const props = e.propsJson as { q?: string; results?: number } | null;
@@ -141,10 +148,10 @@ export async function searchInsights(days = 30, limit = 15): Promise<{ top: Arra
 }
 
 /** Product performance: views (clickstream) vs units sold (orders) → view→buy rate. */
-export async function productPerformance(days = 30, limit = 12): Promise<Array<{ sku: string; name: string; views: number; units: number; conversion: number }>> {
-  const start = sinceDate(days);
+export async function productPerformance(days = 30, limit = 12, endAt?: Date): Promise<Array<{ sku: string; name: string; views: number; units: number; conversion: number }>> {
+  const { start, end } = windowOf(days, endAt);
   const viewEvents = await prisma.analyticsEvent.findMany({
-    where: { type: 'product_view', createdAt: { gte: start }, session: { is: { isBot: false } } },
+    where: { type: 'product_view', createdAt: { gte: start, lte: end }, session: { is: { isBot: false } } },
     select: { propsJson: true },
     take: 20000,
   });
@@ -160,7 +167,7 @@ export async function productPerformance(days = 30, limit = 12): Promise<Array<{
   const nameBySku = new Map(products.map((p) => [p.sku, p.nameEn]));
   const units = await prisma.orderItem.groupBy({
     by: ['productId'],
-    where: { productId: { in: products.map((p) => p.id) }, order: { placedAt: { gte: start } } },
+    where: { productId: { in: products.map((p) => p.id) }, order: { placedAt: { gte: start, lte: end } } },
     _sum: { qty: true },
   });
   const unitsByProduct = new Map(units.map((u) => [u.productId, u._sum.qty ?? 0]));

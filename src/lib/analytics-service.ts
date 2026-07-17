@@ -3,14 +3,21 @@ import { deriveSourceKey, SOURCE_KEYS, type Attribution, type SourceKey } from '
 
 /** Behavioral analytics from the first-party clickstream + orders (FR-ANL-*). */
 const sinceDate = (days: number) => new Date(Date.now() - days * 86_400_000);
+/** Window = the `days` ending at `endAt` (default now) — V5 audit F10 lets the
+ *  dashboard pass a custom, historical range; loaders bound BOTH ends. */
+const windowOf = (days: number, endAt?: Date) => {
+  const end = endAt ?? new Date();
+  return { start: new Date(end.getTime() - days * 86_400_000), end };
+};
 
 /**
  * Traffic-sources report (owner batch #7): orders bucketed by the derived
  * attribution source (Order.utmJson), with delivered revenue per bucket.
  */
-export async function ordersBySource(days = 30) {
+export async function ordersBySource(days = 30, endAt?: Date) {
+  const { start, end } = windowOf(days, endAt);
   const rows = await prisma.order.findMany({
-    where: { placedAt: { gte: sinceDate(days) } },
+    where: { placedAt: { gte: start, lte: end } },
     select: { utmJson: true, totalPiastres: true, status: true },
   });
   const buckets = new Map<SourceKey, { orders: number; revenue: number }>(SOURCE_KEYS.map((k) => [k, { orders: 0, revenue: 0 }]));
@@ -22,18 +29,19 @@ export async function ordersBySource(days = 30) {
   return SOURCE_KEYS.map((key) => ({ key, ...buckets.get(key)! })).sort((a, b) => b.orders - a.orders);
 }
 
-export async function funnelCounts(days = 30) {
-  const since = sinceDate(days);
+export async function funnelCounts(days = 30, endAt?: Date) {
+  const { start, end } = windowOf(days, endAt);
   // Event names must match the emitted clickstream vocabulary (events.ts):
   // add_to_cart (buy box) and checkout_step (checkout page). The "orders" stage
   // counts storefront (DIRECT) orders only, so the funnel measures the web
   // journey — comparable to the clickstream stages, not polluted by manual /
-  // migrated / phone orders that never touched the funnel.
+  // migrated / phone orders that never touched the funnel (V5 audit F6: this
+  // definition is deliberate and now annotated in the UI).
   const [views, carts, checkouts, orders] = await Promise.all([
-    prisma.analyticsEvent.count({ where: { type: 'product_view', createdAt: { gte: since } } }),
-    prisma.analyticsEvent.count({ where: { type: 'add_to_cart', createdAt: { gte: since } } }),
-    prisma.analyticsEvent.count({ where: { type: 'checkout_step', createdAt: { gte: since } } }),
-    prisma.order.count({ where: { placedAt: { gte: since }, source: 'DIRECT' } }),
+    prisma.analyticsEvent.count({ where: { type: 'product_view', createdAt: { gte: start, lte: end } } }),
+    prisma.analyticsEvent.count({ where: { type: 'add_to_cart', createdAt: { gte: start, lte: end } } }),
+    prisma.analyticsEvent.count({ where: { type: 'checkout_step', createdAt: { gte: start, lte: end } } }),
+    prisma.order.count({ where: { placedAt: { gte: start, lte: end }, source: 'DIRECT' } }),
   ]);
   return { views, carts, checkouts, orders };
 }
@@ -66,11 +74,11 @@ export async function topViewedProducts(limit = 10, days = 30) {
   return top.map(([sku, views]) => ({ sku, name: nameBy.get(sku) ?? sku, views }));
 }
 
-export async function kpis(days = 30) {
-  const since = sinceDate(days);
+export async function kpis(days = 30, endAt?: Date) {
+  const { start, end } = windowOf(days, endAt);
   const [delivered, orders, customers] = await Promise.all([
-    prisma.order.aggregate({ where: { status: 'DELIVERED', placedAt: { gte: since } }, _sum: { totalPiastres: true }, _count: true }),
-    prisma.order.count({ where: { placedAt: { gte: since } } }),
+    prisma.order.aggregate({ where: { status: 'DELIVERED', placedAt: { gte: start, lte: end } }, _sum: { totalPiastres: true }, _count: true }),
+    prisma.order.count({ where: { placedAt: { gte: start, lte: end } } }),
     prisma.customer.count(),
   ]);
   const revenue = Number(delivered._sum.totalPiastres ?? 0n);
@@ -87,19 +95,19 @@ const DELIVERED = ['DELIVERED'] as const;
  * - revenueByMonth: last `months` calendar months of delivered revenue (piastres)
  * - bestSellers: top products by units sold over the window
  */
-export async function commerceMetrics({ days = 30, months = 6, sellersLimit = 8 } = {}) {
-  const since = sinceDate(days);
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
+export async function commerceMetrics({ days = 30, months = 6, sellersLimit = 8, endAt }: { days?: number; months?: number; sellersLimit?: number; endAt?: Date } = {}) {
+  const { start, end } = windowOf(days, endAt);
+  const anchor = endAt ?? new Date();
+  const monthStart = new Date(anchor.getFullYear(), anchor.getMonth() - (months - 1), 1);
 
   const [delivered, orderCount, webOrders, sessions, deliveredOrdersForRepeat, monthRows, sellerRows] = await Promise.all([
-    prisma.order.aggregate({ where: { status: { in: [...DELIVERED] }, placedAt: { gte: since } }, _sum: { totalPiastres: true }, _count: true }),
-    prisma.order.count({ where: { placedAt: { gte: since } } }),
-    prisma.order.count({ where: { placedAt: { gte: since }, source: 'DIRECT' } }), // storefront orders — comparable to web sessions
-    prisma.analyticsSession.count({ where: { startedAt: { gte: since } } }),
+    prisma.order.aggregate({ where: { status: { in: [...DELIVERED] }, placedAt: { gte: start, lte: end } }, _sum: { totalPiastres: true }, _count: true }),
+    prisma.order.count({ where: { placedAt: { gte: start, lte: end } } }),
+    prisma.order.count({ where: { placedAt: { gte: start, lte: end }, source: 'DIRECT' } }), // storefront orders — comparable to web sessions
+    prisma.analyticsSession.count({ where: { startedAt: { gte: start, lte: end } } }),
     prisma.order.groupBy({ by: ['customerId'], where: { status: { in: [...DELIVERED] }, customerId: { not: null } }, _count: { _all: true } }),
-    prisma.order.findMany({ where: { status: { in: [...DELIVERED] }, placedAt: { gte: monthStart } }, select: { placedAt: true, totalPiastres: true } }),
-    prisma.orderItem.groupBy({ by: ['productId'], where: { order: { placedAt: { gte: since } } }, _sum: { qty: true }, orderBy: { _sum: { qty: 'desc' } }, take: sellersLimit }),
+    prisma.order.findMany({ where: { status: { in: [...DELIVERED] }, placedAt: { gte: monthStart, lte: end } }, select: { placedAt: true, totalPiastres: true } }),
+    prisma.orderItem.groupBy({ by: ['productId'], where: { order: { placedAt: { gte: start, lte: end } } }, _sum: { qty: true }, orderBy: { _sum: { qty: 'desc' } }, take: sellersLimit }),
   ]);
 
   const revenue = Number(delivered._sum.totalPiastres ?? 0n);
