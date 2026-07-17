@@ -442,6 +442,7 @@ model Customer {
   analyticsSessions AnalyticsSession[]
   refillPlans       RefillPlan[]
   specialOrders     SpecialOrder[]
+  requests          Request[]
   analyticsEvents   AnalyticsEvent[]
   playEntries       PlayEntry[]
   notifications     Notification[]
@@ -886,6 +887,7 @@ model Product {
   specialOrders    SpecialOrder[]
   collections      Collection[]            @relation("ProductCollections")
   purchaseRequests PurchaseRequest[]
+  requestLines     RequestLine[]
   reorderIgnore    ReorderIgnore?
   refillPlans      RefillPlan[]
 
@@ -1107,6 +1109,7 @@ model Order {
   items             OrderItem[]
   gifts             OrderGift[]
   specialOrder      SpecialOrder?
+  requests          Request[]
   returns           Return[]
   couponRedemptions CouponRedemption[]
   loyaltyTxns       LoyaltyTransaction[]
@@ -1825,6 +1828,73 @@ model PurchaseRequest {
 
   @@index([productId])
   @@index([status])
+}
+
+/// Purchasing request — the unified queue mirroring YeldnIN's `Request` (epic V).
+/// One request groups one-or-more product lines a staffer wants purchased from
+/// suppliers. Four TYPES set the priority: SPECIAL_ORDER (customer-driven; from a
+/// pre-order or a confirmed special order — needs a customer + allows photos),
+/// OUT_OF_STOCK (out-of-stock / last-piece products), RESTOCK (fast-moving /
+/// short-stock), OPTIONAL (always-needed products, refilled monthly).
+/// EGV requests pass an approval gate (PENDING→APPROVED/REJECTED) before their
+/// lines enter the purchasing pool. Supersedes the flat PurchaseRequest above.
+/// Money = piastres (BigInt). Once the live YeldnIN link is on (deferred), a
+/// Request syncs both ways; `outboxEventId` records the dispatch.
+model Request {
+  id              String    @id @default(cuid())
+  uid             String?   @unique // REQ<YY><MM><seq3> — shared human key with YeldnIN
+  type            String // SPECIAL_ORDER | OUT_OF_STOCK | RESTOCK | OPTIONAL
+  scope           String    @default("EGV") // Veeey requests are always EGV; kept for YeldnIN parity
+  status          String    @default("PENDING") // PENDING | APPROVED | REJECTED (EGV approval gate)
+  customerId      String? // SPECIAL_ORDER only
+  customer        Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  orderId         String? // the pre-order / special-order Order this request backs, once placed
+  order           Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  notes           String?
+  depositPiastres BigInt? // special-order agreed deposit
+  autoOptional    Boolean   @default(false) // regenerated monthly from a product's always-needed target
+  approvedById    String?
+  approvedByName  String?
+  approvedAt      DateTime?
+  rejectedNote    String?
+  archivedAt      DateTime?
+  requestedById   String? // acting staff user id (no FK — mirrors AuditLog.actorId)
+  requestedByName String? // snapshot; survives staff deletion
+  outboxEventId   String? // YeldnIN dispatch (deferred); null while integration disabled
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  lines  RequestLine[]
+  photos RequestPhoto[]
+
+  @@index([type])
+  @@index([status])
+  @@index([customerId])
+  @@index([orderId])
+}
+
+model RequestLine {
+  id                   String  @id @default(cuid())
+  requestId            String
+  request              Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  productId            String
+  product              Product @relation(fields: [productId], references: [id])
+  count                Int     @default(1)
+  sellingPricePiastres BigInt? // special-order agreed unit selling price
+  notes                String?
+
+  @@index([requestId])
+  @@index([productId])
+}
+
+model RequestPhoto {
+  id        String   @id @default(cuid())
+  requestId String
+  request   Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  url       String // /uploads/... (mirrors SpecialOrder.photoUrls storage)
+  createdAt DateTime @default(now())
+
+  @@index([requestId])
 }
 
 /// Products dismissed from the To-buy lists (INV-P2). Suppresses a product while
