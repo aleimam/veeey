@@ -810,6 +810,12 @@ model Product {
   // product on the To-buy short-stock tab regardless of the sales heuristics.
   reorderPoint Int?
 
+  // Always-Needed (Requests epic C): sales/admin mark a continuously-sold product
+  // as always needed with a target X; a monthly job keeps an open OPTIONAL
+  // purchasing request of X units for it (reset every 30 days).
+  alwaysNeeded    Boolean @default(false)
+  alwaysNeededQty Int? // target units X per monthly Optional refill
+
   // Health duration calculator inputs (FR-HEALTH-01 / FR-REPL-01)
   servingsPerUnit     Int?
   dailyDosage         Int? // min daily dose (also the calculator default)
