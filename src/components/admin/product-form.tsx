@@ -121,7 +121,20 @@ export function ProductForm({
   }
 
   return (
-    <form action={action} className="max-w-3xl space-y-6">
+    <form
+      action={action}
+      // V7 audit C19: a 0-EGP save is almost always a mistake (a missed price,
+      // not a free product) — ask before storing it. The list's `Price = 0`
+      // filter still surfaces any that get through.
+      onSubmit={(e) => {
+        const price = Number((e.currentTarget.elements.namedItem('basePriceEgp') as HTMLInputElement | null)?.value || 0);
+        if (price === 0 && !confirm(tb(
+          'Base price is 0 EGP — the product would show as free. Save anyway?',
+          'السعر الأساسي 0 ج.م — سيظهر المنتج مجانيًا. الحفظ رغم ذلك؟',
+        ))) e.preventDefault();
+      }}
+      className="max-w-3xl space-y-6"
+    >
       <FormError error={state.error} />
       <input type="hidden" name="locale" value={locale} />
       {d.id && <input type="hidden" name="id" value={d.id} />}
@@ -141,7 +154,7 @@ export function ProductForm({
       </div>
 
       <section className="grid gap-4 sm:grid-cols-2">
-        <Field label={tb('Name (English)', 'الاسم (بالإنجليزية)')}><input name="nameEn" required defaultValue={d.nameEn ?? ''} className={inputCls} /></Field>
+        <Field label={tb('Name (English)', 'الاسم (بالإنجليزية)')} required><input name="nameEn" required defaultValue={d.nameEn ?? ''} className={inputCls} /></Field>
         <Field label={tb('Name (Arabic)', 'الاسم (بالعربية)')}><input name="nameAr" defaultValue={d.nameAr ?? ''} dir="rtl" className={inputCls} /></Field>
         <Field label={tb('SKU', 'رمز المنتج (SKU)')} hint={tb('Leave empty to auto-generate (VEY-…).', 'اتركه فارغًا للتوليد التلقائي (VEY-…).')}><input name="sku" defaultValue={d.sku ?? ''} className={inputCls} /></Field>
         <Field label={tb('Brand', 'العلامة التجارية')} hint={tb('Search and pick one brand.', 'ابحث واختر علامة واحدة.')}>

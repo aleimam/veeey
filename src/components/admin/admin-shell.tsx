@@ -109,8 +109,22 @@ export function AdminShell({
   // V5 audit F17: named sub-pages that have no sidebar entry of their own get a
   // third crumb (e.g. Admin › Analytics › Report builder) instead of silently
   // showing their parent as the current page.
+  // V7 audit C10: the catalog edit screens are dynamic (edit/[[...id]] — bare
+  // /edit is "new"), so they need prefix rules, not exact paths.
   const SUB_CRUMBS: Record<string, string> = { '/admin/analytics/report': t('Report builder', 'منشئ التقارير') };
-  const subCrumb = current && pathname !== current.href ? SUB_CRUMBS[pathname] : undefined;
+  const subCrumbOf = (p: string): string | undefined => {
+    if (SUB_CRUMBS[p]) return SUB_CRUMBS[p];
+    for (const [base, nouns] of [
+      ['/admin/products/edit', [t('New product', 'منتج جديد'), t('Edit product', 'تعديل المنتج')]],
+      ['/admin/brands/edit', [t('New brand', 'علامة جديدة'), t('Edit brand', 'تعديل العلامة')]],
+      ['/admin/categories/edit', [t('New category', 'فئة جديدة'), t('Edit category', 'تعديل الفئة')]],
+    ] as const) {
+      if (p === base) return nouns[0];
+      if (p.startsWith(`${base}/`)) return nouns[1];
+    }
+    return undefined;
+  };
+  const subCrumb = current && pathname !== current.href ? subCrumbOf(pathname) : undefined;
 
   // Count section visits for the dashboard's personal quick cards. Best-effort
   // (server no-ops on unknown hrefs); the dashboard itself is not counted.

@@ -238,6 +238,18 @@ function productOrderBy(sort?: string, dir: 'asc' | 'desc' = 'desc'): Prisma.Pro
  * List products for the admin. Without `page` it returns up to 200 (used by
  * pickers); with `page` it paginates by `perPage` and applies the sort column.
  */
+/** Stock + margin inputs for the products list's inventory columns (V7 C13).
+ *  One query for the visible page's ids; the math lives in inventory-columns. */
+export async function inventoryColumnsFor(productIds: string[]) {
+  if (productIds.length === 0) return new Map();
+  const { summarizeLots } = await import('@/lib/inventory-columns');
+  const lots = await prisma.lot.findMany({
+    where: { productId: { in: productIds }, status: 'LIVE' },
+    select: { productId: true, qtyOnHand: true, qtyReserved: true, costPiastres: true },
+  });
+  return summarizeLots(lots);
+}
+
 export async function listProducts(opts: ProductListOpts = {}) {
   const perPage = opts.perPage ?? 50;
   const take = opts.page != null ? perPage : 200;

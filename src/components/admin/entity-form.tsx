@@ -89,21 +89,21 @@ export function EntityForm({
         }
         if (f.type === 'textarea') {
           return (
-            <Field key={f.name} label={f.label}>
+            <Field key={f.name} label={f.label} required={'required' in f && f.required === true}>
               <textarea name={f.name} defaultValue={(def as string) ?? ''} rows={4} className={inputCls} />
             </Field>
           );
         }
         if (f.type === 'rich') {
           return (
-            <Field key={f.name} label={f.label} hint={f.hint}>
+            <Field key={f.name} label={f.label} required={'required' in f && f.required === true} hint={f.hint}>
               <RichTextField name={f.name} initial={(def as string) ?? ''} compact={f.compact} />
             </Field>
           );
         }
         if (f.type === 'select') {
           return (
-            <Field key={f.name} label={f.label}>
+            <Field key={f.name} label={f.label} required={'required' in f && f.required === true}>
               <select name={f.name} defaultValue={(def as string) ?? ''} className={inputCls}>
                 {f.options.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -115,7 +115,7 @@ export function EntityForm({
         if (f.type === 'multiselect') {
           const selected = new Set((def as string[]) ?? []);
           return (
-            <Field key={f.name} label={f.label} hint="Hold Ctrl/Cmd to select multiple.">
+            <Field key={f.name} label={f.label} required={'required' in f && f.required === true} hint="Hold Ctrl/Cmd to select multiple.">
               <select name={f.name} multiple defaultValue={[...selected]} className={`${inputCls} h-40`}>
                 {f.options.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -126,7 +126,7 @@ export function EntityForm({
         }
         if (f.type === 'image') {
           return (
-            <Field key={f.name} label={f.label} hint={f.hint}>
+            <Field key={f.name} label={f.label} required={'required' in f && f.required === true} hint={f.hint}>
               <SingleImageUploader name={f.name} initial={(def as string) ?? ''} />
             </Field>
           );
@@ -141,13 +141,13 @@ export function EntityForm({
         }
         // text (controlled so the slug preview can read the name)
         return (
-          <Field key={f.name} label={f.label} hint={f.hint}>
+          <Field key={f.name} label={f.label} required={'required' in f && f.required === true} hint={f.hint}>
             <input
               type="text"
               name={f.name}
               value={vals[f.name] ?? ''}
               onChange={(e) => set(f.name, e.target.value)}
-              required={'required' in f ? f.required : false}
+              required={'required' in f && f.required === true}
               className={inputCls}
             />
           </Field>

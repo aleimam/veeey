@@ -1,7 +1,8 @@
 import { setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { listProducts, countProducts } from '@/lib/catalog-service';
+import { listProducts, countProducts, inventoryColumnsFor } from '@/lib/catalog-service';
 import { listBrands, listCategories } from '@/lib/taxonomy-service';
+import { marginOf, type InvSummary } from '@/lib/inventory-columns';
 import { formatEGP } from '@/lib/format';
 import { StatusBadge } from '@/components/admin/ui';
 import { ConfirmButton } from '@/components/admin/confirm-button';
@@ -46,6 +47,12 @@ export default async function ProductsPage({ params, searchParams }: { params: P
     listCategories(),
   ]);
   const brandOptions = brands.map((b) => ({ value: b.id, label: b.nameEn }));
+
+  // V7 audit C13: opt-in stock & margin columns (?cols=inv, carried by listQs
+  // through sort/pagination). Opt-in because they cost a lots query per page
+  // and most catalog work doesn't need them.
+  const showInv = one(sp.cols) === 'inv';
+  const inv: Map<string, InvSummary> = showInv ? await inventoryColumnsFor(products.map((p) => p.id)) : new Map();
 
   const basePath = `/${locale}/admin/products`;
   const back = `${basePath}${listQs(sp, { done: undefined, skip: undefined, error: undefined })}`;
@@ -147,27 +154,55 @@ export default async function ProductsPage({ params, searchParams }: { params: P
         labels={{ selectAllPage: tb('Select page', 'تحديد الصفحة'), selected: tb('selected', 'محدد'), apply: tb('Apply', 'تطبيق'), exportSel: tb('Export selected', 'تصدير المحدد'), confirmDanger: tb('Delete the selected products? In-use products are skipped.', 'حذف المنتجات المحددة؟ يتم تخطّي المستخدمة.'), needValue: tb('Choose a value first.', 'اختر قيمة أولًا.') }}
       />
 
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="mb-2 text-end">
+        <a href={`${basePath}${listQs(sp, { cols: showInv ? undefined : 'inv' })}`} className="text-sm text-primary hover:underline">
+          {showInv ? tb('Hide stock & margin', 'إخفاء المخزون والهامش') : tb('Show stock & margin', 'عرض المخزون والهامش')}
+        </a>
+      </div>
+
+      {/* V7 audit C15: the table scrolls INSIDE this wrapper so the sticky
+          thead engages (sticky can't work vertically in a plain overflow-x
+          container — it becomes a both-axis scroll container with no height).
+          Bonus: the BulkBar sits above the scroll region, so bulk actions stay
+          on screen however deep the rows go. */}
+      <div className="max-h-[72vh] overflow-auto rounded-lg border border-border">
         <table className="w-full text-sm">
-          <thead className="bg-surface text-start text-xs uppercase text-muted-foreground">
+          <thead className="sticky top-0 z-10 bg-surface text-start text-xs uppercase text-muted-foreground">
             <tr>
               <th className="w-8 p-3" />
               <SortableTh col="name" label={tb('Name', 'الاسم')} sort={sort} dir={dir} sp={sp} basePath={basePath} />
               <SortableTh col="sku" label={tb('SKU', 'رمز المنتج (SKU)')} sort={sort} dir={dir} sp={sp} basePath={basePath} />
               <th className="p-3 text-start">{tb('Brand', 'العلامة التجارية')}</th>
               <SortableTh col="price" label={tb('Price', 'السعر')} sort={sort} dir={dir} sp={sp} basePath={basePath} />
+              {showInv && <th className="p-3 text-end">{tb('Stock', 'المخزون')}</th>}
+              {showInv && (
+                // Not sortable: both are lot aggregates, and sorting them
+                // server-side needs a raw-SQL orderBy — out of polish scope.
+                <th className="p-3 text-end" title={tb('Base price minus weighted-average lot cost. Storefront sells per-lot prices, so treat as indicative.', 'السعر الأساسي ناقص متوسط تكلفة الدُفعات المرجّح. المتجر يبيع بسعر لكل دفعة، فالرقم استرشادي.')}>
+                  {tb('Margin', 'الهامش')}
+                </th>
+              )}
               <SortableTh col="status" label={tb('Status', 'الحالة')} sort={sort} dir={dir} sp={sp} basePath={basePath} />
               <th className="p-3" />
             </tr>
           </thead>
           <tbody>
-            {products.map((p) => (
+            {products.map((p) => {
+              const s = inv.get(p.id);
+              const m = s ? marginOf(Number(p.basePricePiastres), s.avgCostPiastres) : null;
+              return (
               <tr key={p.id} className="border-t border-border">
                 <td className="p-3"><input type="checkbox" name="ids" value={p.id} form="bulk-products" className="size-4" aria-label={p.nameEn} /></td>
                 <td className="p-3 font-medium">{p.nameEn}</td>
                 <td className="p-3 text-muted-foreground">{p.sku}</td>
                 <td className="p-3 text-muted-foreground">{p.brand?.nameEn ?? '—'}</td>
                 <td className="p-3">{formatEGP(Number(p.basePricePiastres))}</td>
+                {showInv && <td className={`p-3 text-end tabular-nums ${(s?.available ?? 0) === 0 ? 'text-muted-foreground' : ''}`}>{s?.available ?? 0}</td>}
+                {showInv && (
+                  <td className={`p-3 text-end tabular-nums ${m && m.piastres < 0 ? 'text-destructive' : ''}`}>
+                    {m ? `${formatEGP(m.piastres)} (${m.pct}%)` : '—'}
+                  </td>
+                )}
                 <td className="p-3"><StatusBadge status={p.status} /></td>
                 <td className="p-3">
                   <div className="flex items-center justify-end gap-3">
@@ -193,9 +228,10 @@ export default async function ProductsPage({ params, searchParams }: { params: P
                   </div>
                 </td>
               </tr>
-            ))}
+              );
+            })}
             {products.length === 0 && (
-              <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">{tb('No products match.', 'لا توجد منتجات مطابقة.')}</td></tr>
+              <tr><td colSpan={showInv ? 9 : 7} className="p-6 text-center text-muted-foreground">{tb('No products match.', 'لا توجد منتجات مطابقة.')}</td></tr>
             )}
           </tbody>
         </table>

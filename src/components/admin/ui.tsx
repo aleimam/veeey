@@ -10,14 +10,20 @@ export function Field({
   label,
   children,
   hint,
+  required,
 }: {
   label: string;
   children: React.ReactNode;
   hint?: string;
+  /** V7 audit C9: show a visible marker. The * is decoration for sighted users
+   *  (aria-hidden) — screen readers get "required" from the input's own
+   *  `required` attribute, so pass BOTH or the two audiences see different forms. */
+  required?: boolean;
 }) {
   return (
     <label className="block text-sm font-medium text-foreground">
       {label}
+      {required && <span aria-hidden className="text-destructive"> *</span>}
       {children}
       {hint && <span className="mt-1 block text-xs font-normal text-muted-foreground">{hint}</span>}
     </label>
