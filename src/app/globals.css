@@ -292,6 +292,18 @@
   }
 }
 
+/* ── Admin keyboard focus (V5 audit D-05) ────────────────────────────
+ * A shared, high-contrast focus-visible ring across every interactive
+ * element in the admin — visibly distinct from hover (which only tints
+ * borders/backgrounds). Scoped to [data-admin-root]; keyboard-only
+ * (:focus-visible), so mouse clicks don't flash rings. Both themes use
+ * the theme-aware --ring token. */
+[data-admin-root] :is(a, button, [role='button'], input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 /* ── Storefront scope (Veeey Design System) ──────────────────────────
  * Defined OUTSIDE @layer so these win over the @layer base html[lang='ar']
  * font rule within the storefront subtree. The colliding token names

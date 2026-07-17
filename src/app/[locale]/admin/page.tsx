@@ -6,9 +6,10 @@ import { pick } from '@/lib/admin-i18n';
 import { formatEGP } from '@/lib/format';
 import { getCurrentUser } from '@/lib/auth-guards';
 import { NAV_ITEMS, type AdminNavItem } from '@/lib/admin-nav';
-import { StatusBadge } from '@/components/admin/ui';
 import { QuickCards, type QuickCard } from '@/components/admin/quick-cards';
-import { TrendingUp, ShoppingCart, UserPlus, PackageX, ArrowUpRight, ArrowDownRight, Clock, ArrowRight } from 'lucide-react';
+import { RecentOrdersTable } from '@/components/admin/recent-orders-table';
+import { trendToneClass, trendCornerClass, deltaAriaLabel } from '@/lib/kpi-trend';
+import { TrendingUp, TrendingDown, ShoppingCart, UserPlus, PackageX, ArrowUpRight, ArrowDownRight, Minus, ArrowRight } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -90,12 +91,17 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
   const monthStr = ymd(startOfMonth);
   const weekAgoStr = ymd(weekAgo);
 
+  // V5 audit D-01: the revenue card's corner icon is a TREND icon — it must
+  // follow the delta sign (up/down/flat), never a hardcoded trending-up.
+  const revDelta = delta(revToday, revYest);
+  const revTrendIcon = revDelta > 0 ? TrendingUp : revDelta < 0 ? TrendingDown : Minus;
   const kpis = [
-    { label: tb('Revenue today', 'إيرادات اليوم'), value: formatEGP(revToday), d: delta(revToday, revYest), icon: TrendingUp, href: `/admin/orders?from=${todayStr}&to=${todayStr}` },
+    { label: tb('Revenue today', 'إيرادات اليوم'), value: formatEGP(revToday), d: revDelta, icon: revTrendIcon, trend: true, href: `/admin/orders?from=${todayStr}&to=${todayStr}` },
     { label: tb('Orders today', 'طلبات اليوم'), value: String(ordToday), d: delta(ordToday, ordYest), icon: ShoppingCart, href: `/admin/orders?from=${todayStr}&to=${todayStr}` },
     { label: tb('New customers (month)', 'عملاء جدد (الشهر)'), value: String(newCustomers), d: null, icon: UserPlus, href: `/admin/customers?from=${monthStr}` },
     { label: tb('Low-stock lots (≤5)', 'دفعات منخفضة (≤5)'), value: String(lowStockLots), d: null, icon: PackageX, warn: lowStockLots > 0, href: '/admin/inventory/lots?stock=low&status=LIVE' },
   ];
+  const deltaWords = { up: tb('up', 'ارتفاع'), down: tb('down', 'انخفاض'), flat: tb('unchanged', 'بدون تغيير'), vs: tb('vs yesterday', 'مقابل أمس') };
 
   const quickLinks = [
     { label: tb('Products', 'المنتجات'), value: products, href: '/admin/products', sub: `${published} ${tb('published', 'منشور')}` },
@@ -126,16 +132,23 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {kpis.map((k) => {
           const Ic = k.icon;
+          // Corner chip: trend cards follow the delta tone (D-01); others keep
+          // their semantic tone (warn → gold, default → primary).
+          const corner = k.trend && k.d !== null ? trendCornerClass(k.d) : k.warn ? 'bg-gold/15 text-gold' : 'bg-primary/10 text-primary';
           return (
-            <Link key={k.label} href={k.href} className="block rounded-xl border border-border bg-card p-4 transition hover:border-primary hover:shadow-sm">
+            <Link key={k.label} href={k.href} className="block min-w-0 rounded-xl border border-border bg-card p-4 transition hover:border-primary hover:shadow-sm">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">{k.label}</span>
-                <span className={`flex size-8 items-center justify-center rounded-lg ${k.warn ? 'bg-gold/15 text-gold' : 'bg-primary/10 text-primary'}`}><Ic size={17} /></span>
+                <span className={`flex size-8 items-center justify-center rounded-lg ${corner}`}><Ic size={17} /></span>
               </div>
               <div className="mt-2 text-2xl font-semibold text-foreground">{k.value}</div>
               {k.d !== null && (
-                <div className={`mt-1.5 inline-flex items-center gap-1 text-xs font-medium ${k.d >= 0 ? 'text-primary' : 'text-destructive'}`}>
-                  {k.d >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />} {Math.abs(k.d)}% {tb('vs yesterday', 'مقابل أمس')}
+                <div
+                  className={`mt-1.5 inline-flex items-center gap-1 text-xs font-medium ${trendToneClass(k.d)}`}
+                  aria-label={`${k.label}: ${deltaAriaLabel(k.d, deltaWords)}`}
+                >
+                  {k.d > 0 ? <ArrowUpRight size={14} aria-hidden /> : k.d < 0 ? <ArrowDownRight size={14} aria-hidden /> : <Minus size={14} aria-hidden />}
+                  {k.d === 0 ? deltaWords.flat : `${Math.abs(k.d)}%`} {deltaWords.vs}
                 </div>
               )}
             </Link>
@@ -144,24 +157,25 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
       </div>
 
       <div className="mb-6 grid gap-4 lg:grid-cols-[1.6fr_1fr]">
-        <div className="rounded-xl border border-border bg-card p-4">
+        {/* min-w-0 on grid children + fluid bars: the chart may never expand the page (V5 D-02/D-03) */}
+        <div className="min-w-0 rounded-xl border border-border bg-card p-4">
           <div className="mb-3 flex items-baseline justify-between">
             <h2 className="text-sm font-semibold text-foreground">{tb('Revenue · last 7 days', 'الإيرادات · آخر ٧ أيام')}</h2>
             <Link href={`/admin/orders?from=${weekAgoStr}&to=${todayStr}`} className="text-sm text-muted-foreground hover:text-primary hover:underline">{formatEGP(weekTotal)}</Link>
           </div>
-          <div className="flex h-40 items-end gap-2">
+          <div className="flex h-40 w-full min-w-0 items-end gap-2">
             {buckets.map((b, i) => (
-              <div key={i} className="flex flex-1 flex-col items-center gap-1.5">
+              <div key={i} className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
                 <div className="flex w-full items-end justify-center" style={{ height: '128px' }}>
                   <div className="w-full max-w-[34px] rounded-t-md bg-primary/80" style={{ height: `${Math.max(4, Math.round((b.total / maxBucket) * 128))}px` }} title={formatEGP(b.total)} />
                 </div>
-                <span className="text-[11px] text-muted-foreground">{b.label}</span>
+                <span className="truncate text-[11px] text-muted-foreground">{b.label}</span>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="min-w-0 rounded-xl border border-border bg-card p-4">
           <h2 className="mb-3 text-sm font-semibold text-foreground">{tb('Expiry & stock alerts', 'تنبيهات الصلاحية والمخزون')}</h2>
           {expiryLots.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">{tb('No expiring stock.', 'لا يوجد مخزون قارب على الانتهاء.')}</p>
@@ -185,7 +199,7 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="min-w-0 rounded-xl border border-border bg-card p-4">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-foreground">{tb('Recent orders', 'أحدث الطلبات')}</h2>
             <Link href="/admin/orders" className="text-xs font-medium text-primary hover:underline">{tb('View all', 'عرض الكل')}</Link>
@@ -193,23 +207,21 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
           {recentOrders.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">{tb('No orders yet.', 'لا توجد طلبات بعد.')}</p>
           ) : (
-            <table className="w-full text-sm">
-              <tbody>
-                {recentOrders.map((o) => (
-                  <tr key={o.id} className="border-t border-border first:border-t-0">
-                    <td className="py-2.5"><Link href={`/admin/orders/${o.id}`} className="font-medium text-foreground hover:text-primary hover:underline">{o.number}</Link></td>
-                    <td className="py-2.5 text-muted-foreground">{[o.customer?.firstName, o.customer?.lastName].filter(Boolean).join(' ') || tb('Guest', 'زائر')}</td>
-                    <td className="py-2.5 text-foreground">{formatEGP(Number(o.totalPiastres))}</td>
-                    <td className="py-2.5"><StatusBadge status={o.status} /></td>
-                    <td className="py-2.5 text-end text-xs text-muted-foreground"><span className="inline-flex items-center gap-1"><Clock size={12} /> {monthDay(o.placedAt)}</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <RecentOrdersTable
+              rows={recentOrders.map((o) => ({
+                id: o.id,
+                number: o.number,
+                customer: [o.customer?.firstName, o.customer?.lastName].filter(Boolean).join(' ') || tb('Guest', 'زائر'),
+                total: formatEGP(Number(o.totalPiastres)),
+                status: o.status,
+                date: monthDay(o.placedAt),
+              }))}
+              labels={{ order: tb('Order #', 'رقم الطلب'), customer: tb('Customer', 'العميل'), total: tb('Total', 'الإجمالي'), status: tb('Status', 'الحالة'), date: tb('Date', 'التاريخ') }}
+            />
           )}
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="min-w-0 rounded-xl border border-border bg-card p-4">
           <h2 className="mb-2 text-sm font-semibold text-foreground">{tb('Catalog', 'الكتالوج')}</h2>
           <div className="grid grid-cols-2 gap-3">
             {quickLinks.map((s) => (

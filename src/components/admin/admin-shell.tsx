@@ -128,10 +128,12 @@ export function AdminShell({
   const railBg = isDark ? '#12211a' : '#235c3c';
 
   return (
-    <div data-admin-root className={`${isDark ? 'dark' : ''} flex min-h-dvh bg-background text-foreground`}>
+    // overflow-x-clip: stray wide content may scroll inside its own card but can
+    // never expand the page or paint an un-themed strip (V5 audit D-02/D-03).
+    <div data-admin-root className={`${isDark ? 'dark' : ''} flex min-h-dvh overflow-x-clip bg-background text-foreground`}>
       {/* desktop sidebar */}
       <aside
-        className={`sticky top-0 hidden h-dvh shrink-0 flex-col overflow-y-auto p-3 text-white md:flex ${collapsed ? 'w-[68px]' : 'w-60'}`}
+        className={`sticky top-0 hidden h-dvh shrink-0 flex-col overflow-y-auto p-3 text-white lg:flex ${collapsed ? 'w-[68px]' : 'w-60'}`}
         style={{ background: railBg }}
       >
         <Link href="/admin" className={`mb-4 flex items-center gap-2 px-1.5 py-1 ${collapsed ? 'justify-center' : ''}`}>
@@ -148,7 +150,7 @@ export function AdminShell({
 
       {/* mobile drawer */}
       {mobOpen && (
-        <div className="fixed inset-0 z-[80] md:hidden">
+        <div className="fixed inset-0 z-[80] lg:hidden">
           <div className="absolute inset-0 bg-foreground/50" onClick={() => setMobOpen(false)} />
           <div className="absolute inset-y-0 start-0 w-[78%] max-w-[280px] overflow-y-auto p-3 text-white" style={{ background: railBg }}>
             <div className="mb-4 flex items-center justify-between px-1.5">
@@ -163,8 +165,8 @@ export function AdminShell({
       {/* main column */}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex items-center gap-2 border-b border-border bg-card px-3 py-2.5 sm:px-4">
-          <button onClick={() => setMobOpen(true)} className="text-muted-foreground hover:text-foreground md:hidden" aria-label={t('Open menu', 'فتح القائمة')}><Menu size={20} /></button>
-          <button onClick={toggleCollapsed} className="hidden text-muted-foreground hover:text-foreground md:inline-flex" aria-label={t('Toggle sidebar', 'طي الشريط الجانبي')}>
+          <button onClick={() => setMobOpen(true)} className="text-muted-foreground hover:text-foreground lg:hidden" aria-label={t('Open menu', 'فتح القائمة')}><Menu size={20} /></button>
+          <button onClick={toggleCollapsed} className="hidden text-muted-foreground hover:text-foreground lg:inline-flex" aria-label={t('Toggle sidebar', 'طي الشريط الجانبي')}>
             {collapsed ? <PanelLeftOpen size={19} /> : <PanelLeftClose size={19} />}
           </button>
 
