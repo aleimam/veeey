@@ -53,7 +53,9 @@ function MetricHeader({ tb }: { tb: (en: string, ar: string) => string }) {
  */
 function Card({ title, basis, note, children }: { title: string; basis: string; note?: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-lg border border-border p-4">
+    // min-w-0: a grid item defaults to min-width:auto, so wide content would
+    // stretch the row and scroll the page sideways (V6 audit S5).
+    <section className="min-w-0 rounded-lg border border-border p-4">
       <h2 className="mb-1 font-heading text-base font-semibold">{title}</h2>
       <p className="mb-1 text-xs font-medium text-muted-foreground">{basis}</p>
       {note && <p className="mb-2 text-xs text-muted-foreground">{note}</p>}
