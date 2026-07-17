@@ -13,6 +13,7 @@ export const PERMISSION_CATALOG = {
   'orders.read': 'View orders',
   'orders.write': 'Create/edit orders',
   'orders.fulfill': 'Fulfillment, tracking, delivery assignment',
+  'requests.manage': 'Place & manage purchasing requests',
   'pricing.manage': 'Manage pricing, tiers, loyalty config',
   'coupons.manage': 'Manage coupons & campaigns',
   'customers.read': 'View customers',
@@ -43,6 +44,7 @@ export const PERMISSION_CATALOG_AR: Record<PermissionKey, string> = {
   'orders.read': 'عرض الطلبات',
   'orders.write': 'إنشاء/تعديل الطلبات',
   'orders.fulfill': 'التجهيز والتتبّع وتعيين التوصيل',
+  'requests.manage': 'إنشاء وإدارة طلبات الشراء',
   'pricing.manage': 'إدارة الأسعار والفئات وإعداد الولاء',
   'coupons.manage': 'إدارة الكوبونات والحملات',
   'customers.read': 'عرض العملاء',
@@ -63,7 +65,7 @@ export const PERMISSION_CATALOG_AR: Record<PermissionKey, string> = {
 /** Logical groupings for the permission matrix (bilingual section titles). */
 export const PERMISSION_GROUPS: { title: [en: string, ar: string]; keys: PermissionKey[] }[] = [
   { title: ['Catalog & inventory', 'الكتالوج والمخزون'], keys: ['catalog.read', 'catalog.write', 'inventory.manage', 'stocktake.manage'] },
-  { title: ['Orders & returns', 'الطلبات والمرتجعات'], keys: ['orders.read', 'orders.write', 'orders.fulfill', 'returns.manage', 'couriers.access'] },
+  { title: ['Orders & returns', 'الطلبات والمرتجعات'], keys: ['orders.read', 'orders.write', 'orders.fulfill', 'requests.manage', 'returns.manage', 'couriers.access'] },
   { title: ['Pricing & marketing', 'الأسعار والتسويق'], keys: ['pricing.manage', 'coupons.manage', 'marketing.manage'] },
   { title: ['Customers & reviews', 'العملاء والتقييمات'], keys: ['customers.read', 'customers.write', 'reviews.moderate'] },
   { title: ['Content & SEO', 'المحتوى وSEO'], keys: ['content.manage', 'seo.manage'] },
@@ -92,7 +94,7 @@ export const ROLE_DEFINITIONS: RoleDefinition[] = [
     name: 'Pharmacist (Sales)',
     permissions: [
       'catalog.read', 'orders.read', 'orders.write', 'inventory.manage',
-      'customers.read', 'reviews.moderate',
+      'requests.manage', 'customers.read', 'reviews.moderate',
     ],
   },
   {
