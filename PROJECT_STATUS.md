@@ -7,9 +7,16 @@
 
 ## Current state
 
-- **Live** at **veeey.com**. Latest deployed commit: **`cd1b6f8`** (2026-07-14). All
+- **Live** at **veeey.com**. Latest deployed commit: **`84211ba`** (2026-07-17). All
   **55 Prisma migrations applied** (latest `gift_customer_name`); `pm2` `veeey` (web) + `veeey-worker` healthy;
-  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **408 unit tests** · build.
+  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **422 unit tests** · build.
+- **V5 audit doc P0+P1 slice shipped 2026-07-17** (source: `C:\Claude\eCommerce\V5 Veeey_editable_featues_v1.docx`;
+  commits `8f78383` search-500+token-blocklist → `5a295cb` dashboard D-01..05 → `84211ba` analytics F2-F6/F10/F12).
+  Root causes worth remembering: search analytics raw SQL said `o."createdAt"` but Order's field is **placedAt**;
+  the traffic chart used `hsl(var(--primary))` against **hex** tokens (invalid CSS → invisible series/dark chart).
+  Deferred to the P2/P3 pass: report-builder custom range (fold into F11's shared `<AnalyticsDateRange>`), F8/F9
+  remainder, F11, F13–F20, dashboard D-06..D-17. The doc's open product questions (duplicate expiry lots real?
+  funnel attribution intent, geo-enrichment privacy, UTM wiring) still need owner answers.
 - 🔸 **THIS CODEBASE NOW RUNS TWO INDEPENDENT STORES.** Besides veeey.com, a **second, separate
   store is live at veeey.net** (own DB/customers/orders, **not synced** with veeey.com) — deployed
   2026-07-15, co-hosted on the CyberPanel/OpenLiteSpeed box that also runs the egyptvitamins.net
