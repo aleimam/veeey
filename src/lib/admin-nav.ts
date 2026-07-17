@@ -19,6 +19,7 @@ export const NAV_SECTIONS: AdminNavSection[] = [
   { title: ['Orders', 'الطلبات'], items: [
     { href: '/admin/orders', key: 'orders', permission: 'orders.read' },
     { href: '/admin/returns', key: 'returns', permission: 'returns.manage' },
+    { href: '/admin/requests', key: 'requests', permission: 'requests.manage' },
     { href: '/admin/special-orders', key: 'specialOrders', permission: 'orders.read' },
     { href: '/admin/gifts', key: 'gifts', permission: 'orders.write' },
     { href: '/admin/refill', key: 'refillPlans', permission: 'orders.read' },

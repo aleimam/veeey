@@ -20,7 +20,7 @@ export type NavSection = { title: string; items: NavItem[] };
 
 export const ICONS: Record<string, LucideIcon> = {
   dashboard: LayoutDashboard, analytics: BarChart3, salesAnalytics: TrendingUp, searchAnalytics: Search, searchSynonyms: Shuffle, searchDemand: PackageSearch, orders: ShoppingCart, returns: RotateCcw,
-  specialOrders: Globe, gifts: Gift, refillPlans: Repeat, products: Package, brands: Award, categories: FolderTree,
+  requests: Inbox, specialOrders: Globe, gifts: Gift, refillPlans: Repeat, products: Package, brands: Award, categories: FolderTree,
   tags: Tags, attributes: SlidersHorizontal, attributesBulk: Wand2, variantGroups: Layers, collections: LayoutGrid, inventory: Boxes,
   reorderRequests: ClipboardList, expiryFight: CalendarClock, searchRules: SearchCheck, abandonedCarts: ShoppingBag,
   stocktake: ClipboardCheck, shipping: Truck, customers: Users, tiers: Crown, coupons: Ticket,
