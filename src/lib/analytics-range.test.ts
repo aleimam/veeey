@@ -39,6 +39,24 @@ describe('resolveAnalyticsRange (V5 audit F9/F10/F11)', () => {
     expect(r.endAt!.getHours()).toBe(23); // end of day, inclusive
   });
 
+  it('S1 (V6): explicit from+to win over ANY preset, so Apply honors the dates in one step', () => {
+    const r = resolveAnalyticsRange({ preset: '7d', from: '2026-03-01', to: '2026-03-31' }, { now: NOW });
+    expect(r.preset).toBe('custom');
+    expect(r.from).toBe('2026-03-01');
+    expect(r.days).toBe(31);
+  });
+
+  it('S14 (V6): a preset with no bounds resolves to that preset — the control drops stale dates', () => {
+    // The UI half lives in date-range-controls.tsx: choosing a non-custom preset
+    // clears the dates AND drops their `name` so they are never submitted. If
+    // they leaked through, the rule above would force custom and the preset
+    // would silently do nothing.
+    const r = resolveAnalyticsRange({ preset: '7d' }, { now: NOW });
+    expect(r.preset).toBe('7d');
+    expect(r.from).toBeNull();
+    expect(r.to).toBeNull();
+  });
+
   it('AUTO-SWAPS inverted ranges instead of returning zeros (F9)', () => {
     const r = resolveAnalyticsRange({ from: '2026-05-31', to: '2026-05-01' }, { now: NOW });
     expect(r.swapped).toBe(true);

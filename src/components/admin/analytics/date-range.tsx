@@ -1,13 +1,17 @@
 import type { ReactNode } from 'react';
-import { inputCls } from '@/components/admin/ui';
 import type { ResolvedRange, AnalyticsPreset } from '@/lib/analytics-range';
+import { DateRangeControls } from '@/components/admin/analytics/date-range-controls';
 
 /**
  * THE analytics period control (V5 audit F11) — one component, identical
  * presets / custom-range / URL behavior on the dashboard, Sales and the
  * Report builder. Server-rendered GET form: state lives in the URL, so every
- * view is shareable (F10). The To input is constrained to ≥ From and inverted
- * input is auto-swapped upstream with visible feedback (F9).
+ * view is shareable (F10).
+ *
+ * This wrapper stays a Server Component (so `dateRangeLabels` below can still be
+ * called from server pages); the interactive preset/date trio lives in
+ * `date-range-controls.tsx`, which enforces the V6 audit S1/S14 contract:
+ * editing a date switches to Custom, and picking a preset drops the dates.
  */
 export type DateRangeLabels = {
   period: string;
@@ -17,8 +21,6 @@ export type DateRangeLabels = {
   swapped: string; // shown when an inverted range was corrected
   presets: Record<AnalyticsPreset, string>;
 };
-
-const PRESETS: AnalyticsPreset[] = ['mtd', '7d', '30d', '90d', 'custom'];
 
 /** Shared bilingual labels so all three pages read identically (F11). */
 export const dateRangeLabels = (tb: (en: string, ar: string) => string): DateRangeLabels => ({
@@ -60,23 +62,13 @@ export function AnalyticsDateRange({
       {Object.entries(hidden).map(([k, v]) => (
         <input key={k} type="hidden" name={k} value={v} />
       ))}
-      <label className="text-sm font-medium">
-        {labels.period}
-        <select name="preset" defaultValue={value.preset} className={`${inputCls} w-44`}>
-          {PRESETS.map((p) => (
-            <option key={p} value={p}>{labels.presets[p]}</option>
-          ))}
-        </select>
-      </label>
-      <label className="text-sm font-medium">
-        {labels.from}
-        <input type="date" name="from" defaultValue={value.from ?? ''} max={max} className={inputCls} />
-      </label>
-      <label className="text-sm font-medium">
-        {labels.to}
-        {/* F9: To can't precede From (server-rendered min; auto-swap covers manual URLs) */}
-        <input type="date" name="to" defaultValue={value.to ?? ''} min={value.from ?? undefined} max={max} className={inputCls} />
-      </label>
+      <DateRangeControls
+        preset={value.preset}
+        from={value.from ?? ''}
+        to={value.to ?? ''}
+        max={max}
+        labels={labels}
+      />
       <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
         {labels.apply}
       </button>
