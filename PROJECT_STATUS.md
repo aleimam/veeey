@@ -7,9 +7,43 @@
 
 ## Current state
 
-- **Live** at **veeey.com**. Latest deployed commit: **`9141676`** (2026-07-17). All
-  **55 Prisma migrations applied** (latest `gift_customer_name`; V6 added none); `pm2` `veeey` (web) + `veeey-worker` healthy;
-  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **492 unit tests** · build.
+- **Live** at **veeey.com**. Latest deployed commit: **`ce4ca34`** (2026-07-17). All
+  **56 Prisma migrations applied** (latest `catalog_entity_slug_fixes` — a DATA migration); `pm2` `veeey` (web) + `veeey-worker` healthy;
+  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **514 unit tests** · build.
+- **V7 audit doc (Catalog module, C1–C20) — everything buildable SHIPPED + DEPLOYED 2026-07-17** (source:
+  `C:\Claude\eCommerce\V7 Veeey_editable_featues_v3.docx`; 4 commits `063680d` → `ce4ca34`). Triage-first again
+  paid off — **6 findings were already shipped or mitigated** (C7 price-tool guard, C8-bulk typedConfirm, C14
+  clickable counts, C16 overflow-x, C17 sort toggle, C18 core listQs) and the data claims were re-measured on
+  prod before building (C4 shrank to 2 rows; C19's 11 zero-price products are all unpublished).
+  - **C1 (`063680d`+`ce7b3e8`, the data migration):** WP entity escapes — **218 products + 6 brands + 14
+    categories stored `&amp;` in names**; nothing decoded at ingest, so every sync re-imported them escaped.
+    New `decode-entities.ts` (single-pass by design; prod has zero double-escapes) wired into wc-sync
+    (names + incoming WC category slug + new-product slugEn) and CSV import; backfill migration cleaned the
+    names. ⚠️ **Interlock:** the sync rewrites nameEn every run and matches categories by slug — decoders and
+    backfill MUST ship together or the sync re-escapes/duplicates. Verified post-deploy: 0 escaped names left.
+  - **C4/C6 (same commits):** the 2 percent-encoded category slugs re-slugged to decoded Arabic (encoded slugs
+    can never match — Next decodes query params) + `pain-releif`→`pain-relief` (both twins) + 4 guarded
+    Redirect rows in the loader's `/products?category=` format; **saveCategory now auto-creates a Redirect on
+    slug rename** (collapses chains, drops self-rows — previously only the restructure tool preserved links)
+    and both category/brand saves decode percent-encoded slug input. Old + new links both 200 on prod.
+  - **C8-row/C2/C5/C18 (`5537fce`):** the products row Delete fired on ONE click → now a named ConfirmButton
+    (component existed, page never used it). Brand filter = new `ComboFilter` (FilterBar `combo` type,
+    type-to-filter listbox + combobox ARIA; hidden input keeps the same `?brand=` param). Translate job:
+    `translateToArabicDetailed` typed outcome — aborts up-front on missing key with the message, retries
+    transient provider errors 2× with backoff, banner shows the provider's actual error (+ partial-failure
+    notice). Products FilterBar `keep`s link-set tag/category (same bug class V6 fixed on Orders).
+  - **C15/C13/C9/C19/C10 (`ce4ca34`):** products table scrolls in its own max-height container with a sticky
+    thead (sticky can't engage in a plain overflow-x wrapper) — BulkBar stays visible above the scroll region;
+    opt-in **Stock & Margin columns** (`?cols=inv`, listQs-carried; margin = base price − weighted-average LIVE
+    lot cost, dash when uncosted, red when negative, explicitly "indicative" — storefront sells per-lot; NOT
+    sortable: aggregate sort needs raw SQL, out of scope; pure math in `inventory-columns.ts`); `Field`
+    `required` marker wired through every EntityForm type; 0-EGP save confirm; edit/new breadcrumbs via prefix
+    rules in admin-shell.
+  - **Still OWNER-BLOCKED:** C3/C11/C12 taxonomy merges (19 EN/AR twin top-level cats — 72 top-level total;
+    "Public Health" = 596 products; reuse `/admin/categories/restructure`), **C20** (audit wants the rich-text
+    font/size pickers removed but SEO-B built them at the owner's request — decide), the **AI key** (C5 root
+    cause), and the **198 product slugs polluted with a stray `-amp-` word** (escape leaked into slug
+    generation at import; renaming = 198 indexed-URL redirects + SEO churn — owner's call, not bundled).
 - **V6 audit doc (Sales & customers analytics page) FULLY shipped 2026-07-17** (source:
   `C:\Claude\eCommerce\V6 Veeey_editable_featues_v2.docx`, findings S1–S15 on `/admin/analytics/sales`;
   9 commits `8f79d3e` → `9141676`, deployed same day). **S6 + S9 were already fixed by V5 — V6 was audited
@@ -368,15 +402,14 @@ portable source of truth** — everything below is what the memory contained tha
   verification + the sitemap already work without this.)
 - **Privacy policy**: lawyer review + registered company name/address in §7.
 
-### Queued next (agreed 2026-07-17)
-- **V7 audit doc** (`C:\Claude\eCommerce\V7 Veeey_editable_featues_v3.docx`) — Catalog module
-  (Products/Brands/Categories + Import/Export), findings **C1–C20**. Owner said "execute V7 after V6"; V6 is
-  now done, so this is the next work. **Triage against the code FIRST** (like V6, several "suspected" items may
-  already be shipped: SEO-A likely covers C7/C8 guards, the LST toolkit likely covers C17/C18 — and V6's
-  FilterBar `keep` fix already closes part of C18). **C3/C11/C12 (taxonomy merges) + C5 key + C7 scope are
-  BLOCKED on owner decisions** per the doc's own clarifications section — don't guess.
-  ⚠️ V7's own testing rule: never run destructive ops against real data (no adjust-ALL-prices, no bulk
-  delete, no import submission).
+### Queued next — owner decisions (V7 leftovers, 2026-07-17)
+- **C3/C11/C12 taxonomy merges** — owner must supply the merge mapping for the 19 EN/AR twin top-level
+  categories (72 top-level exist) + subcategorization rules for "Public Health" (596 products). Execute via the
+  existing `/admin/categories/restructure` dry-run/APPLY tool; category renames now auto-create redirects.
+- **C20 decision** — the audit wants the rich-text Font/Size pickers removed, but SEO-B built them at the
+  owner's request. Keep, remove, or constrain to theme fonts? Ask before touching.
+- **`-amp-` product slugs** — 198 live product URLs carry a stray "amp" word (the C1 escape leaked into slug
+  generation at import). Fix = rename + 198 redirects = SEO churn on indexed pages; owner's call.
 - **S10 real spec** — V6's S10 says "(see Improvements)" but no such section exists in V6 or V7. The shipped
   trend + top-sellers panels are the owner's interim choice ("till I give you more details"); revisit when the
   actual Improvements list arrives.
