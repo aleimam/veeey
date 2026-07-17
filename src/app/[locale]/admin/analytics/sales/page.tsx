@@ -1,9 +1,10 @@
+import { Suspense } from 'react';
 import { setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requirePermission } from '@/lib/auth-guards';
 import { pick } from '@/lib/admin-i18n';
 import { formatEGP } from '@/lib/format';
-import { salesAnalytics, type PeriodPreset, type Metrics } from '@/lib/sales-analytics';
+import { salesAnalytics, salesPeriodRange, type PeriodPreset, type Metrics } from '@/lib/sales-analytics';
 import { NON_BOOKED_STATUSES } from '@/lib/sales-analytics-core';
 import { BarChart } from '@/components/admin/analytics/bar-chart';
 import { AnalyticsDateRange, dateRangeLabels } from '@/components/admin/analytics/date-range';
@@ -64,6 +65,105 @@ function Card({ title, basis, note, children }: { title: string; basis: string; 
   );
 }
 
+/**
+ * V6 audit S2: an out-of-range window (e.g. ?from=2027-01-01) used to render
+ * five cards of zeros, which reads like a broken page rather than an answer.
+ */
+function EmptyPeriod({ tb, previousCount, locale }: { tb: (en: string, ar: string) => string; previousCount: number; locale: string }) {
+  return (
+    <section className="rounded-lg border border-dashed border-border p-8 text-center">
+      <p className="font-medium text-foreground">{tb('No orders in this period', 'لا توجد طلبات في هذه الفترة')}</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {previousCount > 0
+          ? tb(
+              `The previous period had ${num(previousCount, locale)} orders.`,
+              `الفترة السابقة بها ${num(previousCount, locale)} طلبًا.`,
+            )
+          : tb('Try a different date range.', 'جرّب نطاقًا زمنيًا آخر.')}
+      </p>
+    </section>
+  );
+}
+
+/** S12: what the user sees while the numbers load, instead of a frozen page. */
+function PanelsSkeleton({ tb }: { tb: (en: string, ar: string) => string }) {
+  return (
+    <div className="grid gap-4 md:grid-cols-2" role="status" aria-busy="true">
+      <span className="sr-only">{tb('Loading…', 'جارٍ التحميل…')}</span>
+      {[0, 1, 2, 3, 4].map((i) => (
+        <div key={i} className="min-w-0 animate-pulse rounded-lg border border-border p-4">
+          <div className="h-4 w-1/3 rounded bg-muted" />
+          <div className="mt-2 h-3 w-1/2 rounded bg-muted" />
+          <div className="mt-4 h-28 rounded bg-muted" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** The DB-backed half, suspended so the heading + filter render immediately. */
+async function SalesPanels({ preset, from, to, locale }: { preset: PeriodPreset; from?: string; to?: string; locale: string }) {
+  const tb = pick(locale);
+  const a = await salesAnalytics(preset, from, to);
+  const basisBookings = tb('Bookings · selected period', 'الحجوزات · الفترة المحددة');
+
+  // Every period-scoped panel derives from the same orders, so when there are
+  // none they all say nothing — one honest empty state replaces the lot. The
+  // lifetime card stays: it is a catalogue snapshot and still has an answer.
+  const lifetime = (
+    <Card
+      title={tb('Customer size distribution', 'توزيع حجم العملاء')}
+      basis={tb('All customers · lifetime, ignores the selected period', 'كل العملاء · مدى الحياة، لا يتأثر بالفترة المحددة')}
+      note={tb('By lifetime spend (EGP)', 'حسب إجمالي الإنفاق (ج.م)')}
+    >
+      <BarChart
+        data={a.lifetimeHist.map((b) => ({ label: b.label, value: b.count }))}
+        unit="count"
+        emptyLabel={tb('No customers yet', 'لا يوجد عملاء بعد')}
+      />
+    </Card>
+  );
+
+  if (a.current.count === 0) {
+    return (
+      <div className="grid gap-4">
+        <EmptyPeriod tb={tb} previousCount={a.previous.count} locale={locale} />
+        <div className="grid gap-4 md:grid-cols-2">{lifetime}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-4 md:grid-cols-2">
+      <Card title={tb('This period vs previous', 'هذه الفترة مقابل السابقة')} basis={basisBookings}>
+        <MetricHeader tb={tb} />
+        <MetricRow label={tb('Current', 'الحالية')} m={a.current} compare={a.previous} locale={locale} />
+        <MetricRow label={tb('Previous', 'السابقة')} m={a.previous} locale={locale} />
+      </Card>
+
+      <Card title={tb('New vs repeat customers', 'العملاء الجدد مقابل المتكررين')} basis={basisBookings} note={tb('Repeat = ordered before this period', 'متكرر = طلب قبل هذه الفترة')}>
+        <MetricHeader tb={tb} />
+        <MetricRow label={tb('New / first-time', 'جدد / أول مرة')} m={a.newSeg} locale={locale} />
+        <MetricRow label={tb('Repeat', 'متكررون')} m={a.repeatSeg} locale={locale} />
+      </Card>
+
+      <Card title={tb('Big vs normal orders', 'الطلبات الكبيرة مقابل العادية')} basis={basisBookings} note={tb(`Big = order ≥ ${formatEGP(a.bigThresholdEgp * 100)}`, `الكبيرة = طلب ≥ ${formatEGP(a.bigThresholdEgp * 100)}`)}>
+        <MetricHeader tb={tb} />
+        <MetricRow label={tb('Big orders', 'طلبات كبيرة')} m={a.bigSeg} locale={locale} />
+        <MetricRow label={tb('Normal orders', 'طلبات عادية')} m={a.normalSeg} locale={locale} />
+      </Card>
+
+      <Card title={tb('Order size distribution', 'توزيع حجم الطلبات')} basis={basisBookings} note={tb('By order value (EGP)', 'حسب قيمة الطلب (ج.م)')}>
+        <BarChart data={a.orderValueHist.map((b) => ({ label: b.label, value: b.count }))} unit="count" />
+      </Card>
+
+      {/* V5 audit F15: same palette as the order-size chart — the gold variant
+          implied a meaning the color didn't have. */}
+      {lifetime}
+    </div>
+  );
+}
+
 export default async function SalesAnalyticsPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<SP> }) {
   await requirePermission('finance.read');
   const { locale } = await params;
@@ -78,13 +178,16 @@ export default async function SalesAnalyticsPage({ params, searchParams }: { par
     { defaultPreset: 'mtd' },
   );
   const preset = resolved.preset as PeriodPreset;
-  const a = await salesAnalytics(preset, resolved.from ?? undefined, resolved.to ?? undefined);
+  const from = resolved.from ?? undefined;
+  const to = resolved.to ?? undefined;
+  // Resolved without the DB, so the filter and its "vs previous" echo paint
+  // immediately while the panels stream in (S12).
+  const range = salesPeriodRange(preset, from, to);
 
   const dateFmt = (d: Date) => d.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-GB');
 
   // S4: the same window + status basis these numbers use, as an Orders query.
-  const reconcileHref = `/admin/orders?status=booked&from=${ymd(a.range.start)}&to=${ymd(a.range.end)}`;
-  const basisBookings = tb('Bookings · selected period', 'الحجوزات · الفترة المحددة');
+  const reconcileHref = `/admin/orders?status=booked&from=${ymd(range.start)}&to=${ymd(range.end)}`;
 
   return (
     <div className="max-w-4xl p-6">
@@ -125,44 +228,14 @@ export default async function SalesAnalyticsPage({ params, searchParams }: { par
       <AnalyticsDateRange
         value={resolved}
         labels={dateRangeLabels(tb)}
-        note={<>{dateFmt(a.range.start)} → {dateFmt(a.range.end)} · {tb('vs', 'مقابل')} {dateFmt(a.range.prevStart)} → {dateFmt(a.range.prevEnd)}</>}
+        note={<>{dateFmt(range.start)} → {dateFmt(range.end)} · {tb('vs', 'مقابل')} {dateFmt(range.prevStart)} → {dateFmt(range.prevEnd)}</>}
       />
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card title={tb('This period vs previous', 'هذه الفترة مقابل السابقة')} basis={basisBookings}>
-          <MetricHeader tb={tb} />
-          <MetricRow label={tb('Current', 'الحالية')} m={a.current} compare={a.previous} locale={locale} />
-          <MetricRow label={tb('Previous', 'السابقة')} m={a.previous} locale={locale} />
-        </Card>
-
-        <Card title={tb('New vs repeat customers', 'العملاء الجدد مقابل المتكررين')} basis={basisBookings} note={tb('Repeat = ordered before this period', 'متكرر = طلب قبل هذه الفترة')}>
-          <MetricHeader tb={tb} />
-          <MetricRow label={tb('New / first-time', 'جدد / أول مرة')} m={a.newSeg} locale={locale} />
-          <MetricRow label={tb('Repeat', 'متكررون')} m={a.repeatSeg} locale={locale} />
-        </Card>
-
-        <Card title={tb('Big vs normal orders', 'الطلبات الكبيرة مقابل العادية')} basis={basisBookings} note={tb(`Big = order ≥ ${formatEGP(a.bigThresholdEgp * 100)}`, `الكبيرة = طلب ≥ ${formatEGP(a.bigThresholdEgp * 100)}`)}>
-          <MetricHeader tb={tb} />
-          <MetricRow label={tb('Big orders', 'طلبات كبيرة')} m={a.bigSeg} locale={locale} />
-          <MetricRow label={tb('Normal orders', 'طلبات عادية')} m={a.normalSeg} locale={locale} />
-        </Card>
-
-        <Card title={tb('Order size distribution', 'توزيع حجم الطلبات')} basis={basisBookings} note={tb('By order value (EGP)', 'حسب قيمة الطلب (ج.م)')}>
-          <BarChart data={a.orderValueHist.map((b) => ({ label: b.label, value: b.count }))} unit="count" />
-        </Card>
-
-        {/* V5 audit F15: same palette as the order-size chart — the gold variant
-            implied a meaning the color didn't have.
-            V6 audit S4: this card is a whole-catalogue snapshot — it ignores the
-            date range above, which nothing on screen used to admit. */}
-        <Card
-          title={tb('Customer size distribution', 'توزيع حجم العملاء')}
-          basis={tb('All customers · lifetime, ignores the selected period', 'كل العملاء · مدى الحياة، لا يتأثر بالفترة المحددة')}
-          note={tb('By lifetime spend (EGP)', 'حسب إجمالي الإنفاق (ج.م)')}
-        >
-          <BarChart data={a.lifetimeHist.map((b) => ({ label: b.label, value: b.count }))} unit="count" />
-        </Card>
-      </div>
+      {/* key: a new range must re-suspend, or Apply would sit on stale numbers
+          with no sign anything is happening (S12). */}
+      <Suspense key={`${preset}:${from ?? ''}:${to ?? ''}`} fallback={<PanelsSkeleton tb={tb} />}>
+        <SalesPanels preset={preset} from={from} to={to} locale={locale} />
+      </Suspense>
     </div>
   );
 }

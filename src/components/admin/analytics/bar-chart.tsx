@@ -19,7 +19,18 @@ export type BarDatum = { label: string; value: number };
  *  S8 — every bar carries its value, so the numbers are readable without a
  *       hover the user may not have (touch) or think to try.
  */
-export function BarChart({ data, unit = 'count', color = 'var(--primary)' }: { data: BarDatum[]; unit?: 'egp' | 'count'; color?: string }) {
+export function BarChart({
+  data,
+  unit = 'count',
+  color = 'var(--primary)',
+  emptyLabel,
+}: {
+  data: BarDatum[];
+  unit?: 'egp' | 'count';
+  color?: string;
+  /** Shown instead of a flat baseline when there is nothing to plot (V6 S2). */
+  emptyLabel?: string;
+}) {
   const [hover, setHover] = useState<number | null>(null);
   const max = Math.max(1, ...data.map((d) => d.value));
   const fmt = (v: number) => (unit === 'egp' ? `EGP ${Math.round(v / 100).toLocaleString('en-US')}` : v.toLocaleString('en-US'));
@@ -27,6 +38,14 @@ export function BarChart({ data, unit = 'count', color = 'var(--primary)' }: { d
   // aria-label and data table keep the exact figure.
   const fmtShort = (v: number) =>
     new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(unit === 'egp' ? Math.round(v / 100) : v);
+
+  if (emptyLabel && !data.some((d) => d.value > 0)) {
+    return (
+      <div className="flex h-44 w-full items-center justify-center rounded-md border border-dashed border-border text-sm text-muted-foreground">
+        {emptyLabel}
+      </div>
+    );
+  }
 
   return (
     <div className="w-full select-none">

@@ -90,4 +90,16 @@ describe('BarChart (V6 audit S5/S7/S8)', () => {
     render(<BarChart data={[{ label: 'a', value: 0 }, { label: 'b', value: 0 }]} unit="count" />);
     expect(bars()[0]).toHaveAttribute('aria-label', 'a: 0');
   });
+
+  it('S2: says so when there is nothing to plot, rather than drawing a flat baseline', () => {
+    render(<BarChart data={[{ label: 'a', value: 0 }, { label: 'b', value: 0 }]} unit="count" emptyLabel="No customers yet" />);
+    expect(screen.getByText('No customers yet')).toBeInTheDocument();
+    expect(screen.queryAllByRole('button')).toHaveLength(0);
+  });
+
+  it('S2: a series with any data still plots, empty label or not', () => {
+    render(<BarChart data={[{ label: 'a', value: 0 }, { label: 'b', value: 3 }]} unit="count" emptyLabel="No customers yet" />);
+    expect(screen.queryByText('No customers yet')).not.toBeInTheDocument();
+    expect(bars()).toHaveLength(2);
+  });
 });

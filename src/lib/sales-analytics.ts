@@ -20,6 +20,14 @@ const metricsOf = (orders: { totalPiastres: bigint }[]): Metrics => {
   return { count, revenue, aov: count ? Math.round(revenue / count) : 0 };
 };
 
+/**
+ * The window a selection resolves to, without touching the DB. Lets the page
+ * label the range and render the filter while the numbers are still loading
+ * (V6 audit S12) — the pure math is the same one `salesAnalytics` uses.
+ */
+export const salesPeriodRange = (preset: PeriodPreset, from?: string, to?: string): Range =>
+  periodRange(preset, from, to, new Date());
+
 export type SalesAnalytics = {
   range: Range;
   current: Metrics; previous: Metrics;
