@@ -25,12 +25,14 @@ export function QuickCards({ items, heading }: { items: QuickCard[]; heading?: s
           <Link
             key={it.href}
             href={it.href}
-            className="group flex flex-col items-center gap-2 rounded-lg border border-border bg-card p-3 text-center transition-colors hover:border-primary hover:bg-primary/5"
+            // h-full + clamped label: tiles in every row share one height and the
+            // labels align under the icons (V5 audit D-15/D-16).
+            className="group flex h-full flex-col items-center gap-2 rounded-lg border border-border bg-card p-3 text-center transition-colors hover:border-primary hover:bg-primary/5"
           >
-            <span className="flex size-9 items-center justify-center rounded-md bg-primary/10 text-primary">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
               <Icon size={18} />
             </span>
-            <span className="text-xs font-medium leading-tight text-foreground group-hover:text-primary">{it.label}</span>
+            <span className="line-clamp-2 text-xs font-medium leading-tight text-foreground group-hover:text-primary">{it.label}</span>
           </Link>
         );
       })}

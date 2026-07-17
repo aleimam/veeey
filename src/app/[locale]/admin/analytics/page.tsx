@@ -10,6 +10,7 @@ import { requirePermission } from '@/lib/auth-guards';
 import { TrafficChart } from '@/components/admin/analytics/traffic-chart';
 import { AnalyticsDateRange, dateRangeLabels } from '@/components/admin/analytics/date-range';
 import { resolveAnalyticsRange, ymd } from '@/lib/analytics-range';
+import { Download } from 'lucide-react';
 
 const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
 const dwell = (ms: number) => (ms >= 60000 ? `${Math.floor(ms / 60000)}m ${Math.round((ms % 60000) / 1000)}s` : `${(ms / 1000).toFixed(1)}s`);
@@ -298,10 +299,19 @@ export default async function AnalyticsPage({ params, searchParams }: { params: 
         </section>
       </div>
 
-      <div className="rounded-lg border border-border bg-surface p-3 text-sm">
-        <span className="text-muted-foreground">{tb('Export CSV:', 'تصدير CSV:')}</span>{' '}
-        {exports.map((e, i) => (
-          <span key={e.key}>{i > 0 && <span className="text-muted-foreground"> · </span>}<a href={`/api/admin/analytics/export?report=${e.key}&days=${days}`} className="text-primary hover:underline">{e.label}</a></span>
+      {/* V5 audit F20: exports look like downloads and carry the CURRENT range
+          (preset/custom from-to), so the file matches the on-screen filter. */}
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface p-3 text-sm">
+        <span className="text-muted-foreground">{tb('Export CSV:', 'تصدير CSV:')}</span>
+        {exports.map((e) => (
+          <a
+            key={e.key}
+            href={`/api/admin/analytics/export?report=${e.key}&preset=${range.preset}${custom ? `&from=${custom.from}&to=${custom.to}` : ''}`}
+            download
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground transition hover:border-primary hover:text-primary"
+          >
+            <Download size={13} aria-hidden /> {e.label}
+          </a>
         ))}
       </div>
     </div>

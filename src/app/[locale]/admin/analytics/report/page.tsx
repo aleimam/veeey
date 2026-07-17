@@ -5,6 +5,7 @@ import { pick } from '@/lib/admin-i18n';
 import { inputCls } from '@/components/admin/ui';
 import { REPORT_DIMENSIONS, REPORT_METRICS, resolveReportConfig, runReport } from '@/lib/analytics-report';
 import { dateRangeLabels } from '@/components/admin/analytics/date-range';
+import { Download } from 'lucide-react';
 
 type SP = { dimension?: string; metric?: string; days?: string; preset?: string; from?: string; to?: string; fdim?: string; fval?: string };
 
@@ -85,23 +86,33 @@ export default async function ReportBuilderPage({ params, searchParams }: { para
           {tb(`${metric.labelEn} by ${dim.labelEn}`, `${metric.labelAr} حسب ${dim.labelAr}`)}
           {cfg.filterDim && cfg.filterVal ? <span className="text-muted-foreground"> · {lbl(REPORT_DIMENSIONS.find((d) => d.key === cfg.filterDim)!)} = {cfg.filterVal}</span> : null}
         </h2>
-        <a href={exportHref} className="text-sm text-primary hover:underline">{tb('Export CSV', 'تصدير CSV')}</a>
+        {/* V5 audit F20: styled as a download action; the endpoint names the file
+            after metric/dimension/window/filter so it matches this view. */}
+        <a href={exportHref} download className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground transition hover:border-primary hover:text-primary">
+          <Download size={13} aria-hidden /> {tb('Export CSV', 'تصدير CSV')}
+        </a>
       </div>
 
       <div className="overflow-hidden rounded-lg border border-border">
         <table className="w-full text-sm">
           <thead className="bg-surface text-xs uppercase text-muted-foreground">
-            <tr><th className="p-2 text-start">{lbl(dim)}</th><th className="w-1/2 p-2 text-start">{lbl(metric)}</th><th className="p-2 text-end">{tb('Value', 'القيمة')}</th></tr>
+            {/* V5 audit F16: ONE metric column (bar + value together) — the metric
+                name headed the bar and a separate "Value" column duplicated it. */}
+            <tr><th className="p-2 text-start">{lbl(dim)}</th><th className="w-2/3 p-2 text-start">{lbl(metric)}</th></tr>
           </thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.key} className="border-t border-border">
                 <td className="max-w-0 truncate p-2" title={r.key}>{r.key}</td>
-                <td className="p-2"><div className="h-3 overflow-hidden rounded bg-surface"><div className="h-full rounded bg-primary" style={{ width: `${Math.max(2, (r.value / max) * 100)}%` }} /></div></td>
-                <td className="p-2 text-end font-medium">{r.value}</td>
+                <td className="p-2">
+                  <div className="flex items-center gap-2">
+                    <div className="h-3 flex-1 overflow-hidden rounded bg-surface"><div className="h-full rounded bg-primary" style={{ width: `${Math.max(2, (r.value / max) * 100)}%` }} /></div>
+                    <span className="w-16 shrink-0 text-end font-medium">{r.value}</span>
+                  </div>
+                </td>
               </tr>
             ))}
-            {rows.length === 0 && <tr><td colSpan={3} className="p-6 text-center text-muted-foreground">{tb('No data for this selection yet.', 'لا توجد بيانات لهذا الاختيار بعد.')}</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={2} className="p-6 text-center text-muted-foreground">{tb('No data for this selection yet.', 'لا توجد بيانات لهذا الاختيار بعد.')}</td></tr>}
           </tbody>
         </table>
       </div>

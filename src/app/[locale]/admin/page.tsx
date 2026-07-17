@@ -146,12 +146,14 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
               </div>
               <div className="mt-2 text-2xl font-semibold text-foreground">{k.value}</div>
               {k.d !== null && (
+                // V5 audit D-13: the visible delta line carries the direction as a
+                // WORD (up/down/unchanged) — never icon- or color-only.
                 <div
                   className={`mt-1.5 inline-flex items-center gap-1 text-xs font-medium ${trendToneClass(k.d)}`}
                   aria-label={`${k.label}: ${deltaAriaLabel(k.d, deltaWords)}`}
                 >
                   {k.d > 0 ? <ArrowUpRight size={14} aria-hidden /> : k.d < 0 ? <ArrowDownRight size={14} aria-hidden /> : <Minus size={14} aria-hidden />}
-                  {k.d === 0 ? deltaWords.flat : `${Math.abs(k.d)}%`} {deltaWords.vs}
+                  {deltaAriaLabel(k.d, deltaWords)}
                 </div>
               )}
             </Link>
@@ -255,7 +257,9 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
               <Link key={s.label} href={s.href} className="rounded-lg border border-border p-3 transition hover:border-primary">
                 <div className="text-xs text-muted-foreground">{s.label}</div>
                 <div className="mt-0.5 text-xl font-semibold text-foreground">{s.value}</div>
-                {s.sub && <div className="text-[11px] text-muted-foreground">{s.sub}</div>}
+                {/* V5 audit D-15/D-16: the sub-line is always reserved so every
+                    card has identical anatomy and the values align. */}
+                <div className="text-[11px] text-muted-foreground">{s.sub ?? ' '}</div>
               </Link>
             ))}
           </div>

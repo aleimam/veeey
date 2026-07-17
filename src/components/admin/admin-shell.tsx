@@ -62,7 +62,10 @@ function SidebarNav({
                   key={item.href}
                   href={item.href}
                   onClick={onNavigate}
+                  // V5 audit D-14: collapsed rail renders icon-only — the title
+                  // is the tooltip and the aria-label the accessible name.
                   title={collapsedView ? item.label : undefined}
+                  aria-label={collapsedView ? item.label : undefined}
                   className={`flex items-center gap-2.5 rounded-md px-2.5 py-2 text-[13.5px] transition-colors ${collapsedView ? 'justify-center' : ''} ${
                     on ? 'bg-white/12 font-medium text-white' : 'text-white/80 hover:bg-white/8 hover:text-white'
                   }`}
@@ -103,6 +106,11 @@ export function AdminShell({
 
   const flat = sections.flatMap((s) => s.items.map((i) => ({ href: i.href, label: i.label, section: s.title })));
   const current = [...flat].sort((a, b) => b.href.length - a.href.length).find((i) => isActivePath(pathname, i.href));
+  // V5 audit F17: named sub-pages that have no sidebar entry of their own get a
+  // third crumb (e.g. Admin › Analytics › Report builder) instead of silently
+  // showing their parent as the current page.
+  const SUB_CRUMBS: Record<string, string> = { '/admin/analytics/report': t('Report builder', 'منشئ التقارير') };
+  const subCrumb = current && pathname !== current.href ? SUB_CRUMBS[pathname] : undefined;
 
   // Count section visits for the dashboard's personal quick cards. Best-effort
   // (server no-ops on unknown hrefs); the dashboard itself is not counted.
@@ -170,10 +178,27 @@ export function AdminShell({
             {collapsed ? <PanelLeftOpen size={19} /> : <PanelLeftClose size={19} />}
           </button>
 
-          <div className="flex items-center gap-1.5 text-sm">
-            <span className="text-muted-foreground">{t('Admin', 'الإدارة')}</span>
-            {current && <><ChevronRight size={14} className="text-muted-foreground" /><span className="font-medium text-foreground">{current.label}</span></>}
-          </div>
+          <nav aria-label={t('Breadcrumb', 'مسار التنقل')} className="flex items-center gap-1.5 text-sm">
+            {/* V5 audit D-17: the root crumb is a real link home — except on the
+                dashboard itself, where a self-link would be redundant. */}
+            {pathname === '/admin'
+              ? <span className="text-muted-foreground">{t('Admin', 'الإدارة')}</span>
+              : <Link href="/admin" className="text-muted-foreground hover:text-foreground hover:underline">{t('Admin', 'الإدارة')}</Link>}
+            {current && (
+              <>
+                <ChevronRight size={14} className="text-muted-foreground rtl:rotate-180" aria-hidden />
+                {subCrumb
+                  ? <Link href={current.href} className="text-muted-foreground hover:text-foreground hover:underline">{current.label}</Link>
+                  : <span className="font-medium text-foreground" aria-current="page">{current.label}</span>}
+              </>
+            )}
+            {subCrumb && (
+              <>
+                <ChevronRight size={14} className="text-muted-foreground rtl:rotate-180" aria-hidden />
+                <span className="font-medium text-foreground" aria-current="page">{subCrumb}</span>
+              </>
+            )}
+          </nav>
 
           <button
             onClick={() => window.dispatchEvent(new Event('veeey:cmdk'))}

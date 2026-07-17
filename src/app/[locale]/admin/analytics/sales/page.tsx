@@ -76,7 +76,15 @@ export default async function SalesAnalyticsPage({ params, searchParams }: { par
   return (
     <div className="max-w-4xl p-6">
       <Link href="/admin/analytics" className="text-sm text-primary hover:underline">← {tb('Analytics', 'التحليلات')}</Link>
-      <h1 className="mb-4 mt-1 font-heading text-xl font-semibold">{tb('Sales & customers', 'المبيعات والعملاء')}</h1>
+      <h1 className="mb-1 mt-1 font-heading text-xl font-semibold">{tb('Sales & customers', 'المبيعات والعملاء')}</h1>
+      {/* V5 audit F19: the two pages use DIFFERENT (deliberate) revenue bases —
+          say so, or identical periods look like a calculation bug. */}
+      <p className="mb-4 text-xs text-muted-foreground">
+        {tb(
+          'Revenue here counts all placed, non-cancelled orders (bookings). The Analytics dashboard reports delivered-only revenue, so the same period can differ.',
+          'الإيراد هنا يشمل كل الطلبات المقدَّمة غير الملغاة (الحجوزات). لوحة التحليلات تعرض إيراد الطلبات المُسلَّمة فقط، لذا قد تختلف نفس الفترة.',
+        )}
+      </p>
 
       <AnalyticsDateRange
         value={resolved}
@@ -107,8 +115,10 @@ export default async function SalesAnalyticsPage({ params, searchParams }: { par
           <BarChart data={a.orderValueHist.map((b) => ({ label: b.label, value: b.count }))} unit="count" />
         </Card>
 
+        {/* V5 audit F15: same palette as the order-size chart — the gold variant
+            implied a meaning the color didn't have. */}
         <Card title={tb('Customer size distribution', 'توزيع حجم العملاء')} note={tb('All customers, by lifetime spend (EGP)', 'كل العملاء حسب إجمالي الإنفاق (ج.م)')}>
-          <BarChart data={a.lifetimeHist.map((b) => ({ label: b.label, value: b.count }))} unit="count" color="var(--gold, #FFC000)" />
+          <BarChart data={a.lifetimeHist.map((b) => ({ label: b.label, value: b.count }))} unit="count" />
         </Card>
       </div>
     </div>

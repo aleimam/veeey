@@ -26,7 +26,9 @@ export async function visitorTimeSeries(days = 30, endAt?: Date): Promise<Array<
     WHERE e.type = 'page_view' AND e."createdAt" >= ${start} AND e."createdAt" <= ${end} AND s."isBot" = false
     GROUP BY 1 ORDER BY 1`;
   const byDate = new Map(rows.map((r) => [r.d, { visitors: r.visitors, pageviews: r.pageviews }]));
-  return fillDailySeries(end.getTime(), days, byDate, { visitors: 0, pageviews: 0 });
+  // `days` may be fractional (mtd = exact month-start → now, V5 F19); the daily
+  // series still needs one point per calendar day touched by the window.
+  return fillDailySeries(end.getTime(), Math.max(1, Math.ceil(days)), byDate, { visitors: 0, pageviews: 0 });
 }
 
 /** Audience breakdown from the enriched sessions (device / country / browser / OS). */

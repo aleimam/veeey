@@ -62,11 +62,18 @@ export function resolveAnalyticsRange(
       : (opts.defaultPreset ?? '30d');
 
   if (preset === 'mtd') {
-    // Month-to-date: from the 1st through now.
+    // Month-to-date: EXACTLY the 1st 00:00 through now. `days` is fractional +
+    // endAt pinned so `end - days` lands on the month start — an integer-days
+    // window ending at "now" would leak hours of the previous month and
+    // disagree with the Sales page for the same preset (V5 audit F19).
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const days = Math.max(1, Math.ceil((now.getTime() - startOfMonth.getTime()) / 86_400_000));
-    return { preset, days, endAt: undefined, from: null, to: null, swapped: false };
+    const days = Math.max((now.getTime() - startOfMonth.getTime()) / 86_400_000, 0.01);
+    return { preset, days, endAt: new Date(now), from: null, to: null, swapped: false };
   }
 
   return { preset, days: PRESET_DAYS[preset as '7d'], endAt: undefined, from: null, to: null, swapped: false };
 }
+
+/** Filename-safe tag describing a resolved range — used by the CSV export so
+ *  downloads say what window they cover (V5 audit F20). */
+export const rangeTag = (r: ResolvedRange): string => (r.preset === 'custom' ? `${r.from}_${r.to}` : r.preset);
