@@ -1,6 +1,7 @@
 import 'server-only';
 import { prisma } from '@/lib/prisma';
 import { egpToPiastres } from '@/lib/format';
+import { decodeEntities } from '@/lib/decode-entities';
 import { generateReferralCode } from '@/lib/customer';
 import { createProduct } from '@/lib/catalog-service';
 import { resolveImportPayment } from '@/lib/payment-method-service';
@@ -64,7 +65,9 @@ async function idsByNames(model: 'category' | 'tag', csv?: string): Promise<stri
 
 // ---- importers -------------------------------------------------------------
 const importBrands = (rows: Row[]) => run(rows, async (r) => {
-  const nameEn = r.nameEn?.trim();
+  // CSV round-trip (V7 C1): a re-imported old export may carry entity-escaped
+  // names — decode at ingest, same as the WooCommerce sync.
+  const nameEn = decodeEntities(r.nameEn ?? '').trim();
   if (!nameEn) return { error: 'nameEn required' };
   const slug = r.slug?.trim() || slugify(nameEn);
   if (!slug) return { error: 'cannot derive slug' };
@@ -74,7 +77,7 @@ const importBrands = (rows: Row[]) => run(rows, async (r) => {
 });
 
 const importCategories = (rows: Row[]) => run(rows, async (r) => {
-  const nameEn = r.nameEn?.trim();
+  const nameEn = decodeEntities(r.nameEn ?? '').trim();
   if (!nameEn) return { error: 'nameEn required' };
   const slug = r.slug?.trim() || slugify(nameEn);
   if (await prisma.category.findUnique({ where: { slug } })) return 'skipped';
@@ -90,7 +93,7 @@ const importCategories = (rows: Row[]) => run(rows, async (r) => {
 
 const importProducts = (rows: Row[]) => run(rows, async (r) => {
   const sku = r.sku?.trim();
-  const nameEn = r.nameEn?.trim();
+  const nameEn = decodeEntities(r.nameEn ?? '').trim();
   if (!sku) return { error: 'sku required' };
   if (!nameEn) return { error: 'nameEn required' };
   if (await prisma.product.findUnique({ where: { sku } })) return 'skipped';

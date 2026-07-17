@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { wooFetch } from '@/lib/woocommerce';
 import { nameImportable } from './wc-transform';
+import { decodeEntities, decodePercentSlug } from '@/lib/decode-entities';
 import { slugify, brandCode, skuFromParts } from '@/lib/sku';
 import { ensureCustomerProfile } from '@/lib/customer';
 import { normalizeMobile } from '@/lib/provider-config';
@@ -75,17 +76,21 @@ async function saveState(entity: string, cursor: string | null, s: SyncSummary) 
 }
 
 // ── Products ────────────────────────────────────────────────────────────────
+// V7 audit C1/C4: WP hands names over entity-escaped ("Pain &amp; Relief") and
+// Arabic slugs percent-encoded. Decode at ingest — otherwise every sync
+// re-escapes what the backfill cleaned, and an encoded slug that no longer
+// matches its (fixed) category row would re-create the category as a duplicate.
 async function findOrCreateBrand(name: string): Promise<string | null> {
-  const n = name.trim();
+  const n = decodeEntities(name).trim();
   if (!n) return null;
   const slug = slugify(n) || 'brand';
   const existing = await prisma.brand.findUnique({ where: { slug }, select: { id: true } });
   return existing ? existing.id : (await prisma.brand.create({ data: { slug, nameEn: n, legacyName: n } })).id;
 }
 async function findOrCreateCategory(name: string, wcSlug: string): Promise<string | null> {
-  const n = name.trim();
+  const n = decodeEntities(name).trim();
   if (!n) return null;
-  const slug = (wcSlug || slugify(n)) || 'category';
+  const slug = (decodePercentSlug(wcSlug) || slugify(n)) || 'category';
   const existing = await prisma.category.findUnique({ where: { slug }, select: { id: true } });
   return existing ? existing.id : (await prisma.category.create({ data: { slug, nameEn: n } })).id;
 }
@@ -170,7 +175,10 @@ export async function syncProducts(opts: { maxPages?: number; perPage?: number; 
         const wG = Number(p.weight); // egyptvitamins.com stores weight in grams already
         const weightG = str(p.weight) !== '' && Number.isFinite(wG) ? Math.round(wG) : null;
         const common = {
-          nameEn: str(p.name) || `Product ${wpId}`,
+          // Plain-text field: decode entities (C1). Descriptions stay raw —
+          // they're HTML and render through the sanitizer, where entities are
+          // legitimate markup.
+          nameEn: decodeEntities(str(p.name)) || `Product ${wpId}`,
           longDescEn: str(p.description) || null,
           shortDescEn: str(p.short_description) || null,
           basePricePiastres: BigInt(price),
@@ -187,7 +195,7 @@ export async function syncProducts(opts: { maxPages?: number; perPage?: number; 
           s.updated++;
         } else {
           const created = await prisma.product.create({
-            data: { ...common, sku: skuFromParts(brandCode(brandName || 'GEN'), wpId), legacyWpId: wpId, legacySku: str(p.sku) || null, slugEn: await uniqueProductSlug(str(p.name), wpId), status: 'PRIVATE', kind: 'SUPPLEMENT', categories: { connect: catIds.map((id) => ({ id })) } },
+            data: { ...common, sku: skuFromParts(brandCode(brandName || 'GEN'), wpId), legacyWpId: wpId, legacySku: str(p.sku) || null, slugEn: await uniqueProductSlug(decodeEntities(str(p.name)), wpId), status: 'PRIVATE', kind: 'SUPPLEMENT', categories: { connect: catIds.map((id) => ({ id })) } },
             select: { id: true },
           });
           const imgs = imagesData(created.id, p);

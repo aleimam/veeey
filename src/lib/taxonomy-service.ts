@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
 import { uniqueSlug } from '@/lib/slug';
+import { decodePercentSlug } from '@/lib/decode-entities';
 import { slugify } from '@/lib/sku';
 import { parseSchemaOverrides } from '@/lib/catalog-service';
 
@@ -111,13 +112,14 @@ export const getBrand = (id: string) => prisma.brand.findUnique({ where: { id } 
 export async function saveBrand(id: string | null, raw: BrandInput) {
   const user = await requirePermission('catalog.write');
   const d = brandSchema.parse(raw);
-  const slug = await uniqueSlug(d.slug || d.nameEn, async (s) => {
+  // Same percent-encoding guard as categories (V7 audit C4).
+  const slug = await uniqueSlug(decodePercentSlug(d.slug || '') || d.nameEn, async (s) => {
     const found = await prisma.brand.findUnique({ where: { slug: s } });
     return !!found && found.id !== id;
   });
   // Arabic slug auto-generates from the EN slug when blank (slugify is
   // latin-only — same fallback the product form uses).
-  const slugAr = await uniqueSlug(d.slugAr || slug, async (s) => {
+  const slugAr = await uniqueSlug(decodePercentSlug(d.slugAr || '') || slug, async (s) => {
     const found = await prisma.brand.findFirst({ where: { slugAr: s } });
     return !!found && found.id !== id;
   });
@@ -239,14 +241,19 @@ export const getCategory = (id: string) => prisma.category.findUnique({ where: {
 export async function saveCategory(id: string | null, raw: CategoryInput) {
   const user = await requirePermission('catalog.write');
   const d = categorySchema.parse(raw);
-  const slug = await uniqueSlug(d.slug || d.nameEn, async (s) => {
+  // V7 audit C4: a pasted percent-encoded slug can never match a lookup
+  // (Next hands query params over decoded) — store the decoded form.
+  const slug = await uniqueSlug(decodePercentSlug(d.slug || '') || d.nameEn, async (s) => {
     const found = await prisma.category.findUnique({ where: { slug: s } });
     return !!found && found.id !== id;
   });
-  const slugAr = await uniqueSlug(d.slugAr || slug, async (s) => {
+  const slugAr = await uniqueSlug(decodePercentSlug(d.slugAr || '') || slug, async (s) => {
     const found = await prisma.category.findFirst({ where: { slugAr: s } });
     return !!found && found.id !== id;
   });
+  // V7 audit C6: renaming a slug must not orphan old links — record a redirect
+  // in the same format the storefront's category loader resolves.
+  const before = id ? await prisma.category.findUnique({ where: { id }, select: { slug: true } }) : null;
   const data = {
     nameEn: d.nameEn, nameAr: d.nameAr ?? null, slug, slugAr,
     parentId: d.parentId || null,
@@ -257,6 +264,22 @@ export async function saveCategory(id: string | null, raw: CategoryInput) {
   const category = id
     ? await prisma.category.update({ where: { id }, data })
     : await prisma.category.create({ data });
+  if (before && before.slug !== slug) {
+    await prisma.redirect.upsert({
+      where: { fromPath: `/products?category=${before.slug}` },
+      update: { toPath: `/products?category=${slug}` },
+      create: { fromPath: `/products?category=${before.slug}`, toPath: `/products?category=${slug}` },
+    });
+    // A chain that used to end at the old slug now skips straight to the new
+    // one — the loader follows only ONE redirect hop.
+    await prisma.redirect.updateMany({
+      where: { toPath: `/products?category=${before.slug}` },
+      data: { toPath: `/products?category=${slug}` },
+    });
+    // The new slug resolves directly now; a leftover redirect FROM it (e.g.
+    // after renaming back) would be a dead row or a self-loop.
+    await prisma.redirect.deleteMany({ where: { fromPath: `/products?category=${slug}` } });
+  }
   await audit({ actorType: 'USER', actorId: user.id, action: id ? 'category.update' : 'category.create', entityType: 'Category', entityId: category.id });
   return category;
 }
