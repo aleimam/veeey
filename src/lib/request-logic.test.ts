@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   isRequestType, isRequestStatus, requiresCustomer, allowsPhotos, requestEditable,
   validateRequest, expectedDepositPiastres, requestUid, REQUEST_TYPES, reorderTabToRequestType, pickOrderRequestLines,
+  optionalRefillDue,
 } from './request-logic';
 
 describe('request type + status guards', () => {
@@ -103,6 +104,22 @@ describe('pickOrderRequestLines', () => {
 
   it('returns empty for an empty order', () => {
     expect(pickOrderRequestLines([])).toEqual([]);
+  });
+});
+
+describe('optionalRefillDue', () => {
+  const base = new Date(2026, 6, 1);
+  it('is not due before the interval elapses', () => {
+    expect(optionalRefillDue(base, new Date(2026, 6, 20))).toBe(false); // 19 days
+    expect(optionalRefillDue(base, new Date(2026, 6, 30))).toBe(false); // 29 days
+  });
+  it('is due at or after the interval', () => {
+    expect(optionalRefillDue(base, new Date(2026, 6, 31))).toBe(true); // 30 days
+    expect(optionalRefillDue(base, new Date(2026, 7, 15))).toBe(true); // 45 days
+  });
+  it('honours a custom interval', () => {
+    expect(optionalRefillDue(base, new Date(2026, 6, 8), 7)).toBe(true);
+    expect(optionalRefillDue(base, new Date(2026, 6, 5), 7)).toBe(false);
   });
 });
 

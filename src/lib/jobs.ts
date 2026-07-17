@@ -7,7 +7,7 @@ import { PgBoss } from 'pg-boss';
  * with or without a separate worker process. The dedicated worker (src/worker.ts)
  * registers handlers + schedules recurring jobs.
  */
-export const QUEUES = { alerts: 'alerts', notify: 'notify', wooSync: 'woo-sync', auditReport: 'audit-report', auditPurge: 'audit-purge', brandTranslate: 'brand-translate', mediaLocalize: 'media-localize', analyticsPurge: 'analytics-purge', reviewRequest: 'review-request', abandonedCart: 'abandoned-cart', lotExpiry: 'lot-expiry', loyaltyStanding: 'loyalty-standing', stocktakeCycle: 'stocktake-cycle', gscSitemap: 'gsc-sitemap', watermark: 'watermark', loyaltyBackfill: 'loyalty-backfill', searchDigest: 'search-digest', attributeAutofill: 'attribute-autofill', refillSweep: 'refill-sweep' } as const;
+export const QUEUES = { alerts: 'alerts', notify: 'notify', wooSync: 'woo-sync', auditReport: 'audit-report', auditPurge: 'audit-purge', brandTranslate: 'brand-translate', mediaLocalize: 'media-localize', analyticsPurge: 'analytics-purge', reviewRequest: 'review-request', abandonedCart: 'abandoned-cart', lotExpiry: 'lot-expiry', loyaltyStanding: 'loyalty-standing', stocktakeCycle: 'stocktake-cycle', gscSitemap: 'gsc-sitemap', watermark: 'watermark', loyaltyBackfill: 'loyalty-backfill', searchDigest: 'search-digest', attributeAutofill: 'attribute-autofill', refillSweep: 'refill-sweep', optionalRefill: 'optional-refill' } as const;
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
 
 let bossPromise: Promise<PgBoss | null> | null = null;

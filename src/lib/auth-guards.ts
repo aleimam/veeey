@@ -1,6 +1,6 @@
 import { auth } from '@/auth';
 import type { PermissionKey } from '@/lib/permissions';
-import { hasPermission } from '@/lib/rbac';
+import { hasPermission, hasAnyPermission } from '@/lib/rbac';
 
 export type SessionUser = {
   id: string;
@@ -23,6 +23,15 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
 export async function requirePermission(key: PermissionKey): Promise<SessionUser> {
   const user = await getCurrentUser();
   if (!user || !hasPermission(user.permissions, key)) {
+    throw Object.assign(new Error('FORBIDDEN'), { digest: 'FORBIDDEN' });
+  }
+  return user;
+}
+
+/** Like requirePermission but any ONE of the keys suffices (union grant). */
+export async function requireAnyPermission(keys: PermissionKey[]): Promise<SessionUser> {
+  const user = await getCurrentUser();
+  if (!user || !hasAnyPermission(user.permissions, keys)) {
     throw Object.assign(new Error('FORBIDDEN'), { digest: 'FORBIDDEN' });
   }
   return user;

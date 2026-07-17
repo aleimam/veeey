@@ -9,6 +9,8 @@ import { piastresToEgp } from '@/lib/format';
 import { ProductForm, type ProductDefaults } from '@/components/admin/product-form';
 import { ProductStock } from '@/components/admin/product-stock';
 import { ChangeHistory } from '@/components/admin/change-history';
+import { setAlwaysNeededAction } from '@/server/request-actions';
+import { inputCls } from '@/components/admin/ui';
 import { Link } from '@/i18n/navigation';
 import { pick } from '@/lib/admin-i18n';
 
@@ -38,7 +40,11 @@ export default async function ProductEditPage({
     ? await Promise.all([listProductLots(product.id), listLocations()])
     : [[], []];
   const canStock = hasPermission(user?.permissions ?? [], 'inventory.manage');
+  // Always-Needed is a purchasing flag — set by admins (catalog.write) AND sales
+  // (inventory.manage), so its own control shows for either (Requests epic C).
+  const canAlwaysNeeded = canStock || hasPermission(user?.permissions ?? [], 'catalog.write');
   const lotMsg = Array.isArray(sp.lot) ? sp.lot[0] : sp.lot;
+  const anSaved = (Array.isArray(sp.an) ? sp.an[0] : sp.an) === '1';
 
   const attributeOpts = attributes.map((a) => ({
     id: a.id,
@@ -144,6 +150,29 @@ export default async function ProductEditPage({
           locations={locations.map((l) => ({ value: l.id, label: l.name }))}
           canEdit={canStock}
         />
+      )}
+
+      {product && canAlwaysNeeded && (
+        <section className="mt-6 rounded-lg border border-border p-4">
+          <h2 className="mb-1 font-heading text-lg font-semibold">{tb('Always needed', 'مطلوب دائمًا')}</h2>
+          <p className="mb-3 text-sm text-muted-foreground">
+            {tb('Keep a continuous purchasing request open for this product — a target quantity refilled every month.', 'أبقِ طلب شراء مستمرًا مفتوحًا لهذا المنتج — كمية مستهدفة تُجدَّد كل شهر.')}
+          </p>
+          {anSaved && <p className="mb-3 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">{tb('Saved.', 'تم الحفظ.')}</p>}
+          <form action={setAlwaysNeededAction} className="flex flex-wrap items-end gap-3">
+            <input type="hidden" name="locale" value={locale} />
+            <input type="hidden" name="productId" value={product.id} />
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input type="checkbox" name="alwaysNeeded" defaultChecked={product.alwaysNeeded} className="size-4" />
+              {tb('Always needed', 'مطلوب دائمًا')}
+            </label>
+            <label className="text-sm font-medium">
+              {tb('Target quantity (X)', 'الكمية المستهدفة (X)')}
+              <input name="alwaysNeededQty" type="number" min={1} defaultValue={product.alwaysNeededQty ?? ''} placeholder="0" className={`${inputCls} w-32`} />
+            </label>
+            <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90">{tb('Save', 'حفظ')}</button>
+          </form>
+        </section>
       )}
 
       {product && <ChangeHistory entityType="Product" entityId={product.id} locale={locale} />}

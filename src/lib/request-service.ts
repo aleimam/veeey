@@ -1,11 +1,12 @@
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { requirePermission } from '@/lib/auth-guards';
+import { requirePermission, requireAnyPermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
 import { egpToPiastres } from '@/lib/format';
 import { getNumberSetting } from '@/lib/settings-service';
 import {
-  REQUEST_TYPES, isRequestType, validateRequest, requestEditable, requestUid, expectedDepositPiastres, pickOrderRequestLines,
+  REQUEST_TYPES, isRequestType, validateRequest, requestEditable, requestUid, expectedDepositPiastres,
+  pickOrderRequestLines, optionalRefillDue,
 } from '@/lib/request-logic';
 import type { Prisma } from '@/generated/prisma/client';
 
@@ -250,4 +251,78 @@ export async function updateRequest(id: string, input: RequestCreateInput) {
 export async function createQuickRequest(productId: string, count: number, type: string) {
   if (!isRequestType(type)) throw new Error('BAD_TYPE');
   return createRequest({ type, lines: [{ productId, count }] });
+}
+
+// ---- Always-Needed / Optional refill (Phase C) -----------------------------
+
+/**
+ * Mark (or clear) a product as Always-Needed with a monthly target X. Set by
+ * admins AND sales from the product page, so gated by catalog.write OR
+ * inventory.manage (the Sales role holds the latter). Clearing sets qty null.
+ */
+export async function setAlwaysNeeded(productId: string, on: boolean, qty: number | null) {
+  const user = await requireAnyPermission(['inventory.manage', 'catalog.write']);
+  const q = on ? Math.max(1, Math.floor(qty ?? 1)) : null;
+  await prisma.product.update({ where: { id: productId }, data: { alwaysNeeded: on, alwaysNeededQty: q } });
+  await audit({ actorType: 'USER', actorId: user.id, action: 'product.alwaysNeeded', entityType: 'Product', entityId: productId, data: { on, qty: q } });
+}
+
+/** Create a fresh auto-optional OPTIONAL request of `count` units for a product. */
+async function createAutoOptional(productId: string, count: number, now: Date) {
+  const uid = await nextUid(now);
+  const req = await prisma.request.create({
+    data: {
+      uid,
+      type: 'OPTIONAL',
+      scope: 'EGV',
+      status: 'PENDING',
+      autoOptional: true,
+      requestedById: null,
+      requestedByName: 'Auto — Always Needed',
+      notes: "Auto-generated monthly from the product's Always-Needed target.",
+      lines: { create: [{ productId, count }] },
+    },
+  });
+  await audit({ actorType: 'SYSTEM', action: 'request.optional.refill', entityType: 'Request', entityId: req.id, data: { productId, count } });
+  return req;
+}
+
+/**
+ * Monthly Optional refill sweep (worker cron). For every Always-Needed product:
+ * ensure an open auto-optional OPTIONAL request of X units exists; once the
+ * current one is ≥30 days old, archive it and open a fresh one (reset to X).
+ * While a cycle is still current, keep its line topped to the latest target X
+ * (so an admin changing the count takes effect without waiting a month).
+ * System-run (no user); no-ops when there are no Always-Needed products.
+ */
+export async function runOptionalRefill(now = new Date()): Promise<{ created: number; reset: number; refreshed: number }> {
+  const products = await prisma.product.findMany({
+    where: { alwaysNeeded: true, alwaysNeededQty: { gt: 0 } },
+    select: { id: true, alwaysNeededQty: true },
+  });
+  let created = 0, reset = 0, refreshed = 0;
+  for (const p of products) {
+    const target = p.alwaysNeededQty ?? 0;
+    if (target <= 0) continue;
+    const open = await prisma.request.findFirst({
+      where: { autoOptional: true, type: 'OPTIONAL', archivedAt: null, lines: { some: { productId: p.id } } },
+      orderBy: { createdAt: 'desc' },
+      include: { lines: true },
+    });
+    if (!open) {
+      await createAutoOptional(p.id, target, now);
+      created++;
+    } else if (optionalRefillDue(open.createdAt, now)) {
+      await prisma.request.update({ where: { id: open.id }, data: { archivedAt: now } });
+      await createAutoOptional(p.id, target, now);
+      reset++;
+    } else {
+      const line = open.lines.find((l) => l.productId === p.id);
+      if (line && line.count !== target) {
+        await prisma.requestLine.update({ where: { id: line.id }, data: { count: target } });
+        refreshed++;
+      }
+    }
+  }
+  return { created, reset, refreshed };
 }

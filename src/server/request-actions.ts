@@ -3,7 +3,7 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import {
-  createRequest, updateRequest, approveRequest, rejectRequest, archiveRequest, createQuickRequest, createRequestFromOrder,
+  createRequest, updateRequest, approveRequest, rejectRequest, archiveRequest, createQuickRequest, createRequestFromOrder, setAlwaysNeeded,
 } from '@/lib/request-service';
 import type { RequestCreateInput } from '@/lib/request-service';
 import { isRequestType } from '@/lib/request-logic';
@@ -126,6 +126,20 @@ export async function createOrderRequestAction(fd: FormData): Promise<void> {
   try { const r = await createRequestFromOrder(orderId); reqId = r.id; } catch (e) { console.error('order request failed', e); }
   revalidatePath(`/${locale}/admin/orders/${orderId}`);
   redirect(reqId ? `/${locale}/admin/requests/${reqId}` : `/${locale}/admin/orders/${orderId}?reqerr=1`);
+}
+
+/**
+ * Set / clear a product's Always-Needed target (Phase C) from the product page.
+ * Gated in the service by catalog.write OR inventory.manage (sales).
+ */
+export async function setAlwaysNeededAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const productId = str(fd, 'productId') ?? '';
+  const on = fd.get('alwaysNeeded') === 'on' || fd.get('alwaysNeeded') === 'true';
+  const qty = str(fd, 'alwaysNeededQty') ? Number(str(fd, 'alwaysNeededQty')) : null;
+  try { await setAlwaysNeeded(productId, on, qty); } catch (e) { console.error('set always-needed failed', e); }
+  revalidatePath(`/${locale}/admin/products/edit/${productId}`);
+  redirect(`/${locale}/admin/products/edit/${productId}?an=1`);
 }
 
 /**

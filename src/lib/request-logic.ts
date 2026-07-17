@@ -94,6 +94,15 @@ export function reorderTabToRequestType(tab: string): RequestType {
 }
 
 /**
+ * Whether an always-needed product's OPTIONAL request is due for its monthly
+ * reset (Phase C): true once `intervalDays` have elapsed since it was created.
+ * Pure so the 30-day cadence is unit-testable independent of the DB.
+ */
+export function optionalRefillDue(createdAt: Date, now: Date, intervalDays = 30): boolean {
+  return now.getTime() - createdAt.getTime() >= intervalDays * 86_400_000;
+}
+
+/**
  * The human request key REQ<YY><MM><seq3> (e.g. REQ2607014), shared with
  * YeldnIN. `seq` is the 1-based count within the given month. Pure — the caller
  * (service) supplies the current month's next sequence.

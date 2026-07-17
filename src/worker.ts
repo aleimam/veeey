@@ -39,6 +39,7 @@ async function main() {
   await boss.createQueue(QUEUES.searchDigest);
   await boss.createQueue(QUEUES.attributeAutofill);
   await boss.createQueue(QUEUES.refillSweep);
+  await boss.createQueue(QUEUES.optionalRefill);
 
   await boss.work(QUEUES.notify, async ([job]) => {
     await notify(job.data as NotifyInput);
@@ -164,6 +165,14 @@ async function main() {
     console.log(`[worker] refill sweep: ${r.skippedReason ?? `${r.notified} notified, ${r.ordered} ordered, ${r.skipped} skipped, ${r.errors} error(s)`}`);
   });
 
+  // Always-Needed → monthly OPTIONAL purchasing-request refill (Requests epic C).
+  // No-ops when no products are marked Always-Needed.
+  await boss.work(QUEUES.optionalRefill, async () => {
+    const { runOptionalRefill } = await import('@/lib/request-service');
+    const r = await runOptionalRefill();
+    console.log(`[worker] optional refill: ${r.created} created, ${r.reset} reset, ${r.refreshed} refreshed`);
+  });
+
   // One-click AI auto-fill of all filterable product attributes (only-missing,
   // never overwrites) — started from /admin/attributes/bulk.
   await boss.work(QUEUES.attributeAutofill, async () => {
@@ -201,6 +210,9 @@ async function main() {
   await boss.schedule(QUEUES.searchDigest, '30 6 * * 1', {});
   // Refill autoship sweep daily 07:00 UTC (≈09:00 Cairo — orders land in the workday).
   await boss.schedule(QUEUES.refillSweep, '0 7 * * *', {});
+  // Always-Needed optional refill — daily 03:50 UTC; the service only resets a
+  // product's request once its cycle is ≥30 days old, so a daily tick is cheap.
+  await boss.schedule(QUEUES.optionalRefill, '50 3 * * *', {});
   console.log('[worker] started — notify + alerts + woo-sync + audit queues registered, schedules set.');
 }
 
