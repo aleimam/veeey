@@ -22,6 +22,12 @@ import { requirePermission } from '@/lib/auth-guards';
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 const SORTABLE = ['number', 'customer', 'payment', 'status', 'items', 'total', 'placedAt'] as const;
 
+/** `attention` + `booked` are pseudo-statuses (see orderWhere) — name them, don't echo the code. */
+const statusFilterLabel = (status: string, tb: (en: string, ar: string) => string) =>
+  status === 'attention' ? tb('Needs attention', 'تحتاج متابعة')
+  : status === 'booked' ? tb('Bookings (excl. cancelled/refunded)', 'الحجوزات (عدا الملغاة/المستردة)')
+  : status;
+
 export default async function OrdersPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<SP> }) {
   // Page-level RBAC (matches the sidebar's permission key) — the sidebar only
   // HIDES the link; without this any staffer with one permission could read it.
@@ -62,7 +68,7 @@ export default async function OrdersPage({ params, searchParams }: { params: Pro
   // Active-filter chips — each removes just its own filter; a "Clear all" resets.
   const chips = ([
     q ? { name: 'q', label: `${tb('Search', 'بحث')}: ${q}` } : null,
-    status ? { name: 'status', label: `${tb('Status', 'الحالة')}: ${status === 'attention' ? tb('Needs attention', 'تحتاج متابعة') : status}` } : null,
+    status ? { name: 'status', label: `${tb('Status', 'الحالة')}: ${statusFilterLabel(status, tb)}` } : null,
     payment ? { name: 'payment', label: `${tb('Payment', 'الدفع')}: ${customerLabel(payment, locale)}` } : null,
     payCheck ? { name: 'payCheck', label: `${tb('Check', 'مراجعة')}: ${payCheck}` } : null,
     from ? { name: 'from', label: `${tb('From', 'من')}: ${from}` } : null,

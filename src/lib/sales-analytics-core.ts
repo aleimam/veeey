@@ -8,6 +8,21 @@ export type Range = { start: Date; end: Date; prevStart: Date; prevEnd: Date };
 export type Metrics = { count: number; revenue: number; aov: number }; // piastres
 export type Bucket = { label: string; count: number };
 
+/**
+ * Statuses that don't count as a booking (V6 audit S4). Sales analytics counts
+ * orders PLACED in the window minus these, which is why it reports fewer orders
+ * than the unfiltered Orders list — the audit saw 417 vs 511 with no explanation
+ * on screen.
+ *
+ * `Order.status` is a free-text code (the editable status engine), so this
+ * deliberately also lists spellings that only legacy WooCommerce rows carry
+ * (CANCELED / RETURNED / FAILED / VOID) alongside the 8 system codes.
+ *
+ * ONE list, shared: `order-service` uses it for the `booked` filter so
+ * /admin/orders can reproduce the Sales number exactly. Don't inline a copy.
+ */
+export const NON_BOOKED_STATUSES = ['CANCELLED', 'CANCELED', 'REFUNDED', 'RETURNED', 'FAILED', 'VOID'];
+
 const daysInMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
 /** True when `d` is the final day of its month (leap-safe). */
 const isMonthEnd = (d: Date) => d.getDate() === daysInMonth(d.getFullYear(), d.getMonth());

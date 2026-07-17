@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { getNumberSetting } from '@/lib/settings-service';
-import { periodRange, bucketByValue, bucketLabels, LIFETIME_EDGES, type Metrics, type PeriodPreset, type Range, type Bucket } from '@/lib/sales-analytics-core';
+import { periodRange, bucketByValue, bucketLabels, LIFETIME_EDGES, NON_BOOKED_STATUSES, type Metrics, type PeriodPreset, type Range, type Bucket } from '@/lib/sales-analytics-core';
 
 /**
  * Sales & customer analytics (period compare, segments, distributions).
@@ -10,8 +10,9 @@ import { periodRange, bucketByValue, bucketLabels, LIFETIME_EDGES, type Metrics,
 export type { PeriodPreset, Range, Metrics, Bucket } from '@/lib/sales-analytics-core';
 export { periodRange, bucketByValue } from '@/lib/sales-analytics-core';
 
-// Cancelled/failed orders don't count toward bookings.
-const EXCLUDED = ['CANCELLED', 'CANCELED', 'REFUNDED', 'RETURNED', 'FAILED', 'VOID'];
+// Cancelled/failed orders don't count toward bookings. Shared with the Orders
+// list's `booked` filter so the two pages agree (V6 audit S4).
+const EXCLUDED = NON_BOOKED_STATUSES;
 
 const metricsOf = (orders: { totalPiastres: bigint }[]): Metrics => {
   const count = orders.length;

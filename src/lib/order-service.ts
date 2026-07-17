@@ -6,6 +6,7 @@ import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
 import { type OrderStatus, type StatusConfig } from '@/lib/order-status';
 import { canTransition, statusConfig } from '@/lib/order-status-service';
+import { NON_BOOKED_STATUSES } from '@/lib/sales-analytics-core';
 import { deriveSystemMethod } from '@/lib/payment-method-service';
 import { availableQty } from '@/lib/inventory';
 import { getShippingFee, type ShippingTypeKey } from '@/lib/shipping-service';
@@ -57,9 +58,13 @@ function orderWhere(opts: OrderListOpts): Prisma.OrderWhereInput {
   return {
     ...(opts.status === 'attention'
       ? { status: { in: ['PENDING', 'CONFIRMED', 'HOLD'] as OrderStatus[] } } // matches the dashboard "orders need attention" KPI
-      : opts.status
-        ? { status: opts.status as OrderStatus }
-        : {}),
+      : opts.status === 'booked'
+        // Matches the Sales analytics basis (V6 audit S4) so its "417 orders"
+        // can be opened here and land on the same 417 rows.
+        ? { status: { notIn: NON_BOOKED_STATUSES } }
+        : opts.status
+          ? { status: opts.status as OrderStatus }
+          : {}),
     ...(opts.payment ? { paymentMethod: opts.payment as Prisma.OrderWhereInput['paymentMethod'] } : {}),
     ...(opts.payCheck ? { payCheck: opts.payCheck as 'NO' | 'YES' | 'PROBLEM' } : {}),
     // Order-number search now also matches the customer (email / name / phone)

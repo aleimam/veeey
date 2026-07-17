@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { periodRange, bucketByValue } from '@/lib/sales-analytics-core';
+import { periodRange, bucketByValue, NON_BOOKED_STATUSES } from '@/lib/sales-analytics-core';
+import { ORDER_STATUSES } from '@/lib/order-status';
 
 /** Local-time YYYY-MM-DD, so assertions read like the dates a user picks. */
 const at = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -105,6 +106,26 @@ describe('periodRange — previous-period boundaries (V6 audit S3)', () => {
       const r = periodRange(preset, undefined, undefined, mar31);
       expect(Math.round((r.prevEnd.getTime() - r.prevStart.getTime()) / 86_400_000)).toBe(days);
       expect(r.start.getTime() - r.prevEnd.getTime()).toBe(1); // adjacent, not overlapping
+    }
+  });
+});
+
+// S4: Sales reported 417 orders where the Orders list showed 511. The gap is
+// this list. It's exported so /admin/orders?status=booked can reproduce the
+// exact number — if the two ever diverge, the reconciliation link lies.
+describe('NON_BOOKED_STATUSES (V6 audit S4)', () => {
+  it('excludes exactly the cancelled-like system statuses, and keeps the earning ones', () => {
+    const excludedSystem = ORDER_STATUSES.filter((s) => NON_BOOKED_STATUSES.includes(s));
+    expect(excludedSystem).toEqual(['CANCELLED', 'REFUNDED']);
+
+    for (const s of ['PENDING', 'EDIT', 'HOLD', 'CONFIRMED', 'SHIPPED', 'DELIVERED']) {
+      expect(NON_BOOKED_STATUSES).not.toContain(s);
+    }
+  });
+
+  it('also covers legacy WooCommerce spellings (status is free text, not an enum)', () => {
+    for (const legacy of ['CANCELED', 'RETURNED', 'FAILED', 'VOID']) {
+      expect(NON_BOOKED_STATUSES).toContain(legacy);
     }
   });
 });
