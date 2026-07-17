@@ -2,14 +2,30 @@
 
 > Living status/handoff doc. **Repo-committed so it travels with the code** (unlike per-user
 > assistant memory). Update it when features ship or the backlog changes.
-> **Last updated: 2026-07-17.** Authoritative product docs: `VEEEY_PRD.md`, `VEEEY_SPEC.md`,
+> **Last updated: 2026-07-18.** Authoritative product docs: `VEEEY_PRD.md`, `VEEEY_SPEC.md`,
 > `BUILD_PLAN.md`, `AGENTS.md` (build rules — read first), `DEPLOYMENT.md`, `SECURITY.md`, `README.md`.
 
 ## Current state
 
-- **Live** at **veeey.com**. Latest deployed commit: **`ce4ca34`** (2026-07-17). All
-  **56 Prisma migrations applied** (latest `catalog_entity_slug_fixes` — a DATA migration); `pm2` `veeey` (web) + `veeey-worker` healthy;
-  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **514 unit tests** · build.
+- **Live** at **veeey.com** (and veeey.net). Latest deployed commit: **`bb9f010`** (2026-07-18). All
+  **59 Prisma migrations applied**; `pm2` `veeey` (web) + `veeey-worker` healthy;
+  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **537 unit tests** · build.
+- **Unified Requests feature — shipped + deployed to BOTH stores 2026-07-18** (Phases A–C, commits
+  `661056f`→`bb9f010`; 3 migrations `requests` + `requests_permission` (no-lockout grant) +
+  `product_always_needed`). Mirrors YeldnIN's Request model: **`/admin/requests`** with 4 types (Special
+  Order / Out of Stock / Restock / Optional) + a PENDING→APPROVED/REJECTED approval gate; the inventory
+  suggestion tabs' **Request** button now creates a *typed* Request (supersedes the flat PurchaseRequest;
+  the "Requested" count unions both so nothing in flight is lost); **"Place purchasing request"** on the
+  admin order page feeds pre-order/special-order purchasing (linked to the order + customer, pre-filled
+  from pre-order lines); pre-order/special-order **filters + badges** in `/admin/orders` and the customer
+  account (unified tracking); a product-page **Always Needed** flag (settable by admins AND sales via
+  `requireAnyPermission(catalog.write | inventory.manage)`) drives a **monthly OPTIONAL refill cron**
+  (`optional-refill` queue, resets to target X every 30 days). New permission **`requests.manage`**. The
+  `SpecialOrder` sourcing-lead model is separate and untouched. **⚠️ Phase D (live bidirectional YeldnIN
+  sync) is intentionally DEFERRED** — local Requests only; the outbox (`Request.outboxEventId`) stays
+  dormant behind `INTEGRATION_ENABLED` until `INTEGRATION_CONTRACT.md` is re-baselined (fix
+  RESTOCKING→RESTOCK, add OPTIONAL, request.created both ways + lines + photos) and secrets exchanged;
+  edits will touch BOTH codebases (YeldnIN at `C:\Claude\YeldnIN`).
 - **V7 audit doc (Catalog module, C1–C20) — everything buildable SHIPPED + DEPLOYED 2026-07-17** (source:
   `C:\Claude\eCommerce\V7 Veeey_editable_featues_v3.docx`; 4 commits `063680d` → `ce4ca34`). Triage-first again
   paid off — **6 findings were already shipped or mitigated** (C7 price-tool guard, C8-bulk typedConfirm, C14
