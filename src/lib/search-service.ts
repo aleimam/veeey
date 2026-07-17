@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { cardProductInclude, visibleProductWhere } from '@/lib/storefront';
 import { topSearches } from '@/lib/analytics-service';
-import { normalizeQuery } from '@/lib/search-normalize';
+import { normalizeQuery, isPlaceholderTerm } from '@/lib/search-normalize';
 import type { Prisma } from '@/generated/prisma/client';
 
 /**
@@ -73,15 +73,20 @@ export async function searchProducts(query: string, ctx?: SearchContext) {
   }
 
   // Log the query (best-effort) — powers the search analytics dashboard.
-  prisma.searchQuery
-    .create({ data: { term: raw.slice(0, 120), normalized: normalizeQuery(raw).slice(0, 120), resultCount: products.length, source: ctx?.source ?? 'results', sessionId: ctx?.sessionId ?? null, customerId: ctx?.customerId ?? null, locale: ctx?.locale ?? 'en' } })
-    .catch(() => {});
+  // Placeholder tokens (crawlers hitting the literal `{search_term_string}`
+  // sitelinks template) are never logged (V5 audit F7).
+  if (!isPlaceholderTerm(raw)) {
+    prisma.searchQuery
+      .create({ data: { term: raw.slice(0, 120), normalized: normalizeQuery(raw).slice(0, 120), resultCount: products.length, source: ctx?.source ?? 'results', sessionId: ctx?.sessionId ?? null, customerId: ctx?.customerId ?? null, locale: ctx?.locale ?? 'en' } })
+      .catch(() => {});
+  }
 
   return products;
 }
 
 /** Record a click on a search result (instant dropdown or results page). */
 export async function logSearchClick(input: { term: string; slug?: string | null; productId?: string | null; position?: number; source?: string; sessionId?: string | null }): Promise<void> {
+  if (isPlaceholderTerm(input.term)) return; // V5 audit F7 — never log template tokens
   try {
     let productId = input.productId ?? null;
     if (!productId && input.slug) {

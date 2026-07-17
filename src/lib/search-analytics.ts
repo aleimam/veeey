@@ -82,7 +82,7 @@ export async function searchOverview(days = 30): Promise<SearchOverview> {
                JOIN "Order" o ON o.id = oi."orderId"
                WHERE oi."productId" = sc."productId"
                  AND oi.lost = false AND oi.preorder = false
-                 AND o."createdAt" >= sc."createdAt"
+                 AND o."placedAt" >= sc."createdAt"
              ))::int AS sold_clicks
       FROM "SearchClick" sc
       WHERE sc."createdAt" >= ${start} AND sc."productId" IS NOT NULL
@@ -95,7 +95,7 @@ export async function searchOverview(days = 30): Promise<SearchOverview> {
         JOIN "Order" o ON o.id = oi."orderId"
         WHERE oi."productId" = sc."productId"
           AND oi.lost = false AND oi.preorder = false
-          AND o."createdAt" >= sc."createdAt"
+          AND o."placedAt" >= sc."createdAt"
       ))::int AS sold
       FROM "SearchClick" sc
       WHERE sc."createdAt" >= ${start} AND sc."productId" IS NOT NULL`,

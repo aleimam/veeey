@@ -14,3 +14,21 @@ export function normalizeQuery(q: string): string {
     .replace(/\s+/g, ' ')
     .trim();
 }
+
+/**
+ * Template placeholders hitting the literal sitelinks-search URL (V5 audit F7).
+ * The WebSite JSON-LD SearchAction advertises `…/search?q={search_term_string}`;
+ * crawlers sometimes request that URL verbatim, which used to be logged as a
+ * real search and topped every report. Blocklisted at INGEST (never logged) —
+ * the search itself still runs so the visitor gets a normal empty result page.
+ */
+export function isPlaceholderTerm(raw: string): boolean {
+  const s = raw.toLowerCase();
+  return (
+    s.includes('{') ||
+    s.includes('}') ||
+    s.includes('%7b') || // URL-encoded '{'
+    s.includes('%7d') ||
+    s.includes('search_term_string')
+  );
+}
