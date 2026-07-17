@@ -365,11 +365,12 @@ npm run build
 pm2 reload veeey-net veeey-net-worker
 ```
 
-First deploy was commit `dad59dc`; last redeploy **2026-07-17 at `375e5ba`** (brings all V5 audit
-fixes; migrations were already current — "No pending migrations"). Verified after reload: pm2 runs
-`server.js`, duplicate-Origin POST through OLS → no `Invalid URL`, `/en` + `/en/products` 200,
-health ok, WordPress co-tenant unaffected. ⚠️ `pm2 reload veeey-net-worker` did NOT actually
-restart the worker (uptime kept counting) — use `pm2 restart veeey-net-worker` for it.
+First deploy was commit `dad59dc`; last redeploy **2026-07-17 (late) at `96985a1`** (brings the V6
+Sales-analytics + V7 catalog audit fixes; migration `catalog_entity_slug_fixes` applied — its data
+statements are no-ops on this store's empty catalog). Verified after restart: pm2 runs `server.js`,
+`/en` + `/en/products` 200, health ok, WordPress co-tenant unaffected. ⚠️ `pm2 reload
+veeey-net-worker` does NOT actually restart the worker (uptime keeps counting) — use
+`pm2 restart veeey-net-worker` for it (this redeploy did, uptime reset confirmed).
 Consider adding a git remote/clone on the box later to make this a normal `git pull` deploy.
 
 ## Current state & open items
