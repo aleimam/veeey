@@ -200,6 +200,10 @@ portable source of truth** — everything below is what the memory contained tha
      IdentityFile ~/.ssh/id_ed25519
    ```
    Test read-only first: `ssh veeey 'cd /home/veeey/app && git log --oneline -1'`.
+   **The veeey.net box is separate**: alias `evnew` (root@178.105.234.110) lives in the old
+   account's `~/.ssh_ev/config` with key `~/.ssh_ev/id_rsa` — recreate the same way (own key →
+   that box's `/root/.ssh/authorized_keys`, config `Host evnew` in `~/.ssh_ev/config`, used as
+   `ssh -F ~/.ssh_ev/config evnew`). Runbook: `DEPLOYMENT.md` → "Second deployment — veeey.net".
 3. **GitHub**: repo `aleimam/veeey`, branch `master`. The new account needs its own git
    credentials (`gh auth login` or a PAT) to push.
 4. **Node**: 22 (`.nvmrc`); `npm install` regenerates the Prisma client via `postinstall`.
@@ -324,6 +328,11 @@ portable source of truth** — everything below is what the memory contained tha
   loyalty perks surfacing, gift-with-purchase automation).
 
 ### Blocked on the owner (decision / account / credentials)
+- **V5 audit doc — open product questions** (the code work is 100% shipped; these are decisions):
+  ① UTM/campaign tracking intent — all non-Direct traffic-source rows are zero until campaigns
+  carry UTMs (or the owner says how attribution should work); ② the funnel's "Orders" stage is
+  deliberately DIRECT-only (annotated in the UI) — confirm that definition; ③ fulfillment location
+  wording; ④ customer SSO-vs-OTP direction. (GeoLite2 mmdb is in the quick-actions list above.)
 - **Payments Stage B** — live OPay + Kashier checkout; needs **sandbox credentials** (Stage A creds UI done).
   (Once cards + tokenization exist, Refill can gain online-payment autoship on top of today's COD engine.)
 - ~~**Variant selector**~~ — **✅ BUILT 2026-07-13** (owner approved the schema change; see Current state).
