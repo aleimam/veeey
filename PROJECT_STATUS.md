@@ -7,9 +7,55 @@
 
 ## Current state
 
-- **Live** at **veeey.com**. Latest deployed commit: **`dc1cd22`** (2026-07-17). All
-  **55 Prisma migrations applied** (latest `gift_customer_name`); `pm2` `veeey` (web) + `veeey-worker` healthy;
-  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **433 unit tests** · build.
+- **Live** at **veeey.com**. Latest deployed commit: **`9141676`** (2026-07-17). All
+  **55 Prisma migrations applied** (latest `gift_customer_name`; V6 added none); `pm2` `veeey` (web) + `veeey-worker` healthy;
+  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **492 unit tests** · build.
+- **V6 audit doc (Sales & customers analytics page) FULLY shipped 2026-07-17** (source:
+  `C:\Claude\eCommerce\V6 Veeey_editable_featues_v2.docx`, findings S1–S15 on `/admin/analytics/sales`;
+  9 commits `8f79d3e` → `9141676`, deployed same day). **S6 + S9 were already fixed by V5 — V6 was audited
+  against a pre-V5 build**, so triage-first mattered. What shipped, and the five bugs found that the audit
+  itself missed:
+  - **S1/S14 `8f79d3e`** — new `date-range-controls.tsx` client half of the shared range control: editing a
+    date flips the mode to Custom (S1), picking a preset clears the dates AND drops their `name` so they're
+    never submitted (S14). The missed bug: since the resolver lets explicit bounds win (V5 F10), stale dates
+    kept winning — **choosing "Last 7 days" silently did nothing**. Dashboard + Report builder inherit the fix.
+  - **S3 `67e4662`** — `periodRange` rewritten to ONE documented algorithm (whole calendar month → prior
+    calendar month; MTD → same elapsed span of the prior month, day-clamped; else equal-length preceding
+    window; all joins half-open, `prevEnd < start`). Missed bugs: **MTD on a 31st ran "previous" 3 days INTO
+    the current window** (same orders on both sides of every delta), and rolling presets set
+    `prevEnd === start`, double-counting the boundary order under `gte/lte`.
+  - **S4 `1115804`** — the 417-vs-511 gap explained on screen: `NON_BOOKED_STATUSES` moved to
+    `sales-analytics-core` and shared with `order-service`, new **`/admin/orders?status=booked`** pseudo-filter
+    reproduces the exact number, every panel names its basis, the lifetime card admits it ignores the range,
+    and a disclosure lists the excluded statuses with a one-click reconcile link.
+  - **S5/S7/S8 `5ae6cb4`** — BarChart: labels wrap (no `truncate` clipping "5000+"), min-w-0 everywhere so
+    flex/grid can't push the page sideways, tooltip renders inside the plot + edge-flips, and every bar shows
+    its value (compact) without hover; exact figures stay in tooltip/aria/sr-table.
+  - **S2/S12 `1cc1210`** — "No orders in this period" empty state (names the previous period's count);
+    panels suspend behind a skeleton keyed by the range; new `salesPeriodRange` labels the window without
+    the DB so the filter paints immediately.
+  - **S13 `7c84ddd`** — per-panel CSV (new `sales` report on the export route — which had to re-resolve with
+    Sales' mtd default; the route's 30d default would have exported a different window than shown, the exact
+    V5 F20 defect again) + drill-through: metric rows link to Orders under the same window/basis; Orders grew
+    `minTotal`/`maxTotal` (EGP, min-inclusive/max-exclusive = the big/normal split) with labelled chips.
+    `sales-links.ts` holds the tested URL contract. **New-vs-repeat deliberately has NO link**: Sales' "repeat"
+    (ordered before period) ≠ Customers' `repeat` segment (≥2 ever) — linking them recreates the S4 confusion.
+  - **S10 `f56cd30`+`4738b27` (PROVISIONAL)** — ⚠️ the doc's "(see Improvements)" section **does not exist**;
+    owner chose interim scope (trend + top sellers) "till I give you more details" — revisit on spec.
+    Trend: traffic-chart generalized to **`time-series-chart.tsx`** (primary/secondary + per-series units; F3
+    normalization is what makes piastres vs counts plottable) — dashboard re-uses it unchanged; trend bucketed
+    from the SAME rows the cards count (no 2nd query, can't disagree), grain day→week→month, quiet buckets
+    emit zeros. Top products/brands by line-item revenue (raw SQL, `qty × unitPrice`, lost-lines excluded;
+    panels state that line revenue ≠ order-total revenue — shipping/discounts). Products link to Orders via new
+    `productId` filter; **brands link to catalogue** (an order can span brands). Missed bug: **FilterBar dropped
+    undeclared params on submit** — a drill-through's filters silently vanished while the header still said
+    "filtered"; it now carries them (`keep` prop) → likely shrinks V7 C18.
+  - **S11/S15 `9141676`** — deltas use the shared `kpi-trend` helper (missed bugs: zero delta rendered as
+    green ▲ because the check was `>=`; no-baseline segments showed a ÷0 percentage — now "new") + sr-only
+    direction words. S15: **admin pages served GA4/GTM + PostHog + Clarity** — Clarity was recording order
+    screens (customer PII) to Microsoft. New tested `isAdminPath` + `StorefrontOnly` gate the three loaders;
+    `AnalyticsProvider` stays mounted but mutes on admin (no clickstream pollution, no dataLayer pushes — after
+    a storefront→admin SPA nav GTM is live, so a push WOULD have hit GA4).
 - **V5 audit doc FULLY shipped (P0+P1+P2+P3) 2026-07-17** (source: `C:\Claude\eCommerce\V5 Veeey_editable_featues_v1.docx`;
   commits `8f78383` search-500+token-blocklist → `5a295cb` dashboard D-01..05 → `84211ba` analytics F2-F6/F10/F12
   → `79c5d56` P2 batch D-06..D-11 + F8/F9/F11/F13/F14/F18 → `dc1cd22` P3 batch D-12..D-17 + F15-F17/F19/F20).
@@ -321,6 +367,19 @@ portable source of truth** — everything below is what the memory contained tha
   id/secret + property at `/admin/google/search-console`, and press Connect Google. (Meta-tag
   verification + the sitemap already work without this.)
 - **Privacy policy**: lawyer review + registered company name/address in §7.
+
+### Queued next (agreed 2026-07-17)
+- **V7 audit doc** (`C:\Claude\eCommerce\V7 Veeey_editable_featues_v3.docx`) — Catalog module
+  (Products/Brands/Categories + Import/Export), findings **C1–C20**. Owner said "execute V7 after V6"; V6 is
+  now done, so this is the next work. **Triage against the code FIRST** (like V6, several "suspected" items may
+  already be shipped: SEO-A likely covers C7/C8 guards, the LST toolkit likely covers C17/C18 — and V6's
+  FilterBar `keep` fix already closes part of C18). **C3/C11/C12 (taxonomy merges) + C5 key + C7 scope are
+  BLOCKED on owner decisions** per the doc's own clarifications section — don't guess.
+  ⚠️ V7's own testing rule: never run destructive ops against real data (no adjust-ALL-prices, no bulk
+  delete, no import submission).
+- **S10 real spec** — V6's S10 says "(see Improvements)" but no such section exists in V6 or V7. The shipped
+  trend + top-sellers panels are the owner's interim choice ("till I give you more details"); revisit when the
+  actual Improvements list arrives.
 
 ### Parked (deferred by owner 2026-07-11)
 - **Owner activation runbook** — a step-by-step doc for all of the above.
