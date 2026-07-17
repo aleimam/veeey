@@ -7,12 +7,22 @@
 
 ## Current state
 
-- **Live** at **veeey.com**. Latest deployed commit: **`79c5d56`** (2026-07-17). All
+- **Live** at **veeey.com**. Latest deployed commit: **`dc1cd22`** (2026-07-17). All
   **55 Prisma migrations applied** (latest `gift_customer_name`); `pm2` `veeey` (web) + `veeey-worker` healthy;
-  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **432 unit tests** · build.
-- **V5 audit doc P0+P1+P2 shipped 2026-07-17** (source: `C:\Claude\eCommerce\V5 Veeey_editable_featues_v1.docx`;
+  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **433 unit tests** · build.
+- **V5 audit doc FULLY shipped (P0+P1+P2+P3) 2026-07-17** (source: `C:\Claude\eCommerce\V5 Veeey_editable_featues_v1.docx`;
   commits `8f78383` search-500+token-blocklist → `5a295cb` dashboard D-01..05 → `84211ba` analytics F2-F6/F10/F12
-  → `79c5d56` P2 batch D-06..D-11 + F8/F9/F11/F13/F14/F18).
+  → `79c5d56` P2 batch D-06..D-11 + F8/F9/F11/F13/F14/F18 → `dc1cd22` P3 batch D-12..D-17 + F15-F17/F19/F20).
+  P3 highlights: **F19 real bug** — the shared range's `mtd` used integer `ceil(elapsed)` days ending at *now*, so
+  the window leaked hours of the previous month and disagreed with Sales for the same preset; now exact
+  month-start→now (fractional `days` + pinned `endAt`; `visitorTimeSeries` ceils for its daily series) + an explicit
+  revenue-basis note on Sales (bookings vs delivered). **F20** — the CSV export route honored only `[7,30,90]`
+  `?days=`, silently exporting a different window than a custom range showed; it now takes the full
+  preset/from/to contract, and filenames carry the window via `rangeTag()` (custom reports also carry
+  metric/dimension/filter). F16 report builder merged bar+value into one metric column; F17 breadcrumb grew a
+  named sub-crumb (Admin › Analytics › Report builder, `SUB_CRUMBS` in admin-shell); F15 sales histograms one
+  palette; D-13 KPI delta line shows the direction word; D-14 collapsed-sidebar aria-labels; D-15/16 tile/card
+  height+label alignment; D-17 breadcrumb root is a real link (+ RTL chevron flips).
   Root causes worth remembering: search analytics raw SQL said `o."createdAt"` but Order's field is **placedAt**;
   the traffic chart used `hsl(var(--primary))` against **hex** tokens (invalid CSS → invisible series/dark chart).
   P2 highlights: **`src/lib/analytics-range.ts`** is now the ONE date-range contract
@@ -21,9 +31,9 @@
   **both-ends-bounded** all the way into the report SQL. Crawler-referrer blocklist (semrush/ahrefs/…) ORed into
   `isBot` at ingest (F8). Product-performance table is sortable + show-all-50 (F14). Dashboard expiry list got a
   severity legend + per-lot deep links (D-06); BarChart has per-bar aria-labels + sr-only table (D-11); D-10 was
-  verified already clean. Remaining for the P3 pass: D-12..D-17, F15–F17, F19, F20. The doc's open product
-  questions (funnel attribution intent, geo-enrichment mmdb, UTM wiring, fulfillment location, SSO-vs-OTP) still
-  need owner answers; F18's real fix is the owner dropping a GeoLite2 mmdb at `GEOIP_DB_PATH` on prod.
+  verified already clean. **Nothing remains from the V5 doc except the owner's open product questions**
+  (funnel attribution intent, geo-enrichment mmdb, UTM wiring, fulfillment location, SSO-vs-OTP);
+  F18's real fix is the owner dropping a GeoLite2 mmdb at `GEOIP_DB_PATH` on prod.
 - 🔸 **THIS CODEBASE NOW RUNS TWO INDEPENDENT STORES.** Besides veeey.com, a **second, separate
   store is live at veeey.net** (own DB/customers/orders, **not synced** with veeey.com) — deployed
   2026-07-15, co-hosted on the CyberPanel/OpenLiteSpeed box that also runs the egyptvitamins.net
