@@ -8,7 +8,8 @@ import { salesAnalytics, salesPeriodRange, type PeriodPreset, type Metrics } fro
 import { NON_BOOKED_STATUSES } from '@/lib/sales-analytics-core';
 import { BarChart } from '@/components/admin/analytics/bar-chart';
 import { AnalyticsDateRange, dateRangeLabels } from '@/components/admin/analytics/date-range';
-import { resolveAnalyticsRange, ymd } from '@/lib/analytics-range';
+import { resolveAnalyticsRange } from '@/lib/analytics-range';
+import { salesExportHref, salesOrdersHref, type SalesPanel } from '@/lib/sales-links';
 
 export const dynamic = 'force-dynamic';
 type SP = Record<string, string | string[] | undefined>;
@@ -28,10 +29,14 @@ function Cell({ value, cur, prev, egp, locale }: { value: number; cur?: number; 
   );
 }
 
-function MetricRow({ label, m, compare, locale }: { label: string; m: Metrics; compare?: Metrics; locale: string }) {
+function MetricRow({ label, m, compare, locale, href }: { label: string; m: Metrics; compare?: Metrics; locale: string; href?: string }) {
   return (
     <div className="grid grid-cols-4 items-baseline gap-2 border-t border-border py-2 text-sm first:border-t-0">
-      <span className="font-medium text-foreground">{label}</span>
+      {/* S13: the label opens exactly these orders. Only rows an Orders filter
+          can reproduce get a link — see SalesPanels. */}
+      {href
+        ? <Link href={href} className="font-medium text-primary hover:underline">{label}</Link>
+        : <span className="font-medium text-foreground">{label}</span>}
       <Cell value={m.count} cur={compare && m.count} prev={compare?.count} locale={locale} />
       <Cell value={m.aov} cur={compare && m.aov} prev={compare?.aov} egp locale={locale} />
       <Cell value={m.revenue} cur={compare && m.revenue} prev={compare?.revenue} egp locale={locale} />
@@ -52,12 +57,21 @@ function MetricHeader({ tb }: { tb: (en: string, ar: string) => string }) {
  * here against "511" on the Orders list with nothing on screen explaining the
  * gap — and the lifetime card doesn't even use the selected period.
  */
-function Card({ title, basis, note, children }: { title: string; basis: string; note?: string; children: React.ReactNode }) {
+function Card({ title, basis, note, csvHref, csvLabel, children }: { title: string; basis: string; note?: string; csvHref?: string; csvLabel?: string; children: React.ReactNode }) {
   return (
     // min-w-0: a grid item defaults to min-width:auto, so wide content would
     // stretch the row and scroll the page sideways (V6 audit S5).
     <section className="min-w-0 rounded-lg border border-border p-4">
-      <h2 className="mb-1 font-heading text-base font-semibold">{title}</h2>
+      <div className="mb-1 flex items-start justify-between gap-2">
+        <h2 className="font-heading text-base font-semibold">{title}</h2>
+        {csvHref && (
+          // Plain <a>: a CSV download must not be intercepted by the router,
+          // and next-intl's Link would prepend a locale the API doesn't have.
+          <a href={csvHref} className="shrink-0 rounded-md border border-border px-2 py-1 text-xs font-medium text-foreground hover:bg-muted">
+            {csvLabel}
+          </a>
+        )}
+      </div>
       <p className="mb-1 text-xs font-medium text-muted-foreground">{basis}</p>
       {note && <p className="mb-2 text-xs text-muted-foreground">{note}</p>}
       {children}
@@ -106,6 +120,12 @@ async function SalesPanels({ preset, from, to, locale }: { preset: PeriodPreset;
   const tb = pick(locale);
   const a = await salesAnalytics(preset, from, to);
   const basisBookings = tb('Bookings · selected period', 'الحجوزات · الفترة المحددة');
+  const csvLabel = tb('CSV', 'CSV');
+
+  // S13: exports + drill-throughs carry the SAME window the page resolved.
+  const win = { preset, from, to };
+  const csv = (panel: SalesPanel) => salesExportHref(panel, win);
+  const bigEgp = a.bigThresholdEgp;
 
   // Every period-scoped panel derives from the same orders, so when there are
   // none they all say nothing — one honest empty state replaces the lot. The
@@ -115,6 +135,8 @@ async function SalesPanels({ preset, from, to, locale }: { preset: PeriodPreset;
       title={tb('Customer size distribution', 'توزيع حجم العملاء')}
       basis={tb('All customers · lifetime, ignores the selected period', 'كل العملاء · مدى الحياة، لا يتأثر بالفترة المحددة')}
       note={tb('By lifetime spend (EGP)', 'حسب إجمالي الإنفاق (ج.م)')}
+      csvHref={csv('lifetime-hist')}
+      csvLabel={csvLabel}
     >
       <BarChart
         data={a.lifetimeHist.map((b) => ({ label: b.label, value: b.count }))}
@@ -135,25 +157,31 @@ async function SalesPanels({ preset, from, to, locale }: { preset: PeriodPreset;
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      <Card title={tb('This period vs previous', 'هذه الفترة مقابل السابقة')} basis={basisBookings}>
+      <Card title={tb('This period vs previous', 'هذه الفترة مقابل السابقة')} basis={basisBookings} csvHref={csv('period')} csvLabel={csvLabel}>
         <MetricHeader tb={tb} />
-        <MetricRow label={tb('Current', 'الحالية')} m={a.current} compare={a.previous} locale={locale} />
-        <MetricRow label={tb('Previous', 'السابقة')} m={a.previous} locale={locale} />
+        <MetricRow label={tb('Current', 'الحالية')} m={a.current} compare={a.previous} locale={locale} href={salesOrdersHref(a.range.start, a.range.end)} />
+        <MetricRow label={tb('Previous', 'السابقة')} m={a.previous} locale={locale} href={salesOrdersHref(a.range.prevStart, a.range.prevEnd)} />
       </Card>
 
-      <Card title={tb('New vs repeat customers', 'العملاء الجدد مقابل المتكررين')} basis={basisBookings} note={tb('Repeat = ordered before this period', 'متكرر = طلب قبل هذه الفترة')}>
+      {/* No drill-through here on purpose: "repeat" means "ordered before this
+          period", while the Customers list's repeat segment means "≥2 orders
+          ever". Linking them would show a different number with no explanation
+          — the very confusion S4 was raised about. */}
+      <Card title={tb('New vs repeat customers', 'العملاء الجدد مقابل المتكررين')} basis={basisBookings} note={tb('Repeat = ordered before this period', 'متكرر = طلب قبل هذه الفترة')} csvHref={csv('customer-type')} csvLabel={csvLabel}>
         <MetricHeader tb={tb} />
         <MetricRow label={tb('New / first-time', 'جدد / أول مرة')} m={a.newSeg} locale={locale} />
         <MetricRow label={tb('Repeat', 'متكررون')} m={a.repeatSeg} locale={locale} />
       </Card>
 
-      <Card title={tb('Big vs normal orders', 'الطلبات الكبيرة مقابل العادية')} basis={basisBookings} note={tb(`Big = order ≥ ${formatEGP(a.bigThresholdEgp * 100)}`, `الكبيرة = طلب ≥ ${formatEGP(a.bigThresholdEgp * 100)}`)}>
+      <Card title={tb('Big vs normal orders', 'الطلبات الكبيرة مقابل العادية')} basis={basisBookings} note={tb(`Big = order ≥ ${formatEGP(bigEgp * 100)}`, `الكبيرة = طلب ≥ ${formatEGP(bigEgp * 100)}`)} csvHref={csv('order-size')} csvLabel={csvLabel}>
         <MetricHeader tb={tb} />
-        <MetricRow label={tb('Big orders', 'طلبات كبيرة')} m={a.bigSeg} locale={locale} />
-        <MetricRow label={tb('Normal orders', 'طلبات عادية')} m={a.normalSeg} locale={locale} />
+        {/* min is inclusive / max exclusive on both sides, so the two links
+            partition the period's orders exactly as the cards do. */}
+        <MetricRow label={tb('Big orders', 'طلبات كبيرة')} m={a.bigSeg} locale={locale} href={salesOrdersHref(a.range.start, a.range.end, { minTotal: bigEgp })} />
+        <MetricRow label={tb('Normal orders', 'طلبات عادية')} m={a.normalSeg} locale={locale} href={salesOrdersHref(a.range.start, a.range.end, { maxTotal: bigEgp })} />
       </Card>
 
-      <Card title={tb('Order size distribution', 'توزيع حجم الطلبات')} basis={basisBookings} note={tb('By order value (EGP)', 'حسب قيمة الطلب (ج.م)')}>
+      <Card title={tb('Order size distribution', 'توزيع حجم الطلبات')} basis={basisBookings} note={tb('By order value (EGP)', 'حسب قيمة الطلب (ج.م)')} csvHref={csv('order-value-hist')} csvLabel={csvLabel}>
         <BarChart data={a.orderValueHist.map((b) => ({ label: b.label, value: b.count }))} unit="count" />
       </Card>
 
@@ -187,7 +215,7 @@ export default async function SalesAnalyticsPage({ params, searchParams }: { par
   const dateFmt = (d: Date) => d.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-GB');
 
   // S4: the same window + status basis these numbers use, as an Orders query.
-  const reconcileHref = `/admin/orders?status=booked&from=${ymd(range.start)}&to=${ymd(range.end)}`;
+  const reconcileHref = salesOrdersHref(range.start, range.end);
 
   return (
     <div className="max-w-4xl p-6">

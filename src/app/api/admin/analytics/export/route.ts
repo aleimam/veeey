@@ -51,6 +51,33 @@ export async function GET(req: Request) {
   } else if (report === 'products') {
     const p = await productPerformance(days, 50, endAt); // full list, matching the page's "show all"
     csv = toCsv(['sku', 'name', 'views', 'units_sold', 'view_to_buy'], p.map((r) => [r.sku, r.name, r.views, r.units, (r.conversion * 100).toFixed(1) + '%']));
+  } else if (report === 'sales') {
+    // V6 audit S13: one export per Sales panel, on the same range + bookings
+    // basis the page is showing. `salesAnalytics` owns that contract, so the
+    // CSV can't drift from the screen.
+    const { salesAnalytics } = await import('@/lib/sales-analytics');
+    // Sales defaults to month-to-date, not the dashboard's 30d — resolving with
+    // the wrong default would export a different window than the page shows.
+    const salesRange = resolveAnalyticsRange({ preset: q('preset'), days: q('days'), from: q('from'), to: q('to') }, { defaultPreset: 'mtd' });
+    const a = await salesAnalytics(salesRange.preset, salesRange.from ?? undefined, salesRange.to ?? undefined);
+    const panel = q('panel') ?? 'period';
+    const metricRow = (label: string, m: { count: number; revenue: number; aov: number }) => [label, m.count, (m.aov / 100).toFixed(2), (m.revenue / 100).toFixed(2)];
+    const METRIC_HEADERS = ['segment', 'orders', 'aov_egp', 'revenue_egp'];
+
+    if (panel === 'period') {
+      csv = toCsv(METRIC_HEADERS, [metricRow('current', a.current), metricRow('previous', a.previous)]);
+    } else if (panel === 'customer-type') {
+      csv = toCsv(METRIC_HEADERS, [metricRow('new', a.newSeg), metricRow('repeat', a.repeatSeg)]);
+    } else if (panel === 'order-size') {
+      csv = toCsv(METRIC_HEADERS, [metricRow('big', a.bigSeg), metricRow('normal', a.normalSeg)]);
+    } else if (panel === 'order-value-hist') {
+      csv = toCsv(['band_egp', 'orders'], a.orderValueHist.map((b) => [b.label, b.count]));
+    } else if (panel === 'lifetime-hist') {
+      csv = toCsv(['band_egp', 'customers'], a.lifetimeHist.map((b) => [b.label, b.count]));
+    } else {
+      return new NextResponse('Unknown panel', { status: 400 });
+    }
+    tag = `${panel}-${rangeTag(salesRange)}`;
   } else if (report === 'custom') {
     const { resolveReportConfig, runReport, REPORT_DIMENSIONS, REPORT_METRICS } = await import('@/lib/analytics-report');
     const cfg = resolveReportConfig({

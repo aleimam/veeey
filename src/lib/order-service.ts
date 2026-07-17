@@ -51,7 +51,18 @@ async function notifyOrder(orderId: string, templateKey: string) {
 
 export type OrderListOpts = {
   status?: string; payment?: string; payCheck?: string; search?: string; q?: string; from?: string; to?: string;
+  /** Order total in EGP. minTotal is inclusive, maxTotal exclusive — the same
+   *  split the Sales "big vs normal" cards use, so their links land on the same
+   *  rows (V6 audit S13). Both are labelled in the filter chips. */
+  minTotal?: string; maxTotal?: string;
   sort?: string; dir?: 'asc' | 'desc'; page?: number; perPage?: number;
+};
+
+/** EGP string → piastres, or undefined when absent/unparseable. */
+const totalPiastres = (egp?: string): bigint | undefined => {
+  if (!egp) return undefined;
+  const n = Number(egp);
+  return Number.isFinite(n) && n >= 0 ? BigInt(Math.round(n * 100)) : undefined;
 };
 
 function orderWhere(opts: OrderListOpts): Prisma.OrderWhereInput {
@@ -84,6 +95,13 @@ function orderWhere(opts: OrderListOpts): Prisma.OrderWhereInput {
     ...(opts.from || opts.to
       ? { placedAt: { ...(opts.from ? { gte: new Date(opts.from) } : {}), ...(opts.to ? { lte: new Date(`${opts.to}T23:59:59`) } : {}) } }
       : {}),
+    ...((() => {
+      const min = totalPiastres(opts.minTotal);
+      const max = totalPiastres(opts.maxTotal);
+      return min != null || max != null
+        ? { totalPiastres: { ...(min != null ? { gte: min } : {}), ...(max != null ? { lt: max } : {}) } }
+        : {};
+    })()),
   };
 }
 

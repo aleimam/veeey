@@ -42,8 +42,10 @@ export default async function OrdersPage({ params, searchParams }: { params: Pro
   const payCheck = one(sp.payCheck);
   const from = one(sp.from);
   const to = one(sp.to);
+  const minTotal = one(sp.minTotal);
+  const maxTotal = one(sp.maxTotal);
   const { sort, dir, page, perPage } = parseListParams(sp, { sortable: SORTABLE, defaultSort: 'placedAt' });
-  const filters = { q, status, payment, payCheck, from, to };
+  const filters = { q, status, payment, payCheck, from, to, minTotal, maxTotal };
 
   const [orders, total, statusCfgs, staff] = await Promise.all([
     listOrders({ ...filters, sort, dir, page, perPage }),
@@ -73,6 +75,10 @@ export default async function OrdersPage({ params, searchParams }: { params: Pro
     payCheck ? { name: 'payCheck', label: `${tb('Check', 'مراجعة')}: ${payCheck}` } : null,
     from ? { name: 'from', label: `${tb('From', 'من')}: ${from}` } : null,
     to ? { name: 'to', label: `${tb('To', 'إلى')}: ${to}` } : null,
+    // Bounds are shown with their exact comparison — maxTotal is exclusive, and
+    // a chip reading "Total: 500" would hide that (V6 audit S13).
+    minTotal ? { name: 'minTotal', label: `${tb('Total', 'الإجمالي')} ≥ ${minTotal}` } : null,
+    maxTotal ? { name: 'maxTotal', label: `${tb('Total', 'الإجمالي')} < ${maxTotal}` } : null,
   ].filter(Boolean) as { name: string; label: string }[]);
 
   const ops: BulkOp[] = [
