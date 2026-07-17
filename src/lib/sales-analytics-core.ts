@@ -92,6 +92,60 @@ export function periodRange(preset: PeriodPreset, fromIso: string | undefined, t
   return { start, end, prevStart, prevEnd };
 }
 
+export type TrendGrain = 'day' | 'week' | 'month';
+export type TrendPoint = { date: string; revenue: number; orders: number }; // revenue in piastres
+
+/** Local YYYY-MM-DD (never UTC — a late-evening order must not slip a day). */
+const ymdLocal = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/**
+ * How finely to slice a window (V6 audit S10). A 90-day range at daily grain is
+ * 90 unreadable columns, so longer windows step up to weeks then months.
+ */
+export function trendGrain(start: Date, end: Date): TrendGrain {
+  const days = (end.getTime() - start.getTime()) / 86_400_000;
+  if (days <= 31) return 'day';
+  if (days <= 92) return 'week';
+  return 'month';
+}
+
+/** The bucket an order falls in: its day, its ISO-ish week start (Mon), or its month. */
+const bucketStart = (d: Date, grain: TrendGrain): Date => {
+  if (grain === 'month') return new Date(d.getFullYear(), d.getMonth(), 1);
+  const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  if (grain === 'day') return day;
+  const dow = (day.getDay() + 6) % 7; // Mon = 0
+  day.setDate(day.getDate() - dow);
+  return day;
+};
+
+const nextBucket = (d: Date, grain: TrendGrain): Date =>
+  grain === 'month'
+    ? new Date(d.getFullYear(), d.getMonth() + 1, 1)
+    : new Date(d.getFullYear(), d.getMonth(), d.getDate() + (grain === 'week' ? 7 : 1));
+
+/**
+ * Revenue + order count per bucket across the whole window (V6 audit S10).
+ *
+ * Buckets with no orders are emitted as zeros rather than skipped: a trend that
+ * silently drops its quiet days draws a continuous line through them and
+ * overstates what happened.
+ */
+export function salesTrend(orders: { placedAt: Date; totalPiastres: number }[], start: Date, end: Date, grain = trendGrain(start, end)): TrendPoint[] {
+  const points = new Map<string, TrendPoint>();
+  for (let b = bucketStart(start, grain); b <= end; b = nextBucket(b, grain)) {
+    points.set(ymdLocal(b), { date: ymdLocal(b), revenue: 0, orders: 0 });
+  }
+  for (const o of orders) {
+    const key = ymdLocal(bucketStart(o.placedAt, grain));
+    const p = points.get(key);
+    if (!p) continue; // outside the window — the query shouldn't return these
+    p.revenue += o.totalPiastres;
+    p.orders += 1;
+  }
+  return [...points.values()];
+}
+
 export const VALUE_EDGES = [0, 50000, 100000, 200000, 300000, 500000]; // piastres
 export const LIFETIME_EDGES = [0, 50000, 100000, 300000, 500000, 1000000];
 

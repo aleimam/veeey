@@ -7,7 +7,7 @@ import { formatEGP } from '@/lib/format';
 import { pick } from '@/lib/admin-i18n';
 import { sourceLabel } from '@/lib/attribution';
 import { requirePermission } from '@/lib/auth-guards';
-import { TrafficChart } from '@/components/admin/analytics/traffic-chart';
+import { TimeSeriesChart } from '@/components/admin/analytics/time-series-chart';
 import { AnalyticsDateRange, dateRangeLabels } from '@/components/admin/analytics/date-range';
 import { resolveAnalyticsRange, ymd } from '@/lib/analytics-range';
 import { Download } from 'lucide-react';
@@ -132,11 +132,13 @@ export default async function AnalyticsPage({ params, searchParams }: { params: 
       <section className="mb-8">
         <h2 className="mb-3 text-sm font-semibold">{tb('Traffic over time', 'الزيارات عبر الوقت')}</h2>
         <div className="rounded-lg border border-border p-4">
-          <TrafficChart
-            series={ts}
+          <TimeSeriesChart
+            // Pageviews are the primary series; visitors ride the secondary,
+            // which is what normalizes to its own scale when they diverge (F3).
+            series={ts.map((p) => ({ date: p.date, primary: p.pageviews, secondary: p.visitors }))}
             labels={{
-              visitors: tb('Visitors', 'الزوّار'),
-              pageviews: tb('Pageviews', 'مشاهدات الصفحات'),
+              primary: tb('Pageviews', 'مشاهدات الصفحات'),
+              secondary: tb('Visitors', 'الزوّار'),
               line: tb('Line', 'خط'),
               area: tb('Area', 'مساحة'),
               bar: tb('Bars', 'أعمدة'),

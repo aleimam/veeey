@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { getNumberSetting } from '@/lib/settings-service';
-import { periodRange, bucketByValue, bucketLabels, LIFETIME_EDGES, NON_BOOKED_STATUSES, type Metrics, type PeriodPreset, type Range, type Bucket } from '@/lib/sales-analytics-core';
+import { periodRange, bucketByValue, bucketLabels, salesTrend, trendGrain, LIFETIME_EDGES, NON_BOOKED_STATUSES, type Metrics, type PeriodPreset, type Range, type Bucket, type TrendPoint, type TrendGrain } from '@/lib/sales-analytics-core';
 
 /**
  * Sales & customer analytics (period compare, segments, distributions).
@@ -36,6 +36,7 @@ export type SalesAnalytics = {
   bigThresholdEgp: number;
   orderValueHist: Bucket[];
   lifetimeHist: Bucket[];
+  trend: TrendPoint[]; trendGrain: TrendGrain;
 };
 
 export async function salesAnalytics(preset: PeriodPreset, from?: string, to?: string): Promise<SalesAnalytics> {
@@ -46,7 +47,9 @@ export async function salesAnalytics(preset: PeriodPreset, from?: string, to?: s
   const where = (start: Date, end: Date) => ({ placedAt: { gte: start, lte: end }, status: { notIn: EXCLUDED } });
 
   const [cur, prev] = await Promise.all([
-    prisma.order.findMany({ where: where(range.start, range.end), select: { totalPiastres: true, customerId: true } }),
+    // placedAt rides along for the trend (S10) — the trend is bucketed from the
+    // very same rows the cards count, so the two can't tell different stories.
+    prisma.order.findMany({ where: where(range.start, range.end), select: { totalPiastres: true, customerId: true, placedAt: true } }),
     prisma.order.findMany({ where: where(range.prevStart, range.prevEnd), select: { totalPiastres: true } }),
   ]);
 
@@ -71,6 +74,8 @@ export async function salesAnalytics(preset: PeriodPreset, from?: string, to?: s
   );
   const lifetimeHist = bucketLabels(LIFETIME_EDGES).map((label, i) => ({ label, count: lifetimeCounts[i] }));
 
+  const grain = trendGrain(range.start, range.end);
+
   return {
     range,
     current: metricsOf(cur), previous: metricsOf(prev),
@@ -79,5 +84,7 @@ export async function salesAnalytics(preset: PeriodPreset, from?: string, to?: s
     bigThresholdEgp,
     orderValueHist: bucketByValue(cur.map((o) => Number(o.totalPiastres))),
     lifetimeHist,
+    trend: salesTrend(cur.map((o) => ({ placedAt: o.placedAt, totalPiastres: Number(o.totalPiastres) })), range.start, range.end, grain),
+    trendGrain: grain,
   };
 }

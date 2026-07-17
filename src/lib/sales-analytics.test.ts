@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { periodRange, bucketByValue, NON_BOOKED_STATUSES } from '@/lib/sales-analytics-core';
+import { periodRange, bucketByValue, NON_BOOKED_STATUSES, salesTrend, trendGrain } from '@/lib/sales-analytics-core';
 import { ORDER_STATUSES } from '@/lib/order-status';
 
 /** Local-time YYYY-MM-DD, so assertions read like the dates a user picks. */
@@ -127,6 +127,77 @@ describe('NON_BOOKED_STATUSES (V6 audit S4)', () => {
     for (const legacy of ['CANCELED', 'RETURNED', 'FAILED', 'VOID']) {
       expect(NON_BOOKED_STATUSES).toContain(legacy);
     }
+  });
+});
+
+// S10: the page had no time dimension — a month was one number, so a bad week
+// inside a good month was invisible.
+describe('salesTrend (V6 audit S10)', () => {
+  const order = (iso: string, egp: number) => ({ placedAt: new Date(iso), totalPiastres: egp * 100 });
+
+  it('picks a grain that stays readable as the window grows', () => {
+    expect(trendGrain(new Date(2026, 2, 1), new Date(2026, 2, 31))).toBe('day');
+    expect(trendGrain(new Date(2026, 0, 1), new Date(2026, 2, 31))).toBe('week'); // 90 days
+    expect(trendGrain(new Date(2025, 0, 1), new Date(2026, 0, 1))).toBe('month');
+  });
+
+  it('sums revenue and counts orders into their day', () => {
+    const pts = salesTrend(
+      [order('2026-03-01T09:00', 100), order('2026-03-01T18:00', 50), order('2026-03-03T10:00', 25)],
+      new Date(2026, 2, 1), new Date(2026, 2, 3), 'day',
+    );
+    expect(pts).toEqual([
+      { date: '2026-03-01', revenue: 15000, orders: 2 },
+      { date: '2026-03-02', revenue: 0, orders: 0 },
+      { date: '2026-03-03', revenue: 2500, orders: 1 },
+    ]);
+  });
+
+  it('emits quiet buckets as zeros rather than dropping them', () => {
+    // A skipped day would draw a straight line across it and overstate the week.
+    const pts = salesTrend([order('2026-03-05T12:00', 10)], new Date(2026, 2, 1), new Date(2026, 2, 7), 'day');
+    expect(pts).toHaveLength(7);
+    expect(pts.filter((p) => p.orders === 0)).toHaveLength(6);
+  });
+
+  it('covers the window even with no orders at all', () => {
+    const pts = salesTrend([], new Date(2026, 2, 1), new Date(2026, 2, 3), 'day');
+    expect(pts.map((p) => p.date)).toEqual(['2026-03-01', '2026-03-02', '2026-03-03']);
+    expect(pts.every((p) => p.revenue === 0 && p.orders === 0)).toBe(true);
+  });
+
+  it('groups weeks from Monday, including the part-week the window starts in', () => {
+    // 2026-03-04 is a Wednesday; its bucket starts Monday 2026-03-02.
+    const pts = salesTrend(
+      [order('2026-03-04T12:00', 10), order('2026-03-08T12:00', 20), order('2026-03-09T12:00', 30)],
+      new Date(2026, 2, 4), new Date(2026, 2, 15), 'week',
+    );
+    expect(pts[0].date).toBe('2026-03-02');
+    expect(pts[0].orders).toBe(2); // Wed 4th + Sun 8th are the same week
+    expect(pts[1].date).toBe('2026-03-09');
+    expect(pts[1].orders).toBe(1);
+  });
+
+  it('groups months from the 1st', () => {
+    const pts = salesTrend(
+      [order('2026-01-31T12:00', 10), order('2026-02-01T00:30', 20)],
+      new Date(2026, 0, 15), new Date(2026, 1, 28), 'month',
+    );
+    expect(pts.map((p) => p.date)).toEqual(['2026-01-01', '2026-02-01']);
+    expect(pts[0].revenue).toBe(1000);
+    expect(pts[1].revenue).toBe(2000);
+  });
+
+  it('buckets by local day — a late-evening order stays on its own date', () => {
+    const pts = salesTrend([order('2026-03-01T23:45', 10)], new Date(2026, 2, 1), new Date(2026, 2, 2), 'day');
+    expect(pts[0]).toEqual({ date: '2026-03-01', revenue: 1000, orders: 1 });
+  });
+
+  it('totals match the period card — the trend cannot tell a different story', () => {
+    const orders = [order('2026-03-01T09:00', 100), order('2026-03-02T09:00', 50), order('2026-03-09T09:00', 25)];
+    const pts = salesTrend(orders, new Date(2026, 2, 1), new Date(2026, 2, 31), 'day');
+    expect(pts.reduce((s, p) => s + p.orders, 0)).toBe(orders.length);
+    expect(pts.reduce((s, p) => s + p.revenue, 0)).toBe(175 * 100);
   });
 });
 

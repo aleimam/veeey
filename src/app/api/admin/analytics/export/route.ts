@@ -74,6 +74,10 @@ export async function GET(req: Request) {
       csv = toCsv(['band_egp', 'orders'], a.orderValueHist.map((b) => [b.label, b.count]));
     } else if (panel === 'lifetime-hist') {
       csv = toCsv(['band_egp', 'customers'], a.lifetimeHist.map((b) => [b.label, b.count]));
+    } else if (panel === 'trend') {
+      // `period_start` not `date`: a row is a whole day/week/month depending on
+      // how long the window is, and calling that "date" would misread.
+      csv = toCsv(['period_start', 'grain', 'orders', 'revenue_egp'], a.trend.map((p) => [p.date, a.trendGrain, p.orders, (p.revenue / 100).toFixed(2)]));
     } else {
       return new NextResponse('Unknown panel', { status: 400 });
     }

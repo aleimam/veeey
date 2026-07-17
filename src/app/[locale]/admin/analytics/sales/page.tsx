@@ -7,6 +7,7 @@ import { formatEGP } from '@/lib/format';
 import { salesAnalytics, salesPeriodRange, type PeriodPreset, type Metrics } from '@/lib/sales-analytics';
 import { NON_BOOKED_STATUSES } from '@/lib/sales-analytics-core';
 import { BarChart } from '@/components/admin/analytics/bar-chart';
+import { TimeSeriesChart } from '@/components/admin/analytics/time-series-chart';
 import { AnalyticsDateRange, dateRangeLabels } from '@/components/admin/analytics/date-range';
 import { resolveAnalyticsRange } from '@/lib/analytics-range';
 import { salesExportHref, salesOrdersHref, type SalesPanel } from '@/lib/sales-links';
@@ -155,8 +156,37 @@ async function SalesPanels({ preset, from, to, locale }: { preset: PeriodPreset;
     );
   }
 
+  // S10: the page had no time dimension at all — a month was a single number,
+  // so a week-long collapse inside a healthy month was invisible.
+  const grainLabel = {
+    day: tb('by day', 'يوميًا'),
+    week: tb('by week', 'أسبوعيًا'),
+    month: tb('by month', 'شهريًا'),
+  }[a.trendGrain];
+
   return (
     <div className="grid gap-4 md:grid-cols-2">
+      <section className="col-span-full min-w-0 rounded-lg border border-border p-4">
+        <div className="mb-1 flex items-start justify-between gap-2">
+          <h2 className="font-heading text-base font-semibold">{tb('Revenue & orders over time', 'الإيراد والطلبات عبر الوقت')}</h2>
+          <a href={csv('trend')} className="shrink-0 rounded-md border border-border px-2 py-1 text-xs font-medium text-foreground hover:bg-muted">{csvLabel}</a>
+        </div>
+        <p className="mb-2 text-xs font-medium text-muted-foreground">{basisBookings} · {grainLabel}</p>
+        <TimeSeriesChart
+          series={a.trend.map((p) => ({ date: p.date, primary: p.revenue, secondary: p.orders }))}
+          primaryUnit="egp"
+          secondaryUnit="count"
+          labels={{
+            primary: tb('Revenue', 'الإيراد'),
+            secondary: tb('Orders', 'الطلبات'),
+            line: tb('Line', 'خط'),
+            area: tb('Area', 'مساحة'),
+            bar: tb('Bars', 'أعمدة'),
+            scaled: tb('(own scale)', '(مقياس مستقل)'),
+          }}
+        />
+      </section>
+
       <Card title={tb('This period vs previous', 'هذه الفترة مقابل السابقة')} basis={basisBookings} csvHref={csv('period')} csvLabel={csvLabel}>
         <MetricHeader tb={tb} />
         <MetricRow label={tb('Current', 'الحالية')} m={a.current} compare={a.previous} locale={locale} href={salesOrdersHref(a.range.start, a.range.end)} />
