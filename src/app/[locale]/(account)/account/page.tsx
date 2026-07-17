@@ -260,7 +260,11 @@ export default async function AccountPage({ params, searchParams }: { params: Pr
                   <tbody>
                     {orders.map((o) => (
                       <tr key={o.id} className="border-t border-[color:var(--slate-border)]">
-                        <td className="p-3 font-semibold text-ink">{o.number}</td>
+                        <td className="p-3 font-semibold text-ink">
+                          {o.number}
+                          {o.isPreorder && <span className="ms-1.5 rounded-full bg-[color:var(--gold-wash)] px-1.5 py-0.5 text-[10px] font-medium text-slate">{tb('Pre-order', 'طلب مسبق')}</span>}
+                          {o.isSpecialOrder && <span className="ms-1.5 rounded-full bg-green-wash px-1.5 py-0.5 text-[10px] font-medium text-green-dark">{tb('Special order', 'طلب خاص')}</span>}
+                        </td>
                         <td className="p-3 text-ink">{o._count.items}</td>
                         <td className="p-3 text-ink">{formatEGP(Number(o.totalPiastres))}</td>
                         <td className="p-3"><StatusBadge status={o.customerStatus ?? o.status} /></td>

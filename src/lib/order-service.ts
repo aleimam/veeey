@@ -75,9 +75,13 @@ function orderWhere(opts: OrderListOpts): Prisma.OrderWhereInput {
         // Matches the Sales analytics basis (V6 audit S4) so its "417 orders"
         // can be opened here and land on the same 417 rows.
         ? { status: { notIn: NON_BOOKED_STATUSES } }
-        : opts.status
-          ? { status: opts.status as OrderStatus }
-          : {}),
+        : opts.status === 'preorder'
+          ? { isPreorder: true } // pre-order list (Requests epic B2)
+          : opts.status === 'special'
+            ? { isSpecialOrder: true } // special-order list (Requests epic B2)
+            : opts.status
+              ? { status: opts.status as OrderStatus }
+              : {}),
     ...(opts.payment ? { paymentMethod: opts.payment as Prisma.OrderWhereInput['paymentMethod'] } : {}),
     // `lost` lines are excluded from revenue everywhere, so an order that only
     // contains a lost line of this product isn't one of "its" orders.
@@ -148,6 +152,7 @@ export function getOrder(id: string) {
       customer: { include: { user: { select: { email: true } } } },
       pharmacist: { select: { id: true, name: true } },
       returns: { include: { items: true } },
+      requests: { select: { id: true, uid: true, type: true, status: true }, orderBy: { createdAt: 'desc' } },
     },
   });
 }

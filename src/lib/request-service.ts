@@ -5,7 +5,7 @@ import { audit } from '@/lib/audit';
 import { egpToPiastres } from '@/lib/format';
 import { getNumberSetting } from '@/lib/settings-service';
 import {
-  REQUEST_TYPES, isRequestType, validateRequest, requestEditable, requestUid, expectedDepositPiastres,
+  REQUEST_TYPES, isRequestType, validateRequest, requestEditable, requestUid, expectedDepositPiastres, pickOrderRequestLines,
 } from '@/lib/request-logic';
 import type { Prisma } from '@/generated/prisma/client';
 
@@ -144,6 +144,48 @@ export async function createRequest(input: RequestCreateInput) {
     },
   });
   await audit({ actorType: 'USER', actorId: user.id, action: 'request.create', entityType: 'Request', entityId: req.id, data: { type: d.type, uid } });
+  return req;
+}
+
+/**
+ * Place a purchasing request FROM an order (Phase B) — the "sales places a
+ * request while creating / confirming the pre-order or special order" step.
+ * Type SPECIAL_ORDER, linked to the order + its customer, pre-filled from the
+ * pre-order lines (or all non-lost lines if none are flagged). The order itself
+ * supplies the customer context (guest orders carry contact on the order), so
+ * the customer-required validation is not applied here. Created PENDING +
+ * editable so sales can adjust the quantities before approving.
+ */
+export async function createRequestFromOrder(orderId: string) {
+  const user = await requirePermission('requests.manage');
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: {
+      id: true, number: true, customerId: true,
+      items: { where: { lost: false }, select: { productId: true, qty: true, preorder: true, unitPricePiastres: true } },
+    },
+  });
+  if (!order) throw new Error('NOT_FOUND');
+  const src = pickOrderRequestLines(order.items);
+  if (!src.length) throw new Error('NO_ITEMS');
+
+  const now = new Date();
+  const uid = await nextUid(now);
+  const req = await prisma.request.create({
+    data: {
+      uid,
+      type: 'SPECIAL_ORDER',
+      scope: 'EGV',
+      status: 'PENDING',
+      customerId: order.customerId,
+      orderId: order.id,
+      notes: `From order ${order.number}`,
+      requestedById: user.id,
+      requestedByName: user.name ?? user.email ?? null,
+      lines: { create: src.map((i) => ({ productId: i.productId, count: i.qty, sellingPricePiastres: i.unitPricePiastres })) },
+    },
+  });
+  await audit({ actorType: 'USER', actorId: user.id, action: 'request.create', entityType: 'Request', entityId: req.id, data: { type: 'SPECIAL_ORDER', uid, orderId } });
   return req;
 }
 

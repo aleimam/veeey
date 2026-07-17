@@ -63,6 +63,16 @@ export function expectedDepositPiastres(pct: number, lines: { count: number; sel
 }
 
 /**
+ * Which of an order's (non-lost) lines a purchasing request should cover (Phase B):
+ * the pre-ordered lines if any are flagged, otherwise every line. Pure so the
+ * "pre-order first, else whole order" rule is unit-testable independent of the DB.
+ */
+export function pickOrderRequestLines<T extends { preorder: boolean }>(items: T[]): T[] {
+  const pre = items.filter((i) => i.preorder);
+  return pre.length ? pre : items;
+}
+
+/**
  * Map an inventory reorder-suggestion tab to the request type its quick "Request"
  * button should create (A5). Out-of-stock and last-piece (only one left) default
  * to OUT_OF_STOCK; short-stock and running-fast are RESTOCK. The special-orders

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   isRequestType, isRequestStatus, requiresCustomer, allowsPhotos, requestEditable,
-  validateRequest, expectedDepositPiastres, requestUid, REQUEST_TYPES, reorderTabToRequestType,
+  validateRequest, expectedDepositPiastres, requestUid, REQUEST_TYPES, reorderTabToRequestType, pickOrderRequestLines,
 } from './request-logic';
 
 describe('request type + status guards', () => {
@@ -85,6 +85,24 @@ describe('reorderTabToRequestType', () => {
   it('defaults unknown tabs to OUT_OF_STOCK and always returns a valid type', () => {
     expect(reorderTabToRequestType('mystery')).toBe('OUT_OF_STOCK');
     expect(isRequestType(reorderTabToRequestType('ignored'))).toBe(true);
+  });
+});
+
+describe('pickOrderRequestLines', () => {
+  const mk = (id: string, preorder: boolean) => ({ id, preorder });
+
+  it('returns only the pre-ordered lines when any are flagged', () => {
+    const items = [mk('a', false), mk('b', true), mk('c', true)];
+    expect(pickOrderRequestLines(items).map((i) => i.id)).toEqual(['b', 'c']);
+  });
+
+  it('falls back to every line when none are pre-ordered', () => {
+    const items = [mk('a', false), mk('b', false)];
+    expect(pickOrderRequestLines(items).map((i) => i.id)).toEqual(['a', 'b']);
+  });
+
+  it('returns empty for an empty order', () => {
+    expect(pickOrderRequestLines([])).toEqual([]);
   });
 });
 

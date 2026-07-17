@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { setRequestLocale } from 'next-intl/server';
+import { Link } from '@/i18n/navigation';
 import { getOrder } from '@/lib/order-service';
 import { listGifts } from '@/lib/gift-service';
 import { listStatusConfigs } from '@/lib/order-status-service';
@@ -20,6 +21,8 @@ import {
   setTrackingAction, addOrderItemAction, removeOrderItemAction, addGiftToOrderAction, removeGiftFromOrderAction, markOrderItemLostAction,
 } from '@/server/order-actions';
 import { createAramexShipmentAction, trackAramexAction, createSmsaShipmentAction, trackSmsaAction } from '@/server/carrier-actions';
+import { createOrderRequestAction } from '@/server/request-actions';
+import { requestTypeLabel } from '@/lib/request-i18n';
 import { requirePermission } from '@/lib/auth-guards';
 
 type SP = Record<string, string | string[] | undefined>;
@@ -149,6 +152,34 @@ export default async function OrderDetailPage({ params, searchParams }: { params
               ))}
             </div>
           </div>
+
+          {(order.isPreorder || order.isSpecialOrder || order.requests.length > 0) && (
+            <div className="rounded-lg border border-border p-4">
+              <p className="mb-1 font-medium">{tb('Purchasing request', 'طلب الشراء')}</p>
+              <p className="mb-3 text-xs text-muted-foreground">{tb('Place a supplier purchasing request for this pre-order / special order.', 'أنشئ طلب شراء من المورّد لهذا الطلب المسبق / الخاص.')}</p>
+              {order.requests.length > 0 ? (
+                <ul className="mb-3 space-y-1.5">
+                  {order.requests.map((r) => (
+                    <li key={r.id} className="flex items-center justify-between gap-2 text-xs">
+                      <Link href={`/admin/requests/${r.id}`} className="font-mono text-primary hover:underline">{r.uid ?? r.id.slice(0, 8)}</Link>
+                      <span className="text-muted-foreground">{requestTypeLabel(tb, r.type)}</span>
+                      <StatusBadge status={r.status} />
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mb-3 text-xs text-muted-foreground">{tb('No purchasing request placed yet.', 'لم يُنشأ طلب شراء بعد.')}</p>
+              )}
+              {one(sp.reqerr) && <p className="mb-2 text-xs text-destructive">{tb('Could not place the request.', 'تعذّر إنشاء الطلب.')}</p>}
+              <form action={createOrderRequestAction}>
+                <input type="hidden" name="locale" value={locale} />
+                <input type="hidden" name="orderId" value={order.id} />
+                <button className="w-full rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90">
+                  {order.requests.length > 0 ? tb('Place another request', 'إنشاء طلب آخر') : tb('Place purchasing request', 'إنشاء طلب شراء')}
+                </button>
+              </form>
+            </div>
+          )}
 
           <form action={assignPharmacistAction} className="rounded-lg border border-border p-4">
             {hidden({})}

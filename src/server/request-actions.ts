@@ -3,7 +3,7 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import {
-  createRequest, updateRequest, approveRequest, rejectRequest, archiveRequest, createQuickRequest,
+  createRequest, updateRequest, approveRequest, rejectRequest, archiveRequest, createQuickRequest, createRequestFromOrder,
 } from '@/lib/request-service';
 import type { RequestCreateInput } from '@/lib/request-service';
 import { isRequestType } from '@/lib/request-logic';
@@ -112,6 +112,20 @@ export async function archiveRequestAction(fd: FormData): Promise<void> {
   try { await archiveRequest(id); } catch (e) { console.error('request archive failed', e); }
   revalidatePath(`/${locale}/admin/requests`);
   redirect(`/${locale}/admin/requests`);
+}
+
+/**
+ * Place a purchasing request from an order (Phase B) — pre-order / special-order
+ * confirmation flow. Redirects to the new request so sales can confirm qty +
+ * approve; back to the order on failure.
+ */
+export async function createOrderRequestAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const orderId = str(fd, 'orderId') ?? '';
+  let reqId = '';
+  try { const r = await createRequestFromOrder(orderId); reqId = r.id; } catch (e) { console.error('order request failed', e); }
+  revalidatePath(`/${locale}/admin/orders/${orderId}`);
+  redirect(reqId ? `/${locale}/admin/requests/${reqId}` : `/${locale}/admin/orders/${orderId}?reqerr=1`);
 }
 
 /**

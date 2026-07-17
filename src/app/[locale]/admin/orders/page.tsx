@@ -27,6 +27,8 @@ const SORTABLE = ['number', 'customer', 'payment', 'status', 'items', 'total', '
 const statusFilterLabel = (status: string, tb: (en: string, ar: string) => string) =>
   status === 'attention' ? tb('Needs attention', 'تحتاج متابعة')
   : status === 'booked' ? tb('Bookings (excl. cancelled/refunded)', 'الحجوزات (عدا الملغاة/المستردة)')
+  : status === 'preorder' ? tb('Pre-orders', 'الطلبات المسبقة')
+  : status === 'special' ? tb('Special orders', 'الطلبات الخاصة')
   : status;
 
 export default async function OrdersPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<SP> }) {
@@ -121,7 +123,11 @@ export default async function OrdersPage({ params, searchParams }: { params: Pro
         keep={{ minTotal, maxTotal, productId }}
         fields={[
           { name: 'q', label: tb('Search', 'بحث'), type: 'text', placeholder: tb('Order # or customer', 'رقم الطلب أو العميل') },
-          { name: 'status', label: tb('Status', 'الحالة'), type: 'select', options: ORDER_STATUSES.map((s) => ({ value: s, label: s })) },
+          { name: 'status', label: tb('Status', 'الحالة'), type: 'select', options: [
+            ...ORDER_STATUSES.map((s) => ({ value: s, label: s })),
+            { value: 'preorder', label: tb('Pre-orders', 'الطلبات المسبقة') },
+            { value: 'special', label: tb('Special orders', 'الطلبات الخاصة') },
+          ] },
           { name: 'payment', label: tb('Payment', 'الدفع'), type: 'select', options: ['COD', 'POS_ON_DELIVERY', 'KASHIER', 'BANK_TRANSFER', 'WALLET'].map((p) => ({ value: p, label: p })) },
           { name: 'payCheck', label: tb('Payment check', 'مراجعة الدفع'), type: 'select', options: ['NO', 'YES', 'PROBLEM'].map((p) => ({ value: p, label: p })) },
           { name: 'from', label: tb('From', 'من'), type: 'date' },
@@ -176,7 +182,11 @@ export default async function OrdersPage({ params, searchParams }: { params: Pro
                 <td className="whitespace-nowrap p-3 text-muted-foreground" title={new Date(o.placedAt).toISOString()}>
                   {new Date(o.placedAt).toISOString().slice(0, 10)} <span className="text-xs">{new Date(o.placedAt).toISOString().slice(11, 16)}</span>
                 </td>
-                <td className="p-3"><Link href={`/admin/orders/${o.id}`} className="font-medium text-primary hover:underline">{o.number}</Link></td>
+                <td className="p-3">
+                  <Link href={`/admin/orders/${o.id}`} className="font-medium text-primary hover:underline">{o.number}</Link>
+                  {o.isPreorder && <span className="ms-1.5 rounded-full bg-gold/15 px-1.5 py-0.5 text-[10px] font-medium text-slate">{tb('Pre-order', 'مسبق')}</span>}
+                  {o.isSpecialOrder && <span className="ms-1.5 rounded-full bg-[color:var(--info-wash)] px-1.5 py-0.5 text-[10px] font-medium text-[color:var(--info)]">{tb('Special', 'خاص')}</span>}
+                </td>
                 <td className="p-3">
                   {(() => {
                     const name = [o.customer?.firstName, o.customer?.lastName].filter(Boolean).join(' ') || o.customer?.user.name || o.customer?.user.email || o.guestEmail;
