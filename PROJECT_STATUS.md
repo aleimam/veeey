@@ -2,21 +2,28 @@
 
 > Living status/handoff doc. **Repo-committed so it travels with the code** (unlike per-user
 > assistant memory). Update it when features ship or the backlog changes.
-> **Last updated: 2026-07-14.** Authoritative product docs: `VEEEY_PRD.md`, `VEEEY_SPEC.md`,
+> **Last updated: 2026-07-17.** Authoritative product docs: `VEEEY_PRD.md`, `VEEEY_SPEC.md`,
 > `BUILD_PLAN.md`, `AGENTS.md` (build rules — read first), `DEPLOYMENT.md`, `SECURITY.md`, `README.md`.
 
 ## Current state
 
-- **Live** at **veeey.com**. Latest deployed commit: **`84211ba`** (2026-07-17). All
+- **Live** at **veeey.com**. Latest deployed commit: **`79c5d56`** (2026-07-17). All
   **55 Prisma migrations applied** (latest `gift_customer_name`); `pm2` `veeey` (web) + `veeey-worker` healthy;
-  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **422 unit tests** · build.
-- **V5 audit doc P0+P1 slice shipped 2026-07-17** (source: `C:\Claude\eCommerce\V5 Veeey_editable_featues_v1.docx`;
-  commits `8f78383` search-500+token-blocklist → `5a295cb` dashboard D-01..05 → `84211ba` analytics F2-F6/F10/F12).
+  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **432 unit tests** · build.
+- **V5 audit doc P0+P1+P2 shipped 2026-07-17** (source: `C:\Claude\eCommerce\V5 Veeey_editable_featues_v1.docx`;
+  commits `8f78383` search-500+token-blocklist → `5a295cb` dashboard D-01..05 → `84211ba` analytics F2-F6/F10/F12
+  → `79c5d56` P2 batch D-06..D-11 + F8/F9/F11/F13/F14/F18).
   Root causes worth remembering: search analytics raw SQL said `o."createdAt"` but Order's field is **placedAt**;
   the traffic chart used `hsl(var(--primary))` against **hex** tokens (invalid CSS → invisible series/dark chart).
-  Deferred to the P2/P3 pass: report-builder custom range (fold into F11's shared `<AnalyticsDateRange>`), F8/F9
-  remainder, F11, F13–F20, dashboard D-06..D-17. The doc's open product questions (duplicate expiry lots real?
-  funnel attribution intent, geo-enrichment privacy, UTM wiring) still need owner answers.
+  P2 highlights: **`src/lib/analytics-range.ts`** is now the ONE date-range contract
+  (`?preset=mtd|7d|30d|90d|custom&from&to`, legacy `?days=` honored, inverted bounds auto-swapped) shared by the
+  analytics dashboard, Sales and the Report builder (+ CSV export) via `<AnalyticsDateRange>`; custom windows are
+  **both-ends-bounded** all the way into the report SQL. Crawler-referrer blocklist (semrush/ahrefs/…) ORed into
+  `isBot` at ingest (F8). Product-performance table is sortable + show-all-50 (F14). Dashboard expiry list got a
+  severity legend + per-lot deep links (D-06); BarChart has per-bar aria-labels + sr-only table (D-11); D-10 was
+  verified already clean. Remaining for the P3 pass: D-12..D-17, F15–F17, F19, F20. The doc's open product
+  questions (funnel attribution intent, geo-enrichment mmdb, UTM wiring, fulfillment location, SSO-vs-OTP) still
+  need owner answers; F18's real fix is the owner dropping a GeoLite2 mmdb at `GEOIP_DB_PATH` on prod.
 - 🔸 **THIS CODEBASE NOW RUNS TWO INDEPENDENT STORES.** Besides veeey.com, a **second, separate
   store is live at veeey.net** (own DB/customers/orders, **not synced** with veeey.com) — deployed
   2026-07-15, co-hosted on the CyberPanel/OpenLiteSpeed box that also runs the egyptvitamins.net
