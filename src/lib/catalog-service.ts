@@ -294,6 +294,71 @@ async function assertRequiredAttributes(kind: string, attributeValueIds: string[
   if (missing.length) throw new Error(`MISSING_REQUIRED_ATTRIBUTES: ${missing.map((a) => a.nameEn).join(', ')}`);
 }
 
+/**
+ * Best-effort: mirror a product to YeldnIN via the outbox (catalog sync channel).
+ * Dormant until INTEGRATION_ENABLED — early-returns with no DB work when off, so the
+ * common (disabled) path costs at most one flag read. Never throws: a sync hiccup
+ * must not fail the product write it trails. Keyed on the WordPress id (`wpId` =
+ * `legacyWpId`); products without one are skipped (they can't correlate to YeldnIN).
+ * Mirrors `emitRequestSync` in `request-service.ts`.
+ */
+export async function emitCatalogSync(productId: string): Promise<void> {
+  try {
+    const { integrationEnabled } = await import('@/lib/integration/config');
+    if (!(await integrationEnabled())) return;
+    const [{ recordOutbox }, { productToWire }] = await Promise.all([
+      import('@/lib/integration/integration-service'),
+      import('@/lib/integration/catalog-sync'),
+    ]);
+    const p = await prisma.product.findUnique({
+      where: { id: productId },
+      select: { legacyWpId: true, sku: true, nameEn: true, kind: true, status: true },
+    });
+    if (!p || p.legacyWpId == null) return;
+    const wire = productToWire({ legacyWpId: p.legacyWpId, sku: p.sku, nameEn: p.nameEn, kind: p.kind, status: p.status });
+    await recordOutbox('catalog.upsert', String(wire.wpId), wire);
+  } catch (e) {
+    console.error('catalog sync emit failed', e);
+  }
+}
+
+/**
+ * Backfill the catalog outbox: queue a `catalog.upsert` for every product that
+ * carries a WordPress id. Paginated (500/page, cursor by id) so it scales to the
+ * full ~2.5k catalog. Returns the number actually queued — `recordOutbox` no-ops
+ * while the integration is disabled, so this only enqueues once an operator has
+ * enabled the link. An operator runs it once via a script; the dispatcher drains
+ * the outbox.
+ */
+export async function backfillCatalog(): Promise<{ queued: number }> {
+  const [{ recordOutbox }, { productToWire }] = await Promise.all([
+    import('@/lib/integration/integration-service'),
+    import('@/lib/integration/catalog-sync'),
+  ]);
+  const pageSize = 500;
+  let cursor: string | undefined;
+  let queued = 0;
+  for (;;) {
+    const batch = await prisma.product.findMany({
+      where: { legacyWpId: { not: null } },
+      select: { id: true, legacyWpId: true, sku: true, nameEn: true, kind: true, status: true },
+      orderBy: { id: 'asc' },
+      take: pageSize,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    });
+    if (batch.length === 0) break;
+    for (const p of batch) {
+      if (p.legacyWpId == null) continue;
+      const wire = productToWire({ legacyWpId: p.legacyWpId, sku: p.sku, nameEn: p.nameEn, kind: p.kind, status: p.status });
+      const ev = await recordOutbox('catalog.upsert', String(wire.wpId), wire);
+      if (ev) queued += 1;
+    }
+    cursor = batch[batch.length - 1].id;
+    if (batch.length < pageSize) break;
+  }
+  return { queued };
+}
+
 export async function createProduct(raw: ProductWriteInput) {
   const user = await requirePermission('catalog.write');
   const data = productWriteSchema.parse(raw);
@@ -321,6 +386,7 @@ export async function createProduct(raw: ProductWriteInput) {
   });
 
   await audit({ actorType: 'USER', actorId: user.id, action: 'product.create', entityType: 'Product', entityId: product.id });
+  await emitCatalogSync(product.id);
   return product;
 }
 
@@ -351,6 +417,7 @@ export async function updateProduct(id: string, raw: ProductWriteInput) {
   if (before) await recordPriceDropIfLower(id, before.basePricePiastres, product.basePricePiastres);
 
   await audit({ actorType: 'USER', actorId: user.id, action: 'product.update', entityType: 'Product', entityId: id });
+  await emitCatalogSync(id);
   return product;
 }
 

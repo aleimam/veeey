@@ -71,20 +71,29 @@ Base: `https://in.yeldn.com/api/integration/v1`
 ### 4.1 `GET /health`
 Auth check + liveness. → `200 {"ok":true,"version":"1.25","time":ISO,"clientId":"veeey","outbox":{"pending":n,"failed":n,"dead":n}}`
 
-### 4.2 `POST /products/upsert` — catalog push (Veeey is catalog master)
+### 4.2 `POST /catalog` — catalog push (Veeey is catalog master) — RE-BASELINED
+The catalog channel is **keyed on `wpId`** — the WordPress product id (`Veeey.Product.legacyWpId`,
+`Int? @unique`). The two catalogs are the SAME Egypt-Vitamins products keyed differently:
+YeldnIN's `Product.sku` currently holds the WP id as a string (e.g. `"120057"`), while Veeey keeps
+that id in `legacyWpId`. YeldnIN stores the link in a stable **`veeeyWpId Int? @unique`** column, so
+after the first push the WP-id-in-sku can change freely without breaking the link.
 ```jsonc
 {
-  "sku": "VIT-D3-5000",            // required — canonical shared product key
-  "name": "Vitamin D3 5000IU",     // required — must stay unique in YeldnIN
-  "productType": "Supplements",     // optional — must match a YeldnIN ProductType name
-  "estimatedWeight": 250,           // optional, grams
-  "defaultSupplierName": "iHerb"    // optional — must match a YeldnIN supplier name
+  "wpId": 120057,               // REQUIRED int — WordPress product id (Veeey legacyWpId)
+  "sku": "GEN-000123",          // optional — Veeey's own SKU (adopted when YeldnIN lacks one)
+  "name": "Vitamin D3 5000IU",  // REQUIRED
+  "type": "SUPPLEMENT",         // Veeey ProductKind: SUPPLEMENT | DEVICE | INJECTION
+  "active": true                // status === "PUBLISHED"
 }
 ```
-→ `200 {"productId":n,"sku":"...","created":bool}`.
-Matching: by SKU first; else a same-name product **missing** a SKU adopts it; else created
-(scope EGV). Errors: `unknown_product_type`, `unknown_supplier`, `name_conflict`,
-`sku_conflict`, `product_scope_mismatch`.
+→ `200 {"wpId":120057,"created":true|false}`.
+Matching on the YeldnIN side: by **`veeeyWpId === wpId`** first; else (first-time link) a product whose
+**`sku === String(wpId)`** adopts the link (`veeeyWpId` set, `sku` kept unless a new one is supplied);
+else **created** (`veeeyWpId`, `sku = sku ?? String(wpId)`, `scope: "EGV"`). A missing/non-integer
+`wpId` or missing `name` → `422 invalid`. Pricing / lots / live sellable stock are **not** part of this
+channel (Veeey owns those). This is the write channel for the `catalog.upsert` outbox event
+(`POST /api/integration/v1/catalog`); inbound upserts are applied **without re-emitting** (no echo). The
+legacy SKU-keyed `POST /products/upsert` is superseded.
 
 ### 4.3 `POST /requests` — upsert a multi-line purchasing request (Requests epic, re-baselined)
 Both apps share the unified Request model (4 types + a PENDING→APPROVED/REJECTED approval gate,
