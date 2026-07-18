@@ -7,9 +7,28 @@
  * SNAPSHOT and must be re-baselined against the latest YeldnIN description before
  * the flag is turned on in staging.
  */
-export const integrationEnabled = () => ['1', 'true', 'yes'].includes((process.env.INTEGRATION_ENABLED ?? '').toLowerCase());
 export const integrationSecret = () => process.env.INTEGRATION_CLIENT_VEEEY_SECRET ?? '';
 export const yeldninBaseUrl = () => process.env.YELDNIN_BASE_URL ?? 'http://localhost:4500/api/integration/v1';
+
+/** DB Setting key for the admin on/off toggle (the "disable from backend" switch). */
+export const INTEGRATION_TOGGLE_KEY = 'integration.enabled';
+
+/**
+ * Live on/off for the YeldnIN link. Backend-controllable (Requests epic D):
+ * ON requires the shared secret to be configured (env, set at deploy) AND the
+ * admin toggle flipped on (DB Setting) — so the owner enables/disables it from
+ * `/admin/integration` without an env change. `INTEGRATION_ENABLED=0/false` in
+ * the env is a hard kill switch that overrides the toggle. The secret-first
+ * check keeps this cheap (no DB read) whenever no secret is configured = the
+ * default disabled posture.
+ */
+export async function integrationEnabled(): Promise<boolean> {
+  const env = (process.env.INTEGRATION_ENABLED ?? '').toLowerCase();
+  if (['0', 'false', 'no', 'off'].includes(env)) return false; // explicit kill switch
+  if (!integrationSecret()) return false; // no secret → never on
+  const { getSetting } = await import('@/lib/settings-service');
+  return (await getSetting(INTEGRATION_TOGGLE_KEY)) === 'true';
+}
 
 export const VEEEY_CLIENT_ID = 'veeey';
 export const YELDNIN_CLIENT_ID = 'yeldnin';

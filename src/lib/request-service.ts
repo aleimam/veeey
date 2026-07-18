@@ -111,7 +111,7 @@ export async function requestTabCounts(): Promise<Record<string, number>> {
 export async function emitRequestSync(id: string): Promise<void> {
   try {
     const { integrationEnabled } = await import('@/lib/integration/config');
-    if (!integrationEnabled()) return;
+    if (!(await integrationEnabled())) return;
     const [{ recordOutbox }, { requestToWire }] = await Promise.all([
       import('@/lib/integration/integration-service'),
       import('@/lib/integration/request-sync'),

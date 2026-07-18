@@ -6,7 +6,7 @@ import { integrationEnabled, integrationSecret, yeldninBaseUrl, VEEEY_CLIENT_ID,
 /** Record a domain event for outbound delivery to YeldnIN. No-op when the flag is
  *  off (contract: no events while disabled — avoids a stale backlog). */
 export async function recordOutbox(type: string, aggregateId: string | null, payload: object) {
-  if (!integrationEnabled()) return null;
+  if (!(await integrationEnabled())) return null;
   return prisma.outboxEvent.create({ data: { type, aggregateId, payloadJson: payload as object } });
 }
 
@@ -18,7 +18,7 @@ function backoff(attempts: number): { status: 'FAILED' | 'DEAD'; nextAttemptAt: 
 /** Sign + POST due outbox events to YeldnIN. No-op when the flag/secret is absent. */
 export async function dispatchOutbox(limit = 20): Promise<{ sent: number; failed: number; skipped: boolean }> {
   const secret = integrationSecret();
-  if (!integrationEnabled() || !secret) return { sent: 0, failed: 0, skipped: true };
+  if (!secret || !(await integrationEnabled())) return { sent: 0, failed: 0, skipped: true };
 
   const now = new Date();
   const events = await prisma.outboxEvent.findMany({

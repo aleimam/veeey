@@ -10,7 +10,7 @@ const ENDPOINT = 'yeldnin.webhook';
 const err = (code: string, status: number) => Response.json({ error: { code, message: code } }, { status });
 
 export async function POST(req: Request) {
-  if (!integrationEnabled()) return new Response('not found', { status: 404 });
+  if (!(await integrationEnabled())) return new Response('not found', { status: 404 });
 
   const raw = await req.text();
   const url = new URL(req.url);
