@@ -15,10 +15,11 @@
   resumed; **Phase 1 (one-time DB-direct import) is live on veeey.net** (`0c99328`, deployed there only
   — ships inert on veeey.com, no source env): **2,703 products, 3,584 lots** (2,850 live / 734
   expired-kept / 665 non-perishable), **724 brands, 60 categories, 0 errors**, EN + AR overlay, prices
-  in piastres, idempotent (re-run = all updates). Engine: `src/lib/net-sync/{transform,wp-source,importer}.ts`
-  + CLI `scripts/net-sync/run.ts` (env-gated by `NET_SYNC_MYSQL_URL`). **Next: Phase 1b images →
-  Phase 2 10-min hash-diff sync → Phase 3 order writeback.** Plan + run instructions in
-  `../VEEEY_NET_MIGRATION.md`.
+  in piastres, idempotent (re-run = all updates). **Phase 1b images done** (`d23dc13`): 13,475 files
+  (1.8 GB) for 2,695 products copied to `public/uploads/net/` (served `/uploads/net/*`); PDPs render
+  real images. Engine: `src/lib/net-sync/{transform,wp-source,importer,images}.ts` + CLIs
+  `scripts/net-sync/run.ts` + `run-images.ts` (env-gated by `NET_SYNC_MYSQL_URL`). **Next: Phase 2
+  10-min hash-diff sync → Phase 3 order writeback.** Plan + run instructions in `../VEEEY_NET_MIGRATION.md`.
 - **Unified Requests feature — shipped + deployed to BOTH stores 2026-07-18** (Phases A–C, commits
   `661056f`→`bb9f010`; 3 migrations `requests` + `requests_permission` (no-lockout grant) +
   `product_always_needed`). Mirrors YeldnIN's Request model: **`/admin/requests`** with 4 types (Special
