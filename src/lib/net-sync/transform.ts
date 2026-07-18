@@ -76,6 +76,17 @@ export type PlannedProduct = {
   flags: { noPrice: boolean; noLiveStock: boolean; syntheticLot: boolean };
 };
 
+/**
+ * Delete-detection safety floor (Phase 2). Deletions are only trusted when the
+ * scan covered enough of the live set — a failed/partial source read must never
+ * archive the catalog. Returns true when it's safe to apply the deletions. PURE.
+ */
+export function passesArchiveFloor(existingCount: number, goneCount: number, floor = 0.5): boolean {
+  if (existingCount <= 0) return true;
+  const seenRatio = (existingCount - goneCount) / existingCount;
+  return seenRatio >= floor;
+}
+
 /** Decode the handful of HTML entities WordPress leaves in post titles/terms. */
 export function decodeEntities(s: string): string {
   return s

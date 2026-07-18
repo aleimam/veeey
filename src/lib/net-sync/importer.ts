@@ -12,7 +12,7 @@
 import { prisma } from '@/lib/prisma';
 import { ProductStatus, LotStatus } from '@/generated/prisma/client';
 import { slugify } from '@/lib/sku';
-import { planProduct, type RawProduct, type PlannedProduct } from './transform';
+import { planProduct, passesArchiveFloor, type RawProduct, type PlannedProduct } from './transform';
 
 export type ImportSummary = {
   productsSeen: number;
@@ -179,6 +179,35 @@ async function importOne(p: PlannedProduct, locationId: string, tax: TaxonomyCac
     }
   }
   await reconcileLots(productId, locationId, p.lots, dryRun, s);
+}
+
+export type ArchiveResult = { candidates: number; archived: number; skippedForSafety: boolean };
+
+/**
+ * Delete-detection for the 10-minute sync (WP is the master): products whose
+ * `legacyWpId` is no longer in the source scan get ARCHIVED (hidden) and their
+ * lots zeroed. Guarded by a safety FLOOR — if the scan returned implausibly few
+ * products (e.g. a failed/partial source read), we refuse to archive, so a
+ * transient error can never wipe the catalog. Only call on a FULL scan.
+ */
+export async function archiveVanished(seenWpIds: number[], opts: { dryRun: boolean; minSeenRatio?: number } = { dryRun: true }): Promise<ArchiveResult> {
+  const seen = new Set(seenWpIds);
+  const existing = await prisma.product.findMany({
+    where: { legacyWpId: { not: null }, status: { not: ProductStatus.ARCHIVED } },
+    select: { id: true, legacyWpId: true },
+  });
+  const gone = existing.filter((p) => !seen.has(p.legacyWpId!));
+  // Safety: the scan must cover at least `minSeenRatio` of the live set, else bail.
+  if (!passesArchiveFloor(existing.length, gone.length, opts.minSeenRatio ?? 0.5)) {
+    return { candidates: gone.length, archived: 0, skippedForSafety: true };
+  }
+  if (!opts.dryRun) {
+    for (const p of gone) {
+      await prisma.product.update({ where: { id: p.id }, data: { status: ProductStatus.ARCHIVED } });
+      await prisma.lot.updateMany({ where: { productId: p.id, qtyOnHand: { not: 0 } }, data: { qtyOnHand: 0 } });
+    }
+  }
+  return { candidates: gone.length, archived: gone.length, skippedForSafety: false };
 }
 
 /** Import (or dry-run) the full catalog. */

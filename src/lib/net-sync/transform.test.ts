@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { planProduct, decodeEntities, type RawProduct, type RawLot } from './transform';
+import { planProduct, decodeEntities, passesArchiveFloor, type RawProduct, type RawLot } from './transform';
 
 const NOW = new Date('2026-07-19T12:00:00');
 
@@ -86,5 +86,19 @@ describe('planProduct (veeey.net catalog transform)', () => {
   it('decodes HTML entities in names', () => {
     expect(decodeEntities('Vitamin D3 &amp; K2')).toBe('Vitamin D3 & K2');
     expect(planProduct(raw({ nameEn: 'Omega &amp; Fish' }), NOW).nameEn).toBe('Omega & Fish');
+  });
+});
+
+describe('passesArchiveFloor (Phase 2 delete-detection safety)', () => {
+  it('allows deletions when the scan covered enough of the live set', () => {
+    expect(passesArchiveFloor(2703, 3)).toBe(true); // 3 gone of 2703 → fine
+    expect(passesArchiveFloor(100, 50, 0.5)).toBe(true); // exactly at floor
+  });
+  it('BLOCKS mass-archive when the scan is implausibly small (failed source read)', () => {
+    expect(passesArchiveFloor(2703, 2000)).toBe(false); // only ~26% seen → bail
+    expect(passesArchiveFloor(100, 100)).toBe(false); // scan returned nothing → bail
+  });
+  it('is a no-op guard on an empty store', () => {
+    expect(passesArchiveFloor(0, 0)).toBe(true);
   });
 });
