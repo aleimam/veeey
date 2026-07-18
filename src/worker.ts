@@ -40,6 +40,7 @@ async function main() {
   await boss.createQueue(QUEUES.attributeAutofill);
   await boss.createQueue(QUEUES.refillSweep);
   await boss.createQueue(QUEUES.optionalRefill);
+  await boss.createQueue(QUEUES.integrationDispatch);
 
   await boss.work(QUEUES.notify, async ([job]) => {
     await notify(job.data as NotifyInput);
@@ -171,6 +172,14 @@ async function main() {
     const { runOptionalRefill } = await import('@/lib/request-service');
     const r = await runOptionalRefill();
     console.log(`[worker] optional refill: ${r.created} created, ${r.reset} reset, ${r.refreshed} refreshed`);
+  });
+
+  // Drain the YeldnIN outbox (Requests epic D) — signs + POSTs due request events.
+  // Returns {skipped:true} (no-op) while INTEGRATION_ENABLED is off.
+  await boss.work(QUEUES.integrationDispatch, async () => {
+    const { dispatchOutbox } = await import('@/lib/integration/integration-service');
+    const r = await dispatchOutbox();
+    if (!r.skipped && (r.sent || r.failed)) console.log(`[worker] integration dispatch: ${r.sent} sent, ${r.failed} failed`);
   });
 
   // One-click AI auto-fill of all filterable product attributes (only-missing,

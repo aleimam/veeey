@@ -294,3 +294,38 @@ Payloads always carry **codes**, never display labels. These rows are seeded `is
   **Settings → Product SKUs**. New EGV products created in YeldnIN require a SKU.
 - Local end-to-end demo: `node scripts/mock-veeey-receiver.mjs` + `node scripts/integration-demo.mjs`
   (see headers of both files).
+
+---
+
+## 9. Request-sync enablement runbook (Requests epic Phase D)
+
+Both sides of the Request sync are **built and committed but ship DISABLED**. Nothing sends or
+receives until an owner performs this staged handshake. Everything below is reversible (flip the
+flags back off). The **shared `uid`** (`REQ<YY><MM><seq3>`) is the correlation key; both catalogs are
+Egypt-Vitamins-SKU-synced, so lines match by SKU.
+
+**Wiring:** Veeey signs+POSTs `requests.upsert` → `YELDNIN_BASE_URL/requests`; YeldnIN signs+POSTs
+`request.upsert` → Veeey's `/api/integration/yeldnin/webhook`. One **shared HMAC secret** both ways.
+
+1. **Generate the shared secret** (once): `openssl rand -hex 32`.
+2. **Veeey (veeey.com)** — set env and redeploy (`ssh veeey` recipe):
+   - `INTEGRATION_ENABLED=1`
+   - `INTEGRATION_CLIENT_VEEEY_SECRET=<secret>`
+   - `YELDNIN_BASE_URL=https://<yeldnin-host>/api/integration/v1`
+   - The worker's `integration-dispatch` tick then drains the outbox (~every 2 min).
+3. **YeldnIN** — deploy the Phase D commit, run `prisma migrate deploy` (adds Outbox/Nonce/Idempotency
+   tables), then in **Settings → Veeey Integration**: tick **enabled**, paste the **same secret** into
+   the outbound-secret field, and set the base URL to **`https://veeey.com`** (the code appends
+   `/api/integration/yeldnin/webhook`). Its `/api/cron/advance` tick drains its outbox.
+4. **Handshake check:** signed `GET https://<yeldnin>/api/integration/v1/health` → `{"status":"ok"}`
+   (401 = secret mismatch; 404 = still disabled).
+5. **End-to-end:** place a RESTOCK request in Veeey `/admin/requests` → within a couple of minutes it
+   appears in YeldnIN under the same `uid`; place one in YeldnIN → it appears in Veeey. Approve on
+   either side → status mirrors across.
+
+**Notes / known gaps (harmless while off):** inbound writes never re-emit (no echo loop); a request
+whose SKUs are unknown on the far side is skipped (`unmatchedLines` / 422 → retries then parks DEAD —
+push the product first); customer identity is name/phone only across the boundary (Veeey's customer id
+is foreign to YeldnIN); photo bytes aren't transferred yet (URLs stored verbatim — needs an
+asset-export step). **veeey.net** can connect to YeldnIN the same way with its **own** separate secret;
+it is a distinct store.
