@@ -17,9 +17,13 @@
   expired-kept / 665 non-perishable), **724 brands, 60 categories, 0 errors**, EN + AR overlay, prices
   in piastres, idempotent (re-run = all updates). **Phase 1b images done** (`d23dc13`): 13,475 files
   (1.8 GB) for 2,695 products copied to `public/uploads/net/` (served `/uploads/net/*`); PDPs render
-  real images. Engine: `src/lib/net-sync/{transform,wp-source,importer,images}.ts` + CLIs
-  `scripts/net-sync/run.ts` + `run-images.ts` (env-gated by `NET_SYNC_MYSQL_URL`). **Next: Phase 2
-  10-min hash-diff sync → Phase 3 order writeback.** Plan + run instructions in `../VEEEY_NET_MIGRATION.md`.
+  real images. **Phase 2 sync LIVE** (`74ee3bb`): root crontab runs `scripts/net-sync/sync-cron.sh`
+  every 10 min (full hash-diff scan, ~40 s: products/lots/stock + delete-detection with a tested
+  < 50%-scan safety floor) + a daily image refresh; `flock`-guarded, WP is stock master, log at
+  `/opt/veeey/net-sync.log`. Engine: `src/lib/net-sync/{transform,wp-source,importer,images}.ts` + CLIs
+  `scripts/net-sync/{run,run-images}.ts` (env-gated by `NET_SYNC_MYSQL_URL` → inert on veeey.com).
+  **Next: Phase 3 order stock-decrement writeback → WP** (only write to the live source; confirm first).
+  Plan + runbook in `../VEEEY_NET_MIGRATION.md` + `DEPLOYMENT.md` → "Catalog sync (net-sync)".
 - **Unified Requests feature — shipped + deployed to BOTH stores 2026-07-18** (Phases A–C, commits
   `661056f`→`bb9f010`; 3 migrations `requests` + `requests_permission` (no-lockout grant) +
   `product_always_needed`). Mirrors YeldnIN's Request model: **`/admin/requests`** with 4 types (Special

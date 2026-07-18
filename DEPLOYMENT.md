@@ -375,10 +375,28 @@ Consider adding a git remote/clone on the box later to make this a normal `git p
 
 ## Current state & open items
 
-- **Catalog is NOT populated.** The DB has only the sample seed (`npm run db:seed`: 22 perms,
-  9 roles, 3 tiers, 6 sample products / 7 lots, 2 zones; Settings empty → code defaults).
-  Populating it with the real Egypt Vitamins catalog is planned — see
-  **`../VEEEY_NET_MIGRATION.md`** (in the parent project folder, next to the CSV exports).
+- **Catalog IS populated (2026-07-19).** The real egyptvitamins.net catalog was imported via the
+  **net-sync ETL** — **2,703 products, 3,584 lots, 724 brands, 60 categories + 13,475 images** — and a
+  cron keeps it fresh. See "Catalog sync (net-sync)" below and **`../VEEEY_NET_MIGRATION.md`**.
+
+### Catalog sync (net-sync) — veeey.net only
+DB-direct ETL from the co-hosted egyptvitamins.net WordPress (ATUM lots + WPML EN/AR). Code lives in
+the repo (`src/lib/net-sync/*`, `scripts/net-sync/*`); runs ON THE BOX via `tsx`. **Env-gated by
+`NET_SYNC_MYSQL_URL` so it is completely inert on veeey.com** (no source env there).
+- **Manual run** (from `/opt/veeey`): `bash scripts/net-sync/sync-cron.sh` — the wrapper builds the WP
+  DSN from wp-config via `wp eval` (password never stored), then runs the idempotent importer with
+  delete-detection. Products/stock only; add `--images` for the image copy.
+  - Or directly: `NET_SYNC_MYSQL_URL=<mysql://…/egyptvit_website> NET_SYNC_WP_PREFIX=SFPgx_ npx tsx
+    scripts/net-sync/run.ts [--commit|--limit N]` (dry-run is the default — writes nothing).
+- **Schedule** (installed in root's crontab; header of `sync-cron.sh` has the exact install line):
+  - `*/10 * * * *` products + lots + stock + delete-detection (a full hash-diff scan; ~40 s).
+  - `30 3 * * *` daily image refresh (`--images`).
+  - `flock` guards against overlap; **WP is the stock master.** A source read that returns < 50% of the
+    live product set REFUSES to archive (safety floor) — a transient DB error can't wipe the catalog.
+- **Monitor:** `tail -f /opt/veeey/net-sync.log`. **The `net/` uploads (`public/uploads/net/`, 1.8 GB)
+  and the crontab are box-local** — a tarball redeploy keeps the uploads (gitignored) but re-check the
+  crontab survived (it's independent of the app). ⚠️ **This runs only where `NET_SYNC_MYSQL_URL` resolves;
+  do NOT add that env or this cron on veeey.com.**
 - **Admin user exists:** `aleimam@live.com`, role `super_admin`. Password login works end-to-end.
   **OTP login needs an SMS provider** configured in `/admin/providers` (none on veeey.net yet) —
   password is the way in for now. To grant another admin, set `User.roleId` to a Role id
