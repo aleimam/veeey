@@ -26,6 +26,24 @@
   dormant behind `INTEGRATION_ENABLED` until `INTEGRATION_CONTRACT.md` is re-baselined (fix
   RESTOCKING→RESTOCK, add OPTIONAL, request.created both ways + lines + photos) and secrets exchanged;
   edits will touch BOTH codebases (YeldnIN at `C:\Claude\YeldnIN`).
+  - **UPDATE 2026-07-18 — Phase D BUILT both sides + briefly enabled live, now OFF; catalog sync BUILT (not run).**
+    Phase D request-sync shipped both codebases (Veeey `4d44faf`, YeldnIN `995f854`) with a backend on/off toggle
+    (`/admin/integration`, Setting `integration.enabled`). Enabling proved HMAC auth + transport (signed `/health`→200)
+    but exposed that the two catalogs were **keyed differently** (YeldnIN.sku = WordPress id; Veeey.legacyWpId = same id)
+    so request LINES matched nothing → link set OFF both sides. Owner then chose to make **Veeey the catalog MASTER and
+    rebuild YeldnIN's catalog from it**. **✅ EXECUTED + LINK LIVE both ways 2026-07-18.** Veeey deployed `74ae3e1`
+    (`catalog.upsert`→`/catalog` outbox + `emitCatalogSync`/`backfillCatalog`; PLUS a fix — the backend on/off toggle
+    `setIntegrationEnabledAction` now writes the Setting directly because `saveSettings` silently dropped
+    `integration.enabled`, a key absent from the SETTINGS registry, so the "disable from backend" switch had been a no-op).
+    YeldnIN deployed `394ee53` + migration `20260718134658_product_veeey_wpid` (adds `Product.veeeyWpId` + inbound
+    `/api/integration/v1/catalog` `handleCatalogUpsert`). Ran as a **non-destructive mirror**: backup YeldnIN `dev.db` →
+    backfill **2,548/2,548 SENT, 0 failed** → YeldnIN 2,679→2,754→cleanup→**2,560 products = 2,548 mirrored from veeey.com
+    (all carry Veeey's `VEY-` SKU, `veeeyWpId` linked) + 12 archived (YeldnIN-only w/ live Item/RequestLine deps) + 194
+    zero-dep leftovers hard-deleted (28 `P`-seed + 166 non-Veeey numeric-SKU); 0 orphans.** The synced store is
+    **veeey.com** (NOT veeey.net — that's a separate box/DB, still empty, unlinked). Request-line SKU matching now works
+    (old 422 `no_known_products` cause gone). DB backup: `/home/yeldn/app/prisma/dev.db.bak-catalogsync-1784388313`.
+    Disable via `/admin/integration` "Turn off" (now functional) or env `INTEGRATION_ENABLED=0`. Full detail in memory
+    `veeey-requests-epic.md`.
 - **V7 audit doc (Catalog module, C1–C20) — everything buildable SHIPPED + DEPLOYED 2026-07-17** (source:
   `C:\Claude\eCommerce\V7 Veeey_editable_featues_v3.docx`; 4 commits `063680d` → `ce4ca34`). Triage-first again
   paid off — **6 findings were already shipped or mitigated** (C7 price-tool guard, C8-bulk typedConfirm, C14
