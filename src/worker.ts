@@ -222,6 +222,8 @@ async function main() {
   // Always-Needed optional refill — daily 03:50 UTC; the service only resets a
   // product's request once its cycle is ≥30 days old, so a daily tick is cheap.
   await boss.schedule(QUEUES.optionalRefill, '50 3 * * *', {});
+  // YeldnIN outbox drain every 2 min (Requests epic D) — no-op while disabled.
+  await boss.schedule(QUEUES.integrationDispatch, '*/2 * * * *', {});
   console.log('[worker] started — notify + alerts + woo-sync + audit queues registered, schedules set.');
 }
 
