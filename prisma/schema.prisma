@@ -786,6 +786,10 @@ model Product {
   sku               String            @unique
   legacyWpId        Int?              @unique
   legacySku         String?
+  // Contract v2 canonical shared SKU for the YeldnIN products channel: numeric
+  // (legacyWpId when present, else minted from integration_sku_seq), `base-N`
+  // for variations, IMMUTABLE once assigned. Storefront `sku` stays VEY-….
+  integrationSku    String?           @unique
   syncedAt          DateTime? // last WooCommerce sync write; sync detaches when updatedAt drifts past this
   gtin              String?
   kind              ProductKind       @default(SUPPLEMENT)
