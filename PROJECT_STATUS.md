@@ -7,10 +7,13 @@
 
 ## Current state
 
-- **Live** at **veeey.com** (and veeey.net). Latest deployed commit: **`bb9f010`** (2026-07-18). All
-  **59 Prisma migrations applied**; `pm2` `veeey` (web) + `veeey-worker` healthy;
-  `/api/health` → `{"status":"ok"}`. Verify gate green: typecheck · lint · **558 unit tests** · build
-  (was 537; +the net-sync transform suite). Repo HEAD `0c99328`.
+- **Live** at **veeey.com** and **veeey.net** — **BOTH stores deployed `01ef102` (2026-07-19,
+  owner-ordered)**. All **62 Prisma migrations applied** on both (60–62: `net_stock_outbox`,
+  `customer_tier_manual`, `tier_benefits`); `pm2` healthy on both boxes; `/api/health` ok. Verify
+  gate green: typecheck · lint · **585 unit tests** · build. On veeey.com everything from the
+  2026-07-19 wave is inert/no-op by design (benefits seeded gates-all-on/waivers-off, tier window
+  = lifetime, net-sync env-gated off). `01ef102` = **fail-open gate fix**: an unseeded TierBenefit
+  registry behaves pre-feature — it must never block pre-orders/special orders on a fresh store.
 - **🆕 veeey.net now has a REAL catalog (2026-07-19).** The paused veeey.net↔egyptvitamins.net sync
   resumed; **Phase 1 (one-time DB-direct import) is live on veeey.net** (`0c99328`, deployed there only
   — ships inert on veeey.com, no source env): **2,703 products, 3,584 lots** (2,850 live / 734
