@@ -306,6 +306,12 @@ export async function emitCatalogSync(productId: string): Promise<void> {
   try {
     const { integrationEnabled } = await import('@/lib/integration/config');
     if (!(await integrationEnabled())) return;
+    // Contract v2 §6 cutover: once the v2 products channel is armed it SUPERSEDES
+    // the legacy wpId-keyed /catalog channel (emitProductUpsertV2 covers the same
+    // products with the canonical SKU + type). Retire /catalog by no-op'ing here
+    // whenever v2 is on. Reversible: turn v2 off and this resumes.
+    const { v2Enabled } = await import('@/lib/integration/product-customer-sync');
+    if (await v2Enabled()) return;
     const [{ recordOutbox }, { productToWire }] = await Promise.all([
       import('@/lib/integration/integration-service'),
       import('@/lib/integration/catalog-sync'),
