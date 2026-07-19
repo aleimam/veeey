@@ -30,6 +30,14 @@
   cancel RESTORE brought it back exactly; test artifacts removed. **THE PIPELINE IS COMPLETE** —
   veeey.net mirrors egyptvitamins.net every 10 min and reports its sales back as stock deltas.
   Runbook in `../VEEEY_NET_MIGRATION.md` + `DEPLOYMENT.md` → "Catalog sync (net-sync)".
+- **Customer sync LIVE** (`af7a510`+`2d7c6ad`): **16,223 registered egyptvitamins.net customers
+  imported** (User+Customer+7,389 addresses, 6,564 with spend, 85.0M EGP), ongoing `15 * * * *` pull.
+  Registered-only, name/email/phone/addresses, marketing consent OFF, **no passwords** (OTP login),
+  lifetime-spend snapshot from `wc_orders` delivered statuses → tier. Idempotent on `Customer.legacyWpId`,
+  matched by email, write-only-on-change; PII stays on box, tests synthetic. `src/lib/net-sync/customers*.ts`
+  + `scripts/net-sync/run-customers.ts`. **⚠️ Owner: set veeey.net tier thresholds (all seeded 0 → all
+  top-tier until then; hourly sync auto-corrects) + configure an SMS provider so imported customers can
+  OTP-login.**
 - **Unified Requests feature — shipped + deployed to BOTH stores 2026-07-18** (Phases A–C, commits
   `661056f`→`bb9f010`; 3 migrations `requests` + `requests_permission` (no-lockout grant) +
   `product_always_needed`). Mirrors YeldnIN's Request model: **`/admin/requests`** with 4 types (Special

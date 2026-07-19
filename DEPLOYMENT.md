@@ -393,6 +393,13 @@ the repo (`src/lib/net-sync/*`, `scripts/net-sync/*`); runs ON THE BOX via `tsx`
   - `30 3 * * *` daily image refresh (`--images`).
   - `flock` guards against overlap; **WP is the stock master.** A source read that returns < 50% of the
     live product set REFUSES to archive (safety floor) — a transient DB error can't wipe the catalog.
+- **Customers** — ongoing one-way pull of registered egyptvitamins.net customers (name / email /
+  phone / addresses + a read-only **lifetime-spend snapshot** from `wc_orders.total_amount` over the
+  store's delivered statuses → drives the tier). **No passwords** (OTP login). `15 * * * *` cron
+  (`sync-cron.sh --customers`); idempotent on `Customer.legacyWpId`, matched by email, write-only-on-
+  change. PII stays on the box; the CLI prints counts only. Marketing consent OFF (no WP opt-in flag).
+  ⚠️ Set real **tier thresholds** on veeey.net (all seeded at 0 → everyone lands top-tier until then;
+  the hourly sync auto-corrects once thresholds exist).
 - **Writeback (Phase 3)** — the only WRITE to the live WP: veeey.net order stock **deltas** flow back
   so the pull doesn't re-inflate sold stock. `transitionOrder` enqueues into the `NetStockOutbox`
   ledger (exactly-once by unique key; confirm-triggered, restore-on-cancel); a `*/2 * * * *` cron
