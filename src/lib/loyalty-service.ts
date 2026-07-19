@@ -16,10 +16,16 @@ import { audit } from '@/lib/audit';
  * "0 pts · 0 EGP · base tier". Deliberately does NOT touch pointsBalance —
  * per owner decision, points are not minted retroactively; they accrue from
  * now on via creditOrderPoints.
+ *
+ * Tier basis: Setting `loyalty.tierWindowDays` (admin-editable). 0 (default) =
+ * lifetime spend decides the tier (unchanged behavior); N > 0 = only DELIVERED
+ * spend in the last N days counts toward the tier. `lifetimeSpendPiastres`
+ * ALWAYS stays true lifetime — the window affects tier pick only.
  */
 export async function recomputeLoyaltyStanding(customerId?: string): Promise<{ scanned: number; updated: number }> {
   const tiers = (await prisma.tier.findMany({ select: { id: true, rank: true, minSpendPiastres: true } }))
     .map((t) => ({ ...t, minSpendPiastres: BigInt(t.minSpendPiastres) }));
+  const windowDays = Math.max(0, Math.round(await getNumberSetting('loyalty.tierWindowDays')));
 
   const spendRows = await prisma.order.groupBy({
     by: ['customerId'],
@@ -27,6 +33,18 @@ export async function recomputeLoyaltyStanding(customerId?: string): Promise<{ s
     _sum: { totalPiastres: true },
   });
   const spendBy = new Map(spendRows.map((r) => [r.customerId as string, BigInt(r._sum.totalPiastres ?? 0n)]));
+
+  // Windowed spend (tier basis) — same rows bounded to the last N days.
+  let tierSpendBy = spendBy;
+  if (windowDays > 0) {
+    const since = new Date(Date.now() - windowDays * 86_400_000);
+    const windowRows = await prisma.order.groupBy({
+      by: ['customerId'],
+      where: { status: 'DELIVERED', customerId: customerId ?? { not: null }, placedAt: { gte: since } },
+      _sum: { totalPiastres: true },
+    });
+    tierSpendBy = new Map(windowRows.map((r) => [r.customerId as string, BigInt(r._sum.totalPiastres ?? 0n)]));
+  }
 
   let scanned = 0;
   let updated = 0;
@@ -46,7 +64,7 @@ export async function recomputeLoyaltyStanding(customerId?: string): Promise<{ s
     const writes = customers
       .map((c) => {
         const spend = spendBy.get(c.id) ?? 0n;
-        const tierId = pickTierId(tiers, spend);
+        const tierId = pickTierId(tiers, tierSpendBy.get(c.id) ?? 0n);
         return standingChanged(c, { spendPiastres: spend, tierId }) ? { id: c.id, spend, tierId } : null;
       })
       .filter((w): w is NonNullable<typeof w> => w !== null);

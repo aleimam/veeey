@@ -15,6 +15,7 @@ export const SETTINGS: SettingDef[] = [
   // Loyalty
   { key: 'loyalty.redeemPointsPerEgp', label: 'Points to redeem 1 EGP', group: 'Loyalty', type: 'number', default: '200', hint: 'How many points equal 1 EGP at checkout.' },
   { key: 'loyalty.pointsExpiryDays', label: 'Points expiry (days)', group: 'Loyalty', type: 'days', default: '0', hint: '0 = points never expire.' },
+  { key: 'loyalty.tierWindowDays', label: 'Tier qualification window (days)', group: 'Loyalty', type: 'days', default: '0', hint: '0 = lifetime spend decides the tier; 365 = only spend in the last 365 days counts toward tier promotion/demotion.' },
   // Special orders
   { key: 'specialOrder.depositPercent', label: 'Special-order deposit (%)', group: 'Special orders', type: 'percent', default: '25', hint: 'Deposit required to reserve a special order.' },
   { key: 'specialOrder.defaultLeadDays', label: 'Default lead time (days)', group: 'Special orders', type: 'days', default: '20' },

@@ -28,20 +28,26 @@ const SPEND_STATUSES = (process.env.NET_SYNC_SPEND_STATUSES || 'wc-completed,wc-
 const s = (v: unknown): string | null => (v == null ? null : String(v));
 const chunk = <T>(a: T[], n: number): T[][] => { const o: T[][] = []; for (let i = 0; i < a.length; i += n) o.push(a.slice(i, i + n)); return o; };
 
-/** WP user id → lifetime spend (piastres). Sourced from HPOS `wc_orders`:
- *  `customer_id` IS the WP user id (0 = guest), `total_amount` is what the
- *  customer actually paid. No analytics-lookup join needed. */
-export async function readSpendMap(pool: Pool): Promise<Map<number, bigint>> {
+export type SpendSnapshot = { lifetime: bigint; windowed: bigint };
+
+/** WP user id → {lifetime, windowed} spend (piastres). Sourced from HPOS
+ *  `wc_orders`: `customer_id` IS the WP user id (0 = guest), `total_amount` is
+ *  what the customer actually paid. `windowed` bounds to the last `windowDays`
+ *  (equals lifetime when windowDays = 0) — the tier qualifies on the window
+ *  (Setting `loyalty.tierWindowDays`) while lifetimeSpendPiastres stays true
+ *  lifetime. */
+export async function readSpendMap(pool: Pool, windowDays: number): Promise<Map<number, SpendSnapshot>> {
   const ph = SPEND_STATUSES.map(() => '?').join(',');
   const [rows] = await pool.query<Row[]>(
-    `SELECT customer_id AS uid, SUM(total_amount) AS spend
+    `SELECT customer_id AS uid, SUM(total_amount) AS spend,
+            SUM(CASE WHEN date_created_gmt >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL ? DAY) THEN total_amount ELSE 0 END) AS windowed
      FROM ${T('wc_orders')}
      WHERE customer_id > 0 AND status IN (${ph})
      GROUP BY customer_id`,
-    SPEND_STATUSES,
+    [windowDays > 0 ? windowDays : 36500, ...SPEND_STATUSES],
   );
-  const m = new Map<number, bigint>();
-  for (const r of rows) m.set(Number(r.uid), spendToPiastres(Number(r.spend)));
+  const m = new Map<number, SpendSnapshot>();
+  for (const r of rows) m.set(Number(r.uid), { lifetime: spendToPiastres(Number(r.spend)), windowed: spendToPiastres(Number(r.windowed)) });
   return m;
 }
 
@@ -96,8 +102,11 @@ export type CustomerSummary = {
 export async function importCustomers(pool: Pool, opts: { dryRun: boolean; onProgress?: (n: number, total: number) => void }): Promise<CustomerSummary> {
   const sum: CustomerSummary = { source: 0, created: 0, linked: 0, updated: 0, skipped: 0, addressesCreated: 0, withPhone: 0, withSpend: 0, errors: [] };
 
+  // Tier window (Setting `loyalty.tierWindowDays`, admin-editable): 0 = lifetime.
+  const windowSetting = await prisma.setting.findUnique({ where: { key: 'loyalty.tierWindowDays' } });
+  const windowDays = Math.max(0, Math.round(Number(windowSetting?.value) || 0));
   const [spendMap, rawList, greenTier, tierRows] = await Promise.all([
-    readSpendMap(pool),
+    readSpendMap(pool, windowDays),
     readSourceCustomers(pool),
     prisma.tier.findUnique({ where: { key: 'GREEN' }, select: { id: true } }),
     prisma.tier.findMany({ select: { id: true, rank: true, minSpendPiastres: true } }),
@@ -122,9 +131,10 @@ export async function importCustomers(pool: Pool, opts: { dryRun: boolean; onPro
   let i = 0;
   for (const p of planned) {
     if (p.phone) sum.withPhone++;
-    const spend = spendMap.get(p.wpUserId) ?? 0n;
+    const snap = spendMap.get(p.wpUserId) ?? { lifetime: 0n, windowed: 0n };
+    const spend = snap.lifetime;
     if (spend > 0n) sum.withSpend++;
-    const tierId = pickTierId(tiers, spend) ?? greenTier?.id ?? null;
+    const tierId = pickTierId(tiers, windowDays > 0 ? snap.windowed : snap.lifetime) ?? greenTier?.id ?? null;
     try {
       const ex = existingByWp.get(p.wpUserId);
       if (ex) {
