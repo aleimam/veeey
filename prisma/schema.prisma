@@ -2115,3 +2115,31 @@ model VariantGroup {
   updatedAt DateTime  @updatedAt
   products  Product[]
 }
+
+// ============================================================================
+// veeey.net → egyptvitamins.net stock writeback (net-sync Phase 3)
+// ============================================================================
+
+/// Exactly-once ledger for pushing veeey.net order stock DELTAS back to the
+/// egyptvitamins.net WordPress (WP is the stock master; without this, the
+/// 10-minute pull re-inflates stock sold on veeey.net). One row per
+/// (order, WP product, direction); the unique key makes enqueue idempotent and
+/// the drain (scripts/net-sync/run-writeback.ts, cron on the .net box) applies
+/// each PENDING row to WP exactly once. Inert on veeey.com (env-gated).
+model NetStockOutbox {
+  id          String    @id @default(cuid())
+  orderId     String
+  orderNumber String?
+  wpId        Int // WP product id (= Product.legacyWpId)
+  qty         Int // positive units
+  direction   String // SALE (decrease WP stock) | RESTORE (increase, on cancel/refund)
+  status      String    @default("PENDING") // PENDING | APPLIED | FAILED | SKIPPED
+  attempts    Int       @default(0)
+  lastError   String?
+  stockAfter  Int? // WP stock reported back by the apply
+  appliedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@unique([orderId, wpId, direction])
+  @@index([status])
+}
