@@ -251,6 +251,15 @@ export async function transitionOrder(id: string, to: OrderStatus, reason?: stri
   });
   if (claimed.count === 0) throw new Error('INVALID_TRANSITION');
   await applyStatusEffects(order, from, cfg);
+  // net-sync Phase 3 (veeey.net only — no-op without NET_SYNC_WRITEBACK): report
+  // this order's stock delta back to the egyptvitamins.net WP master. Best-effort;
+  // the ledger's unique key keeps it exactly-once even across retries.
+  try {
+    const { enqueueWriteback } = await import('@/lib/net-sync/writeback');
+    await enqueueWriteback(id, from, to);
+  } catch (e) {
+    console.error('net-sync writeback enqueue failed', e);
+  }
   await audit({ actorType: 'USER', actorId: user.id, action: `order.${to.toLowerCase()}`, entityType: 'Order', entityId: id, data: { reason } });
   await runStatusNotify(id, cfg);
   if (to === 'DELIVERED') {

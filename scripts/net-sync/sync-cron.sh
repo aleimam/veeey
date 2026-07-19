@@ -14,7 +14,8 @@
 #   ( crontab -l 2>/dev/null; \
 #     echo "PATH=$NODE_DIR:/usr/local/bin:/usr/bin:/bin"; \
 #     echo "*/10 * * * * /usr/bin/flock -n /tmp/veeey-net-sync.lock /opt/veeey/scripts/net-sync/sync-cron.sh >> /opt/veeey/net-sync.log 2>&1"; \
-#     echo "30 3 * * * /usr/bin/flock -n /tmp/veeey-net-images.lock /opt/veeey/scripts/net-sync/sync-cron.sh --images >> /opt/veeey/net-sync.log 2>&1" \
+#     echo "30 3 * * * /usr/bin/flock -n /tmp/veeey-net-images.lock /opt/veeey/scripts/net-sync/sync-cron.sh --images >> /opt/veeey/net-sync.log 2>&1"; \
+#     echo "*/2 * * * * /usr/bin/flock -n /tmp/veeey-net-wb.lock /opt/veeey/scripts/net-sync/sync-cron.sh --writeback >> /opt/veeey/net-sync.log 2>&1" \
 #   ) | crontab -
 set -euo pipefail
 
@@ -27,12 +28,20 @@ export NET_SYNC_WP_PREFIX="${NET_SYNC_WP_PREFIX:-SFPgx_}"
 
 cd "$APP_DIR"
 
+TSX="$APP_DIR/node_modules/.bin/tsx"
+
+# --writeback (Phase 3): 2-min drain of the NetStockOutbox → WP stock deltas.
+# Needs no MySQL DSN (goes through wp-cli); silent unless there is work, and a
+# no-op entirely unless NET_SYNC_WRITEBACK is set in $APP_DIR/.env (dry|on).
+if [ "${1:-}" = "--writeback" ]; then
+  exec "$TSX" scripts/net-sync/run-writeback.ts
+fi
+
 # Build the source DSN from wp-config (URL-encoded; localhost → 127.0.0.1 for TCP).
 DSN=$(sudo -u "$WP_OSUSER" "$PHP_BIN" "$WP_CLI" --path="$WP_PATH" eval \
   'echo "mysql://".rawurlencode(DB_USER).":".rawurlencode(DB_PASSWORD)."@".(strpos(DB_HOST,":")!==false?str_replace("localhost","127.0.0.1",DB_HOST):str_replace("localhost","127.0.0.1",DB_HOST).":3306")."/".DB_NAME;')
 export NET_SYNC_MYSQL_URL="$DSN"
 
-TSX="$APP_DIR/node_modules/.bin/tsx"
 STAMP=$(date -u +%FT%TZ)
 
 if [ "${1:-}" = "--images" ]; then
