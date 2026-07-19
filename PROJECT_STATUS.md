@@ -42,7 +42,15 @@
   (`ea788e0` 61st migration + `2694b4b`): `Customer.tierManual`+`tierManualUntil` respected by
   recompute + hourly sync (expired lock auto-clears); customer-page lock checkbox + Until date;
   **paid SELECT** = Setting `loyalty.selectMembershipEgp` (12k EGP/yr) + lock until +1yr (self-serve
-  purchase waits on Payments Stage B). Lock proven live against the sync. **SMS provider configured
+  purchase waits on Payments Stage B). Lock proven live against the sync. **Tier benefits matrix**
+  (`4fa6cbe` 62nd migration `tier_benefits` + `05b8e86`): `/admin/tier-benefits` — every advantage ×
+  tier toggles (RBAC pricing.manage, audited). SYSTEM benefits fixed in `tier-benefit-keys.ts`
+  (freeShipping/freeUltraFast = checkout fee waivers; specialOrder/preOrder/discreetShipping = access
+  gates enforced in checkout + special-order create; guests resolve to GREEN); MANUAL/advertised
+  benefits = admin CRUD (seeded: Cold Shipping, Authenticity Guarantee, Free Medical Consultation).
+  **Seeded to change NOTHING (owner Q1)**: gates granted-to-all, fee waivers granted-to-none —
+  admin toggles are what activate behavior. No storefront display in v1 (owner Q4); Pharmacist
+  deferred (owner Q5). **SMS provider configured
   by owner + validated** (config byte-identical to veeey.com's proven-live SMSMisr; test-env 1904 is
   by-design for live tokens) — final delivery proof = owner's first OTP login.
 - **Unified Requests feature — shipped + deployed to BOTH stores 2026-07-18** (Phases A–C, commits
