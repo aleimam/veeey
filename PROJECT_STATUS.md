@@ -7,8 +7,18 @@
 
 ## Current state
 
-- **Live** at **veeey.com** and **veeey.net** — **BOTH stores deployed `01ef102` (2026-07-19,
-  owner-ordered)**. All **62 Prisma migrations applied** on both (60–62: `net_stock_outbox`,
+- **Live** at **veeey.com** and **veeey.net** — **BOTH stores deployed `92ebd31` (2026-07-19)**.
+  **Contract v2 products/customers channel (INTEGRATION_V2_PRODUCTS_CUSTOMERS.md §7) BUILT, ships
+  DORMANT** behind Setting `integration.v2.enabled` (default off; v1 catalog/requests channels
+  untouched — proof on .com: 0 v2 outbox events, 2,548 v1 catalog events intact). Pieces:
+  `Product.integrationSku` (63rd migration `integration_sku_v2`: legacyWpId-numbered or minted from
+  `integration_sku_seq` ≥900000; variations `base-N`; immutable), v2 wire builders in
+  `src/lib/integration/product-customer-sync.ts` (name/type/photos; NO estimatedWeight or
+  defaultSupplierName — YeldnIN-owned), emitters on product create/update + ARCHIVED→archived:true
+  + customer registration/admin-edit/profile-edit (registered-only by construction — guests have no
+  Customer row), nightly full sweep (pg-boss `integration-v2-sweep` 02:30 UTC). **Arming = YeldnIN
+  ships /products/upsert + /customers/upsert, then set Setting integration.v2.enabled='1'** (§6
+  cutover retires /catalog after adoption). Prior state ↓ All **62 Prisma migrations applied** on both (60–62: `net_stock_outbox`,
   `customer_tier_manual`, `tier_benefits`); `pm2` healthy on both boxes; `/api/health` ok. Verify
   gate green: typecheck · lint · **585 unit tests** · build. On veeey.com everything from the
   2026-07-19 wave is inert/no-op by design (benefits seeded gates-all-on/waivers-off, tier window
