@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { pickTierId, standingChanged, type TierRef } from './loyalty-standing';
+import { pickTierId, standingChanged, manualTierActive, type TierRef } from './loyalty-standing';
 
 const TIERS: TierRef[] = [
   { id: 'green', rank: 1, minSpendPiastres: 0n },
@@ -34,5 +34,20 @@ describe('standingChanged', () => {
     expect(standingChanged({ lifetimeSpendPiastres: 100n, tierId: 'green' }, { spendPiastres: 200n, tierId: 'green' })).toBe(true);
     expect(standingChanged({ lifetimeSpendPiastres: 100n, tierId: 'green' }, { spendPiastres: 100n, tierId: 'vip' })).toBe(true);
     expect(standingChanged({ lifetimeSpendPiastres: 0n, tierId: null }, { spendPiastres: 0n, tierId: 'green' })).toBe(true);
+  });
+});
+
+describe('manualTierActive (manual / paid tier lock)', () => {
+  const NOW = new Date('2026-07-19T12:00:00Z');
+  it('inactive when the flag is off', () => {
+    expect(manualTierActive(false, null, NOW)).toBe(false);
+    expect(manualTierActive(false, new Date('2027-01-01'), NOW)).toBe(false);
+  });
+  it('active indefinitely when locked with no until date', () => {
+    expect(manualTierActive(true, null, NOW)).toBe(true);
+  });
+  it('active until the paid-membership date, expired after it', () => {
+    expect(manualTierActive(true, new Date('2027-07-19T12:00:00Z'), NOW)).toBe(true);
+    expect(manualTierActive(true, new Date('2026-07-19T11:59:59Z'), NOW)).toBe(false);
   });
 });

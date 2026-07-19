@@ -93,6 +93,11 @@ const detailsSchema = z.object({
   email: z.string().trim().email().optional().or(z.literal('')),
   phone: z.string().trim().max(30).optional().or(z.literal('')),
   tierId: z.string().optional().nullable(),
+  // Manual/paid tier lock: while set (and not past `until`), auto-recompute and
+  // the net-sync customer pull leave tierId alone. A paid SELECT membership =
+  // lock + until ≈ one year out.
+  tierManual: z.boolean().default(false),
+  tierManualUntil: z.coerce.date().optional().nullable(),
 });
 
 // Standing + marketing + internal notes (V5 F31/F35).
@@ -167,10 +172,19 @@ export async function updateCustomerDetails(id: string, raw: z.input<typeof deta
   const name = [d.firstName, d.lastName].filter(Boolean).join(' ') || null;
 
   await prisma.$transaction([
-    prisma.customer.update({ where: { id }, data: { firstName: d.firstName || null, lastName: d.lastName || null, tierId: d.tierId || null } }),
+    prisma.customer.update({
+      where: { id },
+      data: {
+        firstName: d.firstName || null,
+        lastName: d.lastName || null,
+        tierId: d.tierId || null,
+        tierManual: d.tierManual,
+        tierManualUntil: d.tierManual ? (d.tierManualUntil ?? null) : null,
+      },
+    }),
     prisma.user.update({ where: { id: customer.userId }, data: { email, phone: d.phone || null, ...(name ? { name } : {}) } }),
   ]);
-  await audit({ actorType: 'USER', actorId: user.id, action: 'customer.update', entityType: 'Customer', entityId: id });
+  await audit({ actorType: 'USER', actorId: user.id, action: 'customer.update', entityType: 'Customer', entityId: id, data: d.tierManual ? { tierManual: true, tierManualUntil: d.tierManualUntil?.toISOString() ?? null } : undefined });
 }
 
 const addressSchema = z.object({

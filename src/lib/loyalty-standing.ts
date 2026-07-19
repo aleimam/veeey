@@ -27,3 +27,14 @@ export function standingChanged(
 ): boolean {
   return current.lifetimeSpendPiastres !== next.spendPiastres || current.tierId !== next.tierId;
 }
+
+/**
+ * Is a manual/paid tier lock ACTIVE? While active, auto-recompute and the
+ * net-sync customer pull must not touch tierId. `until` null = indefinite
+ * manual assignment; a date = paid membership (e.g. SELECT for one year),
+ * expired once passed. PURE.
+ */
+export function manualTierActive(tierManual: boolean, until: Date | null, now: Date = new Date()): boolean {
+  if (!tierManual) return false;
+  return until == null || until.getTime() > now.getTime();
+}

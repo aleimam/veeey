@@ -12,6 +12,7 @@
 import type { Pool, RowDataPacket } from 'mysql2/promise';
 import { prisma } from '@/lib/prisma';
 import { generateReferralCode } from '@/lib/customer';
+import { manualTierActive } from '@/lib/loyalty-standing';
 import { planCustomer, spendToPiastres, pickTierId, type RawCustomer, type PlannedCustomer } from './customers-transform';
 
 const PREFIX = process.env.NET_SYNC_WP_PREFIX || 'SFPgx_';
@@ -116,9 +117,10 @@ export async function importCustomers(pool: Pool, opts: { dryRun: boolean; onPro
   const planned: PlannedCustomer[] = rawList.map(planCustomer);
 
   // Pre-load already-imported customers (by legacyWpId) + any user sharing an email.
-  const existingByWp = new Map<number, { custId: string; userId: string; firstName: string | null; lastName: string | null; spend: bigint; tierId: string | null; email: string | null; userPhone: string | null; userName: string | null }>();
-  for (const c of await prisma.customer.findMany({ where: { legacyWpId: { not: null } }, select: { id: true, legacyWpId: true, firstName: true, lastName: true, lifetimeSpendPiastres: true, tierId: true, user: { select: { id: true, email: true, phone: true, name: true } } } })) {
-    existingByWp.set(c.legacyWpId!, { custId: c.id, userId: c.user.id, firstName: c.firstName, lastName: c.lastName, spend: BigInt(c.lifetimeSpendPiastres), tierId: c.tierId, email: c.user.email, userPhone: c.user.phone, userName: c.user.name });
+  const existingByWp = new Map<number, { custId: string; userId: string; firstName: string | null; lastName: string | null; spend: bigint; tierId: string | null; tierLocked: boolean; email: string | null; userPhone: string | null; userName: string | null }>();
+  const nowTs = new Date();
+  for (const c of await prisma.customer.findMany({ where: { legacyWpId: { not: null } }, select: { id: true, legacyWpId: true, firstName: true, lastName: true, lifetimeSpendPiastres: true, tierId: true, tierManual: true, tierManualUntil: true, user: { select: { id: true, email: true, phone: true, name: true } } } })) {
+    existingByWp.set(c.legacyWpId!, { custId: c.id, userId: c.user.id, firstName: c.firstName, lastName: c.lastName, spend: BigInt(c.lifetimeSpendPiastres), tierId: c.tierId, tierLocked: manualTierActive(c.tierManual, c.tierManualUntil, nowTs), email: c.user.email, userPhone: c.user.phone, userName: c.user.name });
   }
   const emailToUser = new Map<string, { userId: string; phone: string | null; name: string | null; custId: string | null; custWp: number | null }>();
   const needEmails = [...new Set(planned.filter((p) => !existingByWp.has(p.wpUserId)).map((p) => p.email))];
@@ -138,13 +140,15 @@ export async function importCustomers(pool: Pool, opts: { dryRun: boolean; onPro
     try {
       const ex = existingByWp.get(p.wpUserId);
       if (ex) {
+        // Manual/paid tier lock: the sync keeps its hands off tierId while active.
+        const effectiveTierId = ex.tierLocked ? ex.tierId : tierId;
         // UPDATE only when a synced field changed (keeps hourly runs cheap).
-        const custChanged = ex.firstName !== p.firstName || ex.lastName !== p.lastName || ex.spend !== spend || ex.tierId !== tierId;
+        const custChanged = ex.firstName !== p.firstName || ex.lastName !== p.lastName || ex.spend !== spend || ex.tierId !== effectiveTierId;
         const fillName = !ex.userName && p.name ? p.name : null;
         const fillPhone = !ex.userPhone && p.phone ? p.phone : null;
         if (custChanged || fillName || fillPhone) {
           if (!opts.dryRun) {
-            if (custChanged) await prisma.customer.update({ where: { id: ex.custId }, data: { firstName: p.firstName, lastName: p.lastName, lifetimeSpendPiastres: spend, tierId } });
+            if (custChanged) await prisma.customer.update({ where: { id: ex.custId }, data: { firstName: p.firstName, lastName: p.lastName, lifetimeSpendPiastres: spend, tierId: effectiveTierId } });
             if (fillName || fillPhone) await prisma.user.update({ where: { id: ex.userId }, data: { ...(fillName ? { name: fillName } : {}), ...(fillPhone ? { phone: fillPhone } : {}) } });
           }
           sum.updated++;

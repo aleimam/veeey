@@ -50,6 +50,8 @@ export async function saveCustomerDetailsAction(fd: FormData): Promise<void> {
       email: str(fd, 'email') ?? '',
       phone: str(fd, 'phone') ?? '',
       tierId: str(fd, 'tierId') ?? null,
+      tierManual: fd.get('tierManual') === 'on',
+      tierManualUntil: str(fd, 'tierManualUntil') || null,
     });
   } catch (e) {
     const msg = e instanceof Error && e.message === 'EMAIL_TAKEN' ? 'error=email_taken' : 'error=1';

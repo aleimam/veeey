@@ -71,11 +71,31 @@ export default async function CustomerProfilePage({ params, searchParams }: { pa
           <Field label={tb('Last name', 'اسم العائلة')}><input name="lastName" defaultValue={c.lastName ?? ''} className={inputCls} /></Field>
           <Field label={tb('Email', 'البريد الإلكتروني')} hint={tb('Used for login — must stay unique.', 'يُستخدم للدخول — يجب أن يبقى فريدًا.')}><input name="email" type="email" defaultValue={c.user.email ?? ''} className={inputCls} /></Field>
           <Field label={tb('Primary phone', 'الهاتف الأساسي')} hint={tb('Extra numbers live on the addresses below.', 'الأرقام الإضافية على العناوين أدناه.')}><input name="phone" defaultValue={c.user.phone ?? ''} className={inputCls} /></Field>
-          <Field label={tb('Tier', 'الفئة')}>
+          <Field label={tb('Tier', 'الفئة')} hint={tb('Without the lock below, spend-based auto-tiering overrides this pick.', 'دون القفل أدناه، الترقية التلقائية حسب الإنفاق تتجاوز هذا الاختيار.')}>
             <select name="tierId" defaultValue={c.tierId ?? ''} className={inputCls}>
               <option value="">{tb('— None —', '— بدون —')}</option>
               {tiers.map((t) => <option key={t.id} value={t.id}>{t.nameEn}</option>)}
             </select>
+          </Field>
+          {/* Manual/paid tier lock: freezes the tier against auto-recompute + the
+              hourly customer sync. Paid membership = lock + until ≈ 1 year out. */}
+          <Field
+            label={tb('Lock tier (manual / paid membership)', 'قفل الفئة (يدوي / عضوية مدفوعة)')}
+            hint={tb('Until empty = indefinite. For a paid SELECT year, set Until to +1 year.', 'ترك "حتى" فارغًا = دائم. لعضوية SELECT المدفوعة، حدّد "حتى" بعد سنة.')}
+          >
+            <div className="flex items-center gap-3">
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input type="checkbox" name="tierManual" defaultChecked={c.tierManual} className="size-4 accent-primary" />
+                {tb('Locked', 'مقفلة')}
+              </label>
+              <input
+                type="date"
+                name="tierManualUntil"
+                defaultValue={c.tierManualUntil ? c.tierManualUntil.toISOString().slice(0, 10) : ''}
+                aria-label={tb('Locked until', 'مقفلة حتى')}
+                className={inputCls}
+              />
+            </div>
           </Field>
           <div className="flex items-end">
             <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">{tb('Save details', 'حفظ البيانات')}</button>
