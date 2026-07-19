@@ -50,7 +50,13 @@
   benefits = admin CRUD (seeded: Cold Shipping, Authenticity Guarantee, Free Medical Consultation).
   **Seeded to change NOTHING (owner Q1)**: gates granted-to-all, fee waivers granted-to-none —
   admin toggles are what activate behavior. No storefront display in v1 (owner Q4); Pharmacist
-  deferred (owner Q5). **SMS provider configured
+  deferred (owner Q5). **Enrichment wave (owner #1→#3→#2, `3a1739d`/`cfb2794`/`834d340`):**
+  2,117 tags + 20 attributes/1,349 values (14,769 links, PLP facets live) · 944 reviews on 289
+  products (ratings recomputed) · **21,327 read-only historical orders** (18,480 DELIVERED; 7,547
+  customers have My-Orders history; alias fix: `wc-delivered`/`wc-card-delivered` →
+  DELIVERED.sourceAliases; bypasses transitionOrder so zero loyalty/stock/writeback side-effects;
+  spend reconciles with the customer snapshot). CLIs `run-enrich/run-reviews/run-orders.ts`.
+  Details `../VEEEY_NET_MIGRATION.md` → "Enrichment wave". **SMS provider configured
   by owner + validated** (config byte-identical to veeey.com's proven-live SMSMisr; test-env 1904 is
   by-design for live tokens) — final delivery proof = owner's first OTP login.
 - **Unified Requests feature — shipped + deployed to BOTH stores 2026-07-18** (Phases A–C, commits
