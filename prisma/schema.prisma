@@ -410,6 +410,12 @@ model Customer {
   nameAr                String?
   tierId                String?
   tier                  Tier?          @relation(fields: [tierId], references: [id])
+  // Manual tier lock (admin-set; also how a PAID membership is granted): while
+  // active, recomputeLoyaltyStanding + the net-sync customer pull keep their
+  // hands off tierId. `tierManualUntil` null = indefinite; past = lock expired
+  // (recompute clears the flag and auto-tiers again).
+  tierManual            Boolean        @default(false)
+  tierManualUntil       DateTime?
   pointsBalance         Int            @default(0)
   lifetimeSpendPiastres BigInt         @default(0)
   referralCode          String         @unique
