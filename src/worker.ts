@@ -187,8 +187,17 @@ async function main() {
   // Returns {skipped:true} (no-op) while INTEGRATION_ENABLED is off.
   await boss.work(QUEUES.integrationDispatch, async () => {
     const { dispatchOutbox } = await import('@/lib/integration/integration-service');
-    const r = await dispatchOutbox();
-    if (!r.skipped && (r.sent || r.failed)) console.log(`[worker] integration dispatch: ${r.sent} sent, ${r.failed} failed`);
+    // Drain in batches until the outbox is empty (cap 40k events/tick) so a
+    // nightly v2 full sweep (~18k for a 2.5k-product / 16k-customer store)
+    // clears the same tick instead of backlogging forever at 20/tick.
+    let sent = 0, failed = 0;
+    for (let round = 0; round < 200; round++) {
+      const r = await dispatchOutbox(200);
+      if (r.skipped) break;
+      sent += r.sent; failed += r.failed;
+      if (r.sent + r.failed === 0) break; // outbox drained (or only future-scheduled retries remain)
+    }
+    if (sent || failed) console.log(`[worker] integration dispatch: ${sent} sent, ${failed} failed`);
   });
 
   // One-click AI auto-fill of all filterable product attributes (only-missing,
