@@ -35,9 +35,12 @@
   Registered-only, name/email/phone/addresses, marketing consent OFF, **no passwords** (OTP login),
   lifetime-spend snapshot from `wc_orders` delivered statuses → tier. Idempotent on `Customer.legacyWpId`,
   matched by email, write-only-on-change; PII stays on box, tests synthetic. `src/lib/net-sync/customers*.ts`
-  + `scripts/net-sync/run-customers.ts`. **⚠️ Owner: set veeey.net tier thresholds (all seeded 0 → all
-  top-tier until then; hourly sync auto-corrects) + configure an SMS provider so imported customers can
-  OTP-login.**
+  + `scripts/net-sync/run-customers.ts`. **Tiers SET (owner): GREEN 0 / VEEEYIP 60k / SELECT 150k EGP
+  over the LAST 365 DAYS** — new Setting **`loyalty.tierWindowDays`** (`3d030fe`; 0 = lifetime default,
+  veeey.com unchanged; honored by recomputeLoyaltyStanding + the sync; thresholds editable at
+  `/admin/tiers`). Distribution: 16,120 GREEN / 77 VEEEYIP / 27 SELECT. **SMS provider configured by
+  owner + validated** (config byte-identical to veeey.com's proven-live SMSMisr; test-env 1904 is
+  by-design for live tokens) — final delivery proof = owner's first OTP login.
 - **Unified Requests feature — shipped + deployed to BOTH stores 2026-07-18** (Phases A–C, commits
   `661056f`→`bb9f010`; 3 migrations `requests` + `requests_permission` (no-lockout grant) +
   `product_always_needed`). Mirrors YeldnIN's Request model: **`/admin/requests`** with 4 types (Special
