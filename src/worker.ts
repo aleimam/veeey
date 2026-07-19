@@ -39,6 +39,7 @@ async function main() {
   await boss.createQueue(QUEUES.searchDigest);
   await boss.createQueue(QUEUES.attributeAutofill);
   await boss.createQueue(QUEUES.refillSweep);
+  await boss.createQueue(QUEUES.integrationV2Sweep);
   await boss.createQueue(QUEUES.optionalRefill);
   await boss.createQueue(QUEUES.integrationDispatch);
 
@@ -166,6 +167,14 @@ async function main() {
     console.log(`[worker] refill sweep: ${r.skippedReason ?? `${r.notified} notified, ${r.ordered} ordered, ${r.skipped} skipped, ${r.errors} error(s)`}`);
   });
 
+  // Contract v2 §5 safety net: nightly full re-push of products + registered
+  // customers to YeldnIN. No-op unless integration.v2.enabled is armed.
+  await boss.work(QUEUES.integrationV2Sweep, async () => {
+    const { sweepV2 } = await import('@/lib/integration/product-customer-sync');
+    const r = await sweepV2();
+    if (r.products || r.customers) console.log(`[worker] v2 sweep queued: ${r.products} products, ${r.customers} customers`);
+  });
+
   // Always-Needed → monthly OPTIONAL purchasing-request refill (Requests epic C).
   // No-ops when no products are marked Always-Needed.
   await boss.work(QUEUES.optionalRefill, async () => {
@@ -224,6 +233,8 @@ async function main() {
   await boss.schedule(QUEUES.optionalRefill, '50 3 * * *', {});
   // YeldnIN outbox drain every 2 min (Requests epic D) — no-op while disabled.
   await boss.schedule(QUEUES.integrationDispatch, '*/2 * * * *', {});
+  // Contract v2 nightly full re-push (products + customers) 02:30 UTC — no-op until armed.
+  await boss.schedule(QUEUES.integrationV2Sweep, '30 2 * * *', {});
   console.log('[worker] started — notify + alerts + woo-sync + audit queues registered, schedules set.');
 }
 

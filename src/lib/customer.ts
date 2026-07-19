@@ -40,7 +40,7 @@ export async function ensureCustomerProfile(userId: string) {
 
   const greenTier = await prisma.tier.findUnique({ where: { key: 'GREEN' } });
 
-  return prisma.customer.create({
+  const created = await prisma.customer.create({
     data: {
       userId,
       tierId: greenTier?.id ?? null,
@@ -48,4 +48,7 @@ export async function ensureCustomerProfile(userId: string) {
       wishlistLists: { create: { name: 'My Wishlist', isDefault: true } },
     },
   });
+  // Contract v2: new registered customer → YeldnIN (no-op unless v2 is armed).
+  await (await import('@/lib/integration/product-customer-sync')).emitCustomerUpsertV2(created.id);
+  return created;
 }

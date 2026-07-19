@@ -38,8 +38,9 @@ export const BACKOFF_MS = [60_000, 5 * 60_000, 30 * 60_000, 2 * 3_600_000, 12 * 
 
 /** Outbox event type → YeldnIN endpoint path (contract §4). */
 export const OUTBOX_PATHS: Record<string, string> = {
-  'products.upsert': '/products/upsert', // legacy SKU-keyed push — superseded by catalog.upsert
-  'catalog.upsert': '/catalog', // Catalog sync channel: wpId-keyed product upsert (contract §4.2)
+  'products.upsert': '/products/upsert', // contract v2 §1: canonical-SKU product upsert (product-customer-sync.ts)
+  'customers.upsert': '/customers/upsert', // contract v2 §2: registered-customer upsert (NEW)
+  'catalog.upsert': '/catalog', // v1 wpId-keyed channel — keeps running alongside until v2 cutover (v2 §6)
   'requests.create': '/requests', // legacy single-line (flat PurchaseRequest) — superseded
   'requests.upsert': '/requests', // Requests epic D: multi-line, uid-keyed upsert
   'revenue.event': '/revenue-events',

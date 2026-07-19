@@ -54,6 +54,15 @@ export async function updateProfileAction(
     return { error: 'invalid' };
   }
 
+  // Contract v2: the customer edited their own name/phone (Veeey-mastered) —
+  // push to YeldnIN (best-effort; no-op unless the v2 channel is armed).
+  try {
+    const cust = await prisma.customer.findUnique({ where: { userId: user.id }, select: { id: true } });
+    if (cust) await (await import('@/lib/integration/product-customer-sync')).emitCustomerUpsertV2(cust.id);
+  } catch (e) {
+    console.error('v2 customer emit failed', e);
+  }
+
   await audit({
     actorType: 'USER',
     actorId: user.id,

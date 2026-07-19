@@ -185,6 +185,8 @@ export async function updateCustomerDetails(id: string, raw: z.input<typeof deta
     prisma.user.update({ where: { id: customer.userId }, data: { email, phone: d.phone || null, ...(name ? { name } : {}) } }),
   ]);
   await audit({ actorType: 'USER', actorId: user.id, action: 'customer.update', entityType: 'Customer', entityId: id, data: d.tierManual ? { tierManual: true, tierManualUntil: d.tierManualUntil?.toISOString() ?? null } : undefined });
+  // Contract v2: name/phone are Veeey-mastered — push the change (no-op unless armed).
+  await (await import('@/lib/integration/product-customer-sync')).emitCustomerUpsertV2(id);
 }
 
 const addressSchema = z.object({

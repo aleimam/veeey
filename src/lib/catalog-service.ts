@@ -387,6 +387,7 @@ export async function createProduct(raw: ProductWriteInput) {
 
   await audit({ actorType: 'USER', actorId: user.id, action: 'product.create', entityType: 'Product', entityId: product.id });
   await emitCatalogSync(product.id);
+  await (await import('@/lib/integration/product-customer-sync')).emitProductUpsertV2(product.id);
   return product;
 }
 
@@ -418,6 +419,7 @@ export async function updateProduct(id: string, raw: ProductWriteInput) {
 
   await audit({ actorType: 'USER', actorId: user.id, action: 'product.update', entityType: 'Product', entityId: id });
   await emitCatalogSync(id);
+  await (await import('@/lib/integration/product-customer-sync')).emitProductUpsertV2(id);
   return product;
 }
 
@@ -425,5 +427,10 @@ export async function setProductStatus(id: string, status: 'DRAFT' | 'PUBLISHED'
   const user = await requirePermission('catalog.write');
   const product = await prisma.product.update({ where: { id }, data: { status } });
   await audit({ actorType: 'USER', actorId: user.id, action: `product.${status.toLowerCase()}`, entityType: 'Product', entityId: id });
+  // Contract v2 §4: ARCHIVED is Veeey's delete signal → YeldnIN soft-archives.
+  // DRAFT/PUBLISHED flips are Veeey-internal and are never sent.
+  if (status === 'ARCHIVED') {
+    await (await import('@/lib/integration/product-customer-sync')).emitProductUpsertV2(id, { archived: true });
+  }
   return product;
 }
