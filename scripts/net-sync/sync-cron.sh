@@ -52,6 +52,18 @@ elif [ "${1:-}" = "--customers" ]; then
   echo "----- $STAMP net-sync CUSTOMERS start -----"
   "$TSX" scripts/net-sync/run-customers.ts --commit
   echo "----- $(date -u +%FT%TZ) net-sync CUSTOMERS done -----"
+elif [ "${1:-}" = "--enrich" ]; then
+  echo "----- $STAMP net-sync ENRICH start -----"
+  "$TSX" scripts/net-sync/run-enrich.ts --commit
+  echo "----- $(date -u +%FT%TZ) net-sync ENRICH done -----"
+elif [ "${1:-}" = "--reviews" ]; then
+  echo "----- $STAMP net-sync REVIEWS start -----"
+  "$TSX" scripts/net-sync/run-reviews.ts --commit
+  echo "----- $(date -u +%FT%TZ) net-sync REVIEWS done -----"
+elif [ "${1:-}" = "--orders" ]; then
+  echo "----- $STAMP net-sync ORDERS start -----"
+  "$TSX" scripts/net-sync/run-orders.ts --commit
+  echo "----- $(date -u +%FT%TZ) net-sync ORDERS done -----"
 else
   echo "----- $STAMP net-sync start -----"
   "$TSX" scripts/net-sync/run.ts --commit
