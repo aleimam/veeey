@@ -388,9 +388,16 @@ the repo (`src/lib/net-sync/*`, `scripts/net-sync/*`); runs ON THE BOX via `tsx`
   delete-detection. Products/stock only; add `--images` for the image copy.
   - Or directly: `NET_SYNC_MYSQL_URL=<mysql://…/egyptvit_website> NET_SYNC_WP_PREFIX=SFPgx_ npx tsx
     scripts/net-sync/run.ts [--commit|--limit N]` (dry-run is the default — writes nothing).
-- **Schedule** (installed in root's crontab; header of `sync-cron.sh` has the exact install line):
-  - `*/10 * * * *` products + lots + stock + delete-detection (a full hash-diff scan; ~40 s).
-  - `30 3 * * *` daily image refresh (`--images`).
+- **Schedule** (installed in root's crontab; header of `sync-cron.sh` has the install recipe).
+  All modes are the same wrapper with a flag; every import is idempotent (re-run = no-op):
+  - `*/10 * * * *` products + lots + stock + delete-detection (full hash-diff scan; ~40 s).
+  - `*/2 * * * *` `--writeback` — NetStockOutbox drain → WP stock deltas (gated `NET_SYNC_WRITEBACK`).
+  - `15 * * * *` `--customers` — registered customers + addresses + spend/tier refresh (`run-customers.ts`).
+  - `30 3 * * *` `--images` daily image refresh (`run-images.ts`).
+  - `50 3 * * *` `--enrich` daily tags + attributes (`run-enrich.ts`).
+  - `10 4 * * *` `--reviews` daily approved-review import (`run-reviews.ts`).
+  - `20 4 * * *` `--orders` daily read-only order-history top-up (`run-orders.ts`; skip-existing on
+    `Order.legacyWpId`, bypasses transitionOrder → no loyalty/stock/notification side-effects).
   - `flock` guards against overlap; **WP is the stock master.** A source read that returns < 50% of the
     live product set REFUSES to archive (safety floor) — a transient DB error can't wipe the catalog.
 - **Customers** — ongoing one-way pull of registered egyptvitamins.net customers (name / email /
