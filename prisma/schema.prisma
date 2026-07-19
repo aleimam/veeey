@@ -498,6 +498,7 @@ model Tier {
   theme          Theme?            @relation(fields: [themeId], references: [id], onDelete: SetNull)
   customers      Customer[]
   rules          TierProductRule[]
+  benefits       TierBenefit[]     @relation("TierBenefits")
   createdAt      DateTime          @default(now())
 }
 
@@ -2148,4 +2149,19 @@ model NetStockOutbox {
 
   @@unique([orderId, wpId, direction])
   @@index([status])
+}
+
+/// Tier benefits matrix (owner 2026-07-19): one list of member advantages, each
+/// toggled per tier by admins at /admin/tier-benefits. `key` set = SYSTEM
+/// benefit (code-enforced: free shipping, gates…— rename yes, delete no);
+/// `key` null = MANUAL/advertised benefit (full admin CRUD; staff honor it).
+model TierBenefit {
+  id         String    @id @default(cuid())
+  key        String?   @unique // freeShipping | freeUltraFast | specialOrder | preOrder | discreetShipping
+  nameEn     String
+  nameAr     String?
+  sortOrder  Int       @default(0)
+  archivedAt DateTime?
+  tiers      Tier[]    @relation("TierBenefits")
+  createdAt  DateTime  @default(now())
 }
