@@ -22,8 +22,13 @@
   < 50%-scan safety floor) + a daily image refresh; `flock`-guarded, WP is stock master, log at
   `/opt/veeey/net-sync.log`. Engine: `src/lib/net-sync/{transform,wp-source,importer,images}.ts` + CLIs
   `scripts/net-sync/{run,run-images}.ts` (env-gated by `NET_SYNC_MYSQL_URL` → inert on veeey.com).
-  **Next: Phase 3 order stock-decrement writeback → WP** (only write to the live source; confirm first).
-  Plan + runbook in `../VEEEY_NET_MIGRATION.md` + `DEPLOYMENT.md` → "Catalog sync (net-sync)".
+  **Phase 3 writeback BUILT, deployed in DRY mode** (`89c5802` migration `net_stock_outbox` +
+  `e751ab9`): `transitionOrder` → `enqueueWriteback` records per-product deltas (SALE on first
+  CONFIRMED/SHIPPED/DELIVERED entry, RESTORE on committed→CANCELLED/REFUNDED, exactly-once via the
+  `NetStockOutbox` unique key); `*/2` cron drains via wp-cli `wc_update_product_stock` (probe-verified
+  reversible). **Gate `NET_SYNC_WRITEBACK` in `/opt/veeey/.env` = `dry`** — flip to `on` is an
+  owner step (60th migration total). Plan + runbook in `../VEEEY_NET_MIGRATION.md` + `DEPLOYMENT.md`
+  → "Catalog sync (net-sync)".
 - **Unified Requests feature — shipped + deployed to BOTH stores 2026-07-18** (Phases A–C, commits
   `661056f`→`bb9f010`; 3 migrations `requests` + `requests_permission` (no-lockout grant) +
   `product_always_needed`). Mirrors YeldnIN's Request model: **`/admin/requests`** with 4 types (Special

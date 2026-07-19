@@ -393,6 +393,14 @@ the repo (`src/lib/net-sync/*`, `scripts/net-sync/*`); runs ON THE BOX via `tsx`
   - `30 3 * * *` daily image refresh (`--images`).
   - `flock` guards against overlap; **WP is the stock master.** A source read that returns < 50% of the
     live product set REFUSES to archive (safety floor) — a transient DB error can't wipe the catalog.
+- **Writeback (Phase 3)** — the only WRITE to the live WP: veeey.net order stock **deltas** flow back
+  so the pull doesn't re-inflate sold stock. `transitionOrder` enqueues into the `NetStockOutbox`
+  ledger (exactly-once by unique key; confirm-triggered, restore-on-cancel); a `*/2 * * * *` cron
+  (`sync-cron.sh --writeback`) drains it via wp-cli `wc_update_product_stock` — deltas only, never
+  absolute, so staff stock edits in WP are never clobbered. **Gate: `NET_SYNC_WRITEBACK` in
+  `/opt/veeey/.env`** — `dry` (current: ledger records, drain logs only) / `on` (real writes) /
+  absent (veeey.com — fully inert). Failed rows retry ×5 then park as FAILED (visible in the log +
+  `NetStockOutbox` table).
 - **Monitor:** `tail -f /opt/veeey/net-sync.log`. **The `net/` uploads (`public/uploads/net/`, 1.8 GB)
   and the crontab are box-local** — a tarball redeploy keeps the uploads (gitignored) but re-check the
   crontab survived (it's independent of the app). ⚠️ **This runs only where `NET_SYNC_MYSQL_URL` resolves;
