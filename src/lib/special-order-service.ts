@@ -37,6 +37,10 @@ export async function createSpecialOrderRequest(input: SpecialOrderRequestInput,
   if (d.requesterPhone && !isValidPhone(d.requesterPhone)) throw new Error('BAD_PHONE');
   // Guests must give a name + valid phone; logged-in requests fill those from the account.
   if (!customerId && (!d.requesterName || !d.requesterPhone)) throw new Error('MISSING_CONTACT');
+  // Tier benefits gate (ships granted-to-all — bites only when an admin unticks a tier).
+  const { tierSystemBenefits } = await import('@/lib/tier-benefit-service');
+  const cust = customerId ? await prisma.customer.findUnique({ where: { id: customerId }, select: { tierId: true } }) : null;
+  if (!(await tierSystemBenefits(cust?.tierId ?? null)).has('specialOrder')) throw new Error('SPECIAL_ORDER_NOT_AVAILABLE');
   const leadDays = await getNumberSetting('specialOrder.defaultLeadDays');
   const deadlineAt = new Date(Date.now() + Math.max(1, leadDays) * 86_400_000);
   const so = await prisma.specialOrder.create({

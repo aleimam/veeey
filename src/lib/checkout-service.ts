@@ -10,6 +10,7 @@ import { PREORDER_COOKIE, parsePreorderCart } from '@/lib/preorder-cart';
 import { applyGiftRules } from '@/lib/gift-rule-service';
 import { isFeatureEnabled } from '@/lib/feature-service';
 import { getShippingFee, type ShippingTypeKey } from '@/lib/shipping-service';
+import { tierSystemBenefits } from '@/lib/tier-benefit-service';
 import { orderTotal, depositAndBalance } from '@/lib/checkout-math';
 import { scoreOrderRisk } from '@/lib/fraud';
 import { applyCoupon } from '@/lib/coupon-service';
@@ -106,16 +107,26 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
   for (const l of preorders) {
     subtotal += preById.get(l.productId)!.basePricePiastres * BigInt(l.qty);
   }
-  const shipping = await getShippingFee(data.shippingType as ShippingTypeKey);
+  // Per-item earned points use the customer's tier rate — must match what
+  // creditOrderPoints will actually credit, or LOST-item clawbacks under-claw.
+  const custTier = customerId ? await prisma.customer.findUnique({ where: { id: customerId }, select: { tierId: true, tier: { select: { earnRatePerEgp: true } } } }) : null;
+  const earnRate = custTier?.tier?.earnRatePerEgp ?? 1;
+
+  // Tier benefits matrix (guests resolve to the base tier). Gates ship granted-
+  // to-all (today's behavior); they only bite once the admin unticks a tier.
+  const benefits = await tierSystemBenefits(custTier?.tierId ?? null);
+  if (preorders.length > 0 && !benefits.has('preOrder')) throw new Error('PREORDER_NOT_AVAILABLE');
+  // Discreet packaging is an entitlement — silently drop it rather than fail the order.
+  const discreetPackaging = data.discreetPackaging && benefits.has('discreetShipping');
+
+  let shipping = await getShippingFee(data.shippingType as ShippingTypeKey);
+  if (benefits.has('freeShipping') || (data.shippingType === 'ULTRAFAST' && benefits.has('freeUltraFast'))) {
+    shipping = 0n; // fee waived by the customer's tier; availability rules unchanged
+  }
 
   // Guests are NOT "first order" — otherwise firstOrderOnly coupons are
   // infinitely reusable by checking out logged-out.
   const isFirstOrder = customerId ? (await prisma.order.count({ where: { customerId } })) === 0 : false;
-
-  // Per-item earned points use the customer's tier rate — must match what
-  // creditOrderPoints will actually credit, or LOST-item clawbacks under-claw.
-  const custTier = customerId ? await prisma.customer.findUnique({ where: { id: customerId }, select: { tier: { select: { earnRatePerEgp: true } } } }) : null;
-  const earnRate = custTier?.tier?.earnRatePerEgp ?? 1;
 
   // Coupon (stacks with points + tier discount).
   let couponDiscount = 0n;
@@ -195,7 +206,7 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
         depositPaidPiastres: requiresDeposit ? depositPiastres : null,
         balanceDuePiastres: requiresDeposit ? balancePiastres : null,
         shippingType: data.shippingType,
-        discreetPackaging: data.discreetPackaging,
+        discreetPackaging,
         source: 'DIRECT', // placed directly from the storefront
         utmJson: attribution ?? undefined,
         shippingAddressId,

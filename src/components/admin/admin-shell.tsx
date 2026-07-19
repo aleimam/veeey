@@ -23,7 +23,7 @@ export const ICONS: Record<string, LucideIcon> = {
   requests: Inbox, specialOrders: Globe, gifts: Gift, refillPlans: Repeat, products: Package, brands: Award, categories: FolderTree,
   tags: Tags, attributes: SlidersHorizontal, attributesBulk: Wand2, variantGroups: Layers, collections: LayoutGrid, inventory: Boxes,
   reorderRequests: ClipboardList, expiryFight: CalendarClock, searchRules: SearchCheck, abandonedCarts: ShoppingBag,
-  stocktake: ClipboardCheck, shipping: Truck, customers: Users, tiers: Crown, coupons: Ticket,
+  stocktake: ClipboardCheck, shipping: Truck, customers: Users, tiers: Crown, tierBenefits: Award, coupons: Ticket,
   reviews: Star, questions: MessageCircleQuestion, homepage: Home, navigation: Menu, landing: LayoutTemplate, pageSections: LayoutGrid, cmsPages: FileText, blog: Newspaper, social: Share2,
   quizzes: HelpCircle, notifications: Bell, users: UserCog, roles: ShieldCheck, departments: ShieldCheck, settings: Settings, features: ToggleRight,
   providers: Plug, trustpilot: Star, appearance: Palette, branding: Stamp, watermark: Droplets, loginProviders: KeyRound, integration: Webhook, payments: CreditCard, orderStatuses: ListChecks, goLive: Rocket, seoHealth: Gauge, changeLog: History, errorLog: TriangleAlert, aiKeys: Bot, aiApprovals: Inbox, google: LineChart,

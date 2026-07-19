@@ -52,6 +52,7 @@ export const NAV_SECTIONS: AdminNavSection[] = [
     { href: '/admin/customers', key: 'customers', permission: 'customers.read' },
     { href: '/admin/abandoned-carts', key: 'abandonedCarts', permission: 'customers.read' },
     { href: '/admin/tiers', key: 'tiers', permission: 'pricing.manage' },
+    { href: '/admin/tier-benefits', key: 'tierBenefits', permission: 'pricing.manage' },
     { href: '/admin/coupons', key: 'coupons', permission: 'coupons.manage' },
     { href: '/admin/reviews', key: 'reviews', permission: 'reviews.moderate' },
     { href: '/admin/questions', key: 'questions', permission: 'reviews.moderate' },
