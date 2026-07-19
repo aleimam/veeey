@@ -48,6 +48,10 @@ if [ "${1:-}" = "--images" ]; then
   echo "----- $STAMP net-sync IMAGES start -----"
   "$TSX" scripts/net-sync/run-images.ts --commit
   echo "----- $(date -u +%FT%TZ) net-sync IMAGES done -----"
+elif [ "${1:-}" = "--customers" ]; then
+  echo "----- $STAMP net-sync CUSTOMERS start -----"
+  "$TSX" scripts/net-sync/run-customers.ts --commit
+  echo "----- $(date -u +%FT%TZ) net-sync CUSTOMERS done -----"
 else
   echo "----- $STAMP net-sync start -----"
   "$TSX" scripts/net-sync/run.ts --commit
