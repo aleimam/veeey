@@ -7,16 +7,17 @@
 
 ## Current state
 
-- **Live** at **veeey.com** and **veeey.net** — **BOTH stores deployed `a232e01` (2026-07-19)**.
-  **🚀 Contract v2 products/customers channel (INTEGRATION_V2_PRODUCTS_CUSTOMERS.md) ARMED + FULL
-  CUTOVER DONE on veeey.com** (`integration.v2.enabled=1`): pushed **2,548 products (2,545 adopted
-  their canonical SKU via `veeeyWpId`, 0 failed) + 16,234 customers (all created in YeldnIN, 0
-  failed)** to YeldnIN `/products/upsert` + `/customers/upsert` (direct signed POSTs, 0 outbox
-  backlog). Ongoing sync = the emitters → outbox → dispatcher, which now **loop-drains** (`a232e01`)
-  so the nightly 02:30 full sweep can't backlog. **v2 stays OFF on veeey.net.** Remaining is
-  owner/YeldnIN-side: verify counts in YeldnIN Settings → Integrations (§6.4), then retire the v1
-  `/catalog` channel (§6.5 — still running harmlessly until then). Prior: channel shipped DORMANT
-  `92ebd31`; the DEVICE/INJECTION `type` pass (37 DEVICE / 13 INJECTION / 2,498 SUPPLEMENT) ran first. Pieces:
+- **Live** at **veeey.com** and **veeey.net** — **BOTH stores deployed `cc1ef59` (2026-07-19)**.
+  **🚀 Contract v2 products/customers channel (INTEGRATION_V2_PRODUCTS_CUSTOMERS.md) ARMED + CUTOVER
+  COMPLETE on veeey.com** (`integration.v2.enabled=1`): pushed **2,548 products (2,545 adopted
+  canonical SKU via `veeeyWpId`, 0 failed) + 16,234 customers (all created in YeldnIN, 0 failed)**;
+  owner verified YeldnIN shows 2,556 products (+8 = pre-existing archived scope-VEEEY rows, benign).
+  **v1 `/catalog` channel RETIRED** (`cc1ef59`): `emitCatalogSync` no-ops while v2 is armed
+  (products.upsert supersedes it; reversible) — verified live (catalog.upsert Δ0 / products.upsert Δ1).
+  Ongoing sync = emitters → outbox → **loop-draining** dispatcher (`a232e01`; nightly 02:30 full
+  sweep can't backlog). **v2 stays OFF on veeey.net.** Only remaining §6 item is owner-side: turn off
+  the legacy old-site WooCommerce→YeldnIN webhook. Prior: channel shipped DORMANT `92ebd31`; the
+  DEVICE/INJECTION `type` pass (37 DEVICE / 13 INJECTION / 2,498 SUPPLEMENT) ran before arming. Pieces:
   `Product.integrationSku` (63rd migration `integration_sku_v2`: legacyWpId-numbered or minted from
   `integration_sku_seq` ≥900000; variations `base-N`; immutable), v2 wire builders in
   `src/lib/integration/product-customer-sync.ts` (name/type/photos; NO estimatedWeight or
