@@ -106,6 +106,12 @@ export async function deleteManualBenefit(id: string) {
  * exactly what the entry tier gets.
  */
 export async function tierSystemBenefits(tierId: string | null): Promise<Set<SystemBenefitKey>> {
+  // FAIL-OPEN before first seeding: an empty registry means the matrix has never
+  // been configured on this store (ensureBenefits runs on first admin visit) —
+  // behave exactly like pre-feature days (gates open, fee waivers off) instead
+  // of deny-by-default blocking pre-orders/special orders in production.
+  const systemCount = await prisma.tierBenefit.count({ where: { key: { not: null } } });
+  if (systemCount === 0) return new Set(SYSTEM_BENEFITS.filter((b) => b.grantAll).map((b) => b.key));
   const effective = tierId ?? (await prisma.tier.findUnique({ where: { key: 'GREEN' }, select: { id: true } }))?.id ?? null;
   if (!effective) return new Set();
   const rows = await prisma.tierBenefit.findMany({
