@@ -18,21 +18,26 @@ const PREFIX = process.env.NET_SYNC_WP_PREFIX || 'SFPgx_';
 const T = (n: string) => `\`${PREFIX}${n}\``;
 type Row = RowDataPacket & Record<string, unknown>;
 
-// Paid orders count toward lifetime spend (mirrors "realized revenue").
-const SPEND_STATUSES = ['wc-completed', 'wc-processing'];
+// Statuses that count toward lifetime spend. Default matches THIS store's custom
+// WooCommerce statuses (revenue is almost all `wc-card-delivered` / `wc-delivered`;
+// the default `wc-completed` is barely used) — env-overridable so a new status
+// doesn't need a code change. Cancelled / on-hold / refunded are excluded.
+const SPEND_STATUSES = (process.env.NET_SYNC_SPEND_STATUSES || 'wc-completed,wc-processing,wc-delivered,wc-card-delivered')
+  .split(',').map((x) => x.trim()).filter(Boolean);
 
 const s = (v: unknown): string | null => (v == null ? null : String(v));
 const chunk = <T>(a: T[], n: number): T[][] => { const o: T[][] = []; for (let i = 0; i < a.length; i += n) o.push(a.slice(i, i + n)); return o; };
 
-/** WP user id → lifetime spend (piastres) from WooCommerce Analytics tables. */
+/** WP user id → lifetime spend (piastres). Sourced from HPOS `wc_orders`:
+ *  `customer_id` IS the WP user id (0 = guest), `total_amount` is what the
+ *  customer actually paid. No analytics-lookup join needed. */
 export async function readSpendMap(pool: Pool): Promise<Map<number, bigint>> {
   const ph = SPEND_STATUSES.map(() => '?').join(',');
   const [rows] = await pool.query<Row[]>(
-    `SELECT cl.user_id AS uid, SUM(os.total_sales) AS spend
-     FROM ${T('wc_order_stats')} os
-     JOIN ${T('wc_customer_lookup')} cl ON cl.customer_id = os.customer_id
-     WHERE os.status IN (${ph}) AND cl.user_id > 0
-     GROUP BY cl.user_id`,
+    `SELECT customer_id AS uid, SUM(total_amount) AS spend
+     FROM ${T('wc_orders')}
+     WHERE customer_id > 0 AND status IN (${ph})
+     GROUP BY customer_id`,
     SPEND_STATUSES,
   );
   const m = new Map<number, bigint>();
