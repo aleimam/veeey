@@ -12,6 +12,8 @@ import { isFeatureEnabled } from '@/lib/feature-service';
 import { getShippingFee, type ShippingTypeKey } from '@/lib/shipping-service';
 import { tierSystemBenefits } from '@/lib/tier-benefit-service';
 import { orderTotal, depositAndBalance } from '@/lib/checkout-math';
+import { tierPriceMap } from '@/lib/pricing-service';
+import { effectiveUnitPrice } from '@/lib/pricing';
 import { scoreOrderRisk } from '@/lib/fraud';
 import { applyCoupon, claimCouponRedemption } from '@/lib/coupon-service';
 import { maxRedeemablePoints, pointsToPiastres } from '@/lib/loyalty';
@@ -110,17 +112,29 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
 
   if (reservations.length === 0 && preorders.length === 0) throw new Error('EMPTY_CART');
 
-  let subtotal = 0n;
-  for (const r of reservations) {
-    subtotal += (r.lot.priceOverridePiastres ?? r.lot.product.basePricePiastres) * BigInt(r.qty);
-  }
-  for (const l of preorders) {
-    subtotal += preById.get(l.productId)!.basePricePiastres * BigInt(l.qty);
-  }
   // Per-item earned points use the customer's tier rate — must match what
   // creditOrderPoints will actually credit, or LOST-item clawbacks under-claw.
   const custTier = customerId ? await prisma.customer.findUnique({ where: { id: customerId }, select: { tierId: true, tier: { select: { earnRatePerEgp: true } } } }) : null;
   const earnRate = custTier?.tier?.earnRatePerEgp ?? 1;
+
+  // Tier pricing (FR-PRC-03). The PDP advertised the tier price but every
+  // money path — cart, subtotal, order line — charged the lot/base price, so
+  // the discount was never actually granted (Codex audit P0). Resolved once
+  // here and reused for the order lines below so the two cannot diverge.
+  const tierPrices = await tierPriceMap(
+    [...reservations.map((r) => r.lot.productId), ...preorders.map((l) => l.productId)],
+    custTier?.tierId ?? null,
+  );
+  const unitFor = (productId: string, base: bigint, lotOverride?: bigint | null) =>
+    effectiveUnitPrice({ basePiastres: base, lotOverridePiastres: lotOverride, tierPiastres: tierPrices.get(productId) });
+
+  let subtotal = 0n;
+  for (const r of reservations) {
+    subtotal += unitFor(r.lot.productId, r.lot.product.basePricePiastres, r.lot.priceOverridePiastres) * BigInt(r.qty);
+  }
+  for (const l of preorders) {
+    subtotal += unitFor(l.productId, preById.get(l.productId)!.basePricePiastres) * BigInt(l.qty);
+  }
 
   // Tier benefits matrix (guests resolve to the base tier). Gates ship granted-
   // to-all (today's behavior); they only bite once the admin unticks a tier.
@@ -225,7 +239,7 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
     });
 
     for (const r of reservations) {
-      const unit = r.lot.priceOverridePiastres ?? r.lot.product.basePricePiastres;
+      const unit = unitFor(r.lot.productId, r.lot.product.basePricePiastres, r.lot.priceOverridePiastres);
       await tx.orderItem.create({
         data: {
           orderId: ord.id,
@@ -262,7 +276,7 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
           productId: p.id,
           lotId: null,
           qty: l.qty,
-          unitPricePiastres: p.basePricePiastres,
+          unitPricePiastres: unitFor(p.id, p.basePricePiastres),
           preorder: true,
           weightG: p.weightG,
           pointsEarned: 0,

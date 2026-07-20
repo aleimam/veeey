@@ -2,6 +2,8 @@ import { cookies } from 'next/headers';
 import { randomUUID } from 'node:crypto';
 import { prisma } from '@/lib/prisma';
 import { reserveStock, releaseReservation } from '@/lib/inventory-service';
+import { tierPriceMap, currentTierId } from '@/lib/pricing-service';
+import { effectiveUnitPrice } from '@/lib/pricing';
 import {
   PREORDER_COOKIE, parsePreorderCart, serializePreorderCart, addPreorderLine,
   setPreorderQty as setPreorderQtyPure, removePreorderLine, preorderCount, type PreorderLine,
@@ -125,12 +127,19 @@ export async function getCart(cartId: string, locale = 'en'): Promise<CartLine[]
       data: { expiresAt: new Date(Date.now() + CART_HOLD_MIN * 60_000) },
     });
   }
+  // Tier pricing (FR-PRC-03): the cart must quote what checkout will charge.
+  const tierPrices = await tierPriceMap(res.map((r) => r.lot.productId), await currentTierId());
+
   // Lines group by product × condition, so a NEW line and an Open-box line of
   // the same product stay separate (different prices, separate qty controls).
   const map = new Map<string, CartLine>();
   for (const r of res) {
     const p = r.lot.product;
-    const unit = Number(r.lot.priceOverridePiastres ?? p.basePricePiastres);
+    const unit = Number(effectiveUnitPrice({
+      basePiastres: p.basePricePiastres,
+      lotOverridePiastres: r.lot.priceOverridePiastres,
+      tierPiastres: tierPrices.get(p.id),
+    }));
     const key = `${p.id}:${r.lot.condition}`;
     const line = map.get(key) ?? {
       productId: p.id,
