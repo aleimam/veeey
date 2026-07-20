@@ -46,7 +46,26 @@ export async function dispatchOutbox(limit = 20): Promise<{ sent: number; failed
         method: 'POST',
         headers: { 'content-type': 'application/json', 'X-Client-Id': VEEEY_CLIENT_ID, 'X-Timestamp': ts, 'X-Nonce': nonce, 'X-Signature': sig, 'Idempotency-Key': ev.id },
         body,
+        // Do NOT follow redirects. The signature covers `canonicalPath`, so
+        // YELDNIN_BASE_URL must already end in /api/integration/v1 — and if it
+        // doesn't, the POST lands on an app route that 307s to a page. fetch
+        // would follow that, get a 200, and we would record SENT for an event
+        // the receiver never saw. That silent false-success cost a debugging
+        // cycle on veeey.net; a redirect is now a hard failure.
+        redirect: 'manual',
       });
+      if (res.status >= 300 && res.status < 400) {
+        await prisma.outboxEvent.update({
+          where: { id: ev.id },
+          data: {
+            ...backoff(ev.attempts + 1),
+            attempts: ev.attempts + 1,
+            lastError: `redirect_${res.status} — YELDNIN_BASE_URL must end in /api/integration/v1`,
+          },
+        });
+        failed += 1;
+        continue;
+      }
       if (res.ok) {
         await prisma.outboxEvent.update({ where: { id: ev.id }, data: { status: 'SENT', sentAt: new Date(), attempts: ev.attempts + 1, lastError: null } });
         sent += 1;
