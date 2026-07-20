@@ -2169,3 +2169,70 @@ model TierBenefit {
   tiers      Tier[]    @relation("TierBenefits")
   createdAt  DateTime  @default(now())
 }
+
+// ── Off-site backup (BACKUP.md) ─────────────────────────────────────────────
+// Scheduled archives of the database + uploaded files, pushed to the shared
+// Hetzner Storage Box over SFTP. Levels are independent: each owns its cadence,
+// contents, remote FOLDER and retention, which keeps every folder homogeneous
+// so retention is simply "keep the newest N in this folder".
+//
+// ⚠ Shared storage: this app MUST use its own sub-account, its own folders and
+// its own ARCHIVE_PREFIX (`veeey-backup-`). See BACKUP.md §2.
+
+/// Single-row connection config. The password is encrypted at rest and is never
+/// sent to the browser.
+model BackupConfig {
+  id              String    @id @default(cuid())
+  singleton       String    @unique @default("BACKUP")
+  enabled         Boolean   @default(false)
+  protocol        String    @default("SFTP") // SFTP | FTPS
+  host            String?
+  port            Int       @default(23) // Hetzner Storage Box serves SSH/SFTP on 23
+  username        String?
+  passwordEnc     String? // AES-256-GCM, key derived from AUTH_SECRET
+  remotePath      String    @default("/home") // a sub-account sees its base dir as /home
+  secure          Boolean   @default(true) // FTPS explicit TLS only
+  notifyOnFailure Boolean   @default(true)
+  lastTestAt      DateTime?
+  lastTestOk      Boolean?
+  lastTestMessage String?
+  lastRunAt       DateTime?
+  updatedAt       DateTime  @default(now()) @updatedAt
+}
+
+/// One independently-scheduled level. `frequency = OFF` is never due, which is
+/// how the MANUAL level stays button-only.
+model BackupTier {
+  id         String    @id @default(cuid())
+  key        String    @unique // HOURLY | DAILY | WEEKLY | MANUAL
+  enabled    Boolean   @default(true)
+  frequency  String    @default("DAILY") // OFF | HOURLY | DAILY | WEEKLY | MONTHLY
+  everyN     Int       @default(1) // every N hours/days/weeks/months
+  hourUtc    Int       @default(2)
+  weekday    Int       @default(0) // 0=Sun..6=Sat
+  dayOfMonth Int       @default(1) // 1..28
+  contents   String    @default("FULL") // DB | FULL
+  remotePath String    @default("/home")
+  keepLast   Int       @default(7) // 0 = keep all
+  sortOrder  Int       @default(0)
+  lastRunAt  DateTime?
+  updatedAt  DateTime  @default(now()) @updatedAt
+
+  @@index([sortOrder])
+}
+
+/// One row per attempt — the history/audit trail.
+model BackupRun {
+  id         String    @id @default(cuid())
+  tierKey    String?
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  status     String // RUNNING | SUCCESS | FAILED
+  trigger    String // MANUAL | SCHEDULED
+  contents   String    @default("") // what it ACTUALLY held: "db" | "db,uploads"
+  fileName   String?
+  sizeBytes  BigInt?
+  error      String?
+
+  @@index([startedAt])
+}
