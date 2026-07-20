@@ -257,6 +257,42 @@ Same brief every time; change only the `THIS PASS` line.
 | 11 | **UI/UX: storefront** (§B2–B6) — responsive, a11y, states, PDP→checkout flow |
 | 12 | **UI/UX: admin** (§B2–B6) — responsive, a11y, states, daily operator flows |
 | 13 | **UI/UX: enhancements synthesis** — turn passes 10–12 into Section 2 |
+| 14 | **off-site backup module** (newest code — see §9a) |
+
+### 9a. Pass 14 scope — the off-site backup module
+
+Added after this brief was first written (`prisma/migrations/20260720010000_backup_module`,
+`src/lib/backup/{secret-box,backup-logic,backup-service}.ts`, models `BackupConfig` /
+`BackupTier` / `BackupRun`). It handles **a stored credential, a full DB dump, and an
+outbound file transfer**, so it is worth its own pass. Focus on:
+
+- **Secret handling** (`secret-box.ts`): AES-256-GCM with a key derived from `AUTH_SECRET`
+  via HKDF. Confirm the plaintext password can never reach a log, an API/server-action
+  response, the admin UI, a `BackupRun.error` string, or an `audit()` payload. Check that
+  `decryptSecret` returning `null` (rotated `AUTH_SECRET` / corrupt value) fails **safely
+  and visibly** rather than silently attempting an unauthenticated or passwordless connect.
+- **Command execution** (`backup-service.ts`): `execFile('pg_dump', …)` and the `tar`
+  archive step. Verify no user- or DB-controlled value can reach an argument vector or a
+  shell; that `remotePath` / `fileName` cannot traverse (`..`, absolute paths, separators)
+  on either the local staging path or the remote SFTP path.
+- **Retention deletion** — the single most destructive path here. `keepLast` pruning issues
+  remote `client.delete(...)`. Prove it can only ever delete files this module created, in
+  the configured directory, and that `keepLast = 0` really means "keep all" and can never be
+  read as "delete everything". Check the ordering/selection logic that picks deletion
+  candidates (`backup-logic.ts` is pure — read its tests, then look for cases they miss).
+- **Scheduling correctness** (`backup-logic.ts`): due-time math across `everyN` / `hourUtc` /
+  `weekday` / `dayOfMonth`, DST and timezone drift, `frequency = OFF` never being due, and
+  MANUAL staying button-only. Then reentrancy: two worker ticks overlapping, a `RUNNING`
+  row never finishing, and whether `lastRunAt` is stamped on failure in a way that skips the
+  next window.
+- **Failure paths**: temp-dir cleanup on every branch (`fs.rm` in a `finally`), disk pressure
+  from a large `FULL` archive, partial/aborted uploads leaving a truncated remote file that a
+  later restore would trust, and whether `BackupRun.contents` can ever claim more than the
+  archive actually held.
+- **AuthZ**: every backup server action and route must be permission-gated server-side
+  (§4.4) — this module can exfiltrate the entire database, so treat a missing gate as P0.
+- **Restore honesty**: if nothing verifies a produced archive, say so — an untested backup
+  is a latent data-loss finding, not a passing check.
 
 ---
 
