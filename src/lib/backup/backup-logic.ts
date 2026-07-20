@@ -39,7 +39,15 @@ export function isBackupProtocol(v: unknown): v is BackupProtocol {
  * outbound firewall blocks and the kernel's FTP conntrack helper cannot rescue
  * (TLS hides the control channel). See BACKUP.md §8.2.
  */
-export const defaultPortFor = (p: BackupProtocol): number => (p === 'SFTP' ? 22 : 21);
+/**
+ * 23, not the usual 22: the Hetzner Storage Box serves SSH/SFTP on **23**.
+ * Port 22 also answers there but is chrooted to the account home, so the same
+ * remote path silently resolves to a DIFFERENT directory — writing `/home/x`
+ * over 22 creates `/home/home/x` and the run still reports success
+ * (BACKUP.md §8.1). Defaulting to 22 would hand that trap to anyone who wires
+ * this into the form, so the default matches the schema's and clampPort's 23.
+ */
+export const defaultPortFor = (p: BackupProtocol): number => (p === 'SFTP' ? 23 : 21);
 
 function clampInt(n: unknown, min: number, max: number, fallback: number): number {
   const v = typeof n === 'number' ? n : Number(n);

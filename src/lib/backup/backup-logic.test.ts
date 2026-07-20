@@ -12,6 +12,7 @@ import {
   isBackupProtocol,
   defaultPortFor,
   clampEveryN,
+  clampPort,
   clampKeep,
   explainPathError,
   contentsList,
@@ -177,7 +178,10 @@ describe('helpers', () => {
     expect(isTierContents('DB')).toBe(true);
     expect(isTierContents('db')).toBe(false);
     expect(isBackupProtocol('SFTP')).toBe(true);
-    expect(defaultPortFor('SFTP')).toBe(22);
+    // 23, not 22 — the Storage Box's port 22 is chrooted and silently nests
+    // the remote path (BACKUP.md §8.1). Must agree with clampPort's fallback.
+    expect(defaultPortFor('SFTP')).toBe(23);
+    expect(clampPort('nonsense')).toBe(23);
     expect(clampEveryN(0)).toBe(1);
     expect(clampEveryN(99999)).toBe(365);
     expect(clampKeep(undefined, 7)).toBe(7);

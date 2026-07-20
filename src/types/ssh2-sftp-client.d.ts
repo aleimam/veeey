@@ -31,6 +31,10 @@ declare module 'ssh2-sftp-client' {
     mkdir(remotePath: string, recursive?: boolean): Promise<string>;
     list(remotePath: string): Promise<FileInfo[]>;
     fastPut(localPath: string, remotePath: string): Promise<string>;
+    /** Download — used by the restore drill (scripts/backup-verify.ts). */
+    fastGet(remotePath: string, localPath: string): Promise<string>;
+    /** Remote size, so a download can be checked byte-exact (BACKUP.md §11.1). */
+    stat(remotePath: string): Promise<{ size: number; isFile: boolean }>;
     delete(remotePath: string): Promise<string>;
     end(): Promise<void>;
   }
