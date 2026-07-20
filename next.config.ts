@@ -4,6 +4,15 @@ import createNextIntlPlugin from 'next-intl/plugin';
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 const nextConfig: NextConfig = {
+  // `ssh2` (via ssh2-sftp-client, the backup SFTP transport) MUST stay external:
+  // it ships an optional native `sshcrypto.node` and webpack has no loader for a
+  // binary, so bundling it fails the build outright.
+  //
+  // ⚠ This does NOT reproduce everywhere. The addon only exists once ssh2's
+  // install script has run — production `npm ci` builds it, while a dev box with
+  // npm script-blocking never has the file. A green local build therefore does
+  // not clear this; it took YeldnIN's production site down. See BACKUP.md §10.1.
+  serverExternalPackages: ['ssh2', 'ssh2-sftp-client'],
   // Imported product images are still served from Egypt Vitamins' BunnyCDN until
   // they're re-hosted on Veeey storage (follow-up). Allowlist those hosts so
   // next/image can load them.

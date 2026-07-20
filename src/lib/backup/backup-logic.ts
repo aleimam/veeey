@@ -5,7 +5,14 @@
 export const BACKUP_FREQUENCIES = ['OFF', 'HOURLY', 'DAILY', 'WEEKLY', 'MONTHLY'] as const;
 export type BackupFrequency = (typeof BACKUP_FREQUENCIES)[number];
 
-export const BACKUP_PROTOCOLS = ['SFTP', 'FTPS'] as const;
+/**
+ * SFTP only — deliberately. FTPS cannot reach the Storage Box from these
+ * servers at all: the host resolves IPv6-first and its FTP server can't build an
+ * IPv6 passive listener, and even over IPv4 the passive data port is refused by
+ * the CSF outbound firewall, which the FTP conntrack helper can't rescue because
+ * TLS hides the control channel. Offering it would only be a trap. (BACKUP.md §8.2)
+ */
+export const BACKUP_PROTOCOLS = ['SFTP'] as const;
 export type BackupProtocol = (typeof BACKUP_PROTOCOLS)[number];
 
 /**

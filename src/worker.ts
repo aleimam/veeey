@@ -42,6 +42,7 @@ async function main() {
   await boss.createQueue(QUEUES.integrationV2Sweep);
   await boss.createQueue(QUEUES.optionalRefill);
   await boss.createQueue(QUEUES.integrationDispatch);
+  await boss.createQueue(QUEUES.backupSweep);
 
   await boss.work(QUEUES.notify, async ([job]) => {
     await notify(job.data as NotifyInput);
@@ -169,6 +170,12 @@ async function main() {
 
   // Contract v2 §5 safety net: nightly full re-push of products + registered
   // customers to YeldnIN. No-op unless integration.v2.enabled is armed.
+  await boss.work(QUEUES.backupSweep, async () => {
+    const { runDueBackups } = await import('@/lib/backup/backup-service');
+    const r = await runDueBackups();
+    if (r.ran) console.log('[worker] backup: ' + r.results.map((x) => x.tier + '=' + x.status).join(' '));
+  });
+
   await boss.work(QUEUES.integrationV2Sweep, async () => {
     const { sweepV2 } = await import('@/lib/integration/product-customer-sync');
     const r = await sweepV2();
@@ -244,6 +251,10 @@ async function main() {
   await boss.schedule(QUEUES.integrationDispatch, '*/2 * * * *', {});
   // Contract v2 nightly full re-push (products + customers) 02:30 UTC — no-op until armed.
   await boss.schedule(QUEUES.integrationV2Sweep, '30 2 * * *', {});
+  // Off-site backup tick every 10 min. The tick only ASKS — each level carries
+  // its own cadence (BACKUP.md) and the app decides which are due. No-op until
+  // backups are enabled and configured.
+  await boss.schedule(QUEUES.backupSweep, '*/10 * * * *', {});
   console.log('[worker] started — notify + alerts + woo-sync + audit queues registered, schedules set.');
 }
 
