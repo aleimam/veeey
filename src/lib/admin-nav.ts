@@ -87,6 +87,7 @@ export const NAV_SECTIONS: AdminNavSection[] = [
     { href: '/admin/order-statuses', key: 'orderStatuses', permission: 'settings.manage' },
     { href: '/admin/change-log', key: 'changeLog', permission: 'settings.manage' },
     { href: '/admin/error-log', key: 'errorLog', permission: 'settings.manage' },
+    { href: '/admin/backup', key: 'backup', permission: 'settings.manage' },
   ] },
   // Integrations & API — every external connection/API EXCEPT the Egypt Vitamins
   // migration link, which stays in its own group (req: gather integrations here).

@@ -90,7 +90,8 @@
       "wooOrders": "Orders",
       "wooImport": "Import (dry-run)",
       "wooSync": "Live sync",
-      "wooCleanup": "Cleanup junk"
+      "wooCleanup": "Cleanup junk",
+      "backup": "Backup"
     },
     "common": {
       "new": "New",

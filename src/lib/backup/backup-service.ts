@@ -197,7 +197,10 @@ async function buildArchive(kind: ArchiveKind, tmpDir: string, archivePath: stri
   if (withUploads) {
     const src = path.join(process.cwd(), 'public', 'uploads');
     if (await pathExists(src)) {
-      await fs.cp(src, path.join(stage, 'uploads'), { recursive: true });
+      // SYMLINK rather than copy: uploads are ~1.2 GB here, so copying them into
+      // the staging dir would burn several minutes and ~2.4 GB of transient disk
+      // on a live storefront. tar dereferences it via `follow` below.
+      await fs.symlink(src, path.join(stage, 'uploads'), 'dir');
       entries.push('uploads');
     }
   }
@@ -216,7 +219,18 @@ async function buildArchive(kind: ArchiveKind, tmpDir: string, archivePath: stri
   entries.push('manifest.json');
 
   const tar = await import('tar');
-  await tar.create({ gzip: true, cwd: stage, file: archivePath }, entries);
+  await tar.create(
+    {
+      // Level 1 for upload-bearing archives: product images are already-compressed
+      // webp/jpeg, so higher levels cost minutes of CPU for a negligible saving.
+      // db-only archives are a pg_dump and compress genuinely well, so full effort.
+      gzip: withUploads ? { level: 1 } : true,
+      cwd: stage,
+      file: archivePath,
+      follow: true, // dereference the uploads symlink staged above
+    },
+    entries,
+  );
   return actual;
 }
 
