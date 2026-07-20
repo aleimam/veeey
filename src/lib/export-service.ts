@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/auth-guards';
+import { dayRangeFilter } from '@/lib/date-filter';
 
 /** Excel/CSV export (FR-ORD-11). CSV opens directly in Excel; selectable date
  *  range. Columns mirror the admin order list. */
@@ -14,11 +15,12 @@ function toCsv(rows: unknown[][]): string {
 
 export async function exportOrdersCsv(opts: { from?: string; to?: string } = {}): Promise<string> {
   await requirePermission('orders.read');
+  // Shared day-range helper — the export used to cut `to` off at midnight while
+  // the list ran to end-of-day, so CSVs silently dropped the final day.
+  const placedAt = dayRangeFilter(opts.from, opts.to);
   const orders = await prisma.order.findMany({
     where: {
-      ...(opts.from || opts.to
-        ? { placedAt: { ...(opts.from ? { gte: new Date(opts.from) } : {}), ...(opts.to ? { lte: new Date(opts.to) } : {}) } }
-        : {}),
+      ...(placedAt ? { placedAt } : {}),
     },
     include: { customer: { include: { user: { select: { email: true } } } }, pharmacist: { select: { name: true } }, _count: { select: { items: true } } },
     orderBy: { placedAt: 'desc' },

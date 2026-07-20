@@ -11,6 +11,7 @@ import { deriveSystemMethod } from '@/lib/payment-method-service';
 import { availableQty } from '@/lib/inventory';
 import { getShippingFee, type ShippingTypeKey } from '@/lib/shipping-service';
 import { getNumberSetting } from '@/lib/settings-service';
+import { dayRangeFilter } from '@/lib/date-filter';
 import { creditOrderPoints, creditReferralReward, reverseOrderPoints, recomputeLoyaltyStanding } from '@/lib/loyalty-service';
 import { applyGiftRules } from '@/lib/gift-rule-service';
 import { enqueue, QUEUES } from '@/lib/jobs';
@@ -101,9 +102,8 @@ function orderWhere(opts: OrderListOpts): Prisma.OrderWhereInput {
       : opts.search
         ? { OR: [{ number: { contains: opts.search, mode: 'insensitive' } }, { guestEmail: { contains: opts.search, mode: 'insensitive' } }] }
         : {}),
-    ...(opts.from || opts.to
-      ? { placedAt: { ...(opts.from ? { gte: new Date(opts.from) } : {}), ...(opts.to ? { lte: new Date(`${opts.to}T23:59:59`) } : {}) } }
-      : {}),
+    // Same helper the CSV export uses, so list and export can never disagree.
+    ...(dayRangeFilter(opts.from, opts.to) ? { placedAt: dayRangeFilter(opts.from, opts.to)! } : {}),
     ...((() => {
       const min = totalPiastres(opts.minTotal);
       const max = totalPiastres(opts.maxTotal);
