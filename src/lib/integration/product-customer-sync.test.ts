@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { distinctVariationName, absolutePhotoUrls, productToWireV2, customerToWireV2 } from './product-customer-sync';
+import { distinctVariationName, absolutePhotoUrls, productToWireV2, customerToWireV2, v2GateDecision } from './product-customer-sync';
 
 const baseProduct = {
   id: 'p1', integrationSku: '120057', legacyWpId: 120057, nameEn: 'Vitamin D3 5000IU',
@@ -64,5 +64,37 @@ describe('customerToWireV2 (contract v2 §2 — registered only by construction)
   it('flags archived on account deletion', () => {
     expect(customerToWireV2({ id: 'c3', firstName: null, lastName: null, user: { name: null, phone: null } }, true))
       .toMatchObject({ veeeyCustomerId: 'c3', archived: true });
+  });
+});
+
+describe('v2GateDecision — products and customers arm separately', () => {
+  const g = (integration: boolean, v2: boolean, customers: boolean) =>
+    v2GateDecision({ integration, v2, customers });
+
+  it('THE POINT: v2 armed with customers off pushes products only', () => {
+    // veeey.net's situation: it must mirror the catalog without re-creating
+    // ~16,200 customers that YeldnIN already holds from veeey.com.
+    expect(g(true, true, false)).toEqual({ products: true, customers: false });
+  });
+
+  it('customers can never emit while products are off', () => {
+    // Guards against "customers: true" being set on a store whose v2 is off —
+    // the nightly sweep must not treat that as permission.
+    expect(g(true, false, true)).toEqual({ products: false, customers: false });
+    expect(g(false, true, true)).toEqual({ products: false, customers: false });
+  });
+
+  it('the master integration switch overrides everything', () => {
+    expect(g(false, true, true)).toEqual({ products: false, customers: false });
+    expect(g(false, false, false)).toEqual({ products: false, customers: false });
+  });
+
+  it('all three on = full channel (veeey.com\'s original cutover state)', () => {
+    expect(g(true, true, true)).toEqual({ products: true, customers: true });
+  });
+
+  it('defaults to nothing enabled', () => {
+    expect(g(false, false, false).products).toBe(false);
+    expect(g(false, false, false).customers).toBe(false);
   });
 });

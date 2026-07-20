@@ -40,12 +40,55 @@ export type CustomerWireV2 = {
 };
 
 /** Is the v2 channel armed? (Setting `integration.v2.enabled` = '1'/'true'.) */
-export async function v2Enabled(): Promise<boolean> {
-  const { integrationEnabled } = await import('@/lib/integration/config');
-  if (!(await integrationEnabled())) return false;
-  const row = await prisma.setting.findUnique({ where: { key: 'integration.v2.enabled' } }).catch(() => null);
+/** A Setting read as a boolean flag ('1' | 'true' | 'on'). */
+async function flag(key: string): Promise<boolean> {
+  const row = await prisma.setting.findUnique({ where: { key } }).catch(() => null);
   const v = (row?.value ?? '').toLowerCase();
   return v === '1' || v === 'true' || v === 'on';
+}
+
+/**
+ * Which v2 channels are live, as PURE logic (the three switches are nested, not
+ * independent). Products need the integration + v2; customers additionally need
+ * their own flag, so customers can never emit while products are off.
+ */
+export function v2GateDecision(f: { integration: boolean; v2: boolean; customers: boolean }): {
+  products: boolean;
+  customers: boolean;
+} {
+  const products = f.integration && f.v2;
+  return { products, customers: products && f.customers };
+}
+
+export async function v2Enabled(): Promise<boolean> {
+  const { integrationEnabled } = await import('@/lib/integration/config');
+  return v2GateDecision({
+    integration: await integrationEnabled(),
+    v2: await flag('integration.v2.enabled'),
+    customers: false,
+  }).products;
+}
+
+/**
+ * The CUSTOMER half of the v2 channel, gated separately from products.
+ *
+ * Why this exists: YeldnIN matches inbound customers on `veeeyCustomerId`
+ * (unique), falling back to a name match only where that field is NULL. Once one
+ * Veeey store has pushed its customers, a SECOND store pushing the same real
+ * people — different local ids, because the databases are separate — creates a
+ * duplicate for every one of them. Moving the integration from veeey.com to
+ * veeey.net would have added ~16,200 duplicates on top of the existing ~16,234.
+ *
+ * Products are safe to share: both stores derive `integrationSku` from the same
+ * WordPress id, so they land on the SAME YeldnIN row. Customers have no such
+ * shared key, so they need their own switch.
+ *
+ * Defaults OFF — including on a store where v2 products are armed. Turn it on
+ * only for the store that owns the customer records.
+ */
+export async function v2CustomersEnabled(): Promise<boolean> {
+  if (!(await v2Enabled())) return false;
+  return flag('integration.v2.customers');
 }
 
 // ---------- pure helpers (unit-tested) --------------------------------------
@@ -183,7 +226,9 @@ export async function emitProductUpsertV2(productId: string, opts: { archived?: 
 
 export async function emitCustomerUpsertV2(customerId: string, opts: { archived?: boolean } = {}): Promise<void> {
   try {
-    if (!(await v2Enabled())) return;
+    // Customers have their own switch — see v2CustomersEnabled for why sharing
+    // one flag with products would duplicate every customer on a second store.
+    if (!(await v2CustomersEnabled())) return;
     const c = await prisma.customer.findUnique({
       where: { id: customerId },
       select: { id: true, firstName: true, lastName: true, user: { select: { name: true, phone: true } } },
@@ -226,9 +271,13 @@ export async function sweepV2(): Promise<{ products: number; customers: number }
     if (batch.length < 500) break;
   }
 
-  // All registered customers (guests never have Customer rows).
+  // All registered customers (guests never have Customer rows) — but ONLY when
+  // this store owns the customer records. Without this guard the nightly sweep
+  // would re-push every customer regardless of the per-emitter gate, which is
+  // exactly how ~16k duplicates would reach YeldnIN overnight.
+  const customersOn = await v2CustomersEnabled();
   cursor = undefined;
-  for (;;) {
+  for (; customersOn; ) {
     const batch: Array<{ id: string; firstName: string | null; lastName: string | null; user: { name: string | null; phone: string | null } }> =
       await prisma.customer.findMany({
         select: { id: true, firstName: true, lastName: true, user: { select: { name: true, phone: true } } },
