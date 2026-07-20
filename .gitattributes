@@ -1,0 +1,18 @@
+# Line-ending policy.
+#
+# This repo is developed on Windows with `core.autocrlf=true`, and veeey.net is
+# deployed by `git archive` → tarball. Without the rule below, archive exports
+# shell scripts with CRLF, so the kernel reads the shebang as
+# `#!/usr/bin/env bash\r` and every cron dies with:
+#
+#     /usr/bin/env: 'bash\r': No such file or directory
+#
+# That silently took all seven net-sync crons down on 2026-07-20 (including the
+# 2-minute stock writeback) — the app itself was fine, so nothing else flagged
+# it. Anything executed by an interpreter on the server MUST be LF.
+*.sh   text eol=lf
+*.bash text eol=lf
+
+# Same reasoning for files a Linux tool parses strictly.
+Dockerfile   text eol=lf
+*.service    text eol=lf
