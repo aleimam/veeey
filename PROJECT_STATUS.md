@@ -7,6 +7,35 @@
 
 ## Current state
 
+- **🆕 Off-site BACKUP module BUILT 2026-07-20 (`1c0075e`→`53dd8c4`) — NOT yet enabled.**
+  Admin screen **`/admin/backup`** (settings.manage, bilingual, audited): SFTP destination +
+  **four independent levels** (Frequent / Daily / Weekly / Manual), each with its own
+  frequency + **`everyN`** multiplier, contents (**DB** or **FULL**), remote **folder** and
+  keep-last. Driven by a pg-boss **`backup-sweep`** tick every 10 min — the tick only ASKS;
+  each level decides from its own cadence, so one failing never blocks another. Snapshots via
+  **`pg_dump -Fc`** (client 13.23 is on the box); the manifest records the restore command
+  (`pg_restore -d <db> database.dump`). Password encrypted at rest by a new
+  `src/lib/backup/secret-box.ts` (AES-256-GCM from `AUTH_SECRET` — this repo had no at-rest
+  secret encryption before).
+  **Tuned for THIS store's data shape:** uploads are **1.2 GB** (~25× YeldnIN's), so FULL
+  archives stage them by **symlink + tar `follow`** rather than copying (a copy would cost
+  minutes and ~2.4 GB of transient disk on a live storefront) and use **gzip level 1** —
+  product images are already-compressed webp/jpeg, so higher levels buy nothing. db-only
+  archives keep full compression.
+  ⚠ **Shared Storage Box with YeldnIN and NOC.** Our archive prefix is **`veeey-backup-`**
+  and tests assert we refuse to even RECOGNISE a `yeldnin-`/`noc-` archive — that prefix is
+  what stops one app's retention deleting another app's backups. Never reuse another's
+  folder or prefix.
+  ⚠ **`serverExternalPackages: ['ssh2','ssh2-sftp-client']`** in `next.config.ts` is REQUIRED,
+  not tidiness: ssh2 ships an optional native `sshcrypto.node` that webpack cannot bundle.
+  It does **not** reproduce on a dev box whose npm blocks install scripts — this exact
+  omission took YeldnIN's production site down. A green local build does not clear it.
+  Full spec + every gotcha: **`C:\Claude\YeldnIN\BACKUP.md`**.
+  **Blocked on the owner before it can run:** (1) veeey.com has **no Storage Box sub-account**
+  (sub1=YeldnIN, sub2=veeey.net, sub3=ev.com) — create one; (2) apply the migration and enter
+  the credentials at `/admin/backup`. It ships **disabled and unconfigured**, so deploying it
+  changes nothing until then. **No restore drill has been done for Veeey yet** — do one
+  (BACKUP.md §11.1) before trusting it.
 - **Live** at **veeey.com** and **veeey.net** — **BOTH stores deployed `cc1ef59` (2026-07-19)**.
   **🚀 Contract v2 products/customers channel (INTEGRATION_V2_PRODUCTS_CUSTOMERS.md) ARMED + CUTOVER
   COMPLETE on veeey.com** (`integration.v2.enabled=1`): pushed **2,548 products (2,545 adopted
