@@ -269,3 +269,45 @@ export function formatBytes(n: number | null | undefined): string {
   }
   return `${v.toFixed(v >= 10 || i === 0 ? 0 : 1)} ${units[i]}`;
 }
+
+/**
+ * Prisma-only connection-string parameters. libpq (`pg_dump`, `psql`,
+ * `pg_restore`) rejects anything it doesn't recognise outright — a
+ * `?schema=public` produces `invalid URI query parameter: "schema"` and the
+ * backup fails with a confusing "connection to database "" failed".
+ *
+ * This bit veeey.net: its DATABASE_URL carries `?schema=public` (veeey.com's
+ * does not), so scheduled backups failed there while working on .com.
+ */
+const PRISMA_ONLY_PARAMS = [
+  'schema', 'connection_limit', 'pool_timeout', 'socket_timeout',
+  'pgbouncer', 'statement_cache_size', 'sslidentity', 'sslaccept',
+];
+
+/**
+ * A DATABASE_URL safe to hand to libpq tools: Prisma-only parameters removed,
+ * everything libpq understands (sslmode, connect_timeout, application_name, …)
+ * left intact. Returns the input unchanged if it isn't parseable, so a weird
+ * URL still reaches pg_dump and produces pg_dump's own error rather than ours.
+ */
+export function libpqUrl(raw: string): string {
+  let u: URL;
+  try { u = new URL(raw); } catch { return raw; }
+  for (const p of PRISMA_ONLY_PARAMS) u.searchParams.delete(p);
+  // Drop a now-empty "?" so the result is the plain URL people expect in logs.
+  const qs = u.searchParams.toString();
+  u.search = qs ? `?${qs}` : '';
+  return u.toString();
+}
+
+/**
+ * Remove passwords from any text before it is logged, stored or displayed.
+ *
+ * REQUIRED, not cosmetic: `execFile` includes the full argv in its error
+ * message, and libpq tools take the connection URL as an argument — so an
+ * unsanitised failure writes the database password into `BackupRun.error`,
+ * where /admin/backup then renders it to anyone with settings.manage.
+ */
+export function redactUrl(text: string): string {
+  return text.replace(/((?:postgres(?:ql)?|mysql):\/\/[^:@\s/]+:)[^@\s]+@/gi, '$1***@');
+}

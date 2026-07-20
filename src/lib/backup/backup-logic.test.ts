@@ -14,6 +14,8 @@ import {
   clampEveryN,
   clampPort,
   normalizeArchivePrefix,
+  libpqUrl,
+  redactUrl,
   clampKeep,
   explainPathError,
   contentsList,
@@ -265,5 +267,52 @@ describe('per-store archive prefix (two stores, one Storage Box)', () => {
     expect(parseArchiveName('veeey.net-backup-db-20260720-020033.tar.gz', dotted)).not.toBeNull();
     // "veeeyXnet-..." must NOT match — it would if "." stayed a wildcard.
     expect(parseArchiveName('veeeyXnet-backup-db-20260720-020033.tar.gz', dotted)).toBeNull();
+  });
+});
+
+describe('libpqUrl (veeey.net backups failed on Prisma-only params)', () => {
+  it('strips ?schema=public — the exact param that broke veeey.net', () => {
+    // pg_dump: `invalid URI query parameter: "schema"` → the whole backup failed.
+    expect(libpqUrl('postgresql://u:p@127.0.0.1:5432/veeey?schema=public'))
+      .toBe('postgresql://u:p@127.0.0.1:5432/veeey');
+  });
+
+  it('KEEPS parameters libpq understands', () => {
+    const out = libpqUrl('postgresql://u:p@h:5432/db?sslmode=require&application_name=veeey');
+    expect(out).toContain('sslmode=require');
+    expect(out).toContain('application_name=veeey');
+  });
+
+  it('strips only the Prisma-only ones from a mixed query string', () => {
+    const out = libpqUrl('postgresql://u:p@h:5432/db?schema=public&sslmode=require&connection_limit=5&pgbouncer=true');
+    expect(out).toBe('postgresql://u:p@h:5432/db?sslmode=require');
+  });
+
+  it('leaves a clean URL untouched (veeey.com\'s case)', () => {
+    const clean = 'postgresql://u:p@127.0.0.1:5432/veeey';
+    expect(libpqUrl(clean)).toBe(clean);
+  });
+
+  it('returns unparseable input unchanged, so pg_dump reports its own error', () => {
+    expect(libpqUrl('not a url')).toBe('not a url');
+  });
+});
+
+describe('redactUrl (a failed backup printed the DB password into the admin UI)', () => {
+  it('removes the password from a pg_dump failure message', () => {
+    const real = 'Command failed: pg_dump --dbname postgresql://veeey:s3cr3tpw@127.0.0.1:5432/veeey -Fc';
+    const out = redactUrl(real);
+    expect(out).not.toContain('s3cr3tpw');
+    expect(out).toContain('postgresql://veeey:***@127.0.0.1:5432/veeey');
+  });
+
+  it('handles multiple URLs and mysql too (net-sync uses one)', () => {
+    const out = redactUrl('a postgres://x:aaa@h/d and mysql://y:bbb@h/d');
+    expect(out).not.toContain('aaa');
+    expect(out).not.toContain('bbb');
+  });
+
+  it('leaves text without credentials alone', () => {
+    expect(redactUrl('pg_dump not found on PATH')).toBe('pg_dump not found on PATH');
   });
 });

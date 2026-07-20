@@ -16,6 +16,8 @@ import {
   isBackupDue,
   backupFileName,
   normalizeArchivePrefix,
+  libpqUrl,
+  redactUrl,
   prunableArchives,
   contentsList,
   contentsToKind,
@@ -178,14 +180,17 @@ async function snapshotDb(dest: string): Promise<void> {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error('DATABASE_URL is not set — cannot dump the database.');
   try {
-    await execFileP('pg_dump', ['--dbname', url, '-Fc', '--no-owner', '--no-privileges', '-f', dest], {
+    await execFileP('pg_dump', ['--dbname', libpqUrl(url), '-Fc', '--no-owner', '--no-privileges', '-f', dest], {
       timeout: 30 * 60_000,
       maxBuffer: 10 * 1024 * 1024,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (/ENOENT/.test(msg)) throw new Error('pg_dump not found on PATH — install the postgresql client tools on this server.');
-    throw new Error(`pg_dump failed: ${msg.slice(0, 200)}`);
+    // redactUrl is essential, not cosmetic: execFile puts the whole argv in its
+    // error message and the connection URL is an argv, so an unsanitised throw
+    // writes the DB PASSWORD into BackupRun.error and renders it in /admin/backup.
+    throw new Error(`pg_dump failed: ${redactUrl(msg).slice(0, 300)}`);
   }
 }
 
@@ -294,7 +299,11 @@ export async function runBackup(
     await prisma.backupConfig.update({ where: { singleton: KEY }, data: { lastRunAt: new Date() } });
     return { ok: true, runId: run.id, fileName, sizeBytes };
   } catch (e) {
-    const error = e instanceof Error ? e.message : 'Backup failed.';
+    // Redact at the LAST gate too, not only where each error is raised: this
+    // string is persisted to BackupRun.error and rendered in /admin/backup, so a
+    // credential reaching here would be stored and displayed. (A pg_dump failure
+    // did exactly that on veeey.net — the DB password appeared in the UI.)
+    const error = redactUrl(e instanceof Error ? e.message : 'Backup failed.');
     await prisma.backupRun
       .update({ where: { id: run.id }, data: { status: 'FAILED', finishedAt: new Date(), error: error.slice(0, 500) } })
       .catch(() => {});
