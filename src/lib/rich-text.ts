@@ -1,4 +1,6 @@
-import 'server-only';
+// NOTE: deliberately NO `import 'server-only'` — see gsc-service.ts. Reached
+// from the worker via attribute-bulk-service, where that package is
+// unresolvable and would throw at import time.
 import sanitizeHtml from 'sanitize-html';
 import { scopeCss, extractStyleBlocks } from '@/lib/scoped-css';
 

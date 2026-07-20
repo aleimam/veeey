@@ -1,4 +1,6 @@
-import 'server-only';
+// NOTE: deliberately NO `import 'server-only'` — see gsc-service.ts. The
+// worker imports this module for the batch watermark job, and that package
+// only resolves through Next's bundler, never in the standalone tsx worker.
 import { readFile, writeFile, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import sharp from 'sharp';

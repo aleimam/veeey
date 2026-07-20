@@ -1,4 +1,8 @@
-import 'server-only';
+// NOTE: deliberately NO `import 'server-only'`. That package is supplied by
+// Next's bundler, not installed here, so it resolves inside the app but throws
+// "Cannot find module 'server-only'" in the STANDALONE tsx worker — and the
+// worker imports this module for the daily sitemap-submit job (worker.ts).
+// Server-side by construction: it reads DB settings and calls Google's API.
 import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
