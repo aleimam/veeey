@@ -8,6 +8,7 @@ import path from 'node:path';
 import { prisma } from '@/lib/prisma';
 import { decryptSecret } from '@/lib/backup/secret-box';
 import { parseArchiveName, ourArchives, formatBytes } from '@/lib/backup/backup-logic';
+import { archivePrefix } from '@/lib/backup/backup-service';
 
 /**
  * Off-site backup VERIFICATION + RESTORE DRILL (BACKUP.md §11 / §11.1).
@@ -73,6 +74,11 @@ async function main() {
   const password = decryptSecret(cfg.passwordEnc);
   if (!password) throw new Error('No stored password (or SESSION/AUTH secret rotated) — re-enter it at /admin/backup.');
 
+  // This store's own prefix — on a shared box the other store's archives must
+  // read as foreign here, exactly as they do to the pruner.
+  const PREFIX = archivePrefix();
+  console.log(`\nArchive prefix for this store: ${PREFIX}`);
+
   const tiers = await prisma.backupTier.findMany({ orderBy: { sortOrder: 'asc' } });
   const { default: SftpClient } = await import('ssh2-sftp-client');
   const client = new SftpClient();
@@ -98,8 +104,8 @@ async function main() {
         failures++;
         continue;
       }
-      const mine = ourArchives(names);
-      const foreign = names.filter((n) => parseArchiveName(n) === null);
+      const mine = ourArchives(names, PREFIX);
+      const foreign = names.filter((n) => parseArchiveName(n, PREFIX) === null);
       console.log(`  ${t.key.padEnd(6)} ${t.remotePath.padEnd(14)} ${String(mine.length).padStart(3)} archive(s)` +
         (foreign.length ? `, ${foreign.length} other file(s)/dir(s) — retention will ignore these` : ''));
       // A folder that should hold archives but is empty is the nested-path bug.
@@ -108,7 +114,7 @@ async function main() {
         failures++;
       }
       for (const n of mine) {
-        const p = parseArchiveName(n)!;
+        const p = parseArchiveName(n, PREFIX)!;
         candidates.push({ tier: t.key, dir: t.remotePath, name: n, at: p.at, kind: p.kind });
       }
     }

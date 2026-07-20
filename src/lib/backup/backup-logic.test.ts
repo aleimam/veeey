@@ -13,6 +13,7 @@ import {
   defaultPortFor,
   clampEveryN,
   clampPort,
+  normalizeArchivePrefix,
   clampKeep,
   explainPathError,
   contentsList,
@@ -201,5 +202,68 @@ describe('helpers', () => {
     expect(contentsList({ includeDb: true, includeUploads: true })).toEqual(['db', 'uploads']);
     expect(formatBytes(0)).toBe('—');
     expect(formatBytes(5 * 1024 * 1024)).toBe('5.0 MB');
+  });
+});
+
+describe('per-store archive prefix (two stores, one Storage Box)', () => {
+  const NET = 'veeey-net-backup-';
+
+  it('normalizes: empty/unset falls back to the default', () => {
+    expect(normalizeArchivePrefix(undefined)).toBe(ARCHIVE_PREFIX);
+    expect(normalizeArchivePrefix('')).toBe(ARCHIVE_PREFIX);
+    expect(normalizeArchivePrefix('   ')).toBe(ARCHIVE_PREFIX);
+  });
+
+  it('normalizes: appends the trailing dash so the name never runs together', () => {
+    expect(normalizeArchivePrefix('veeey-net-backup')).toBe(NET);
+    expect(normalizeArchivePrefix('veeey-net-backup-')).toBe(NET);
+  });
+
+  it('normalizes: rejects anything that would corrupt a path or the parser regex', () => {
+    // A slash would change the remote directory; whitespace breaks listings.
+    expect(normalizeArchivePrefix('../escape')).toBe(ARCHIVE_PREFIX);
+    expect(normalizeArchivePrefix('two words')).toBe(ARCHIVE_PREFIX);
+    expect(normalizeArchivePrefix('a/b')).toBe(ARCHIVE_PREFIX);
+  });
+
+  it('names archives with the store prefix', () => {
+    const at = new Date(Date.UTC(2026, 6, 20, 2, 0, 33));
+    expect(backupFileName(at, 'db', NET)).toBe('veeey-net-backup-db-20260720-020033.tar.gz');
+    expect(backupFileName(at, 'db')).toBe('veeey-backup-db-20260720-020033.tar.gz');
+  });
+
+  it('THE POINT: each store sees the other store\'s archives as foreign', () => {
+    const com = 'veeey-backup-db-20260720-020033.tar.gz';
+    const net = 'veeey-net-backup-db-20260720-020033.tar.gz';
+    // veeey.net's pruner must not recognise veeey.com's file…
+    expect(parseArchiveName(com, NET)).toBeNull();
+    expect(parseArchiveName(net, NET)).not.toBeNull();
+    // …and vice versa. Note `veeey-backup-` is NOT a prefix of the .net name,
+    // so this holds in both directions rather than only one.
+    expect(parseArchiveName(net, ARCHIVE_PREFIX)).toBeNull();
+    expect(parseArchiveName(com, ARCHIVE_PREFIX)).not.toBeNull();
+  });
+
+  it('THE POINT: retention never deletes the other store\'s archives, even at keep=1', () => {
+    const listing = [
+      'veeey-backup-full-20260718-020000.tar.gz',
+      'veeey-backup-full-20260719-020000.tar.gz',
+      'veeey-net-backup-full-20260718-020000.tar.gz',
+      'veeey-net-backup-full-20260719-020000.tar.gz',
+    ];
+    // If both stores were ever pointed at ONE folder, each prunes only its own.
+    const netPrunes = prunableArchives(listing, 1, NET);
+    expect(netPrunes).toEqual(['veeey-net-backup-full-20260718-020000.tar.gz']);
+    const comPrunes = prunableArchives(listing, 1, ARCHIVE_PREFIX);
+    expect(comPrunes).toEqual(['veeey-backup-full-20260718-020000.tar.gz']);
+  });
+
+  it('a prefix containing a regex metacharacter is matched literally', () => {
+    // normalizeArchivePrefix permits ".", which is a regex wildcard unescaped.
+    const dotted = normalizeArchivePrefix('veeey.net-backup');
+    expect(dotted).toBe('veeey.net-backup-');
+    expect(parseArchiveName('veeey.net-backup-db-20260720-020033.tar.gz', dotted)).not.toBeNull();
+    // "veeeyXnet-..." must NOT match — it would if "." stayed a wildcard.
+    expect(parseArchiveName('veeeyXnet-backup-db-20260720-020033.tar.gz', dotted)).toBeNull();
   });
 });

@@ -23,6 +23,29 @@ export type BackupProtocol = (typeof BACKUP_PROTOCOLS)[number];
  */
 export const ARCHIVE_PREFIX = 'veeey-backup-';
 
+/**
+ * Per-STORE prefix. One codebase runs two independent stores (veeey.com and
+ * veeey.net) that back up to the same Storage Box, so both would otherwise emit
+ * `veeey-backup-` and the prefix — §2.2's "last line of defence" — would not
+ * actually defend them from each other. Sub-accounts keep them apart today, but
+ * both are configured with the SAME `/home/*` folder paths, so one wrong host
+ * field would let one store's retention prune the other's archives.
+ *
+ * Set `BACKUP_ARCHIVE_PREFIX=veeey-net-backup-` on veeey.net.
+ *
+ * ⚠ Changing this on a store that ALREADY has archives orphans them: the parser
+ * stops recognising the old names, so they are never pruned (safe, but they
+ * accumulate and retention starts counting again from zero). Only set it on a
+ * store with an empty destination, or move the old files yourself.
+ */
+export function normalizeArchivePrefix(raw: string | undefined | null): string {
+  const v = (raw ?? '').trim();
+  // A prefix with a path separator or whitespace would corrupt both the remote
+  // path and the parser's regex, so anything unsafe falls back to the default.
+  if (!v || !/^[A-Za-z0-9._-]+$/.test(v)) return ARCHIVE_PREFIX;
+  return v.endsWith('-') ? v : `${v}-`;
+}
+
 export function isBackupFrequency(v: unknown): v is BackupFrequency {
   return typeof v === 'string' && (BACKUP_FREQUENCIES as readonly string[]).includes(v);
 }
@@ -151,16 +174,19 @@ export function isBackupDue(s: Schedule, lastRunAt: Date | null, now: Date): boo
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
-/** `veeey-backup-<kind>-YYYYMMDD-HHmmss.tar.gz`, stamped in UTC. */
-export function backupFileName(now: Date, kind: ArchiveKind = 'full'): string {
+/** `<prefix><kind>-YYYYMMDD-HHmmss.tar.gz`, stamped in UTC. */
+export function backupFileName(now: Date, kind: ArchiveKind = 'full', prefix: string = ARCHIVE_PREFIX): string {
   const stamp =
     `${now.getUTCFullYear()}${pad(now.getUTCMonth() + 1)}${pad(now.getUTCDate())}` +
     `-${pad(now.getUTCHours())}${pad(now.getUTCMinutes())}${pad(now.getUTCSeconds())}`;
-  return `${ARCHIVE_PREFIX}${kind}-${stamp}.tar.gz`;
+  return `${prefix}${kind}-${stamp}.tar.gz`;
 }
 
 const STAMP = String.raw`(\d{8})-(\d{6})`;
-const KINDED = new RegExp(`^${ARCHIVE_PREFIX}(db|full)-${STAMP}\\.tar\\.gz$`);
+/** Prefixes are validated by normalizeArchivePrefix to `[A-Za-z0-9._-]+`, but
+ *  `.` is a regex metacharacter, so escape before interpolating regardless. */
+const kindedRe = (prefix: string) =>
+  new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(db|full)-${STAMP}\\.tar\\.gz$`);
 
 function stampToDate(ymd: string, hms: string): Date | null {
   const d = new Date(
@@ -181,8 +207,8 @@ function stampToDate(ymd: string, hms: string): Date | null {
  * anything else — foreign files (including another app's archives on the shared
  * box) must never become deletion candidates.
  */
-export function parseArchiveName(name: string): { kind: ArchiveKind; at: Date } | null {
-  const m = KINDED.exec(name);
+export function parseArchiveName(name: string, prefix: string = ARCHIVE_PREFIX): { kind: ArchiveKind; at: Date } | null {
+  const m = kindedRe(prefix).exec(name);
   if (!m) return null;
   const at = stampToDate(m[2], m[3]);
   return at ? { kind: m[1] as ArchiveKind, at } : null;
@@ -190,9 +216,9 @@ export function parseArchiveName(name: string): { kind: ArchiveKind; at: Date } 
 
 /** Our archives in a remote listing, newest-first BY TIMESTAMP — with a kind
  *  segment in the name, lexical order is no longer chronological. */
-export function ourArchives(names: string[]): string[] {
+export function ourArchives(names: string[], prefix: string = ARCHIVE_PREFIX): string[] {
   return names
-    .map((n) => ({ n, p: parseArchiveName(n) }))
+    .map((n) => ({ n, p: parseArchiveName(n, prefix) }))
     .filter((x): x is { n: string; p: { kind: ArchiveKind; at: Date } } => x.p !== null)
     .sort((a, b) => b.p.at.getTime() - a.p.at.getTime())
     .map((x) => x.n);
@@ -205,9 +231,9 @@ export function ourArchives(names: string[]): string[] {
  * Safety, because this deletes real backups: unparseable/foreign files are never
  * returned, and with `keep >= 1` the newest archive can never be returned.
  */
-export function prunableArchives(names: string[], keep: number): string[] {
+export function prunableArchives(names: string[], keep: number, prefix: string = ARCHIVE_PREFIX): string[] {
   if (keep <= 0) return [];
-  return ourArchives(names).slice(keep);
+  return ourArchives(names, prefix).slice(keep);
 }
 
 /**

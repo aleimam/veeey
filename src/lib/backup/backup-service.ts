@@ -15,6 +15,7 @@ import { encryptSecret, decryptSecret } from './secret-box';
 import {
   isBackupDue,
   backupFileName,
+  normalizeArchivePrefix,
   prunableArchives,
   contentsList,
   contentsToKind,
@@ -46,6 +47,16 @@ export type ConfigRow = Awaited<ReturnType<typeof getRow>>;
 
 /** The level that operator-triggered ("Back up now") runs write to. */
 export const MANUAL_TIER_KEY = 'MANUAL';
+
+/**
+ * This store's archive prefix. One codebase serves two stores that share a
+ * Storage Box, so veeey.net sets `BACKUP_ARCHIVE_PREFIX=veeey-net-backup-` and
+ * veeey.com keeps the default — see normalizeArchivePrefix for why, and for the
+ * warning about changing it on a store that already has archives.
+ *
+ * Read once at module load: it is deployment identity, not a runtime setting.
+ */
+export const archivePrefix = (): string => normalizeArchivePrefix(process.env.BACKUP_ARCHIVE_PREFIX);
 
 /**
  * Levels seeded on first access. The frequent level is database-ONLY on purpose:
@@ -247,7 +258,7 @@ async function uploadAndPrune(cfg: ConfigRow, tier: TierRow, archivePath: string
     await t.upload(archivePath, dir, fileName);
     // Each level owns its folder, so retention is simply keep-newest-N in it and
     // a foreign file is never a candidate.
-    const stale = prunableArchives(await t.list(dir), tier.keepLast);
+    const stale = prunableArchives(await t.list(dir), tier.keepLast, archivePrefix());
     if (stale.length) console.log(`[backup] ${tier.key}: pruning ${stale.length} in ${dir}: ${stale.join(', ')}`);
     for (const name of stale) await t.remove(dir, name).catch(() => {});
   });
@@ -269,7 +280,7 @@ export async function runBackup(
   });
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'veeey-backup-'));
   try {
-    const fileName = backupFileName(startedAt, kind);
+    const fileName = backupFileName(startedAt, kind, archivePrefix());
     const archivePath = path.join(tmpDir, fileName);
     const actual = await buildArchive(kind, tmpDir, archivePath);
     const sizeBytes = (await fs.stat(archivePath)).size;
