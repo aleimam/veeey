@@ -472,6 +472,7 @@
       "errVerify": "Please verify your phone or email below before placing the order.",
       "errBlocked": "This account cannot place orders. Please contact support.",
       "errStale": "Your points balance or coupon changed while you were checking out. No order was placed and nothing was charged — please refresh to see the updated total.",
+      "errStock": "Your cart’s stock hold expired or an item is no longer available. No order was placed — please return to your cart and add the items again.",
       "verifyHeading": "Verify your contact",
       "verifyTitle": "Confirm it’s really you",
       "verifyHint": "We’ll send a 6-digit code to confirm your contact — one time only; verified accounts skip this next time.",

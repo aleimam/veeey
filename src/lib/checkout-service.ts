@@ -80,10 +80,20 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
     if (!verified) throw new Error('VERIFY_REQUIRED');
   }
 
-  const reservations = await prisma.lotReservation.findMany({
+  // Codex audit P0: checkout consumed whatever reservations existed without
+  // ever re-checking `expiresAt` or the lot's status — a hold the sweep should
+  // have released, or a lot quarantined/expired after it was added to the cart,
+  // still sold. The soft-hold window is only meaningful if it's re-read at the
+  // moment of purchase.
+  const allReservations = await prisma.lotReservation.findMany({
     where: { sessionId: cartId },
     include: { lot: { include: { product: true } } },
   });
+  const nowForHolds = new Date();
+  const reservations = allReservations.filter((r) => r.expiresAt > nowForHolds && r.lot.status === 'LIVE');
+  // Refusing outright beats silently dropping lines: the customer reviewed a
+  // cart and a total that no longer hold, so they must see the new one.
+  if (reservations.length !== allReservations.length) throw new Error('RESERVATION_EXPIRED');
 
   // Pre-order lines (cookie-backed, no lot held) — validated against the live
   // catalog so a since-unpublished / no-longer-pre-order product is dropped.
@@ -228,7 +238,15 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
           pointsEarned: Math.floor((Number(unit) / 100) * r.qty * earnRate),
         },
       });
-      await tx.lot.update({ where: { id: r.lotId }, data: { qtyOnHand: { decrement: r.qty }, qtyReserved: { decrement: r.qty } } });
+      // Conditional claim, not a bare decrement: the reservation guarantees a
+      // hold, but a stocktake correction or a quarantine between add-to-cart
+      // and here can leave the lot unable to honour it. Predicated updateMany
+      // re-evaluates under the row lock, so it cannot oversell or go negative.
+      const claimed = await tx.lot.updateMany({
+        where: { id: r.lotId, status: 'LIVE', qtyOnHand: { gte: r.qty }, qtyReserved: { gte: r.qty } },
+        data: { qtyOnHand: { decrement: r.qty }, qtyReserved: { decrement: r.qty } },
+      });
+      if (claimed.count !== 1) throw new Error('STOCK_UNAVAILABLE');
       await tx.movementLedger.create({ data: { lotId: r.lotId, locationId: r.lot.locationId, type: 'SALE', qtyDelta: -r.qty, refType: 'order', refId: ord.id } });
       await tx.lotReservation.delete({ where: { id: r.id } });
     }

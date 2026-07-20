@@ -160,6 +160,9 @@ export async function placeOrderAction(_p: CheckoutState, fd: FormData): Promise
     // balance or the last redemption between pricing and placement. Nothing was
     // charged — the customer just needs to reload so totals reprice.
     if (e instanceof Error && (e.message === 'POINTS_BALANCE_CHANGED' || e.message === 'COUPON_LIMIT_REACHED')) return { error: 'stale' };
+    // The cart's stock hold lapsed, or a lot left LIVE / can no longer cover the
+    // line. Nothing was reserved or charged; the cart needs rebuilding.
+    if (e instanceof Error && (e.message === 'RESERVATION_EXPIRED' || e.message === 'STOCK_UNAVAILABLE')) return { error: 'stock' };
     console.error('placeOrder failed', e);
     return { error: 'invalid' };
   }

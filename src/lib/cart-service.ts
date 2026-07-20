@@ -115,6 +115,16 @@ export async function getCart(cartId: string, locale = 'en'): Promise<CartLine[]
     where: { sessionId: cartId },
     include: { lot: { include: { product: { include: { brand: true, images: { take: 1, orderBy: { sortOrder: 'asc' } } } } } } },
   });
+  // Viewing the cart renews its stock hold. Checkout now REFUSES lapsed holds
+  // (they were silently honoured before, which is how expired reservations got
+  // sold), so without this an active shopper who lingers past the 24h window
+  // would be turned away at the last step. Only truly abandoned carts lapse.
+  if (res.length > 0) {
+    await prisma.lotReservation.updateMany({
+      where: { sessionId: cartId },
+      data: { expiresAt: new Date(Date.now() + CART_HOLD_MIN * 60_000) },
+    });
+  }
   // Lines group by product × condition, so a NEW line and an Open-box line of
   // the same product stay separate (different prices, separate qty controls).
   const map = new Map<string, CartLine>();
