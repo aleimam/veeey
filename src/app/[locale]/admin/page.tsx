@@ -5,6 +5,8 @@ import { getNumberSetting } from '@/lib/settings-service';
 import { pick } from '@/lib/admin-i18n';
 import { formatEGP } from '@/lib/format';
 import { getCurrentUser } from '@/lib/auth-guards';
+import { hasPermission } from '@/lib/rbac';
+import type { PermissionKey } from '@/lib/permissions';
 import { NAV_ITEMS, type AdminNavItem } from '@/lib/admin-nav';
 import { QuickCards, type QuickCard } from '@/components/admin/quick-cards';
 import { RecentOrdersTable } from '@/components/admin/recent-orders-table';
@@ -45,6 +47,22 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
   const tNav = await getTranslations('admin');
   const quickCards: QuickCard[] = picks.map((i) => ({ href: i.href, label: tNav(`nav.${i.key}`), icon: i.key }));
 
+  // Codex audit P0: the dashboard had NO permission checks — every panel
+  // rendered for anyone the admin layout let in (which is anyone holding a
+  // single staff permission, e.g. a courier). Revenue, customer counts, order
+  // details and stock levels were all visible regardless of grant.
+  //
+  // A page-level requirePermission would 403 those users on the admin LANDING
+  // page and effectively lock them out of the area they're entitled to, so each
+  // panel is gated individually — and its queries are skipped, not just hidden,
+  // so unauthorized data is never fetched.
+  const can = (k: PermissionKey) => hasPermission(user?.permissions, k);
+  const canFinance = can('finance.read');
+  const canOrders = can('orders.read');
+  const canCustomers = can('customers.read');
+  const canInventory = can('inventory.manage');
+  const canCatalog = can('catalog.read');
+
   const now = new Date();
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const startOfYesterday = new Date(startOfDay);
@@ -53,21 +71,22 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
   const weekAgo = new Date(startOfDay);
   weekAgo.setDate(startOfDay.getDate() - 6);
 
+  const zeroAgg = { _sum: { totalPiastres: 0n }, _count: 0 };
   const [todayAgg, yestAgg, newCustomers, lowStockLots, pendingOrders, weekOrders, recentOrders, expiryLots, products, published, brands, categories, posts] =
     await Promise.all([
-      prisma.order.aggregate({ where: { placedAt: { gte: startOfDay } }, _sum: { totalPiastres: true }, _count: true }),
-      prisma.order.aggregate({ where: { placedAt: { gte: startOfYesterday, lt: startOfDay } }, _sum: { totalPiastres: true }, _count: true }),
-      prisma.customer.count({ where: { createdAt: { gte: startOfMonth } } }),
-      prisma.lot.count({ where: { status: 'LIVE', qtyOnHand: { lte: 5 } } }),
-      prisma.order.count({ where: { status: { in: ['PENDING', 'CONFIRMED', 'HOLD'] } } }),
-      prisma.order.findMany({ where: { placedAt: { gte: weekAgo } }, select: { placedAt: true, totalPiastres: true } }),
-      prisma.order.findMany({ orderBy: { placedAt: 'desc' }, take: 6, include: { customer: { select: { firstName: true, lastName: true } }, _count: { select: { items: true } } } }),
-      prisma.lot.findMany({ where: { status: 'LIVE', qtyOnHand: { gt: 0 }, expiryDate: { not: null } }, orderBy: { expiryDate: 'asc' }, take: 6, include: { product: { select: { nameEn: true, nameAr: true } } } }),
-      prisma.product.count(),
-      prisma.product.count({ where: { status: 'PUBLISHED' } }),
-      prisma.brand.count(),
-      prisma.category.count(),
-      prisma.blogPost.count(),
+      canFinance || canOrders ? prisma.order.aggregate({ where: { placedAt: { gte: startOfDay } }, _sum: { totalPiastres: true }, _count: true }) : zeroAgg,
+      canFinance || canOrders ? prisma.order.aggregate({ where: { placedAt: { gte: startOfYesterday, lt: startOfDay } }, _sum: { totalPiastres: true }, _count: true }) : zeroAgg,
+      canCustomers ? prisma.customer.count({ where: { createdAt: { gte: startOfMonth } } }) : 0,
+      canInventory ? prisma.lot.count({ where: { status: 'LIVE', qtyOnHand: { lte: 5 } } }) : 0,
+      canOrders ? prisma.order.count({ where: { status: { in: ['PENDING', 'CONFIRMED', 'HOLD'] } } }) : 0,
+      canFinance ? prisma.order.findMany({ where: { placedAt: { gte: weekAgo } }, select: { placedAt: true, totalPiastres: true } }) : [],
+      canOrders ? prisma.order.findMany({ orderBy: { placedAt: 'desc' }, take: 6, include: { customer: { select: { firstName: true, lastName: true } }, _count: { select: { items: true } } } }) : [],
+      canInventory ? prisma.lot.findMany({ where: { status: 'LIVE', qtyOnHand: { gt: 0 }, expiryDate: { not: null } }, orderBy: { expiryDate: 'asc' }, take: 6, include: { product: { select: { nameEn: true, nameAr: true } } } }) : [],
+      canCatalog ? prisma.product.count() : 0,
+      canCatalog ? prisma.product.count({ where: { status: 'PUBLISHED' } }) : 0,
+      canCatalog ? prisma.brand.count() : 0,
+      canCatalog ? prisma.category.count() : 0,
+      canCatalog ? prisma.blogPost.count() : 0,
     ]);
 
   const revToday = Number(todayAgg._sum.totalPiastres ?? 0n);
@@ -97,12 +116,15 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
   // follow the delta sign (up/down/flat), never a hardcoded trending-up.
   const revDelta = delta(revToday, revYest);
   const revTrendIcon = revDelta > 0 ? TrendingUp : revDelta < 0 ? TrendingDown : Minus;
+  // Each KPI carries the grant that entitles a user to see it (see the gating
+  // note above) — an ungranted tile is dropped, not blanked, so the row stays
+  // dense for restricted users.
   const kpis = [
-    { label: tb('Revenue today', 'إيرادات اليوم'), value: formatEGP(revToday), d: revDelta, icon: revTrendIcon, trend: true, href: `/admin/orders?from=${todayStr}&to=${todayStr}` },
-    { label: tb('Orders today', 'طلبات اليوم'), value: String(ordToday), d: delta(ordToday, ordYest), icon: ShoppingCart, href: `/admin/orders?from=${todayStr}&to=${todayStr}` },
-    { label: tb('New customers (month)', 'عملاء جدد (الشهر)'), value: String(newCustomers), d: null, icon: UserPlus, href: `/admin/customers?from=${monthStr}` },
-    { label: tb('Low-stock lots (≤5)', 'دفعات منخفضة (≤5)'), value: String(lowStockLots), d: null, icon: PackageX, warn: lowStockLots > 0, href: '/admin/inventory/lots?stock=low&status=LIVE' },
-  ];
+    canFinance && { label: tb('Revenue today', 'إيرادات اليوم'), value: formatEGP(revToday), d: revDelta, icon: revTrendIcon, trend: true, href: `/admin/orders?from=${todayStr}&to=${todayStr}` },
+    canOrders && { label: tb('Orders today', 'طلبات اليوم'), value: String(ordToday), d: delta(ordToday, ordYest), icon: ShoppingCart, href: `/admin/orders?from=${todayStr}&to=${todayStr}` },
+    canCustomers && { label: tb('New customers (month)', 'عملاء جدد (الشهر)'), value: String(newCustomers), d: null, icon: UserPlus, href: `/admin/customers?from=${monthStr}` },
+    canInventory && { label: tb('Low-stock lots (≤5)', 'دفعات منخفضة (≤5)'), value: String(lowStockLots), d: null, icon: PackageX, warn: lowStockLots > 0, href: '/admin/inventory/lots?stock=low&status=LIVE' },
+  ].filter((k): k is Exclude<typeof k, false> => k !== false);
   const deltaWords = { up: tb('up', 'ارتفاع'), down: tb('down', 'انخفاض'), flat: tb('unchanged', 'بدون تغيير'), vs: tb('vs yesterday', 'مقابل أمس') };
 
   const quickLinks = [
@@ -121,7 +143,7 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
           <h1 className="font-heading text-xl font-semibold text-foreground">{tb('Dashboard', 'اللوحة الرئيسية')}</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">{tb('Here is today at Veeey.', 'هذه نظرة على يومك في فيي.')}</p>
         </div>
-        {pendingOrders > 0 && (
+        {canOrders && pendingOrders > 0 && (
           <Link href="/admin/orders?status=attention" className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm hover:border-primary">
             <span className="flex size-2 rounded-full bg-gold" /> {tb(`${pendingOrders} orders need attention`, `${pendingOrders} طلبات تحتاج متابعة`)}
             <ArrowRight size={15} className="text-muted-foreground" />
@@ -163,6 +185,7 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
 
       <div className="mb-6 grid gap-4 lg:grid-cols-[1.6fr_1fr]">
         {/* min-w-0 on grid children + fluid bars: the chart may never expand the page (V5 D-02/D-03) */}
+        {canFinance && (
         <div className="min-w-0 rounded-xl border border-border bg-card p-4">
           <div className="mb-3 flex items-baseline justify-between">
             <h2 className="text-sm font-semibold text-foreground">{tb('Revenue · last 7 days', 'الإيرادات · آخر ٧ أيام')}</h2>
@@ -172,7 +195,9 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
               sr-only data table) via the shared BarChart. */}
           <BarChart data={buckets.map((b) => ({ label: b.label, value: b.total }))} unit="egp" />
         </div>
+        )}
 
+        {canInventory && (
         <div className="min-w-0 rounded-xl border border-border bg-card p-4">
           <h2 className="mb-1 text-sm font-semibold text-foreground">{tb('Expiry & stock alerts', 'تنبيهات الصلاحية والمخزون')}</h2>
           {/* V5 audit D-08: legend + non-color severity cue (days-left text) */}
@@ -225,9 +250,11 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
             </ul>
           )}
         </div>
+        )}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
+        {canOrders && (
         <div className="min-w-0 rounded-xl border border-border bg-card p-4">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-foreground">{tb('Recent orders', 'أحدث الطلبات')}</h2>
@@ -249,7 +276,9 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
             />
           )}
         </div>
+        )}
 
+        {canCatalog && (
         <div className="min-w-0 rounded-xl border border-border bg-card p-4">
           <h2 className="mb-2 text-sm font-semibold text-foreground">{tb('Catalog', 'الكتالوج')}</h2>
           <div className="grid grid-cols-2 gap-3">
@@ -264,7 +293,16 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
             ))}
           </div>
         </div>
+        )}
       </div>
+
+      {/* A user whose grants cover none of the panels above (e.g. couriers only)
+          would otherwise land on a blank page with no explanation. */}
+      {!canFinance && !canOrders && !canCustomers && !canInventory && !canCatalog && (
+        <p className="rounded-xl border border-border bg-card p-6 text-center text-sm text-muted-foreground">
+          {tb('Your account does not include dashboard reports. Use the sections in the sidebar.', 'حسابك لا يشمل تقارير اللوحة الرئيسية. استخدم الأقسام في القائمة الجانبية.')}
+        </p>
+      )}
     </div>
   );
 }
