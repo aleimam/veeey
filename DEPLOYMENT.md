@@ -249,13 +249,33 @@ cd /home/veeey/app
 git checkout -- package-lock.json   # npm install dirties it; a dirty tree makes `git pull`
                                     # silently FAIL to advance HEAD while build/reload still
                                     # run — you'd redeploy the OLD code. Never skip this.
+git status --short                  # ⚠️ ALSO clear stray UNTRACKED files (e.g. a script you
+                                    # scp'd for a one-off): `git pull` aborts rather than
+                                    # overwrite them, and the build then typechecks the stale
+                                    # copy. This bit us on 2026-07-20.
 git pull
 npm install                          # also re-runs `prisma generate` (postinstall) — required
                                      # whenever the schema changed, or the client goes stale
 npx prisma migrate deploy
-npm run build
-pm2 reload veeey && pm2 reload veeey-worker
+
+# ⚠️ NEVER pipe the build (`npm run build | tail -4`): $? comes from `tail`, so a FAILED build
+# reads as success and you restart onto a broken tree. Gate the restart on the exit code:
+if npm run build > /tmp/build.log 2>&1; then
+  pm2 restart veeey veeey-worker --update-env
+else
+  echo "BUILD FAILED — not restarting"; tail -25 /tmp/build.log; exit 1
+fi
 git rev-parse --short HEAD           # confirm it matches the commit you pushed
+```
+
+Verify before calling it done — the app listens on **:3100** behind nginx (not :3000, which answers
+nothing and looks like an outage):
+
+```bash
+for p in /api/health /en /ar /en/cart; do
+  printf "%-14s %s\n" "$p" "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100$p)"
+done
+curl -s -o /dev/null -w 'public %{http_code}\n' https://veeey.com/en
 ```
 
 More gotchas (firewall bans, ad-hoc DB queries, health checks): see the
@@ -358,20 +378,81 @@ scp -F ~/.ssh_ev/config /c/Users/<you>/AppData/Local/Temp/veeey-deploy.tar.gz ev
 # 3. On the box
 ssh -F ~/.ssh_ev/config evnew
 cd /opt/veeey
-tar xzf /tmp/veeey-deploy.tar.gz -C /opt/veeey     # .env is gitignored → survives
+tar xzf /tmp/veeey-deploy.tar.gz -C /opt/veeey     # .env AND server.js are untracked → survive
 npm install                                        # postinstall runs prisma generate
 npx prisma migrate deploy
-npm run build
-pm2 reload veeey-net veeey-net-worker
+
+# Same guard as veeey.com — never restart onto a failed build.
+if npm run build > /tmp/build.log 2>&1; then
+  pm2 restart veeey-net veeey-net-worker --update-env    # restart, NOT reload (see below)
+else
+  echo "BUILD FAILED — not restarting"; tail -25 /tmp/build.log; exit 1
+fi
 ```
 
-First deploy was commit `dad59dc`; last redeploy **2026-07-17 (late) at `96985a1`** (brings the V6
-Sales-analytics + V7 catalog audit fixes; migration `catalog_entity_slug_fixes` applied — its data
-statements are no-ops on this store's empty catalog). Verified after restart: pm2 runs `server.js`,
-`/en` + `/en/products` 200, health ok, WordPress co-tenant unaffected. ⚠️ `pm2 reload
-veeey-net-worker` does NOT actually restart the worker (uptime keeps counting) — use
-`pm2 restart veeey-net-worker` for it (this redeploy did, uptime reset confirmed).
-Consider adding a git remote/clone on the box later to make this a normal `git pull` deploy.
+Then verify — including the two things unique to this box:
+
+```bash
+pm2 describe veeey-net | grep -i 'script path'          # MUST be /opt/veeey/server.js
+for p in /api/health /en /ar /en/cart; do
+  printf "%-14s %s\n" "$p" "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100$p)"
+done
+curl -s  -o /dev/null -w 'veeey.net    %{http_code}\n' https://veeey.net/en
+curl -sL -o /dev/null -w 'wordpress    %{http_code}\n' https://egyptvitamins.net/   # co-tenant
+```
+
+First deploy was commit `dad59dc`; last redeploy **2026-07-20 at `56bd6c7`** — applied the 64th
+migration `20260720010000_backup_module` (63 → 64) and added `BACKUP_ARCHIVE_PREFIX=veeey-net-backup-`
+to `/opt/veeey/.env`. Verified after restart: pm2 runs `server.js`, health + `/en` + `/ar` + `/en/cart`
+200, `veeey.net/en` 200, WordPress co-tenant 200.
+⚠️ `pm2 reload veeey-net-worker` does NOT actually restart the worker (uptime keeps counting) — use
+`pm2 restart` for it. Consider adding a git remote/clone on the box later to make this a normal
+`git pull` deploy.
+
+## Off-site backups (both stores)
+
+Admin UI `/admin/backup`; full spec + every hard-won gotcha in **`C:\Claude\YeldnIN\BACKUP.md`**.
+Destination is a shared Hetzner Storage Box — **one sub-account per app**, so isolation comes from the
+sub-account, not the path.
+
+| | veeey.com | veeey.net |
+|---|---|---|
+| Sub-account | `u635384-sub4` (`/veeey.com/`) | **`u635384-sub2`** (`/veeey.net/`) |
+| Host | `u635384-sub4.your-storagebox.de` | `u635384-sub2.your-storagebox.de` |
+| Port | **23** (not 22) | **23** |
+| Base path | `/home` | `/home` |
+| Archive prefix | `veeey-backup-` (default) | `veeey-net-backup-` (`BACKUP_ARCHIVE_PREFIX` in `.env`) |
+| Status | ✅ live, drill passed 2026-07-20 | ⏳ deployed, **password not yet entered** |
+
+**The three that will catch you out**
+
+1. **A sub-account sees its base dir as `/home`, not as `/veeey.com/`.** Both stores are therefore
+   configured with the *identical* folders `/home/{hourly,daily,weekly,manual}` and still land in
+   different real directories. Writing `/veeey.com/hourly` creates a **nested** wrong folder and the
+   run still reports SUCCESS.
+2. **Port 22 also answers but is chrooted** — the same path resolves elsewhere and silently nests.
+   Stay on 23.
+3. **Changing `BACKUP_ARCHIVE_PREFIX` on a store that already has archives orphans them** — the parser
+   stops recognising the old names, so they are never pruned and retention restarts from zero. Only
+   set it on a store whose destination is still empty.
+
+**Verify (never trust the status field alone)**
+
+```bash
+cd /home/veeey/app            # or /opt/veeey on the .net box
+npx tsx scripts/backup-verify.ts --list   # lists every level's remote folder + archive counts
+npx tsx scripts/backup-verify.ts          # full drill: db archive → restore → row counts vs live
+npx tsx scripts/backup-verify.ts --full   # same, but the FULL archive (also proves uploads/)
+```
+
+The drill downloads an archive, checks it byte-exact, verifies the manifest doesn't overclaim,
+restores into a **throwaway** database and compares row counts against live, then drops it. It needs
+`sudo -u postgres` because the app role deliberately lacks CREATEDB. Default is the db-only archive on
+purpose — same `pg_dump` as the full one, without pulling ~1 GB across a live server's uplink.
+
+Last drill (veeey.com, 2026-07-20): 110 tables restored, Product/Customer/Order/OrderItem/Lot/Brand
+counts **exactly equal to live**. Small deltas are normal for a point-in-time snapshot; investigate
+only large gaps or an unexpectedly empty table.
 
 ## Current state & open items
 

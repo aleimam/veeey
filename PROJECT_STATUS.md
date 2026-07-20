@@ -2,12 +2,65 @@
 
 > Living status/handoff doc. **Repo-committed so it travels with the code** (unlike per-user
 > assistant memory). Update it when features ship or the backlog changes.
-> **Last updated: 2026-07-18.** Authoritative product docs: `VEEEY_PRD.md`, `VEEEY_SPEC.md`,
+> **Last updated: 2026-07-20.** Authoritative product docs: `VEEEY_PRD.md`, `VEEEY_SPEC.md`,
 > `BUILD_PLAN.md`, `AGENTS.md` (build rules — read first), `DEPLOYMENT.md`, `SECURITY.md`, `README.md`.
 
 ## Current state
 
-- **🆕 Off-site BACKUP module BUILT 2026-07-20 (`1c0075e`→`53dd8c4`) — NOT yet enabled.**
+- **🆕 Codex-audit fix batch — SHIPPED + DEPLOYED both stores 2026-07-20 (`56bd6c7`).** An external
+  Codex review was triaged (its severity was over-weighted — 13 "P0"s at 5–15 orders/day), each
+  finding verified independently, then the five that mattered fixed as separate gated commits:
+  - **`273432a`** order CSV dropped the last day of every range — list used `23:59:59`, export used
+    `new Date(to)` (= midnight at the START of that day). One shared `src/lib/date-filter.ts` with an
+    **exclusive next-day bound** now serves both, so they can't drift.
+  - **`efc5c37`** the admin dashboard had **no permission checks at all** — `canAccessAdmin` is "any
+    staff grant", so a couriers-only account saw revenue, the 7-day chart, recent orders with customer
+    names, and stock. Gated **per panel, not per page** (a page guard would 403 restricted users on the
+    admin landing page); ungranted panels skip their queries entirely rather than just hiding output.
+  - **`323a9b6`** points + coupons were **check-then-act**. `pointsBalance` was read outside the order
+    transaction and decremented with no predicate; coupon caps were counted in one tx and written in
+    another. Points now claim via predicated `updateMany` (`pointsBalance >= use`); coupons via
+    `claimCouponRedemption` under a **`SELECT … FOR UPDATE`** on the coupon row. The cap decision is the
+    pure `couponLimitReached`, shared by quote and claim (`singleUse` = a cap of 1, not a parallel
+    branch). Rejection aborts the order and shows a bilingual "totals changed" message.
+  - **`e98e00f`** checkout **never re-read `expiresAt` or lot status** and decremented stock with a bare
+    `update` — an expired hold or a quarantined lot still sold, and a stocktake correction could drive
+    `qtyOnHand` negative. Now re-validated pre-pricing + predicated `updateMany` claim in-tx.
+    **`getCart` renews the hold**, so enforcing expiry can't reject an active shopper at the last step.
+  - **`9d87ccc`** tier prices were **advertised but never charged** — `effectiveTierPrice` had one
+    caller (the PDP teaser) while cart/subtotal/order lines used base or lot price. New pure
+    `effectiveUnitPrice` is shared by all three. **Verified against prod first: zero `TierProductRule`
+    rows exist**, so nothing was mispriced — it was a trap awaiting the first PRICE rule.
+    ⚠️ **Owner decision open:** lot override vs tier price resolves to the **lower of the two** — a
+    judgement call, not a stated rule.
+  Also **`1b7f6ff`**: `server-only` removed from `gsc-service`, `watermark-service` and `rich-text`
+  (see Code lessons). Gate at the time: typecheck · lint · **641 unit tests** · build.
+- **🆕 Off-site BACKUP module — LIVE + RESTORE-DRILL PASSED on veeey.com 2026-07-20.**
+  Built `1c0075e`→`53dd8c4`; verified and completed in `a2af7ef` + `56bd6c7`.
+  **veeey.com uses Storage Box sub-account `u635384-sub4`** (`/veeey.com/`), port **23**, base
+  `/home`, four levels on `/home/{hourly,daily,weekly,manual}` — **all four folders confirmed by
+  listing them**, not by trusting a status field.
+  **Restore drill passed** (`scripts/backup-verify.ts`): 14 MB archive downloaded byte-exact, manifest
+  honest, `pg_restore` clean, **110 tables**, and Product/Customer/Order/OrderItem/Lot/Brand row counts
+  **exactly equal to live**. Scratch DB created via the postgres superuser (the app role deliberately
+  lacks CREATEDB) and dropped afterwards.
+  🎉 **A scheduled run fired unattended for the first time** (02:00:33 UTC) once `server-only` was
+  fixed — `BACKUP.md` §13 lists that as never-yet-observed on YeldnIN.
+  **Per-store prefix (`BACKUP_ARCHIVE_PREFIX`)**: one codebase ran two stores both emitting
+  `veeey-backup-`, so the prefix — the spec's "last line of defence" — didn't defend them from each
+  other (both use the *same* `/home/*` paths; the sub-account supplies the isolation, so one wrong host
+  field would cross the streams). veeey.net now sets `veeey-net-backup-`; **veeey.com keeps the default
+  deliberately — changing it on a store that already has archives orphans them** (parser stops
+  recognising the old names → never pruned, retention restarts at zero).
+  ⚠️ **A `psql` failure printed the DB password** to the terminal during the drill (the URL is an
+  argv). Every subprocess now goes through a redacting wrapper — **but the veeey.com Postgres password
+  still needs rotating.**
+  Divergence from `BACKUP.md` §9, on purpose: "Back up now" runs **MANUAL only** (each level has its
+  own Run now), so an ad-hoc click can't consume a scheduled retention slot.
+  **veeey.net: deployed but unconfigured** — needs the `u635384-sub2` password at `/admin/backup`;
+  suggested there (and different from .com) **DAILY db-only + WEEKLY full keep 4**, because its 1.8 GB
+  of uploads mirror egyptvitamins.net's WP media and are re-derivable (~45 GB → ~13 GB).
+- **Off-site BACKUP module as originally built 2026-07-20 (`1c0075e`→`53dd8c4`).**
   Admin screen **`/admin/backup`** (settings.manage, bilingual, audited): SFTP destination +
   **four independent levels** (Frequent / Daily / Weekly / Manual), each with its own
   frequency + **`everyN`** multiplier, contents (**DB** or **FULL**), remote **folder** and
@@ -31,11 +84,10 @@
   It does **not** reproduce on a dev box whose npm blocks install scripts — this exact
   omission took YeldnIN's production site down. A green local build does not clear it.
   Full spec + every gotcha: **`C:\Claude\YeldnIN\BACKUP.md`**.
-  **Blocked on the owner before it can run:** (1) veeey.com has **no Storage Box sub-account**
-  (sub1=YeldnIN, sub2=veeey.net, sub3=ev.com) — create one; (2) apply the migration and enter
-  the credentials at `/admin/backup`. It ships **disabled and unconfigured**, so deploying it
-  changes nothing until then. **No restore drill has been done for Veeey yet** — do one
-  (BACKUP.md §11.1) before trusting it.
+  *(Historical: this shipped disabled and unconfigured. Both blockers are now resolved on veeey.com —
+  sub-account `u635384-sub4` exists and is in use, the migration is applied on both stores, and the
+  restore drill has been done. Sub-accounts now run sub1=YeldnIN, sub2=veeey.net, sub3=ev.com,
+  sub4=veeey.com, sub5=ev.net, sub6=NOC.)*
 - **Live** at **veeey.com** and **veeey.net** — **BOTH stores deployed `cc1ef59` (2026-07-19)**.
   **🚀 Contract v2 products/customers channel (INTEGRATION_V2_PRODUCTS_CUSTOMERS.md) ARMED + CUTOVER
   COMPLETE on veeey.com** (`integration.v2.enabled=1`): pushed **2,548 products (2,545 adopted
@@ -464,6 +516,36 @@ portable source of truth** — everything below is what the memory contained tha
 
 ## Code lessons (hard-won — follow these)
 
+- **`server-only` breaks the standalone tsx worker — and its blast radius is the whole import
+  graph.** That package is supplied by Next's bundler and is **not a real dependency here**
+  (absent from `package.json`; `require.resolve('server-only')` throws), so it resolves inside the
+  app and throws `Cannot find module 'server-only'` in `src/worker.ts`. On 2026-07-20 this was
+  silently killing three scheduled jobs: `gsc-service` (daily sitemap submit), `watermark-service`
+  (batch) and `rich-text` (reached via `attribute-bulk-service`) — plus the backup service. The
+  symptom is nasty: **manual runs succeed** (they execute inside Next) while every scheduled run
+  fails, so a green manual test proves nothing. Any module reachable from `worker.ts` must not
+  import it; prove a fix in the worker's own runtime with
+  `npx tsx -e "import('@/lib/<mod>')"` — a still-broken module fails there as a control.
+- **Money paths need atomic claims, not read-then-write.** Three separate bugs shared one shape:
+  a limit checked in one transaction and enforced in another. Use a **predicated `updateMany`**
+  (`where: { …, balance: { gte: n } }` + assert `count === 1`) for balances and stock, and a
+  **`SELECT … FOR UPDATE`** row lock before counting when the limit spans rows (coupon redemptions).
+  Keep the decision itself pure and shared so the quote and the claim can't disagree
+  (`couponLimitReached`, `effectiveUnitPrice`).
+- **A "map of defaults" can silently become a price ceiling.** `tierPriceMap` first returned base
+  price for every product; `effectiveUnitPrice` takes the *lower* of lot and tier, so a base-price
+  entry undercharged any lot priced above base. It now contains **only real discounts** — absence
+  means "no tier price", never "tier price == base". Caught by a test, not by review.
+- **Never pipe a build in a deploy script.** `npm run build | tail -4` takes `$?` from `tail`, so a
+  failed build reads as success and pm2 restarts onto a broken tree. Use
+  `if npm run build > /tmp/build.log 2>&1; then pm2 restart …; else tail -20 /tmp/build.log; exit 1; fi`.
+  This guard caught a real failure on 2026-07-20: files `scp`'d to the box for a one-off script were
+  untracked, `git pull` aborted, and the build then typechecked a stale copy. **Clean stray files off
+  the server before pulling.**
+- **Connection URLs leak through `execFile` errors.** `psql`/`pg_dump`/`pg_restore` take
+  `postgresql://user:pass@host` as an **argument**, and `execFile`'s error message includes the whole
+  argv — so any failure prints the password. Wrap subprocess calls and redact before logging
+  (see `scripts/backup-verify.ts`).
 - **Runtime uploads don't serve from `public/` under `next start`.** `next start` only serves
   `public/` files that existed **at build time**, so admin-uploaded media (branding logos,
   favicon, product images) 404 until the next build even though the file is on disk. Fixed by
@@ -500,6 +582,12 @@ portable source of truth** — everything below is what the memory contained tha
 
 ## ⚠️ Open security action (owner)
 
+- **Rotate the veeey.com Postgres password** — printed to terminal output on 2026-07-20 when a `psql`
+  call failed during the backup restore drill (connection URLs are passed as argv, so `execFile`'s
+  error text echoed it). Postgres listens on localhost only, so exposure is limited, but rotate:
+  `ALTER ROLE veeey WITH PASSWORD …` → update `DATABASE_URL` in `/home/veeey/app/.env` →
+  `pm2 restart veeey veeey-worker`. `scripts/backup-verify.ts` now routes every subprocess through a
+  redacting wrapper, so it cannot recur there.
 - **Rotate the server SSH key `/root/.ssh/id_rsa`** — its private key was exposed in chat on
   2026-07-07. Regenerate on the server; if it's the GitHub deploy key, swap it in the repo's
   Deploy Keys. (Per-user `ssh veeey` client keys are separate and unaffected.)
@@ -507,6 +595,19 @@ portable source of truth** — everything below is what the memory contained tha
 ## Waiting tasks
 
 ### Quick owner actions that unblock shipped features
+- **Configure veeey.net's backup destination** — the module is deployed there and
+  `BACKUP_ARCHIVE_PREFIX=veeey-net-backup-` is set, but there is no destination. Enter the
+  **`u635384-sub2`** password at veeey.net's `/admin/backup`: host `u635384-sub2.your-storagebox.de`,
+  **port 23**, base path **`/home`** (a sub-account sees its base dir AS `/home` — do *not* write
+  `/veeey.net/…`, that nests). Suggested contents there: **DAILY db-only, WEEKLY full keep 4**.
+  Then `npx tsx scripts/backup-verify.ts --list` on the box, and a full drill after the first run.
+- **Decide: tier price vs lot override.** Checkout now charges the **lower** of a lot's price
+  override and the customer's tier price. That is an inference, not your stated rule — confirm
+  before creating the first `TierProductRule` PRICE row (there are currently zero, so nothing is
+  affected yet).
+- **Decide: schedule `releaseExpiredReservations()`?** It exists but is not wired into the worker,
+  so lapsed cart holds keep inflating `qtyReserved` forever. Wiring it changes live stock
+  accounting on both stores, so it was deliberately left for you.
 - **Enable checkout verification**: place ONE test order on your own phone with an OTP, then set
   Settings › Checkout › "Require verified contact to checkout" = `true` (shipped OFF on purpose;
   SMS is live so it works today — email codes additionally need SMTP).
