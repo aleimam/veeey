@@ -31,3 +31,22 @@ export function couponDiscount(c: CouponData, subtotalPiastres: bigint): bigint 
   else if (c.type === 'FIXED') d = BigInt(Math.round(c.value * 100)); // value is EGP
   return d > subtotalPiastres ? subtotalPiastres : d;
 }
+
+/**
+ * Redemption caps as PURE logic, so the checkout claim and the price quote
+ * can't disagree about what "used up" means (Codex audit P0).
+ *
+ * `singleUse` is just a cap of 1 — it used to be a separate branch, which is
+ * how it drifted out of sync with `usageLimit`.
+ */
+export type CouponLimits = { singleUse: boolean; usageLimit: number | null; perCustomerLimit: number | null };
+
+export function couponLimitReached(
+  limits: CouponLimits,
+  used: { total: number; byCustomer: number | null },
+): boolean {
+  const cap = limits.singleUse ? 1 : limits.usageLimit;
+  if (cap != null && used.total >= cap) return true;
+  if (limits.perCustomerLimit != null && used.byCustomer != null && used.byCustomer >= limits.perCustomerLimit) return true;
+  return false;
+}

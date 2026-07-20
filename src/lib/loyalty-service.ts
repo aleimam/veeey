@@ -204,15 +204,22 @@ export async function reverseOrderPoints(orderId: string): Promise<number> {
   return reversed;
 }
 
-/** Redeem points at checkout; returns the EGP value (piastres) applied. */
+/** Redeem points at checkout; returns the EGP value (piastres) applied.
+ *  Currently unused — checkout claims points inline (see checkout-service) —
+ *  but kept guarded so wiring it up can't reintroduce the double-spend:
+ *  the decrement carries a `>= points` predicate and throws if it can't claim. */
 export async function redeemPoints(customerId: string, points: number, orderId?: string): Promise<bigint> {
   if (points <= 0) return 0n;
   const value = pointsToPiastres(points);
   if (value <= 0n) return 0n;
-  await prisma.$transaction([
-    prisma.loyaltyTransaction.create({ data: { customerId, points: -points, type: 'REDEEM', orderId, note: 'order redemption' } }),
-    prisma.customer.update({ where: { id: customerId }, data: { pointsBalance: { decrement: points } } }),
-  ]);
+  await prisma.$transaction(async (tx) => {
+    const claimed = await tx.customer.updateMany({
+      where: { id: customerId, pointsBalance: { gte: points } },
+      data: { pointsBalance: { decrement: points } },
+    });
+    if (claimed.count !== 1) throw new Error('POINTS_BALANCE_CHANGED');
+    await tx.loyaltyTransaction.create({ data: { customerId, points: -points, type: 'REDEEM', orderId, note: 'order redemption' } });
+  });
   return value;
 }
 

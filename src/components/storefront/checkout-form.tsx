@@ -75,6 +75,7 @@ export function CheckoutForm({
     state.error === 'empty' ? t('errEmpty')
     : state.error === 'verify' ? t('errVerify')
     : state.error === 'blocked' ? t('errBlocked')
+    : state.error === 'stale' ? t('errStale')
     : state.error ? t('errGeneric') : null;
   const heading = 'mb-3 text-lg font-bold text-green-dark';
 

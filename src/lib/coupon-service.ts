@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
 import { egpToPiastres } from '@/lib/format';
-import { checkCoupon, couponDiscount } from '@/lib/coupon';
+import { checkCoupon, couponDiscount, couponLimitReached } from '@/lib/coupon';
 
 /** Coupon engine service (FR-PRC-07): validates a code against the DB (usage
  *  limits, single-use, per-customer caps) and computes the discount. */
@@ -25,20 +25,55 @@ export async function applyCoupon(
   );
   if (!check.valid) return { ok: false, reason: check.reason ?? 'invalid' };
 
-  if (coupon.singleUse) {
-    const used = await prisma.couponRedemption.count({ where: { couponId: coupon.id } });
-    if (used >= 1) return { ok: false, reason: 'usage_limit' };
-  }
-  if (coupon.usageLimit != null) {
-    const used = await prisma.couponRedemption.count({ where: { couponId: coupon.id } });
-    if (used >= coupon.usageLimit) return { ok: false, reason: 'usage_limit' };
-  }
-  if (coupon.perCustomerLimit != null && ctx.customerId) {
-    const u = await prisma.couponRedemption.count({ where: { couponId: coupon.id, customerId: ctx.customerId } });
-    if (u >= coupon.perCustomerLimit) return { ok: false, reason: 'per_customer' };
+  // Quote-time check only — it races with concurrent checkouts, so the binding
+  // decision is made again under a row lock in claimCouponRedemption below.
+  const [total, byCustomer] = await Promise.all([
+    prisma.couponRedemption.count({ where: { couponId: coupon.id } }),
+    ctx.customerId ? prisma.couponRedemption.count({ where: { couponId: coupon.id, customerId: ctx.customerId } }) : Promise.resolve(null),
+  ]);
+  if (couponLimitReached(coupon, { total, byCustomer })) {
+    const perCustomerHit = coupon.perCustomerLimit != null && byCustomer != null && byCustomer >= coupon.perCustomerLimit;
+    return { ok: false, reason: perCustomerHit ? 'per_customer' : 'usage_limit' };
   }
 
   return { ok: true, couponId: coupon.id, discountPiastres: couponDiscount({ type: coupon.type, value: coupon.value, firstOrderOnly: coupon.firstOrderOnly, active: coupon.active }, ctx.subtotalPiastres), stackable: coupon.stackable };
+}
+
+type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+
+/**
+ * Atomically claim a redemption inside the checkout transaction (Codex audit
+ * P0). `applyCoupon` above is a check-then-act: it COUNTS redemptions, and the
+ * row is only created later, in a different transaction. Two checkouts racing
+ * on the same code both counted 0 and both redeemed, so `singleUse`,
+ * `usageLimit` and `perCustomerLimit` were all exceedable — the classic way a
+ * one-per-customer promo gets drained.
+ *
+ * We take a row lock on the coupon FIRST, so concurrent claims for the same
+ * coupon serialize; the counts that follow then observe every committed
+ * redemption. Contention is per-coupon, not global.
+ *
+ * Throws COUPON_LIMIT_REACHED if the coupon ran out between pricing and
+ * placement — the caller must abort rather than grant an unearned discount.
+ */
+export async function claimCouponRedemption(
+  tx: Tx,
+  args: { couponId: string; customerId: string | null; orderId: string; amountPiastres: bigint },
+): Promise<void> {
+  const locked = await tx.$queryRaw<Array<{ singleUse: boolean; usageLimit: number | null; perCustomerLimit: number | null }>>`
+    SELECT "singleUse", "usageLimit", "perCustomerLimit" FROM "Coupon" WHERE "id" = ${args.couponId} FOR UPDATE`;
+  const coupon = locked[0];
+  if (!coupon) throw new Error('COUPON_LIMIT_REACHED');
+
+  const [total, byCustomer] = await Promise.all([
+    tx.couponRedemption.count({ where: { couponId: args.couponId } }),
+    args.customerId ? tx.couponRedemption.count({ where: { couponId: args.couponId, customerId: args.customerId } }) : Promise.resolve(null),
+  ]);
+  if (couponLimitReached(coupon, { total, byCustomer })) throw new Error('COUPON_LIMIT_REACHED');
+
+  await tx.couponRedemption.create({
+    data: { couponId: args.couponId, customerId: args.customerId, orderId: args.orderId, amountPiastres: args.amountPiastres },
+  });
 }
 
 // ---- Admin CRUD ------------------------------------------------------------

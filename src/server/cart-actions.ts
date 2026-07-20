@@ -156,6 +156,10 @@ export async function placeOrderAction(_p: CheckoutState, fd: FormData): Promise
     if (e instanceof Error && e.message === 'EMPTY_CART') return { error: 'empty' };
     if (e instanceof Error && e.message === 'VERIFY_REQUIRED') return { error: 'verify' };
     if (e instanceof Error && e.message === 'CUSTOMER_BLOCKED') return { error: 'blocked' };
+    // The atomic points/coupon claims rejected: another order consumed the
+    // balance or the last redemption between pricing and placement. Nothing was
+    // charged — the customer just needs to reload so totals reprice.
+    if (e instanceof Error && (e.message === 'POINTS_BALANCE_CHANGED' || e.message === 'COUPON_LIMIT_REACHED')) return { error: 'stale' };
     console.error('placeOrder failed', e);
     return { error: 'invalid' };
   }

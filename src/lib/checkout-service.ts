@@ -13,7 +13,7 @@ import { getShippingFee, type ShippingTypeKey } from '@/lib/shipping-service';
 import { tierSystemBenefits } from '@/lib/tier-benefit-service';
 import { orderTotal, depositAndBalance } from '@/lib/checkout-math';
 import { scoreOrderRisk } from '@/lib/fraud';
-import { applyCoupon } from '@/lib/coupon-service';
+import { applyCoupon, claimCouponRedemption } from '@/lib/coupon-service';
 import { maxRedeemablePoints, pointsToPiastres } from '@/lib/loyalty';
 import { getNumberSetting, getSetting } from '@/lib/settings-service';
 import { normalizeDestination } from '@/lib/otp-service';
@@ -253,11 +253,22 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
     }
 
     if (couponId) {
-      await tx.couponRedemption.create({ data: { couponId, customerId, orderId: ord.id, amountPiastres: couponDiscount } });
+      // Re-checks the usage caps under a row lock — the earlier applyCoupon()
+      // count is only a price quote and races with concurrent checkouts.
+      await claimCouponRedemption(tx, { couponId, customerId, orderId: ord.id, amountPiastres: couponDiscount });
     }
     if (usePoints > 0 && customerId) {
+      // Codex audit P0: the balance was read OUTSIDE this transaction and the
+      // decrement carried no predicate, so two concurrent checkouts could each
+      // spend the same points and drive pointsBalance negative. The conditional
+      // updateMany makes the claim atomic — a single statement that re-evaluates
+      // `balance >= usePoints` while holding the row lock.
+      const claimed = await tx.customer.updateMany({
+        where: { id: customerId, pointsBalance: { gte: usePoints } },
+        data: { pointsBalance: { decrement: usePoints } },
+      });
+      if (claimed.count !== 1) throw new Error('POINTS_BALANCE_CHANGED');
       await tx.loyaltyTransaction.create({ data: { customerId, points: -usePoints, type: 'REDEEM', orderId: ord.id, note: 'checkout redemption' } });
-      await tx.customer.update({ where: { id: customerId }, data: { pointsBalance: { decrement: usePoints } } });
     }
 
     // Gift-with-purchase: attach any gifts this order earned (best-effort —
