@@ -1,4 +1,9 @@
-import 'server-only';
+// NOTE: deliberately NO `import 'server-only'`. That package is supplied by
+// Next's bundler, not installed here, so it resolves inside the app but throws
+// "Cannot find module 'server-only'" in the STANDALONE tsx worker — which is
+// exactly what runs the scheduled backups. This module is server-side by
+// construction anyway (node:fs, node:child_process), so it could never be
+// bundled into a client component regardless.
 import path from 'node:path';
 import os from 'node:os';
 import { promises as fs } from 'node:fs';
