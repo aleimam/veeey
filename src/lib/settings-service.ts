@@ -25,6 +25,8 @@ export const SETTINGS: SettingDef[] = [
   { key: 'preorder.depositPercent', label: 'Pre-order deposit (%)', group: 'Pre-orders', type: 'percent', default: '25', hint: 'Deposit charged up front to reserve a pre-order; the balance is due on delivery.' },
   // Catalog
   { key: 'catalog.lowStockThreshold', label: 'Product low-stock threshold', group: 'Catalog', type: 'number', default: '5', hint: 'Products with sellable stock at or below this count match the "Low stock" filter.' },
+  // Inventory
+  { key: 'inventory.defaultUnitCostEgp', label: 'Default unit purchase price (EGP)', group: 'Inventory', type: 'number', default: '10', hint: 'Used to value spillage / expiry losses when a lot has no recorded cost. Set to 0 to show units only.' },
   // Gifts
   { key: 'gifts.lowStockThreshold', label: 'Gift low-stock threshold', group: 'Gifts', type: 'number', default: '5', hint: 'Gifts at or below this stock show a low-stock warning in the gifts list.' },
   // Audit / activity log

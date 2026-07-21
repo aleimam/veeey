@@ -95,10 +95,17 @@ export async function recordSpillage(input: {
       await tx.movementLedger.create({ data: { lotId: lot.id, locationId: lot.locationId, type: 'WRITE_OFF', qtyDelta: -input.qty, reason: `spillage: ${reason.code}`, refType: 'spillage' } });
     }
 
+    // Value the loss: use the lot's real cost if it has one, else the admin
+    // default unit cost (owner set this to 10 EGP; a lot that later gets a real
+    // cost still takes precedence). 0 means "value unknown → report shows units".
+    const { getNumberSetting } = await import('@/lib/settings-service');
+    const defaultEgp = await getNumberSetting('inventory.defaultUnitCostEgp');
+    const unitCostPiastres = lot.costPiastres ?? (defaultEgp > 0 ? BigInt(Math.round(defaultEgp * 100)) : null);
+
     const entry = await tx.spillageEntry.create({
       data: {
         lotId: lot.id, productId: lot.productId, reasonCode: reason.code, sellable: reason.sellable,
-        qty: input.qty, toLotId, unitCostPiastres: lot.costPiastres, actorId, note: input.note?.trim() || null,
+        qty: input.qty, toLotId, unitCostPiastres, actorId, note: input.note?.trim() || null,
       },
     });
     await audit({ actorType: actorId ? 'USER' : 'SYSTEM', actorId, action: 'spillage.record', entityType: 'SpillageEntry', entityId: entry.id, data: { reason: reason.code, qty: input.qty, sellable: reason.sellable } });
