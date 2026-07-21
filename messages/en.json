@@ -37,6 +37,7 @@
       "inventory": "Inventory",
       "reorderRequests": "Requests — to buy",
       "expiryFight": "Expiry fight — to sell",
+      "spillage": "Spillage & damage",
       "searchDemand": "Unstocked demand",
       "stocktake": "Stocktake",
       "shipping": "Shipping",

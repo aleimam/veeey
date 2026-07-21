@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { LOT_CONDITIONS, isLotCondition, isConditionVariant, conditionLabel } from './lot-condition';
 
 describe('lot-condition', () => {
-  it('defines NEW plus the three variant conditions', () => {
-    expect(LOT_CONDITIONS).toEqual(['NEW', 'OPEN_BOX', 'DAMAGED', 'BROKEN']);
+  it('defines NEW plus the variant conditions (incl. Phase-2 spillage ones)', () => {
+    expect(LOT_CONDITIONS).toEqual(['NEW', 'OPEN_BOX', 'DAMAGED', 'BROKEN', 'NO_BOX', 'OPEN_BOTTLE', 'BROKEN_BOTTLE']);
   });
 
   it('isLotCondition accepts known codes and rejects anything else', () => {
@@ -24,11 +24,13 @@ describe('lot-condition', () => {
     expect(isConditionVariant(undefined)).toBe(false);
   });
 
-  it('conditionLabel is bilingual and falls back to NEW for unknown values', () => {
+  it('conditionLabel is bilingual; null/NEW → New, unknown codes are humanized (not mislabelled New)', () => {
     expect(conditionLabel('OPEN_BOX', 'en')).toBe('Open-box');
     expect(conditionLabel('OPEN_BOX', 'ar')).toBe('عبوة مفتوحة');
     expect(conditionLabel('NEW', 'en')).toBe('New');
     expect(conditionLabel(null, 'en')).toBe('New');
-    expect(conditionLabel('garbage', 'ar')).toBe('جديد');
+    // A brand-new admin condition (Phase-2) humanizes rather than hiding as New.
+    expect(conditionLabel('NO_BOX', 'en')).toBe('No box');
+    expect(conditionLabel('slightly_dented', 'en')).toBe('Slightly dented');
   });
 });

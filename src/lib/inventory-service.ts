@@ -168,17 +168,41 @@ export async function setLotStatus(lotId: string, status: 'LIVE' | 'QUARANTINE' 
  * Runs daily from the worker (and once at deploy); reserveStock also guards the
  * gap between sweeps. Returns how many lots were expired.
  */
-export async function expireOverdueLots(): Promise<{ expired: number }> {
+export async function expireOverdueLots(): Promise<{ expired: number; writtenOffUnits: number }> {
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
+
+  // Owner rule (Phase-2): expired = destroyed. So any stock still on hand in a
+  // lot that has passed its expiry is AUTO-WRITTEN-OFF — deducted to zero and
+  // recorded as a SpillageEntry(EXPIRED) so it shows in the loss report — before
+  // the lot is flagged EXPIRED. Otherwise the on-hand count would overstate
+  // reality (unsellable units still counted as stock).
+  const overdueWithStock = await prisma.lot.findMany({
+    where: { status: 'LIVE', expiryDate: { not: null, lt: today }, qtyOnHand: { gt: 0 } },
+    select: { id: true, qtyOnHand: true },
+  });
+  let writtenOffUnits = 0;
+  if (overdueWithStock.length) {
+    const { recordSpillage, listSpillageReasons } = await import('@/lib/spillage-service');
+    await listSpillageReasons(); // ensure the EXPIRED reason is seeded
+    for (const l of overdueWithStock) {
+      try {
+        await recordSpillage({ lotId: l.id, reasonCode: 'EXPIRED', qty: l.qtyOnHand, note: 'auto: expired in stock' }, null);
+        writtenOffUnits += l.qtyOnHand;
+      } catch (e) {
+        console.error('expiry write-off failed for lot', l.id, e);
+      }
+    }
+  }
+
   const { count } = await prisma.lot.updateMany({
     where: { status: 'LIVE', expiryDate: { not: null, lt: today } },
     data: { status: 'EXPIRED' },
   });
   if (count > 0) {
-    await audit({ actorType: 'SYSTEM', action: 'lot.auto_expired', entityType: 'Lot', data: { count } });
+    await audit({ actorType: 'SYSTEM', action: 'lot.auto_expired', entityType: 'Lot', data: { count, writtenOffUnits } });
   }
-  return { expired: count };
+  return { expired: count, writtenOffUnits };
 }
 
 export type ReservationBinding = {

@@ -37,6 +37,7 @@
       "inventory": "المخزون",
       "reorderRequests": "الطلبات — للشراء",
       "expiryFight": "معركة الصلاحية — للبيع",
+      "spillage": "الهدر والتلف",
       "searchDemand": "الطلب غير المتوفر",
       "stocktake": "الجرد",
       "shipping": "الشحن",

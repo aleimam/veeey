@@ -42,6 +42,7 @@ export const NAV_SECTIONS: AdminNavSection[] = [
     { href: '/admin/inventory', key: 'inventory', permission: 'inventory.manage' },
     { href: '/admin/inventory/requests', key: 'reorderRequests', permission: 'inventory.manage' },
     { href: '/admin/inventory/expiry', key: 'expiryFight', permission: 'inventory.manage' },
+    { href: '/admin/inventory/spillage', key: 'spillage', permission: 'inventory.manage' },
     { href: '/admin/search-demand', key: 'searchDemand', permission: 'inventory.manage' },
     { href: '/admin/stocktake', key: 'stocktake', permission: 'stocktake.manage' },
   ] },

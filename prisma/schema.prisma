@@ -45,6 +45,52 @@ enum LotStatus {
   WRITTEN_OFF
 }
 
+/// Admin-editable list of damage/condition states units can be moved INTO
+/// (Phase-2 spillage). `sellable=true` → the units become a discounted buy-box
+/// variant lot; `sellable=false` → a write-off (deducted, lost). Seeded with
+/// Lost/Damaged (write-off), Open-box/No-box/Open-bottle/Broken-bottle
+/// (sellable), and a system EXPIRED reason for the auto-write-off sweep.
+model SpillageReason {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  labelEn   String
+  labelAr   String?
+  sellable  Boolean  @default(false)
+  active    Boolean  @default(true)
+  isSystem  Boolean  @default(false) // system reasons (EXPIRED) can't be deleted
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@index([active])
+}
+
+/// Ledger of spillage actions — the durable record behind the loss reports and
+/// the void/undo. Physical stock moves are also written to MovementLedger; this
+/// adds the reason, the sellable-or-write-off outcome, a cost snapshot for
+/// value reports, and the void state. A voided entry is excluded from reports.
+model SpillageEntry {
+  id              String    @id @default(cuid())
+  lotId           String // source lot
+  lot             Lot       @relation("SpillageSource", fields: [lotId], references: [id], onDelete: Cascade)
+  productId       String
+  product         Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  reasonCode      String
+  sellable        Boolean // snapshot of the reason's sellable flag at action time
+  qty             Int
+  toLotId         String? // the variant lot units moved into (sellable only)
+  unitCostPiastres BigInt? // snapshot; null when the lot had no cost (report shows units only)
+  actorId         String? // null = system (expiry sweep)
+  note            String?
+  createdAt       DateTime  @default(now())
+  voidedAt        DateTime?
+  voidedById      String?
+
+  @@index([reasonCode])
+  @@index([productId])
+  @@index([createdAt])
+}
+
 enum RelationKind {
   RELATED
   UPSELL
@@ -907,6 +953,7 @@ model Product {
   requestLines     RequestLine[]
   reorderIgnore    ReorderIgnore?
   refillPlans      RefillPlan[]
+  spillageEntries  SpillageEntry[]
 
   @@index([brandId])
   @@index([status])
@@ -993,6 +1040,7 @@ model Lot {
   orderItems      OrderItem[]
   movements       MovementLedger[]
   stocktakeCounts StocktakeCount[]
+  spillageEntries SpillageEntry[] @relation("SpillageSource")
 
   @@index([productId, expiryDate])
   @@index([status])
