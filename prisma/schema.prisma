@@ -91,6 +91,67 @@ model SpillageEntry {
   @@index([createdAt])
 }
 
+// ─── Incoming Shipments (YeldnIN stock-in, contract v2 `shipment.received`) ───
+// A shipment ARRIVING from the supply chain. It lands here as a REVIEW RECORD
+// only — no stock moves until Sales compare the entered expiry dates against the
+// photos and approve. That approval (Stage 3) is what creates sellable lots.
+
+model IncomingShipment {
+  id           String    @id @default(cuid())
+  /// YeldnIN's shipment uid — the idempotency key; a re-fired event updates, never duplicates.
+  yeldninUid   String    @unique
+  yeldninId    Int
+  receivedAt   DateTime
+  status       String    @default("PENDING_REVIEW") // PENDING_REVIEW | APPROVED | REJECTED
+  /// Destination inventory office. Null = the default location, resolved at approval.
+  locationId   String?
+  location     Location? @relation(fields: [locationId], references: [id])
+  reviewedById String?
+  reviewedAt   DateTime?
+  /// Why Sales sent it back — travels to YeldnIN so Ops can correct and resubmit.
+  rejectReason String?
+  lots         IncomingShipmentLot[]
+  photos       IncomingShipmentPhoto[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([status])
+  @@index([receivedAt])
+}
+
+/// One counted group of units: product × expiry × lot × cost, exactly as YeldnIN
+/// grouped them. Cost is the RAW supplier figure with its currency — the FX rate
+/// is applied and pinned at approval, because a cost is a historical fact.
+model IncomingShipmentLot {
+  id          String           @id @default(cuid())
+  shipmentId  String
+  shipment    IncomingShipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  /// Resolved by canonical SKU. Null = unmatched — held for review, never guessed.
+  productId   String?
+  product     Product?         @relation(fields: [productId], references: [id])
+  sku         String?
+  productName String
+  expiryDate  DateTime? // null = non-perishable (a device)
+  lotCode     String?
+  quantity    Int
+  unitCost    Float?
+  currency    String? // null = EGP
+
+  @@index([shipmentId])
+  @@index([productId])
+}
+
+/// Ops' photos of the arrival. The bytes live in YeldnIN and are fetched over the
+/// integration channel (`GET /attachments/{assetId}`) — Sales review against these.
+model IncomingShipmentPhoto {
+  id         String           @id @default(cuid())
+  shipmentId String
+  shipment   IncomingShipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  assetId    String
+
+  @@index([shipmentId])
+}
+
 enum RelationKind {
   RELATED
   UPSELL
@@ -956,6 +1017,7 @@ model Product {
   reorderIgnore    ReorderIgnore?
   refillPlans      RefillPlan[]
   spillageEntries  SpillageEntry[]
+  incomingLots     IncomingShipmentLot[]
 
   @@index([brandId])
   @@index([status])
@@ -1016,6 +1078,7 @@ model Location {
   stocktakeSessions  StocktakeSession[]
   stocktakeCounts    StocktakeCount[]
   stocktakeSchedules StocktakeSchedule[]
+  incomingShipments  IncomingShipment[]
   createdAt          DateTime           @default(now())
 }
 
