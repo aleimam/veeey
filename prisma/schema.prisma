@@ -2285,6 +2285,35 @@ model NetStockOutbox {
   @@index([status])
 }
 
+/// The MIRROR of NetStockOutbox: stock movements that originate on
+/// **egyptvitamins.net** (its own customers buying), ingested so veeey.net can
+/// become the stock master while ev.net keeps selling the same physical pool.
+///
+/// 🔴 origin is WP by definition, and these must NEVER be written back — Woo
+/// already decremented WP's own stock when the sale happened, so echoing them
+/// would subtract the same unit twice. Only veeey.net-origin deltas
+/// (NetStockOutbox) go out.
+///
+/// `status` starts at SHADOW: during the shadow-run week we record what we WOULD
+/// apply and reconcile it against WP's actual stock, without touching a single
+/// lot. Only after that diff proves near-zero does APPLIED become real.
+model WpStockIngest {
+  id          String    @id @default(cuid())
+  wpOrderId   Int // egyptvitamins.net order id — half of the idempotency key
+  orderNumber String?
+  wpId        Int // WP product id (= Product.legacyWpId)
+  productId   String? // resolved Veeey product; null = unmatched, reported not guessed
+  qty         Int // positive units
+  direction   String // SALE (ev.net sold it) | RESTORE (cancelled/refunded there)
+  status      String    @default("SHADOW") // SHADOW | APPLIED | SKIPPED
+  appliedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@unique([wpOrderId, wpId, direction])
+  @@index([status])
+  @@index([createdAt])
+}
+
 /// Tier benefits matrix (owner 2026-07-19): one list of member advantages, each
 /// toggled per tier by admins at /admin/tier-benefits. `key` set = SYSTEM
 /// benefit (code-enforced: free shipping, gates…— rename yes, delete no);
