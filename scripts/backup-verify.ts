@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { prisma } from '@/lib/prisma';
 import { decryptSecret } from '@/lib/backup/secret-box';
-import { parseArchiveName, ourArchives, formatBytes } from '@/lib/backup/backup-logic';
+import { parseArchiveName, ourArchives, formatBytes, libpqUrl } from '@/lib/backup/backup-logic';
 import { archivePrefix } from '@/lib/backup/backup-service';
 
 /**
@@ -157,9 +157,13 @@ async function main() {
     const dumpPath = path.join(un, dump);
     await fs.access(dumpPath);
 
-    const url = new URL(process.env.DATABASE_URL!);
-    const adminUrl = new URL(url.toString()); adminUrl.pathname = '/postgres';
-    const scratchUrl = new URL(url.toString()); scratchUrl.pathname = `/${scratchDb}`;
+    // libpq tools (psql/pg_restore) reject Prisma-only params like `?schema=public`
+    // — the exact bug that broke pg_dump on veeey.net. Strip them before these URLs
+    // ever reach a subprocess, just as backup-service does for the dump itself.
+    const liveUrl = libpqUrl(process.env.DATABASE_URL!);
+    const url = new URL(liveUrl);
+    const adminUrl = new URL(liveUrl); adminUrl.pathname = '/postgres';
+    const scratchUrl = new URL(liveUrl); scratchUrl.pathname = `/${scratchDb}`;
 
     // The app role deliberately lacks CREATEDB (least privilege), so fall back
     // to the postgres superuser via sudo and hand ownership to the app role so
@@ -195,7 +199,7 @@ async function main() {
     let emptyWitness = false;
     for (const t of WITNESS_TABLES) {
       const r = Number(await q(scratchUrl.toString(), `SELECT count(*) FROM "${t}"`).catch(() => '-1'));
-      const l = Number(await q(process.env.DATABASE_URL!, `SELECT count(*) FROM "${t}"`).catch(() => '-1'));
+      const l = Number(await q(liveUrl, `SELECT count(*) FROM "${t}"`).catch(() => '-1'));
       const d = r - l;
       console.log(`  ${t.padEnd(14)} ${String(r).padStart(9)} ${String(l).padStart(11)} ${(d > 0 ? `+${d}` : String(d)).padStart(9)}`);
       if (r === 0 && l > 0) emptyWitness = true;
