@@ -34,14 +34,23 @@ export type RawOrder = {
   items: { productWpId: number; qty: number; grossEgp: number }[];
 };
 
-/** All WP orders (any status — history) with their line items. */
-export async function readOrders(pool: Pool): Promise<RawOrder[]> {
+/**
+ * WP orders (any status — history) with their line items.
+ *
+ * `updatedSince` bounds it for the Stage-2 ingest poller, which runs every few
+ * minutes and must not full-scan the orders table each time. It filters on
+ * date_updated_gmt, NOT created: a cancellation or refund days later is exactly
+ * the movement we must not miss, and it never changes the created date.
+ */
+export async function readOrders(pool: Pool, opts: { updatedSince?: Date } = {}): Promise<RawOrder[]> {
+  const since = opts.updatedSince;
   const [orders] = await pool.query<Row[]>(
     `SELECT o.id, o.status, o.total_amount AS total, o.customer_id AS cust, o.billing_email AS email,
             o.payment_method AS pay, o.date_created_gmt AS created, COALESCE(st.shipping_total, 0) AS shipping
      FROM ${T('wc_orders')} o
      LEFT JOIN ${T('wc_order_stats')} st ON st.order_id = o.id
-     WHERE o.type = 'shop_order'`,
+     WHERE o.type = 'shop_order'${since ? ' AND COALESCE(o.date_updated_gmt, o.date_created_gmt) >= ?' : ''}`,
+    since ? [since] : [],
   );
   const byId = new Map<number, RawOrder>();
   for (const o of orders) {

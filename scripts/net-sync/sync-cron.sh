@@ -15,8 +15,13 @@
 #     echo "PATH=$NODE_DIR:/usr/local/bin:/usr/bin:/bin"; \
 #     echo "*/10 * * * * /usr/bin/flock -n /tmp/veeey-net-sync.lock /opt/veeey/scripts/net-sync/sync-cron.sh >> /opt/veeey/net-sync.log 2>&1"; \
 #     echo "30 3 * * * /usr/bin/flock -n /tmp/veeey-net-images.lock /opt/veeey/scripts/net-sync/sync-cron.sh --images >> /opt/veeey/net-sync.log 2>&1"; \
-#     echo "*/2 * * * * /usr/bin/flock -n /tmp/veeey-net-wb.lock /opt/veeey/scripts/net-sync/sync-cron.sh --writeback >> /opt/veeey/net-sync.log 2>&1" \
+#     echo "*/2 * * * * /usr/bin/flock -n /tmp/veeey-net-wb.lock /opt/veeey/scripts/net-sync/sync-cron.sh --writeback >> /opt/veeey/net-sync.log 2>&1"; \
+#     echo "*/5 * * * * /usr/bin/flock -n /tmp/veeey-net-ingest.lock /opt/veeey/scripts/net-sync/sync-cron.sh --ingest >> /opt/veeey/net-sync.log 2>&1" \
 #   ) | crontab -
+#
+# --ingest (Stage 2): polling backstop for the ev.net WC order webhook. Inert
+# until WP_INGEST_MODE=shadow (then apply) in $APP_DIR/.env. The webhook is the
+# fast path; this catches whatever it dropped.
 set -euo pipefail
 
 APP_DIR="${NET_SYNC_APP_DIR:-/opt/veeey}"
@@ -64,6 +69,12 @@ elif [ "${1:-}" = "--orders" ]; then
   echo "----- $STAMP net-sync ORDERS start -----"
   "$TSX" scripts/net-sync/run-orders.ts --commit
   echo "----- $(date -u +%FT%TZ) net-sync ORDERS done -----"
+elif [ "${1:-}" = "--ingest" ]; then
+  # Stage 2 poller (safety net for the WC webhook). No-op unless WP_INGEST_MODE
+  # is shadow|apply in $APP_DIR/.env — so this line is safe to install early.
+  echo "----- $STAMP net-sync INGEST start -----"
+  "$TSX" scripts/net-sync/run-ingest.ts --hours 6
+  echo "----- $(date -u +%FT%TZ) net-sync INGEST done -----"
 else
   echo "----- $STAMP net-sync start -----"
   "$TSX" scripts/net-sync/run.ts --commit
