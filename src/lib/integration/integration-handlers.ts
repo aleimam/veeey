@@ -1,6 +1,9 @@
 import { prisma } from '@/lib/prisma';
 import type { SpecialOrderStatus } from '@/generated/prisma/client';
 import { parseWireRequest } from '@/lib/integration/request-sync';
+import { parseDeliveryTracking, orderStatusForDelivery, trackingNote } from '@/lib/integration/delivery-wire';
+import { storeKey } from '@/lib/integration/delivery-sync';
+import { transitionOrder } from '@/lib/order-service';
 
 /**
  * Inbound YeldnIN webhook handlers (INTEGRATION_CONTRACT §5). `shipment.received`
@@ -78,12 +81,48 @@ export function handleSpecialOrderMilestone(p: { requestUid: string; milestone: 
   return recordMilestone(p.requestUid, p.milestone, p.occurredAt);
 }
 
-export async function handleDeliveryStatusChanged(p: { veeeyOrderId?: string | null; status: string; courierName?: string | null }) {
-  if (!p.veeeyOrderId) return { matched: false };
-  const order = await prisma.order.findFirst({ where: { number: p.veeeyOrderId } });
-  if (!order) return { matched: false };
-  if (p.courierName) await prisma.order.update({ where: { id: order.id }, data: { courier: 'OWN' } }).catch(() => {});
-  return { matched: true };
+/**
+ * `delivery.tracking` (YeldnIN → Veeey, contract v2 §2.3) — the Veeey Express
+ * loop closing. Every courier milestone lands here; most are timeline-only (the
+ * order stays Shipped), while DELIVERED completes the order and a FAILED or
+ * CANCELLED delivery returns it to **Confirmed** so Ops can ship it again
+ * (owner rule — it must NOT auto-cancel, and must not restock: the goods are
+ * still out with the courier until a Return says otherwise).
+ *
+ * The transition runs as `system` — there is no signed-in user on a webhook, so
+ * it skips the per-status RBAC gate (which constrains people) while keeping the
+ * transition graph, the CAS claim and every effect.
+ */
+export async function handleDeliveryTracking(payload: unknown): Promise<{ matched: boolean; status?: string; advanced?: string | null; skipped?: string }> {
+  const w = parseDeliveryTracking(payload);
+  if (!w) return { matched: false, skipped: 'validation_failed' };
+
+  // Order numbers are unique only WITHIN a store, so a mismatched storeKey means
+  // this event is about the OTHER store's order — never touch it.
+  const mine = storeKey();
+  if (w.storeKey && mine && w.storeKey !== mine) return { matched: false, skipped: 'store_mismatch' };
+
+  const order = await prisma.order.findFirst({ where: { number: w.orderNumber }, select: { id: true, status: true } });
+  if (!order) return { matched: false, skipped: 'order_not_found' };
+
+  // Durable, customer-visible trail of every milestone — including the ones that
+  // don't change the order status (assigned / out for delivery / rescheduled).
+  await prisma.orderStatusHistory
+    .create({ data: { orderId: order.id, fromStatus: order.status, toStatus: order.status, actorId: null, note: trackingNote(w) } })
+    .catch((e) => console.error('delivery tracking history write failed', e));
+
+  const target = orderStatusForDelivery(w.status);
+  if (!target || target === order.status) return { matched: true, status: w.status, advanced: null };
+
+  try {
+    await transitionOrder(order.id, target, trackingNote(w), { system: true });
+    return { matched: true, status: w.status, advanced: target };
+  } catch (e) {
+    // An out-of-graph move (e.g. DELIVERED arriving for an already-Returned
+    // order) must not 500 the webhook — the milestone is already on the timeline.
+    console.error('delivery tracking transition failed', e);
+    return { matched: true, status: w.status, advanced: null, skipped: 'transition_rejected' };
+  }
 }
 
 /**
@@ -147,8 +186,12 @@ export async function dispatchInboundEvent(type: string, payload: unknown): Prom
       return { handled: true, detail: await handleRequestStatusChanged(payload as { requestUid: string; salesStatusCode: string; changedAt?: string }) };
     case 'special_order.milestone':
       return { handled: true, detail: await handleSpecialOrderMilestone(payload as { requestUid: string; milestone: string; occurredAt?: string }) };
+    // `delivery.tracking` is what YeldnIN actually emits; the older
+    // `delivery.status_changed` name is kept as an alias so a queued event from
+    // either side of a deploy still lands.
+    case 'delivery.tracking':
     case 'delivery.status_changed':
-      return { handled: true, detail: await handleDeliveryStatusChanged(payload as { veeeyOrderId?: string | null; status: string; courierName?: string | null }) };
+      return { handled: true, detail: await handleDeliveryTracking(payload) };
     default:
       return { handled: false };
   }

@@ -258,13 +258,20 @@ async function applyStatusEffects(order: { id: string; number: string; totalPias
   }
 }
 
-export async function transitionOrder(id: string, to: OrderStatus, reason?: string) {
+export async function transitionOrder(id: string, to: OrderStatus, reason?: string, opts?: { system?: boolean }) {
   const cfg = await statusConfig(to);
   // Status Matrix (STAT): who may advance an order INTO this status is
   // admin-configured per target status, falling back to the baseline. Owner
   // rule — only Sales (orders.write) can Confirm; Operations (orders.fulfill)
   // can Ship/Deliver but not Confirm.
-  const user = await requirePermission((cfg?.advancePermission?.trim() || DEFAULT_ADVANCE_PERMISSION) as PermissionKey);
+  //
+  // `system` = an integration-driven transition (e.g. a YeldnIN delivery event).
+  // There is no signed-in user to check, and the RBAC gate exists to constrain
+  // PEOPLE — so it's skipped, while the transition graph, the CAS claim and
+  // every effect still apply, and the trail records SYSTEM rather than a person.
+  const user = opts?.system
+    ? null
+    : await requirePermission((cfg?.advancePermission?.trim() || DEFAULT_ADVANCE_PERMISSION) as PermissionKey);
   const order = await prisma.order.findUniqueOrThrow({ where: { id } });
   const from = order.status;
   if (!(await canTransition(from, to))) throw new Error('INVALID_TRANSITION');
@@ -278,7 +285,7 @@ export async function transitionOrder(id: string, to: OrderStatus, reason?: stri
   if (claimed.count === 0) throw new Error('INVALID_TRANSITION');
   // Durable, customer-visible timeline (the field-level change log is purged
   // nightly). Append-only; best-effort so it never blocks the transition.
-  await prisma.orderStatusHistory.create({ data: { orderId: id, fromStatus: from, toStatus: to, actorId: user.id, note: reason ?? null } }).catch((e) => console.error('status history write failed', e));
+  await prisma.orderStatusHistory.create({ data: { orderId: id, fromStatus: from, toStatus: to, actorId: user?.id ?? null, note: reason ?? null } }).catch((e) => console.error('status history write failed', e));
   await applyStatusEffects(order, from, cfg);
   // net-sync Phase 3 (veeey.net only — no-op without NET_SYNC_WRITEBACK): report
   // this order's stock delta back to the egyptvitamins.net WP master. Best-effort;
@@ -289,7 +296,7 @@ export async function transitionOrder(id: string, to: OrderStatus, reason?: stri
   } catch (e) {
     console.error('net-sync writeback enqueue failed', e);
   }
-  await audit({ actorType: 'USER', actorId: user.id, action: `order.${to.toLowerCase()}`, entityType: 'Order', entityId: id, data: { reason } });
+  await audit({ actorType: user ? 'USER' : 'SYSTEM', actorId: user?.id ?? null, action: `order.${to.toLowerCase()}`, entityType: 'Order', entityId: id, data: { reason } });
   await runStatusNotify(id, cfg);
   if (to === 'DELIVERED') {
     // #188: schedule a post-delivery review request (best-effort; never blocks the transition).

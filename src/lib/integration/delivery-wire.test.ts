@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { resolveStoreKey, orderToDeliveryWire, addressText, type DeliveryOrderInput } from './delivery-wire';
+import {
+  resolveStoreKey, orderToDeliveryWire, addressText, type DeliveryOrderInput,
+  parseDeliveryTracking, orderStatusForDelivery, trackingNote,
+} from './delivery-wire';
 
 const SNAP = { name: 'Ali Hassan', phone: '+201001234567', governorate: 'Cairo', city: 'Nasr City', area: 'Zone 6', street: '5 Nile St' };
 
@@ -87,5 +90,46 @@ describe('orderToDeliveryWire', () => {
   it('addressText skips missing parts without leaving stray commas', () => {
     expect(addressText({ governorate: 'Giza', city: 'Dokki' })).toBe('Dokki, Giza');
     expect(addressText({})).toBe('');
+  });
+});
+
+describe('inbound delivery.tracking (contract v2 §2.3)', () => {
+  const ev = {
+    storeKey: 'veeey.net', orderNumber: 'VY-ABC-123', deliveryUid: 'DLV-1',
+    status: 'ASSIGNED', at: '2026-07-21T10:00:00.000Z', courierName: 'Ahmed M.',
+    reason: null, collectedAmountEgp: null, note: null,
+  };
+
+  it('parses a valid event and normalises the status', () => {
+    const w = parseDeliveryTracking({ ...ev, status: 'out_for_delivery' })!;
+    expect(w.status).toBe('OUT_FOR_DELIVERY');
+    expect(w.orderNumber).toBe('VY-ABC-123');
+    expect(w.courierName).toBe('Ahmed M.');
+  });
+
+  it('rejects an unknown status rather than silently ignoring it', () => {
+    expect(parseDeliveryTracking({ ...ev, status: 'TELEPORTED' })).toBeNull();
+    expect(parseDeliveryTracking({ ...ev, orderNumber: '' })).toBeNull();
+    expect(parseDeliveryTracking(null)).toBeNull();
+  });
+
+  it('only DELIVERED completes the order; FAILED/CANCELLED return it to Confirmed', () => {
+    expect(orderStatusForDelivery('DELIVERED')).toBe('DELIVERED');
+    expect(orderStatusForDelivery('FAILED')).toBe('CONFIRMED');
+    expect(orderStatusForDelivery('CANCELLED')).toBe('CONFIRMED');
+  });
+
+  it('in-flight milestones are timeline-only — the order stays Shipped', () => {
+    for (const s of ['NEW', 'ASSIGNED', 'OUT_FOR_DELIVERY', 'RESCHEDULED', 'DELAYED'] as const) {
+      expect(orderStatusForDelivery(s)).toBeNull();
+    }
+  });
+
+  it('builds a factual timeline note from whatever the event carried', () => {
+    expect(trackingNote({ status: 'ASSIGNED', courierName: 'Ahmed M.', reason: null, note: null }))
+      .toBe('Veeey Express · ASSIGNED · Ahmed M.');
+    expect(trackingNote({ status: 'FAILED', courierName: 'Ahmed M.', reason: 'customer unreachable', note: null }))
+      .toBe('Veeey Express · FAILED · Ahmed M. · customer unreachable');
+    expect(trackingNote({ status: 'NEW', courierName: null, reason: null, note: null })).toBe('Veeey Express · NEW');
   });
 });

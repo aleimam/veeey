@@ -48,6 +48,68 @@ export function resolveStoreKey(siteUrl?: string | null, override?: string | nul
   return pick(override) ?? pick(siteUrl);
 }
 
+// ---------------------------------------------------------------------------
+// Inbound: delivery.tracking (YeldnIN → Veeey), contract v2 §2.3
+// ---------------------------------------------------------------------------
+
+/** YeldnIN's Delivery lifecycle, as emitted on the wire. */
+export const DELIVERY_STATUSES = [
+  'NEW', 'ASSIGNED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'RESCHEDULED', 'DELAYED', 'FAILED', 'CANCELLED',
+] as const;
+export type DeliveryStatus = (typeof DELIVERY_STATUSES)[number];
+
+export interface WireDeliveryTracking {
+  storeKey: string;
+  orderNumber: string;
+  deliveryUid: string;
+  status: DeliveryStatus;
+  at: string;
+  courierName: string | null;
+  reason: string | null;
+  /** Piastres; only on DELIVERED. */
+  collectedAmountEgp: number | null;
+  note: string | null;
+}
+
+/** Validate an inbound tracking event. Rejects (never coerces) an unknown status
+ *  so a YeldnIN-side lifecycle change surfaces loudly instead of silently no-op'ing. */
+export function parseDeliveryTracking(input: unknown): WireDeliveryTracking | null {
+  if (!input || typeof input !== 'object') return null;
+  const p = input as Record<string, unknown>;
+  const s = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null);
+  const orderNumber = s(p.orderNumber);
+  const status = s(p.status)?.toUpperCase();
+  if (!orderNumber || !status || !(DELIVERY_STATUSES as readonly string[]).includes(status)) return null;
+  return {
+    storeKey: s(p.storeKey) ?? '',
+    orderNumber,
+    deliveryUid: s(p.deliveryUid) ?? '',
+    status: status as DeliveryStatus,
+    at: s(p.at) ?? new Date().toISOString(),
+    courierName: s(p.courierName),
+    reason: s(p.reason),
+    collectedAmountEgp: typeof p.collectedAmountEgp === 'number' && Number.isFinite(p.collectedAmountEgp) ? p.collectedAmountEgp : null,
+    note: s(p.note),
+  };
+}
+
+/**
+ * Which Veeey order status a delivery status drives — null means "timeline only,
+ * the order stays Shipped". Owner rule: a FAILED or CANCELLED delivery returns
+ * the order to **Confirmed** so it can be shipped again (it never auto-cancels,
+ * and it must not restock — the goods are still out with the courier).
+ */
+export function orderStatusForDelivery(status: DeliveryStatus): 'DELIVERED' | 'CONFIRMED' | null {
+  if (status === 'DELIVERED') return 'DELIVERED';
+  if (status === 'FAILED' || status === 'CANCELLED') return 'CONFIRMED';
+  return null;
+}
+
+/** Compact, factual timeline note — proper nouns + codes, so it needs no translation. */
+export function trackingNote(w: Pick<WireDeliveryTracking, 'status' | 'courierName' | 'reason' | 'note'>): string {
+  return ['Veeey Express', w.status, w.courierName, w.reason, w.note].filter(Boolean).join(' · ');
+}
+
 /** Methods where the courier collects cash at the door; everything else is prepaid. */
 const COLLECT_ON_DELIVERY = new Set(['COD', 'POS_ON_DELIVERY']);
 
