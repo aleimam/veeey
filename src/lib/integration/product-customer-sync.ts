@@ -35,6 +35,10 @@ export type ProductWireV2 = {
 export type CustomerWireV2 = {
   veeeyCustomerId: string;
   name: string;
+  /** Normalized (lowercase) account email — YeldnIN's cross-store match key, so
+   *  the SAME real person coming from veeey.com and veeey.net reconciles to one
+   *  YeldnIN customer instead of duplicating. */
+  email?: string;
   phone?: string;
   archived?: boolean;
 };
@@ -199,11 +203,13 @@ export function productToWireV2(p: ProductForWire, sku: string, archived = false
   };
 }
 
-export function customerToWireV2(c: { id: string; firstName: string | null; lastName: string | null; user: { name: string | null; phone: string | null } }, archived = false): CustomerWireV2 {
+export function customerToWireV2(c: { id: string; firstName: string | null; lastName: string | null; user: { name: string | null; phone: string | null; email: string | null } }, archived = false): CustomerWireV2 {
   const name = [c.firstName, c.lastName].filter(Boolean).join(' ').trim() || c.user.name || 'Veeey customer';
+  const email = c.user.email?.trim().toLowerCase() || null;
   return {
     veeeyCustomerId: c.id,
     name,
+    ...(email ? { email } : {}),
     ...(c.user.phone ? { phone: c.user.phone } : {}),
     ...(archived ? { archived: true } : {}),
   };
@@ -231,7 +237,7 @@ export async function emitCustomerUpsertV2(customerId: string, opts: { archived?
     if (!(await v2CustomersEnabled())) return;
     const c = await prisma.customer.findUnique({
       where: { id: customerId },
-      select: { id: true, firstName: true, lastName: true, user: { select: { name: true, phone: true } } },
+      select: { id: true, firstName: true, lastName: true, user: { select: { name: true, phone: true, email: true } } },
     });
     if (!c) return;
     const { recordOutbox } = await import('@/lib/integration/integration-service');
@@ -278,9 +284,9 @@ export async function sweepV2(): Promise<{ products: number; customers: number }
   const customersOn = await v2CustomersEnabled();
   cursor = undefined;
   for (; customersOn; ) {
-    const batch: Array<{ id: string; firstName: string | null; lastName: string | null; user: { name: string | null; phone: string | null } }> =
+    const batch: Array<{ id: string; firstName: string | null; lastName: string | null; user: { name: string | null; phone: string | null; email: string | null } }> =
       await prisma.customer.findMany({
-        select: { id: true, firstName: true, lastName: true, user: { select: { name: true, phone: true } } },
+        select: { id: true, firstName: true, lastName: true, user: { select: { name: true, phone: true, email: true } } },
         orderBy: { id: 'asc' },
         take: 1000,
         ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),

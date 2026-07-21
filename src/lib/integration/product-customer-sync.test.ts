@@ -56,13 +56,16 @@ describe('productToWireV2 (contract v2 §1 payload)', () => {
 
 describe('customerToWireV2 (contract v2 §2 — registered only by construction)', () => {
   it('builds name from customer fields, falls back to the user name', () => {
-    expect(customerToWireV2({ id: 'c1', firstName: 'Ali', lastName: 'Hassan', user: { name: 'x', phone: '+2010' } }))
-      .toEqual({ veeeyCustomerId: 'c1', name: 'Ali Hassan', phone: '+2010' });
-    expect(customerToWireV2({ id: 'c2', firstName: null, lastName: null, user: { name: 'Mona', phone: null } }))
+    expect(customerToWireV2({ id: 'c1', firstName: 'Ali', lastName: 'Hassan', user: { name: 'x', phone: '+2010', email: 'ALI@X.com' } }))
+      .toEqual({ veeeyCustomerId: 'c1', name: 'Ali Hassan', email: 'ali@x.com', phone: '+2010' });
+    expect(customerToWireV2({ id: 'c2', firstName: null, lastName: null, user: { name: 'Mona', phone: null, email: null } }))
       .toEqual({ veeeyCustomerId: 'c2', name: 'Mona' });
   });
+  it('normalizes email to lowercase (the cross-store match key)', () => {
+    expect(customerToWireV2({ id: 'c4', firstName: 'A', lastName: null, user: { name: null, phone: null, email: '  Foo@Bar.COM ' } }).email).toBe('foo@bar.com');
+  });
   it('flags archived on account deletion', () => {
-    expect(customerToWireV2({ id: 'c3', firstName: null, lastName: null, user: { name: null, phone: null } }, true))
+    expect(customerToWireV2({ id: 'c3', firstName: null, lastName: null, user: { name: null, phone: null, email: null } }, true))
       .toMatchObject({ veeeyCustomerId: 'c3', archived: true });
   });
 });
