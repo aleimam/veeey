@@ -4,59 +4,21 @@ import { parseWireRequest } from '@/lib/integration/request-sync';
 import { parseDeliveryTracking, orderStatusForDelivery, trackingNote } from '@/lib/integration/delivery-wire';
 import { storeKey } from '@/lib/integration/delivery-sync';
 import { transitionOrder } from '@/lib/order-service';
+import { receiveShipment } from '@/lib/incoming-shipment-service';
 
 /**
- * Inbound YeldnIN webhook handlers (INTEGRATION_CONTRACT §5). `shipment.received`
- * is the high-value stock-in handoff (builds FEFO lots); the status/milestone/
- * delivery handlers record progress. ⚠️ Exact status mapping + compensation math
- * trace to a contract snapshot — re-baseline before enabling in staging.
+ * Inbound YeldnIN webhook handlers (INTEGRATION_CONTRACT §5). The status/
+ * milestone/delivery handlers record progress; `shipment.received` lands a
+ * stock-in for Sales to review (see `incoming-shipment-service`).
+ *
+ * ⚠️ The contract file is a SNAPSHOT and has drifted from what YeldnIN really
+ * emits — re-baseline against the emitter before trusting it. `shipment.received`
+ * was re-baselined 2026-07-21; the previous handler here built QUARANTINE lots
+ * from `expiryMonth`/`expiryYear` items that YeldnIN never implemented, and was
+ * deleted rather than left as a second, stale answer to "a shipment arrived".
+ * (The dev Simulate button on /admin/inventory/intake is a separate mock path
+ * and is unaffected.)
  */
-// ⚠️ unitCostEgp is a contract field to confirm at re-baseline (V4 C10) — parsed
-// tolerantly (lot-level wins over item-level; absent = cost left null).
-type ShipmentLot = { quantity: number; expiryMonth: number; expiryYear: number; batchNumber?: string | null; unitCostEgp?: number | null };
-type ShipmentItem = { batchId?: number; requestUid?: string; sku?: string | null; productName?: string; quantity: number; unitCostEgp?: number | null; lots?: ShipmentLot[] };
-type ShipmentPayload = { shipmentId: number; receivedAt?: string; items?: ShipmentItem[] };
-
-const costPiastresOf = (lot: ShipmentLot, item: ShipmentItem): bigint | null => {
-  const egp = lot.unitCostEgp ?? item.unitCostEgp;
-  return egp != null && Number.isFinite(egp) && egp >= 0 ? BigInt(Math.round(egp * 100)) : null;
-};
-
-/**
- * Real supplier receiving (V4 C10): shipments land as PENDING (QUARANTINE)
- * intake lots carrying the supplier expiry + unit cost — they flow through the
- * same confirm-and-publish step as the manual intake (publish is the single
- * point where stock becomes sellable + writes the STOCK_IN ledger row). This
- * whole handler is inert until INTEGRATION_ENABLED (webhook is flag-gated).
- */
-export async function handleShipmentReceived(payload: ShipmentPayload): Promise<{ lotsCreated: number; unmatched: number }> {
-  const location = await prisma.location.findFirst({ orderBy: { createdAt: 'asc' } });
-  if (!location) return { lotsCreated: 0, unmatched: 0 };
-
-  let lotsCreated = 0;
-  let unmatched = 0;
-  for (const item of payload.items ?? []) {
-    const product = item.sku ? await prisma.product.findFirst({ where: { sku: item.sku } }) : null;
-    if (!product) { unmatched += 1; continue; }
-    // Lots may be empty or sum to fewer than quantity → those units are "expiry unknown"; we only shelve specified lots.
-    for (const lot of item.lots ?? []) {
-      const expiry = new Date(Date.UTC(lot.expiryYear, Math.max(0, Math.min(11, lot.expiryMonth - 1)), 1));
-      await prisma.lot.create({
-        data: {
-          productId: product.id,
-          locationId: location.id,
-          expiryDate: expiry,
-          qtyOnHand: lot.quantity,
-          sourceBatchId: item.batchId != null ? String(item.batchId) : null,
-          costPiastres: costPiastresOf(lot, item),
-          status: 'QUARANTINE', // pending intake — Ops confirms expiry/price/cost, then publishes
-        },
-      });
-      lotsCreated += 1;
-    }
-  }
-  return { lotsCreated, unmatched };
-}
 
 const SALES_STATUS_MAP: Record<string, SpecialOrderStatus> = {
   ORDERED: 'SOURCING', PURCHASED: 'PURCHASED', SHIPPED: 'IN_TRANSIT', SHIPPED_SUPPLIER: 'IN_TRANSIT',
@@ -176,8 +138,12 @@ export async function handleRequestUpsert(payload: unknown): Promise<{ matched: 
 
 export async function dispatchInboundEvent(type: string, payload: unknown): Promise<{ handled: boolean; detail?: unknown }> {
   switch (type) {
+    // Re-baselined 2026-07-21: YeldnIN now really emits this, and its shape is
+    // NOT the old contract snapshot (which described expiryMonth/expiryYear lots
+    // that were never implemented). It lands as a review record — Sales approve
+    // before anything becomes sellable stock.
     case 'shipment.received':
-      return { handled: true, detail: await handleShipmentReceived(payload as ShipmentPayload) };
+      return { handled: true, detail: await receiveShipment(payload) };
     case 'request.upsert':
     case 'request.created':
     case 'request.updated':
