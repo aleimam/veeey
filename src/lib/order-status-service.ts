@@ -26,7 +26,8 @@ export function invalidateStatusCache() { cache = null; }
 const toConfig = (r: {
   code: string; labelEn: string; labelAr: string | null; customerCode: string | null; icon: string;
   stockEffect: string; paymentEffect: string; revenueEffect: string; loyaltyEffect: string;
-  notifyAudience: string; notifyTemplateKey: string | null; allowedNext: string[]; sourceAliases: string[];
+  notifyAudience: string; notifyTemplateKey: string | null; advancePermission: string | null; fastAction: boolean;
+  allowedNext: string[]; sourceAliases: string[];
   sortOrder: number; active: boolean; isDefault: boolean;
 }): StatusConfig => ({
   code: r.code as OrderStatus,
@@ -40,6 +41,8 @@ const toConfig = (r: {
   loyaltyEffect: r.loyaltyEffect as StatusConfig['loyaltyEffect'],
   notifyAudience: r.notifyAudience as StatusConfig['notifyAudience'],
   notifyTemplateKey: r.notifyTemplateKey,
+  advancePermission: r.advancePermission ?? null,
+  fastAction: r.fastAction,
   allowedNext: (r.allowedNext as OrderStatus[]) ?? [],
   sourceAliases: r.sourceAliases ?? [],
   sortOrder: r.sortOrder,
@@ -102,7 +105,8 @@ export async function statusLabel(code: string | null | undefined, locale = 'en'
 export type StatusConfigInput = {
   labelEn: string; labelAr?: string | null; customerCode?: string | null; icon?: string;
   stockEffect?: string; paymentEffect?: string; revenueEffect?: string; loyaltyEffect?: string;
-  notifyAudience?: string; notifyTemplateKey?: string | null; allowedNext?: string[]; sourceAliases?: string[];
+  notifyAudience?: string; notifyTemplateKey?: string | null; advancePermission?: string | null; fastAction?: boolean;
+  allowedNext?: string[]; sourceAliases?: string[];
   sortOrder?: number; active?: boolean;
 };
 
@@ -123,6 +127,8 @@ export async function saveStatusConfig(code: string, input: StatusConfigInput) {
       loyaltyEffect: input.loyaltyEffect ?? 'none',
       notifyAudience: input.notifyAudience ?? 'none',
       notifyTemplateKey: input.notifyTemplateKey?.trim() || null,
+      advancePermission: input.advancePermission?.trim() || null,
+      fastAction: input.fastAction ?? false,
       allowedNext,
       sourceAliases: (input.sourceAliases ?? []).map((a) => a.trim().toLowerCase()).filter(Boolean),
       sortOrder: input.sortOrder ?? 0,

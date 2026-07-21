@@ -4,6 +4,7 @@ import { getCurrentUser } from '@/lib/auth-guards';
 import { hasPermission } from '@/lib/rbac';
 import { pick } from '@/lib/admin-i18n';
 import { CUSTOMER_STATUSES, ORDER_STATUSES } from '@/lib/order-status';
+import { PERMISSION_KEYS, PERMISSION_CATALOG, PERMISSION_CATALOG_AR } from '@/lib/permissions';
 import { listStatusConfigs } from '@/lib/order-status-service';
 import { saveStatusConfigAction, remapOrderStatusesAction } from '@/server/order-status-actions';
 import { SubmitButton, inputCls } from '@/components/admin/ui';
@@ -79,8 +80,15 @@ export default async function OrderStatusesPage({ params, searchParams }: { para
                 <select name="notifyAudience" defaultValue={s.notifyAudience} className={`${inputCls} w-full`}>{AUDIENCE.map((o) => <option key={o} value={o}>{o}</option>)}</select>
               </label>
               <label className={lbl}>{tb('Notify template key', 'مفتاح قالب الإشعار')}<input name="notifyTemplateKey" defaultValue={s.notifyTemplateKey ?? ''} className={`${inputCls} w-full font-mono`} /></label>
+              <label className={lbl}>{tb('Who can advance (permission)', 'من يستطيع النقل (صلاحية)')}
+                <select name="advancePermission" defaultValue={s.advancePermission ?? ''} className={`${inputCls} w-full`}>
+                  <option value="">{tb('— default (orders.write) —', '— الافتراضي (orders.write) —')}</option>
+                  {PERMISSION_KEYS.map((k) => <option key={k} value={k}>{k} — {locale === 'ar' ? PERMISSION_CATALOG_AR[k] : PERMISSION_CATALOG[k]}</option>)}
+                </select>
+              </label>
               <label className={lbl}>{tb('Sort', 'الترتيب')}<input name="sortOrder" type="number" defaultValue={s.sortOrder} className={`${inputCls} w-full`} /></label>
               <label className="flex items-end gap-1.5 pb-2 text-xs text-foreground"><input type="checkbox" name="active" defaultChecked={s.active} className="size-4" /> {tb('Active', 'مفعّل')}</label>
+              <label className="flex items-end gap-1.5 pb-2 text-xs text-foreground"><input type="checkbox" name="fastAction" defaultChecked={s.fastAction} className="size-4" /> {tb('Fast action (list icon)', 'إجراء سريع (أيقونة)')}</label>
               <div className={`${lbl} sm:col-span-2 lg:col-span-2`}>{tb('Allowed next', 'الخطوات التالية المسموح بها')}
                 <div className="mt-1 flex flex-wrap gap-2">
                   {ORDER_STATUSES.filter((c) => c !== s.code).map((c) => (

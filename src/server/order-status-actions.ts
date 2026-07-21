@@ -23,6 +23,8 @@ export async function saveStatusConfigAction(fd: FormData): Promise<void> {
       loyaltyEffect: str(fd, 'loyaltyEffect') || 'none',
       notifyAudience: str(fd, 'notifyAudience') || 'none',
       notifyTemplateKey: str(fd, 'notifyTemplateKey') || null,
+      advancePermission: str(fd, 'advancePermission') || null,
+      fastAction: fd.get('fastAction') != null,
       allowedNext: fd.getAll('allowedNext').map((v) => String(v)),
       sourceAliases: parseAliases(str(fd, 'sourceAliases')),
       sortOrder: Number(str(fd, 'sortOrder')) || 0,

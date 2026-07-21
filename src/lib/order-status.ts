@@ -62,6 +62,11 @@ export type StatusConfig = {
   loyaltyEffect: LoyaltyEffect;
   notifyAudience: NotifyAudience;
   notifyTemplateKey: string | null;
+  // Who may move an order INTO this status (RBAC permission key); null → the
+  // baseline `orders.write`. Lets the owner say e.g. "only Sales can Confirm".
+  advancePermission: string | null;
+  // Offer this transition as a one-click icon in the admin orders list.
+  fastAction: boolean;
   allowedNext: OrderStatus[];
   sourceAliases: string[];
   sortOrder: number;
@@ -69,11 +74,15 @@ export type StatusConfig = {
   isDefault: boolean;
 };
 
+/** The baseline permission every transition needs when a status names none. */
+export const DEFAULT_ADVANCE_PERMISSION = 'orders.write';
+
 /** Seeded defaults (owner-signed-off). All fields editable in admin afterwards. */
 export const DEFAULT_STATUS_CONFIG: StatusConfig[] = [
   {
     code: 'PENDING', labelEn: 'Pending', labelAr: 'قيد الانتظار', customerCode: 'PENDING', icon: 'clock',
     stockEffect: 'none', paymentEffect: 'none', revenueEffect: 'none', loyaltyEffect: 'none', notifyAudience: 'none', notifyTemplateKey: null,
+    advancePermission: null, fastAction: false,
     allowedNext: ['CONFIRMED', 'HOLD', 'EDIT', 'CANCELLED'],
     sourceAliases: ['pending', 'draft', 'pending confirmation', 'pending-confirmation', 'pending_confirmation', 'checkout-draft', 'wc-pending', 'wc-checkout-draft'],
     sortOrder: 1, active: true, isDefault: true,
@@ -81,6 +90,7 @@ export const DEFAULT_STATUS_CONFIG: StatusConfig[] = [
   {
     code: 'EDIT', labelEn: 'Edit', labelAr: 'تعديل', customerCode: null, icon: 'pencil',
     stockEffect: 'none', paymentEffect: 'none', revenueEffect: 'none', loyaltyEffect: 'none', notifyAudience: 'none', notifyTemplateKey: null,
+    advancePermission: null, fastAction: false,
     allowedNext: ['PENDING', 'HOLD', 'CONFIRMED', 'CANCELLED'],
     sourceAliases: ['edit'],
     sortOrder: 2, active: true, isDefault: false,
@@ -88,13 +98,17 @@ export const DEFAULT_STATUS_CONFIG: StatusConfig[] = [
   {
     code: 'HOLD', labelEn: 'Hold', labelAr: 'معلّق', customerCode: 'HOLD', icon: 'pause-circle',
     stockEffect: 'none', paymentEffect: 'none', revenueEffect: 'none', loyaltyEffect: 'none', notifyAudience: 'none', notifyTemplateKey: null,
+    advancePermission: null, fastAction: false,
     allowedNext: ['CONFIRMED', 'EDIT', 'CANCELLED'],
     sourceAliases: ['hold', 'on-hold', 'on hold', 'wc-on-hold'],
     sortOrder: 3, active: true, isDefault: false,
   },
   {
+    // Owner rule: only Sales confirm orders. `orders.write` is the Pharmacist
+    // (Sales) grant; Operations (orders.fulfill only) can't.
     code: 'CONFIRMED', labelEn: 'Confirmed', labelAr: 'مؤكد', customerCode: 'CONFIRMED', icon: 'badge-check',
     stockEffect: 'none', paymentEffect: 'none', revenueEffect: 'none', loyaltyEffect: 'none', notifyAudience: 'customer', notifyTemplateKey: 'order.confirmed',
+    advancePermission: 'orders.write', fastAction: true,
     allowedNext: ['SHIPPED', 'HOLD', 'EDIT', 'CANCELLED'],
     sourceAliases: ['processing', 'confirmed', 'wc-processing'],
     sortOrder: 4, active: true, isDefault: false,
@@ -102,6 +116,7 @@ export const DEFAULT_STATUS_CONFIG: StatusConfig[] = [
   {
     code: 'SHIPPED', labelEn: 'Shipped', labelAr: 'تم الشحن', customerCode: 'SHIPPED', icon: 'truck',
     stockEffect: 'none', paymentEffect: 'none', revenueEffect: 'none', loyaltyEffect: 'none', notifyAudience: 'customer', notifyTemplateKey: 'order.shipped',
+    advancePermission: 'orders.fulfill', fastAction: true,
     allowedNext: ['DELIVERED', 'CONFIRMED', 'CANCELLED', 'REFUNDED'],
     sourceAliases: ['shipped', 'wc-shipped'],
     sortOrder: 5, active: true, isDefault: false,
@@ -109,6 +124,7 @@ export const DEFAULT_STATUS_CONFIG: StatusConfig[] = [
   {
     code: 'DELIVERED', labelEn: 'Delivered', labelAr: 'تم التسليم', customerCode: 'DELIVERED', icon: 'package-check',
     stockEffect: 'none', paymentEffect: 'paid', revenueEffect: 'realize', loyaltyEffect: 'credit', notifyAudience: 'customer', notifyTemplateKey: 'order.delivered',
+    advancePermission: 'orders.fulfill', fastAction: true,
     allowedNext: ['REFUNDED', 'CANCELLED', 'RETURNED'],
     sourceAliases: ['delivered', 'completed', 'cash delivered', 'card delivered', 'cash-delivered', 'card-delivered', 'cash_delivered', 'card_delivered', 'wc-completed'],
     sortOrder: 6, active: true, isDefault: false,
@@ -118,6 +134,7 @@ export const DEFAULT_STATUS_CONFIG: StatusConfig[] = [
     // Restock ONLY if the order hadn't shipped — goods still on the shelf. A
     // shipped-then-cancelled order restocks later via a Return, not here.
     stockEffect: 'restock_if_unshipped', paymentEffect: 'none', revenueEffect: 'reverse', loyaltyEffect: 'reverse', notifyAudience: 'customer', notifyTemplateKey: 'order.cancelled',
+    advancePermission: 'orders.write', fastAction: false,
     allowedNext: ['RETURNED'],
     sourceAliases: ['cancelled', 'canceled', 'failed', 'wc-cancelled', 'wc-failed'],
     sortOrder: 7, active: true, isDefault: false,
@@ -127,6 +144,7 @@ export const DEFAULT_STATUS_CONFIG: StatusConfig[] = [
     // A refund moves MONEY, never stock (owner rule: stock returns on a Return
     // only). Recording the money refund is now decoupled from status anyway.
     stockEffect: 'none', paymentEffect: 'refunded', revenueEffect: 'reverse', loyaltyEffect: 'reverse', notifyAudience: 'customer', notifyTemplateKey: 'order.refunded',
+    advancePermission: 'finance.manage', fastAction: false,
     allowedNext: ['RETURNED'],
     sourceAliases: ['refunded', 'wc-refunded', 'partially-refunded'],
     sortOrder: 8, active: true, isDefault: false,
@@ -136,6 +154,7 @@ export const DEFAULT_STATUS_CONFIG: StatusConfig[] = [
     // Goods physically came back and PASSED inspection — marking Returned is the
     // sign-off, so stock goes straight to sellable (owner decision B-i).
     stockEffect: 'restock', paymentEffect: 'none', revenueEffect: 'reverse', loyaltyEffect: 'reverse', notifyAudience: 'customer', notifyTemplateKey: 'order.returned',
+    advancePermission: 'returns.manage', fastAction: false,
     allowedNext: [],
     sourceAliases: ['returned', 'wc-returned'],
     sortOrder: 9, active: true, isDefault: false,
@@ -150,6 +169,29 @@ export const DEFAULT_STATUS_MAP: StatusMap = toStatusMap(DEFAULT_STATUS_CONFIG);
 export function canTransitionWith(map: StatusMap, from: string, to: string): boolean {
   if (from === to) return false;
   return map.get(from)?.allowedNext.includes(to as OrderStatus) ?? false;
+}
+
+/** RBAC key required to move an order INTO `to` (falls back to the baseline). Pure. */
+export function advancePermissionFor(map: StatusMap, to: string): string {
+  const p = map.get(to)?.advancePermission;
+  return p && p.trim() ? p.trim() : DEFAULT_ADVANCE_PERMISSION;
+}
+
+/**
+ * One-click transitions to offer from `from`, given the acting user's grants:
+ * the reachable next statuses that are flagged `fastAction` AND the user is
+ * allowed to advance into. Pure — the orders list renders exactly these icons.
+ */
+export function fastActionsFrom(
+  map: StatusMap,
+  from: string,
+  granted: readonly string[] | undefined,
+): StatusConfig[] {
+  const has = (key: string) => (granted ?? []).includes(key);
+  const next = map.get(from)?.allowedNext ?? [];
+  return next
+    .map((code) => map.get(code))
+    .filter((c): c is StatusConfig => !!c && c.active && c.fastAction && has(advancePermissionFor(map, c.code)));
 }
 
 /** The customer-facing code for a system status (null = keep previous). */

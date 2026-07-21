@@ -3,7 +3,7 @@ import { Link } from '@/i18n/navigation';
 import { listOrders, countOrders } from '@/lib/order-service';
 import { prisma } from '@/lib/prisma';
 import { salesStaff } from '@/lib/department-service';
-import { ORDER_STATUSES } from '@/lib/order-status';
+import { ORDER_STATUSES, toStatusMap, fastActionsFrom } from '@/lib/order-status';
 import { listStatusConfigs } from '@/lib/order-status-service';
 import { CHANNELS, channelLabel } from '@/lib/channels';
 import { customerLabel } from '@/lib/payment-method-service';
@@ -34,7 +34,7 @@ const statusFilterLabel = (status: string, tb: (en: string, ar: string) => strin
 export default async function OrdersPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<SP> }) {
   // Page-level RBAC (matches the sidebar's permission key) — the sidebar only
   // HIDES the link; without this any staffer with one permission could read it.
-  await requirePermission('orders.read');
+  const me = await requirePermission('orders.read');
   const { locale } = await params;
   const sp = await searchParams;
   setRequestLocale(locale);
@@ -61,6 +61,7 @@ export default async function OrdersPage({ params, searchParams }: { params: Pro
   ]);
 
   // Quick-edit props (serializable).
+  const statusMapObj = toStatusMap(statusCfgs);
   const qaStatuses = statusCfgs.map((c) => ({ code: c.code, label: locale === 'ar' ? c.labelAr : c.labelEn, allowedNext: c.allowedNext }));
   const qaPharmacists = staff.map((s) => ({ value: s.id, label: s.name ?? s.email ?? '—' }));
   const qaChannels = CHANNELS.map((c) => ({ value: c.code, label: locale === 'ar' ? c.ar : c.en }));
@@ -214,6 +215,7 @@ export default async function OrdersPage({ params, searchParams }: { params: Pro
                       locale={locale}
                       order={{ id: o.id, status: o.status, trackingNumber: o.trackingNumber, courier: o.courier, source: o.source, pharmacistId: o.pharmacistId }}
                       statuses={qaStatuses}
+                      fastNext={fastActionsFrom(statusMapObj, o.status, me.permissions).map((c) => ({ code: c.code, label: locale === 'ar' ? c.labelAr : c.labelEn, icon: c.icon }))}
                       pharmacists={qaPharmacists}
                       channels={qaChannels}
                       invoiceHref={`/api/admin/orders/${o.id}/invoice`}

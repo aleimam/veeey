@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   ORDER_STATUSES,
   DEFAULT_STATUS_MAP,
+  DEFAULT_ADVANCE_PERMISSION,
   canTransitionWith,
+  advancePermissionFor,
+  fastActionsFrom,
   customerStatusOf,
   resolveStatusAlias,
   isRevenueStatus,
@@ -93,5 +96,38 @@ describe('Phase-1 restock rules (owner: deduct at placement, restock on return-o
     expect(canTransitionWith(DEFAULT_STATUS_MAP, 'DELIVERED', 'RETURNED')).toBe(true);
     expect(canTransitionWith(DEFAULT_STATUS_MAP, 'SHIPPED', 'CONFIRMED')).toBe(true); // unship
     expect(canTransitionWith(DEFAULT_STATUS_MAP, 'DELIVERED', 'CANCELLED')).toBe(true);
+  });
+});
+
+describe('Status Matrix — advance permission + fast actions (STAT)', () => {
+  it('advancePermissionFor resolves the configured key, falling back to the baseline', () => {
+    expect(advancePermissionFor(M, 'CONFIRMED')).toBe('orders.write'); // owner: only Sales confirm
+    expect(advancePermissionFor(M, 'SHIPPED')).toBe('orders.fulfill');
+    expect(advancePermissionFor(M, 'DELIVERED')).toBe('orders.fulfill');
+    expect(advancePermissionFor(M, 'REFUNDED')).toBe('finance.manage');
+    expect(advancePermissionFor(M, 'RETURNED')).toBe('returns.manage');
+    expect(advancePermissionFor(M, 'PENDING')).toBe(DEFAULT_ADVANCE_PERMISSION); // null → baseline
+    expect(advancePermissionFor(M, 'NOPE')).toBe(DEFAULT_ADVANCE_PERMISSION); // unknown → baseline
+  });
+
+  it('config: the three common advances are fast actions; terminals are not', () => {
+    for (const c of ['CONFIRMED', 'SHIPPED', 'DELIVERED']) expect(M.get(c)!.fastAction).toBe(true);
+    for (const c of ['CANCELLED', 'REFUNDED', 'RETURNED', 'PENDING', 'HOLD', 'EDIT']) expect(M.get(c)!.fastAction).toBe(false);
+  });
+
+  it('fastActionsFrom returns only reachable + fast + permitted targets', () => {
+    const codes = (from: string, perms: string[]) => fastActionsFrom(M, from, perms).map((c) => c.code);
+    // Sales (orders.write) can fast-Confirm a pending order…
+    expect(codes('PENDING', ['orders.write'])).toEqual(['CONFIRMED']);
+    // …but cannot fast-Ship (SHIPPED needs orders.fulfill).
+    expect(codes('CONFIRMED', ['orders.write'])).toEqual([]);
+    // Operations (orders.fulfill) can fast-Ship from Confirmed and fast-Deliver from Shipped.
+    expect(codes('CONFIRMED', ['orders.fulfill'])).toEqual(['SHIPPED']);
+    expect(codes('SHIPPED', ['orders.fulfill'])).toEqual(['DELIVERED']);
+    // Delivered's next steps (Refunded/Cancelled/Returned) are not fast actions.
+    expect(codes('DELIVERED', ['orders.fulfill', 'finance.manage', 'returns.manage'])).toEqual([]);
+    // No grants → no fast actions offered.
+    expect(codes('PENDING', [])).toEqual([]);
+    expect(fastActionsFrom(M, 'PENDING', undefined)).toEqual([]);
   });
 });

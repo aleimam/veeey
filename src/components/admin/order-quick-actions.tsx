@@ -2,11 +2,22 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { CircleDot, Truck, MessageSquare, UserRound, FileText, X } from 'lucide-react';
+import {
+  CircleDot, Truck, MessageSquare, UserRound, FileText, X, ArrowRight,
+  Clock, Pencil, PauseCircle, BadgeCheck, PackageCheck, XCircle, RotateCcw, Undo2, type LucideIcon,
+} from 'lucide-react';
 import { transitionOrderAction, setTrackingAction, clearTrackingAction, setChannelAction, assignPharmacistAction } from '@/server/order-actions';
 
 type Opt = { value: string; label: string };
 type StatusCfg = { code: string; label: string; allowedNext: string[] };
+/** One-click status advance surfaced directly in the row (config `fastAction`). */
+type FastAction = { code: string; label: string; icon: string };
+
+/** Resolve a status config's Lucide icon name → component (fallback: arrow). */
+const STATUS_ICONS: Record<string, LucideIcon> = {
+  'clock': Clock, 'pencil': Pencil, 'pause-circle': PauseCircle, 'badge-check': BadgeCheck,
+  'truck': Truck, 'package-check': PackageCheck, 'x-circle': XCircle, 'rotate-ccw': RotateCcw, 'undo-2': Undo2,
+};
 
 const COURIERS = ['ARAMEX', 'SMSA', 'OWN'];
 const field = 'mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm';
@@ -57,12 +68,13 @@ function Pop({ icon, title, label, children }: { icon: ReactNode; title: string;
 }
 
 export function OrderQuickActions({
-  locale, order, statuses, pharmacists, channels, invoiceHref,
+  locale, order, statuses, fastNext, pharmacists, channels, invoiceHref,
   labels,
 }: {
   locale: string;
   order: { id: string; status: string; trackingNumber: string | null; courier: string | null; source: string | null; pharmacistId: string | null };
   statuses: StatusCfg[];
+  fastNext: FastAction[];
   pharmacists: Opt[];
   channels: Opt[];
   invoiceHref: string;
@@ -79,6 +91,20 @@ export function OrderQuickActions({
 
   return (
     <div className="flex items-center justify-end gap-0.5">
+      {/* Fast actions — one-click advances the owner flagged in the Status Matrix,
+          pre-filtered server-side to what this user may do from the current status. */}
+      {fastNext.map((f) => {
+        const Icon = STATUS_ICONS[f.icon] ?? ArrowRight;
+        const title = `${labels.status}: ${f.label}`;
+        return (
+          <form key={f.code} action={transitionOrderAction}>{hidden}{idField}<input type="hidden" name="status" value={f.code} />
+            <button title={title} aria-label={title} className="rounded-md p-1.5 text-primary hover:bg-primary/10">
+              <Icon className="size-4" />
+            </button>
+          </form>
+        );
+      })}
+
       {/* Status */}
       <Pop icon={<CircleDot className="size-4" />} title={labels.status} label={labels.status}>
         {() => (
