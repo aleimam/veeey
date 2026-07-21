@@ -281,6 +281,20 @@ curl -s -o /dev/null -w 'public %{http_code}\n' https://veeey.com/en
 More gotchas (firewall bans, ad-hoc DB queries, health checks): see the
 "Deploy gotchas" section in `PROJECT_STATUS.md`.
 
+> ⚠️ **Rotating `DATABASE_URL` (or any env var pm2 already started with)?** Editing `.env` and running
+> `pm2 restart --update-env` is NOT enough — pm2 caches the ORIGINAL value in the process env, and
+> `dotenv` won't override an already-set var, while `--update-env` copies from the **shell** (which
+> usually lacks it). This briefly 500'd veeey.com during the 2026-07-20 password rotation. Correct
+> sequence — load the new `.env` into the shell first:
+> ```bash
+> cd /home/veeey/app
+> set -a; . ./.env; set +a          # export every var from the fresh .env into THIS shell
+> pm2 restart veeey veeey-worker --update-env
+> pm2 save
+> ```
+> Then verify a **real page** (`/en`, `/en/cart`), NOT just `/api/health` — health returns 200 even
+> with a dead DB because it never queries. (Both stores' DB passwords were rotated 2026-07-20.)
+
 ### What you own on a VPS
 
 OS + Node + Postgres updates, PM2/process health, SSL renewal (CWP automates),
@@ -296,6 +310,14 @@ control, app + DB + worker co-located.
 > shared backend). Deployed **2026-07-15**. Both are test sites for now, so it is **co-hosted** on
 > the box that also runs the `egyptvitamins.net` WordPress copy, to save cost. Shared blast
 > radius is accepted while both are test.
+>
+> **🆕 As of 2026-07-21, veeey.net is the MAIN store** (owner's call, "for now"): it holds the real
+> egyptvitamins.net catalog (live `*/10` sync) and it — not veeey.com — is the one wired to **YeldnIN**
+> (products + customers via an email match key + requests; `integration.enabled=1`,
+> `integration.v2.enabled=1`, `integration.v2.customers=1`). veeey.com's YeldnIN link is **parked**
+> (`integration.enabled=false`). YeldnIN reaches this box only through the `yeldnin-tunnel` systemd
+> SSH forward (YeldnIN is loopback-only on the .com box). ⚠️ `YELDNIN_BASE_URL` here **must** end in
+> `/api/integration/v1`. To return to veeey.com as main, reverse per `veeey-net-yeldnin-tunnel.md`.
 >
 > **Everything below differs from the veeey.com runbook above — read it before touching that box.**
 
@@ -401,10 +423,12 @@ curl -s  -o /dev/null -w 'veeey.net    %{http_code}\n' https://veeey.net/en
 curl -sL -o /dev/null -w 'wordpress    %{http_code}\n' https://egyptvitamins.net/   # co-tenant
 ```
 
-First deploy was commit `dad59dc`; last redeploy **2026-07-20 at `56bd6c7`** — applied the 64th
-migration `20260720010000_backup_module` (63 → 64) and added `BACKUP_ARCHIVE_PREFIX=veeey-net-backup-`
-to `/opt/veeey/.env`. Verified after restart: pm2 runs `server.js`, health + `/en` + `/ar` + `/en/cart`
-200, `veeey.net/en` 200, WordPress co-tenant 200.
+First deploy was commit `dad59dc`; latest redeploy **2026-07-21 at `63075fe`** (66 migrations) — order
+lifecycle Phase 1 (`20260720130000_order_lifecycle_v1`), spillage Phase 2 (`20260720150000_spillage`),
+the v2 customer-email match key, and the flag split that armed products+customers to YeldnIN. (The
+2026-07-20 `56bd6c7` redeploy added the 64th migration `20260720010000_backup_module` and
+`BACKUP_ARCHIVE_PREFIX=veeey-net-backup-` to `/opt/veeey/.env`.) Verified after restart: pm2 runs
+`server.js`, health + `/en` + `/ar` + `/en/cart` 200, `veeey.net/en` 200, WordPress co-tenant 200.
 ⚠️ `pm2 reload veeey-net-worker` does NOT actually restart the worker (uptime keeps counting) — use
 `pm2 restart` for it. Consider adding a git remote/clone on the box later to make this a normal
 `git pull` deploy.
@@ -422,7 +446,7 @@ sub-account, not the path.
 | Port | **23** (not 22) | **23** |
 | Base path | `/home` | `/home` |
 | Archive prefix | `veeey-backup-` (default) | `veeey-net-backup-` (`BACKUP_ARCHIVE_PREFIX` in `.env`) |
-| Status | ✅ live, drill passed 2026-07-20 | ⏳ deployed, **password not yet entered** |
+| Status | ✅ live, drill passed 2026-07-20 | ✅ configured by owner 2026-07-21 (drill still worth running) |
 
 **The three that will catch you out**
 
@@ -486,8 +510,8 @@ the repo (`src/lib/net-sync/*`, `scripts/net-sync/*`); runs ON THE BOX via `tsx`
   store's delivered statuses → drives the tier). **No passwords** (OTP login). `15 * * * *` cron
   (`sync-cron.sh --customers`); idempotent on `Customer.legacyWpId`, matched by email, write-only-on-
   change. PII stays on the box; the CLI prints counts only. Marketing consent OFF (no WP opt-in flag).
-  ⚠️ Set real **tier thresholds** on veeey.net (all seeded at 0 → everyone lands top-tier until then;
-  the hourly sync auto-corrects once thresholds exist).
+  ✅ **Tier thresholds set** on veeey.net (VIP 100k / SELECT 250k EGP; the hourly sync recomputes
+  standing against them) — plus the tier-benefits matrix + enforcement.
 - **Writeback (Phase 3)** — the only WRITE to the live WP: veeey.net order stock **deltas** flow back
   so the pull doesn't re-inflate sold stock. `transitionOrder` enqueues into the `NetStockOutbox`
   ledger (exactly-once by unique key; confirm-triggered, restore-on-cancel); a `*/2 * * * *` cron

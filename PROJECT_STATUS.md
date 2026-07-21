@@ -2,10 +2,52 @@
 
 > Living status/handoff doc. **Repo-committed so it travels with the code** (unlike per-user
 > assistant memory). Update it when features ship or the backlog changes.
-> **Last updated: 2026-07-20.** Authoritative product docs: `VEEEY_PRD.md`, `VEEEY_SPEC.md`,
+> **Last updated: 2026-07-21.** Authoritative product docs: `VEEEY_PRD.md`, `VEEEY_SPEC.md`,
 > `BUILD_PLAN.md`, `AGENTS.md` (build rules — read first), `DEPLOYMENT.md`, `SECURITY.md`, `README.md`.
 
 ## Current state
+
+- **🆕 veeey.net is now the MAIN store; YeldnIN repointed to it + fully synced — 2026-07-21 (`63075fe`,
+  66 migrations, 675 tests).** Owner's call, explicitly "for now" (we return to .com later), so every
+  step is reversible.
+  - **Network path**: an SSH forward-only tunnel (`yeldnin-tunnel` systemd unit on the .net box) —
+    YeldnIN is loopback-only on the .com box, so this is the only route in; YeldnIN reaches .net back
+    over public HTTPS. Undo = disable the unit + drop the key.
+  - **Products** armed via a new flag split **`3c89037` `integration.v2.customers`** (products share a
+    SKU across stores so they're safe to arm alone; customers weren't). 2,707 pushed, matched on
+    `veeeyWpId`, **0 duplicates**.
+  - **Customers** — solved the duplication risk with a cross-store **email match key** (owner authorized
+    editing `C:\Claude\YeldnIN` + re-keying identity to the .net id). Veeey sends normalized email
+    (`63075fe`); YeldnIN matches **email → veeeyCustomerId → name** and re-keys (`a471189`, migration
+    `Customer.email`, 478 tests). Backfilled 16,236 YeldnIN emails, bounded-tested, bulk-pushed all
+    16,229 → **YeldnIN stayed 16,244, 0 duplicate emails/ids** (verified twice against the live DB).
+  - **`c26985a`**: a redirected outbound dispatch was silently recorded **SENT** — now `redirect:
+    'manual'` fails hard. `YELDNIN_BASE_URL` **must** end in `/api/integration/v1` (the HMAC covers that
+    path but the POST hit a bare base, got 307→200, and looked delivered).
+- **🆕 Order lifecycle Phase 1 — SHIPPED + DEPLOYED both stores 2026-07-21 (`a699bbc`, migration
+  `20260720130000_order_lifecycle_v1`).** Stock still leaves at placement. **Cancel restocks only if the
+  order hadn't shipped** (`stockEffect: 'restock_if_unshipped'`, keyed on the current status); a
+  shipped-then-cancelled order and a refund never restock. New **RETURNED** status restocks to a LIVE
+  (sellable) lot — the "checked and passed" terminal, distinct from CANCELLED. **Refund is a decoupled
+  payment fact** (`refundPayment` → `paymentState: REFUNDED`), so a cancelled prepaid order can still be
+  refunded without a stock effect. New durable **OrderStatusHistory** timeline (with actor) on the admin
+  order page + customer confirmation. Returns' RESTOCK disposition now lands LIVE, not quarantine.
+- **🆕 Spillage / damage Phase 2 — SHIPPED + DEPLOYED both stores 2026-07-21 (`28e1351`, migration
+  `20260720150000_spillage`; value default `f76bb23`).** `/admin/inventory/spillage` (inventory.manage,
+  bilingual, audited): move lot units into a damage state — **write-off** (Lost / Damaged → deducted) or
+  **sellable variant** (Open box / No box / Open bottle / Broken bottle → a discounted buy-box lot).
+  Admin-editable reason list (each carries a `sellable` flag; 7 seeded). Atomic, **voidable** (only the
+  latest entry per lot, to keep ledger integrity; restores + stays in the trail). **The expiry sweep now
+  auto-writes-off** stock still in a lapsed lot (reason EXPIRED) before flagging the lot EXPIRED. Loss
+  report groups by reason over a date range and includes **expired-in-stock**; with no real
+  `Lot.costPiastres` yet it values each unit at the **`inventory.defaultUnitCostEgp`** setting (owner:
+  **10 EGP**), preferring a real lot cost when present.
+- **🆕 Housekeeping 2026-07-21.** **Both DB passwords rotated** (owner ran it — see the Code-lessons
+  note on the pm2 env-cache trap that briefly took .com down). **Language now persists** across browser
+  restarts (`2f78da9` — `localeCookie` maxAge; was the "always reverts to Arabic" bug). **`.gitattributes`
+  forces LF** on shell scripts (`2258481`) so the .net tarball deploy can't reintroduce the CRLF that
+  killed net-sync. Backup `pg_dump` fixed for Prisma's `?schema=` param + credential redaction
+  (`d915d1c`).
 
 - **🆕 Codex-audit fix batch — SHIPPED + DEPLOYED both stores 2026-07-20 (`56bd6c7`).** An external
   Codex review was triaged (its severity was over-weighted — 13 "P0"s at 5–15 orders/day), each
@@ -53,13 +95,13 @@
   deliberately — changing it on a store that already has archives orphans them** (parser stops
   recognising the old names → never pruned, retention restarts at zero).
   ⚠️ **A `psql` failure printed the DB password** to the terminal during the drill (the URL is an
-  argv). Every subprocess now goes through a redacting wrapper — **but the veeey.com Postgres password
-  still needs rotating.**
+  argv). Every subprocess now goes through a redacting wrapper, and **both DB passwords were rotated
+  2026-07-20** (see Code lessons for the pm2 env-cache trap that briefly took .com down during the swap).
   Divergence from `BACKUP.md` §9, on purpose: "Back up now" runs **MANUAL only** (each level has its
   own Run now), so an ad-hoc click can't consume a scheduled retention slot.
-  **veeey.net: deployed but unconfigured** — needs the `u635384-sub2` password at `/admin/backup`;
-  suggested there (and different from .com) **DAILY db-only + WEEKLY full keep 4**, because its 1.8 GB
-  of uploads mirror egyptvitamins.net's WP media and are re-derivable (~45 GB → ~13 GB).
+  **veeey.net: configured by owner 2026-07-21** (sub-account `u635384-sub2`, reported working). The
+  standing advice — and different from .com — is **DAILY db-only + WEEKLY full keep 4**, because its
+  1.8 GB of uploads mirror egyptvitamins.net's WP media and are re-derivable (~45 GB → ~13 GB).
 - **Off-site BACKUP module as originally built 2026-07-20 (`1c0075e`→`53dd8c4`).**
   Admin screen **`/admin/backup`** (settings.manage, bilingual, audited): SFTP destination +
   **four independent levels** (Frequent / Daily / Weekly / Manual), each with its own
@@ -303,8 +345,10 @@
   2026-07-15, co-hosted on the CyberPanel/OpenLiteSpeed box that also runs the egyptvitamins.net
   WordPress copy. **It is wired differently** (app at `/opt/veeey`, pm2 `veeey-net`, OLS proxy,
   tarball deploys, and it **must run `server.js` not `next start`** — see the Origin bug).
-  **Read `DEPLOYMENT.md` → "Second deployment — veeey.net" before touching it.** Its catalog is
-  still empty; the import plan is `../VEEEY_NET_MIGRATION.md`.
+  **Read `DEPLOYMENT.md` → "Second deployment — veeey.net" before touching it.**
+  **As of 2026-07-21 veeey.net is the MAIN store** (owner's call, "for now"): it has the real
+  egyptvitamins.net catalog and is the one wired to YeldnIN — see the top of this doc. veeey.com's
+  YeldnIN link is parked.
 - **Full-system UI/UX + bug review done (3 audit passes, 2026-07-13/14).** `e822e60` (self-audit,
   committed cross-account): buy-box **lot pinning** so the chosen expiry/price lot is the one charged
   (FR-INV-02), refill sweep **at-most-once CAS** + atomic finalize + default-shipping address, login
@@ -546,6 +590,15 @@ portable source of truth** — everything below is what the memory contained tha
   `postgresql://user:pass@host` as an **argument**, and `execFile`'s error message includes the whole
   argv — so any failure prints the password. Wrap subprocess calls and redact before logging
   (see `scripts/backup-verify.ts`).
+- **pm2 caches the ORIGINAL env; editing `.env` isn't enough.** Rotating `DATABASE_URL` on 2026-07-20
+  briefly 500'd the veeey.com storefront: pm2 kept the old URL in the process env, and `dotenv` won't
+  override an already-set var, so the app kept using the dead password. `pm2 restart --update-env`
+  copies from the **shell**, which also lacked it. Correct sequence after any `.env` change:
+  `cd <app>; set -a; . ./.env; set +a; pm2 restart <procs> --update-env; pm2 save`. And verify a **real
+  page**, not `/api/health` — health returned 200 the whole time because it never touches the DB.
+- **`?schema=public` is Prisma-only — strip it for libpq tools.** `pg_dump`/`pg_restore`/`psql` reject
+  the `?schema=` query param that Prisma's URL carries, so the .net backup failed until `libpqUrl()`
+  stripped Prisma-only params. (This is also where the password-leak above surfaced.)
 - **Runtime uploads don't serve from `public/` under `next start`.** `next start` only serves
   `public/` files that existed **at build time**, so admin-uploaded media (branding logos,
   favicon, product images) 404 until the next build even though the file is on disk. Fixed by
@@ -595,12 +648,11 @@ portable source of truth** — everything below is what the memory contained tha
 ## Waiting tasks
 
 ### Quick owner actions that unblock shipped features
-- **Configure veeey.net's backup destination** — the module is deployed there and
-  `BACKUP_ARCHIVE_PREFIX=veeey-net-backup-` is set, but there is no destination. Enter the
-  **`u635384-sub2`** password at veeey.net's `/admin/backup`: host `u635384-sub2.your-storagebox.de`,
-  **port 23**, base path **`/home`** (a sub-account sees its base dir AS `/home` — do *not* write
-  `/veeey.net/…`, that nests). Suggested contents there: **DAILY db-only, WEEKLY full keep 4**.
-  Then `npx tsx scripts/backup-verify.ts --list` on the box, and a full drill after the first run.
+- ✅ **veeey.net backups configured 2026-07-21** (owner entered the `u635384-sub2` destination, reported
+  working). Standing advice was **DAILY db-only + WEEKLY full keep 4**; a full restore drill on .net is
+  still worth doing (`npx tsx scripts/backup-verify.ts` on the box) but is no longer blocking.
+- **Rotate `/root/.ssh/id_rsa`** (leaked 2026-07-07) — the only credential-rotation item still open;
+  both DB passwords are done.
 - **Decide: tier price vs lot override.** Checkout now charges the **lower** of a lot's price
   override and the customer's tier price. That is an inference, not your stated rule — confirm
   before creating the first `TierProductRule` PRICE row (there are currently zero, so nothing is
