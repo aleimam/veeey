@@ -378,6 +378,13 @@ export async function setTracking(id: string, trackingNumber: string, courier?: 
     },
   });
   await audit({ actorType: 'USER', actorId: user.id, action: 'order.tracking', entityType: 'Order', entityId: id, data: { trackingNumber, notifyCustomer: true } });
+  // Shipping bypasses transitionOrder, so record the durable timeline entry here
+  // too — otherwise the customer-visible history skips the Shipped milestone.
+  if (toShipped) {
+    await prisma.orderStatusHistory
+      .create({ data: { orderId: id, fromStatus: order.status, toStatus: 'SHIPPED', actorId: user.id, note: courier ? `${courier}${trackingNumber ? ` · ${trackingNumber}` : ''}` : null } })
+      .catch((e) => console.error('status history write failed', e));
+  }
   if (toShipped) await notifyOrder(id, 'order.shipped');
 }
 

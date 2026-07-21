@@ -7,6 +7,7 @@ import { prisma } from '@/lib/prisma';
 import { setTracking } from '@/lib/order-service';
 import { createAramexShipment, trackAramex } from '@/lib/carriers/aramex';
 import { createSmsaShipment, trackSmsa } from '@/lib/carriers/smsa';
+import { sendVeeeyExpressDelivery } from '@/lib/integration/delivery-sync';
 
 const localeOf = (fd: FormData) => (fd.get('locale') === 'ar' ? 'ar' : 'en');
 const str = (fd: FormData, k: string) => { const v = fd.get(k); return typeof v === 'string' ? v.trim() : ''; };
@@ -55,6 +56,30 @@ export async function createSmsaShipmentAction(fd: FormData): Promise<void> {
   await setTracking(id, r.awb, 'SMSA');
   revalidatePath(`/${locale}/admin/orders/${id}`);
   redirect(`/${locale}/admin/orders/${id}?shipok=1`);
+}
+
+/**
+ * Ship with VEEEY Express (our own courier): hand the delivery to YeldnIN, whose
+ * Ops assign the actual courier — their name/phone come back as the customer's
+ * tracking detail. No AWB exists yet, so the order number IS the reference (it's
+ * half of YeldnIN's idempotency key). Queue FIRST: if the hand-off can't be
+ * built we must not mark the order shipped.
+ */
+export async function createVeeeyExpressShipmentAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const id = str(fd, 'orderId');
+  await requirePermission('orders.fulfill');
+  const order = await prisma.order.findUnique({ where: { id }, select: { number: true } });
+  if (!order) redirect(`/${locale}/admin/orders`);
+
+  const r = await sendVeeeyExpressDelivery(id);
+  if (!r.ok) {
+    revalidatePath(`/${locale}/admin/orders/${id}`);
+    redirect(`/${locale}/admin/orders/${id}?shiperr=${encodeURIComponent(r.error)}`);
+  }
+  await setTracking(id, order.number, 'OWN'); // sets SHIPPED + notifies
+  revalidatePath(`/${locale}/admin/orders/${id}`);
+  redirect(`/${locale}/admin/orders/${id}?shipok=1${r.queued ? '' : '&offline=1'}`);
 }
 
 /** Fetch the latest SMSA tracking status for the order's waybill. */

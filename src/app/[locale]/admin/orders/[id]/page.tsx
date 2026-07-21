@@ -22,7 +22,7 @@ import {
   transitionOrderAction, refundPaymentAction, assignPharmacistAction, setPayCheckAction, setSystemPaymentMethodAction, setOrderMetaAction,
   setTrackingAction, addOrderItemAction, removeOrderItemAction, addGiftToOrderAction, removeGiftFromOrderAction, markOrderItemLostAction,
 } from '@/server/order-actions';
-import { createAramexShipmentAction, trackAramexAction, createSmsaShipmentAction, trackSmsaAction } from '@/server/carrier-actions';
+import { createAramexShipmentAction, trackAramexAction, createSmsaShipmentAction, trackSmsaAction, createVeeeyExpressShipmentAction } from '@/server/carrier-actions';
 import { createOrderRequestAction } from '@/server/request-actions';
 import { requestTypeLabel } from '@/lib/request-i18n';
 import { requirePermission } from '@/lib/auth-guards';
@@ -294,6 +294,24 @@ export default async function OrderDetailPage({ params, searchParams }: { params
               )}
             </div>
           )}
+
+          {/* VEEEY Express — our own courier. Ops pick it by judgement (no zone
+              gating); the delivery job is created in YeldnIN, which assigns the
+              actual courier and sends their name/phone back as the tracking. */}
+          <div className="rounded-lg border border-border p-4">
+            <p className="mb-2 font-medium">{tb('Veeey Express', 'فيي إكسبريس')}</p>
+            {order.courier === 'OWN' ? (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">{tb('Reference', 'المرجع')}: <span className="font-medium text-foreground">{order.number}</span></p>
+                <p className="text-xs text-muted-foreground">{tb('Handed to YeldnIN — the assigned courier’s name and phone appear here once Ops assign one.', 'تم التسليم إلى YeldnIN — يظهر اسم وهاتف المندوب هنا بعد تعيينه.')}</p>
+              </div>
+            ) : (
+              <form action={createVeeeyExpressShipmentAction}>
+                {hidden({})}
+                <button className="w-full rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">{tb('Ship with Veeey Express', 'الشحن عبر فيي إكسبريس')}</button>
+              </form>
+            )}
+          </div>
 
           <form action={setOrderMetaAction} className="rounded-lg border border-border p-4">
             {hidden({})}
