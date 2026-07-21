@@ -446,7 +446,7 @@ sub-account, not the path.
 | Port | **23** (not 22) | **23** |
 | Base path | `/home` | `/home` |
 | Archive prefix | `veeey-backup-` (default) | `veeey-net-backup-` (`BACKUP_ARCHIVE_PREFIX` in `.env`) |
-| Status | ✅ live, drill passed 2026-07-20 | ✅ configured by owner 2026-07-21 (drill still worth running) |
+| Status | ✅ live, drill passed 2026-07-20 | ✅ configured 2026-07-21; **restore drill PASSED** (112 tables, witness tables == live) |
 
 **The three that will catch you out**
 
@@ -474,9 +474,20 @@ restores into a **throwaway** database and compares row counts against live, the
 `sudo -u postgres` because the app role deliberately lacks CREATEDB. Default is the db-only archive on
 purpose — same `pg_dump` as the full one, without pulling ~1 GB across a live server's uplink.
 
-Last drill (veeey.com, 2026-07-20): 110 tables restored, Product/Customer/Order/OrderItem/Lot/Brand
-counts **exactly equal to live**. Small deltas are normal for a point-in-time snapshot; investigate
-only large gaps or an unexpectedly empty table.
+Last drills — **veeey.com 2026-07-20**: 110 tables, witness tables exactly equal to live.
+**veeey.net 2026-07-21**: 112 tables, all six witness tables equal to live (2,707 / 16,229 / 21,344 /
+23,194 / 3,588 / 727). Small deltas are normal for a point-in-time snapshot; investigate only large
+gaps or an unexpectedly empty table.
+
+⚠️ **The drill script itself had the `?schema=public` bug** (`aead9a0`): it passed the raw
+`DATABASE_URL` to `psql`/`pg_restore`, which libpq rejects on veeey.net (its URL carries `?schema=`),
+so the restore step silently never ran there until the fix. Now routed through `libpqUrl()` like the
+dump. If you ever see `invalid URI query parameter: "schema"`, a libpq call is missing that wrapper.
+
+⚠️ **veeey.net's backup `host` field is set to `u635384-sub4…` (veeey.com's), authenticating as
+`u635384-sub2`.** It works — Hetzner jails a sub-account by its username, so it still reads .net's own
+archives — but the host should read `u635384-sub2.your-storagebox.de`. Cosmetic + slightly fragile;
+tidy it in `/admin/backup` when convenient.
 
 ## Current state & open items
 

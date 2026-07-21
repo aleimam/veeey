@@ -648,9 +648,11 @@ portable source of truth** — everything below is what the memory contained tha
 ## Waiting tasks
 
 ### Quick owner actions that unblock shipped features
-- ✅ **veeey.net backups configured 2026-07-21** (owner entered the `u635384-sub2` destination, reported
-  working). Standing advice was **DAILY db-only + WEEKLY full keep 4**; a full restore drill on .net is
-  still worth doing (`npx tsx scripts/backup-verify.ts` on the box) but is no longer blocking.
+- ✅ **veeey.net backups configured + drill PASSED 2026-07-21.** Owner entered the `u635384-sub2`
+  destination; the restore drill now passes (112 tables, all six witness tables == live). Fixing it
+  surfaced that `backup-verify.ts` had the same `?schema=` bug as the dump (`aead9a0`, now via
+  `libpqUrl()`). ⚠️ Minor: .net's backup `host` field is `u635384-sub4…` (copied from .com) though it
+  authenticates as sub2 — works (Hetzner jails by username) but should read `…-sub2…`; tidy when handy.
 - **Rotate `/root/.ssh/id_rsa`** (leaked 2026-07-07) — the only credential-rotation item still open;
   both DB passwords are done.
 - **Decide: tier price vs lot override.** Checkout now charges the **lower** of a lot's price
