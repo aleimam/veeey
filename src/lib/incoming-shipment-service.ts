@@ -1,4 +1,9 @@
+import { randomUUID } from 'node:crypto';
 import { prisma } from '@/lib/prisma';
+import { requirePermission } from '@/lib/auth-guards';
+import { audit } from '@/lib/audit';
+import { integrationSecret, yeldninBaseUrl, VEEEY_CLIENT_ID } from '@/lib/integration/config';
+import { signRequest } from '@/lib/integration/hmac-logic';
 import { parseShipmentReceived, totalUnits, type WireShipmentReceived } from '@/lib/integration/shipment-wire';
 
 /**
@@ -111,6 +116,73 @@ export function getIncomingShipment(id: string) {
 /** Units awaiting a Sales decision — the number worth badging in the nav. */
 export function pendingShipmentCount() {
   return prisma.incomingShipment.count({ where: { status: 'PENDING_REVIEW' } });
+}
+
+/**
+ * Fetch a shipment photo's bytes from YeldnIN (contract v2 §4.8). The bytes live
+ * there and the endpoint is HMAC-only, so the admin browser can't reach it —
+ * this is the server-side half of the proxy route.
+ *
+ * Only ever called with an assetId that is already attached to a stored
+ * shipment, so a caller can't turn this into an arbitrary fetcher.
+ */
+export async function fetchShipmentPhoto(assetId: string): Promise<{ body: ArrayBuffer; contentType: string } | null> {
+  const secret = integrationSecret();
+  if (!secret) return null;
+  const path = `/attachments/${encodeURIComponent(assetId)}`;
+  // The signature covers the canonical path YeldnIN's verifier reads from
+  // url.pathname — mismatch here reads as a bad signature, not a 404.
+  const canonicalPath = `/api/integration/v1${path}`;
+  const ts = String(Date.now());
+  const nonce = randomUUID();
+  const sig = signRequest(secret, 'GET', canonicalPath, ts, nonce, '');
+  try {
+    const res = await fetch(`${yeldninBaseUrl()}${path}`, {
+      headers: { 'X-Client-Id': VEEEY_CLIENT_ID, 'X-Timestamp': ts, 'X-Nonce': nonce, 'X-Signature': sig },
+      redirect: 'manual', // a redirect here would silently return an HTML page as "the photo"
+    });
+    if (!res.ok) return null;
+    return { body: await res.arrayBuffer(), contentType: res.headers.get('content-type') ?? 'application/octet-stream' };
+  } catch {
+    return null;
+  }
+}
+
+/** Is this asset actually attached to a shipment we hold? Gate for the proxy. */
+export async function shipmentPhotoExists(assetId: string): Promise<boolean> {
+  return (await prisma.incomingShipmentPhoto.count({ where: { assetId } })) > 0;
+}
+
+// ── Sales review ────────────────────────────────────────────────────────────
+// Stage 1 records the DECISION only. Approval does not yet create sellable lots
+// — that is Stage 3, deliberately, so this can ship and be exercised before the
+// stock-master inversion is anywhere near live.
+
+export async function approveShipment(id: string) {
+  const user = await requirePermission('inventory.manage');
+  // Only a pending shipment can be decided — re-approving would let a second
+  // click (or a stale tab) re-run whatever Stage 3 later attaches to approval.
+  const r = await prisma.incomingShipment.updateMany({
+    where: { id, status: 'PENDING_REVIEW' },
+    data: { status: 'APPROVED', reviewedById: user.id, reviewedAt: new Date(), rejectReason: null },
+  });
+  if (r.count === 0) return { ok: false as const, error: 'not_pending' };
+  await audit({ actorType: 'USER', actorId: user.id, action: 'incoming_shipment.approve', entityType: 'IncomingShipment', entityId: id });
+  return { ok: true as const };
+}
+
+export async function rejectShipment(id: string, reason: string) {
+  const user = await requirePermission('inventory.manage');
+  const why = reason.trim();
+  // A rejection with no reason is useless to the Ops team that has to fix it.
+  if (!why) return { ok: false as const, error: 'reason_required' };
+  const r = await prisma.incomingShipment.updateMany({
+    where: { id, status: 'PENDING_REVIEW' },
+    data: { status: 'REJECTED', reviewedById: user.id, reviewedAt: new Date(), rejectReason: why.slice(0, 500) },
+  });
+  if (r.count === 0) return { ok: false as const, error: 'not_pending' };
+  await audit({ actorType: 'USER', actorId: user.id, action: 'incoming_shipment.reject', entityType: 'IncomingShipment', entityId: id, data: { reason: why } });
+  return { ok: true as const };
 }
 
 export type { WireShipmentReceived };
