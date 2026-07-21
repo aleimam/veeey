@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
 import { integrationSecret, yeldninBaseUrl, VEEEY_CLIENT_ID } from '@/lib/integration/config';
+import { recordOutbox } from '@/lib/integration/integration-service';
 import { signRequest } from '@/lib/integration/hmac-logic';
 import { parseShipmentReceived, totalUnits, type WireShipmentReceived } from '@/lib/integration/shipment-wire';
 
@@ -158,16 +159,26 @@ export async function shipmentPhotoExists(assetId: string): Promise<boolean> {
 // — that is Stage 3, deliberately, so this can ship and be exercised before the
 // stock-master inversion is anywhere near live.
 
+/** Tell Ops the verdict. A REJECTED shipment reopens in YeldnIN for correction;
+ *  an approval is sent too so Ops can see the outcome without asking. */
+async function emitReview(yeldninUid: string, decision: 'APPROVED' | 'REJECTED', reason: string | null, at: Date) {
+  await recordOutbox('shipment.review', yeldninUid, { shipmentUid: yeldninUid, decision, reason, reviewedAt: at.toISOString() });
+}
+
 export async function approveShipment(id: string) {
   const user = await requirePermission('inventory.manage');
+  const found = await prisma.incomingShipment.findUnique({ where: { id }, select: { yeldninUid: true } });
+  if (!found) return { ok: false as const, error: 'not_found' };
+  const at = new Date();
   // Only a pending shipment can be decided — re-approving would let a second
   // click (or a stale tab) re-run whatever Stage 3 later attaches to approval.
   const r = await prisma.incomingShipment.updateMany({
     where: { id, status: 'PENDING_REVIEW' },
-    data: { status: 'APPROVED', reviewedById: user.id, reviewedAt: new Date(), rejectReason: null },
+    data: { status: 'APPROVED', reviewedById: user.id, reviewedAt: at, rejectReason: null },
   });
   if (r.count === 0) return { ok: false as const, error: 'not_pending' };
   await audit({ actorType: 'USER', actorId: user.id, action: 'incoming_shipment.approve', entityType: 'IncomingShipment', entityId: id });
+  await emitReview(found.yeldninUid, 'APPROVED', null, at);
   return { ok: true as const };
 }
 
@@ -176,12 +187,16 @@ export async function rejectShipment(id: string, reason: string) {
   const why = reason.trim();
   // A rejection with no reason is useless to the Ops team that has to fix it.
   if (!why) return { ok: false as const, error: 'reason_required' };
+  const found = await prisma.incomingShipment.findUnique({ where: { id }, select: { yeldninUid: true } });
+  if (!found) return { ok: false as const, error: 'not_found' };
+  const at = new Date();
   const r = await prisma.incomingShipment.updateMany({
     where: { id, status: 'PENDING_REVIEW' },
-    data: { status: 'REJECTED', reviewedById: user.id, reviewedAt: new Date(), rejectReason: why.slice(0, 500) },
+    data: { status: 'REJECTED', reviewedById: user.id, reviewedAt: at, rejectReason: why.slice(0, 500) },
   });
   if (r.count === 0) return { ok: false as const, error: 'not_pending' };
   await audit({ actorType: 'USER', actorId: user.id, action: 'incoming_shipment.reject', entityType: 'IncomingShipment', entityId: id, data: { reason: why } });
+  await emitReview(found.yeldninUid, 'REJECTED', why.slice(0, 500), at);
   return { ok: true as const };
 }
 

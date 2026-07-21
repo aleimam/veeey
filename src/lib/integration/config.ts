@@ -45,4 +45,7 @@ export const OUTBOX_PATHS: Record<string, string> = {
   'requests.upsert': '/requests', // Requests epic D: multi-line, uid-keyed upsert
   'revenue.event': '/revenue-events',
   'deliveries.create': '/deliveries',
+  // Sales' verdict on a stock-in, back to Ops. A REJECTED shipment reopens in
+  // YeldnIN so it can be corrected and resent (owner rule: bounce to Ops).
+  'shipment.review': '/shipments/review',
 };
