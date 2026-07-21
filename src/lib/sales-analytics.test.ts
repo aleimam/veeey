@@ -116,7 +116,9 @@ describe('periodRange — previous-period boundaries (V6 audit S3)', () => {
 describe('NON_BOOKED_STATUSES (V6 audit S4)', () => {
   it('excludes exactly the cancelled-like system statuses, and keeps the earning ones', () => {
     const excludedSystem = ORDER_STATUSES.filter((s) => NON_BOOKED_STATUSES.includes(s));
-    expect(excludedSystem).toEqual(['CANCELLED', 'REFUNDED']);
+    // RETURNED joined the system statuses in Phase 1 — a returned order is not a
+    // sale, so it must be excluded from bookings alongside cancelled/refunded.
+    expect(excludedSystem).toEqual(['CANCELLED', 'REFUNDED', 'RETURNED']);
 
     for (const s of ['PENDING', 'EDIT', 'HOLD', 'CONFIRMED', 'SHIPPED', 'DELIVERED']) {
       expect(NON_BOOKED_STATUSES).not.toContain(s);

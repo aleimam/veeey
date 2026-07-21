@@ -63,9 +63,14 @@ export async function processReturn(
       await tx.returnItem.update({ where: { id: d.returnItemId }, data: { disposition: d.disposition } });
       const lot = ri.orderItem.lot;
       if (d.disposition === 'RESTOCK' && lot) {
-        // Return to a NEW quarantine lot (pharmacist re-shelves to live later).
-        const qLot = await tx.lot.create({ data: { productId: ri.orderItem.productId, locationId: lot.locationId, expiryDate: lot.expiryDate, qtyOnHand: ri.qty, status: 'QUARANTINE' } });
-        await tx.movementLedger.create({ data: { lotId: qLot.id, locationId: lot.locationId, type: 'RETURN', qtyDelta: ri.qty, reason: 'return → quarantine' } });
+        // Straight back to a SELLABLE (LIVE) lot — choosing RESTOCK on a return
+        // IS the pharmacist's passed-inspection sign-off (owner decision B-i);
+        // the units are re-shelved into the same product+expiry+condition, in a
+        // LIVE lot reused if one exists, matching the order-cancel restock path.
+        const live = await tx.lot.findFirst({ where: { productId: ri.orderItem.productId, locationId: lot.locationId, expiryDate: lot.expiryDate, condition: lot.condition, status: 'LIVE' }, select: { id: true } });
+        const targetId = live?.id ?? (await tx.lot.create({ data: { productId: ri.orderItem.productId, locationId: lot.locationId, expiryDate: lot.expiryDate, condition: lot.condition, qtyOnHand: 0, status: 'LIVE' } })).id;
+        await tx.lot.update({ where: { id: targetId }, data: { qtyOnHand: { increment: ri.qty } } });
+        await tx.movementLedger.create({ data: { lotId: targetId, locationId: lot.locationId, type: 'RETURN', qtyDelta: ri.qty, reason: 'return → sellable' } });
       } else if (d.disposition === 'WRITE_OFF' && lot) {
         await tx.movementLedger.create({ data: { lotId: lot.id, locationId: lot.locationId, type: 'WRITE_OFF', qtyDelta: 0, reason: 'return write-off' } });
       }

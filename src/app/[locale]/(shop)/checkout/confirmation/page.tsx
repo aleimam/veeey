@@ -7,6 +7,7 @@ import { customerLabel, isOnlineMethod } from '@/lib/payment-method-service';
 import { formatEGP } from '@/lib/format';
 import { conditionLabel, isConditionVariant } from '@/lib/lot-condition';
 import { TrackView } from '@/components/analytics/track-view';
+import { StatusTimeline } from '@/components/orders/status-timeline';
 
 type SP = Record<string, string | string[] | undefined>;
 
@@ -126,6 +127,12 @@ export default async function ConfirmationPage({
           </p>
         )}
       </div>
+
+      {order.statusHistory.length > 1 && (
+        <div className="mt-6">
+          <StatusTimeline entries={order.statusHistory.map((h) => ({ fromStatus: h.fromStatus, toStatus: h.toStatus, note: null, createdAt: h.createdAt }))} locale={locale} />
+        </div>
+      )}
 
       <Link href="/products" className="mt-6 inline-block text-sm font-semibold text-green-dark hover:text-lime-press">{t('continueShopping')}</Link>
     </div>

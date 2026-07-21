@@ -6,15 +6,18 @@ import {
   customerStatusOf,
   resolveStatusAlias,
   isRevenueStatus,
+  restockOnCancel,
+  stockEffectApplies,
 } from './order-status';
 
 const M = DEFAULT_STATUS_MAP;
 
 describe('order status engine (defaults)', () => {
-  it('exposes the fixed 8 system codes', () => {
-    expect(ORDER_STATUSES).toHaveLength(8);
+  it('exposes the fixed system codes (9 incl. RETURNED)', () => {
+    expect(ORDER_STATUSES).toHaveLength(9);
     expect([...ORDER_STATUSES]).toContain('PENDING');
     expect([...ORDER_STATUSES]).toContain('DELIVERED');
+    expect([...ORDER_STATUSES]).toContain('RETURNED');
   });
 
   it('guards transitions per config allowedNext', () => {
@@ -45,5 +48,50 @@ describe('order status engine (defaults)', () => {
   it('flags the revenue-realizing status', () => {
     expect(isRevenueStatus(M, 'DELIVERED')).toBe(true);
     expect(isRevenueStatus(M, 'SHIPPED')).toBe(false);
+  });
+});
+
+describe('Phase-1 restock rules (owner: deduct at placement, restock on return-or-unshipped-cancel)', () => {
+  it('cancelling an UNSHIPPED order restocks (goods still on the shelf)', () => {
+    for (const from of ['PENDING', 'CONFIRMED', 'HOLD', 'EDIT']) {
+      expect(restockOnCancel(from)).toBe(true);
+      expect(stockEffectApplies('restock_if_unshipped', from)).toBe(true);
+    }
+  });
+
+  it('cancelling a SHIPPED/DELIVERED order does NOT restock (goods gone → wait for return)', () => {
+    for (const from of ['SHIPPED', 'DELIVERED']) {
+      expect(restockOnCancel(from)).toBe(false);
+      expect(stockEffectApplies('restock_if_unshipped', from)).toBe(false);
+    }
+  });
+
+  it("respects the CURRENT status: ship → unship → Confirmed is treated as unshipped", () => {
+    // The order is Confirmed now (was unshipped), so a cancel from here restocks.
+    expect(stockEffectApplies('restock_if_unshipped', 'CONFIRMED')).toBe(true);
+  });
+
+  it('RETURNED (restock) always restores, regardless of prior status', () => {
+    for (const from of ['SHIPPED', 'DELIVERED', 'CANCELLED', 'CONFIRMED']) {
+      expect(stockEffectApplies('restock', from)).toBe(true);
+    }
+  });
+
+  it('never restocks when the effect is none (Refunded moves money, not stock)', () => {
+    expect(stockEffectApplies('none', 'CONFIRMED')).toBe(false);
+    expect(stockEffectApplies('none', 'DELIVERED')).toBe(false);
+  });
+
+  it('config: Cancelled=restock_if_unshipped, Refunded=none, Returned=restock', () => {
+    expect(DEFAULT_STATUS_MAP.get('CANCELLED')!.stockEffect).toBe('restock_if_unshipped');
+    expect(DEFAULT_STATUS_MAP.get('REFUNDED')!.stockEffect).toBe('none');
+    expect(DEFAULT_STATUS_MAP.get('RETURNED')!.stockEffect).toBe('restock');
+  });
+
+  it('transition graph: Cancelled/Delivered/Shipped can reach Returned; Shipped can be unshipped', () => {
+    expect(canTransitionWith(DEFAULT_STATUS_MAP, 'CANCELLED', 'RETURNED')).toBe(true);
+    expect(canTransitionWith(DEFAULT_STATUS_MAP, 'DELIVERED', 'RETURNED')).toBe(true);
+    expect(canTransitionWith(DEFAULT_STATUS_MAP, 'SHIPPED', 'CONFIRMED')).toBe(true); // unship
+    expect(canTransitionWith(DEFAULT_STATUS_MAP, 'DELIVERED', 'CANCELLED')).toBe(true);
   });
 });

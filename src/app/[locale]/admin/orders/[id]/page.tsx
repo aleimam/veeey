@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation';
 import { setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { getOrder } from '@/lib/order-service';
+import { StatusTimeline } from '@/components/orders/status-timeline';
+import { prisma } from '@/lib/prisma';
 import { listGifts } from '@/lib/gift-service';
 import { listStatusConfigs } from '@/lib/order-status-service';
 import { getNumberSetting } from '@/lib/settings-service';
@@ -17,7 +19,7 @@ import { deriveSourceKey, sourceLabel, attributionDetail, type Attribution } fro
 import { ChangeHistory } from '@/components/admin/change-history';
 import { ProductLinePicker } from '@/components/admin/order-item-picker';
 import {
-  transitionOrderAction, assignPharmacistAction, setPayCheckAction, setSystemPaymentMethodAction, setOrderMetaAction,
+  transitionOrderAction, refundPaymentAction, assignPharmacistAction, setPayCheckAction, setSystemPaymentMethodAction, setOrderMetaAction,
   setTrackingAction, addOrderItemAction, removeOrderItemAction, addGiftToOrderAction, removeGiftFromOrderAction, markOrderItemLostAction,
 } from '@/server/order-actions';
 import { createAramexShipmentAction, trackAramexAction, createSmsaShipmentAction, trackSmsaAction } from '@/server/carrier-actions';
@@ -58,6 +60,15 @@ export default async function OrderDetailPage({ params, searchParams }: { params
   const statusByCode = new Map<string, (typeof statusCfgs)[number]>(statusCfgs.map((c) => [c.code, c]));
   const statusLabelOf = (code: string) => { const c = statusByCode.get(code); return c ? (locale === 'ar' ? c.labelAr : c.labelEn) : code.replaceAll('_', ' '); };
   const transitions = (statusByCode.get(order.status)?.allowedNext ?? []) as string[];
+
+  // Resolve staff names for the status timeline (actorId → name), one query.
+  const actorIds = [...new Set(order.statusHistory.map((h) => h.actorId).filter((x): x is string => !!x))];
+  const actors = actorIds.length ? await prisma.user.findMany({ where: { id: { in: actorIds } }, select: { id: true, name: true } }) : [];
+  const actorName = new Map(actors.map((a) => [a.id, a.name]));
+  const timelineEntries = order.statusHistory.map((h) => ({
+    fromStatus: h.fromStatus, toStatus: h.toStatus, note: h.note, createdAt: h.createdAt,
+    actorName: h.actorId ? (actorName.get(h.actorId) ?? tb('Staff', 'موظف')) : tb('System', 'النظام'),
+  }));
   const hidden = (extra: Record<string, string>) =>
     Object.entries({ locale, id, ...extra }).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />);
 
@@ -151,7 +162,22 @@ export default async function OrderDetailPage({ params, searchParams }: { params
                 <form key={t} action={transitionOrderAction}>{hidden({ status: t })}<button className="rounded-md border border-border px-2.5 py-1 text-xs hover:bg-surface">{statusLabelOf(t)}</button></form>
               ))}
             </div>
+            {/* Refund is a payment fact, decoupled from status: a Cancelled or
+                Returned order restores stock, and the money refund is recorded
+                here independently. Only meaningful once paid. */}
+            {order.paymentState === 'PAID' && (
+              <form action={refundPaymentAction} className="mt-3 border-t border-border pt-3">
+                {hidden({})}
+                <button className="rounded-md border border-border px-2.5 py-1 text-xs hover:bg-surface">{tb('Mark payment refunded', 'تسجيل رد المبلغ')}</button>
+              </form>
+            )}
+            {order.paymentState === 'REFUNDED' && (
+              <p className="mt-3 border-t border-border pt-3 text-xs text-muted-foreground">{tb('Payment refunded.', 'تم رد المبلغ.')}</p>
+            )}
           </div>
+
+          <StatusTimeline entries={timelineEntries} locale={locale} showActor />
+
 
           {(order.isPreorder || order.isSpecialOrder || order.requests.length > 0) && (
             <div className="rounded-lg border border-border p-4">

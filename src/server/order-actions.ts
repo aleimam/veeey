@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import {
   transitionOrder,
+  refundPayment,
   assignPharmacist,
   setPayCheck,
   setSystemPaymentMethod,
@@ -97,6 +98,16 @@ export async function transitionOrderAction(fd: FormData): Promise<void> {
   const to = str(fd, 'status') as OrderStatus | undefined;
   if (id && to) {
     try { await transitionOrder(id, to, str(fd, 'reason')); } catch (e) { console.error(e); }
+    backToOrder(locale, id);
+  }
+  redirect(`/${locale}/admin/orders`);
+}
+
+export async function refundPaymentAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const id = str(fd, 'id');
+  if (id) {
+    try { await refundPayment(id, str(fd, 'reason')); } catch (e) { console.error(e); }
     backToOrder(locale, id);
   }
   redirect(`/${locale}/admin/orders`);

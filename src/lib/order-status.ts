@@ -13,13 +13,38 @@
  * in `order-status-service.ts`.
  */
 
-export const ORDER_STATUSES = ['PENDING', 'EDIT', 'HOLD', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED'] as const;
+export const ORDER_STATUSES = ['PENDING', 'EDIT', 'HOLD', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED', 'RETURNED'] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
-export const CUSTOMER_STATUSES = ['PENDING', 'HOLD', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED'] as const;
+export const CUSTOMER_STATUSES = ['PENDING', 'HOLD', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED', 'RETURNED'] as const;
 export type CustomerStatus = (typeof CUSTOMER_STATUSES)[number];
 
-export type StockEffect = 'none' | 'restock';
+/**
+ * Statuses at which the goods have physically left the building. Used by the
+ * cancel-restock rule: cancelling BEFORE this point restores stock (goods are
+ * still on the shelf); cancelling at/after it does not — the units come back
+ * only through a Return. Keyed off the order's CURRENT status, so an unship
+ * (Shipped → Confirmed) makes the order "unshipped" again (owner decision A).
+ */
+export const SHIPPED_STATUSES: readonly string[] = ['SHIPPED', 'DELIVERED'];
+
+/** Should a cancellation from `fromStatus` put stock back? Only if unshipped. PURE. */
+export function restockOnCancel(fromStatus: string): boolean {
+  return !SHIPPED_STATUSES.includes(fromStatus);
+}
+
+//  none               → never touch stock
+//  restock            → always restore to sellable (RETURNED: goods came back, inspected)
+//  restock_if_unshipped → restore ONLY when leaving an unshipped status (CANCELLED)
+export type StockEffect = 'none' | 'restock' | 'restock_if_unshipped';
+
+/** Resolve a stock effect for a specific transition. PURE — the single place the
+ *  cancel-vs-return distinction lives, so it can be unit-tested without a DB. */
+export function stockEffectApplies(effect: StockEffect, fromStatus: string): boolean {
+  if (effect === 'restock') return true;
+  if (effect === 'restock_if_unshipped') return restockOnCancel(fromStatus);
+  return false;
+}
 export type PaymentEffect = 'none' | 'paid' | 'refunded';
 export type RevenueEffect = 'none' | 'realize' | 'reverse';
 export type LoyaltyEffect = 'none' | 'credit' | 'reverse';
@@ -77,30 +102,43 @@ export const DEFAULT_STATUS_CONFIG: StatusConfig[] = [
   {
     code: 'SHIPPED', labelEn: 'Shipped', labelAr: 'تم الشحن', customerCode: 'SHIPPED', icon: 'truck',
     stockEffect: 'none', paymentEffect: 'none', revenueEffect: 'none', loyaltyEffect: 'none', notifyAudience: 'customer', notifyTemplateKey: 'order.shipped',
-    allowedNext: ['DELIVERED', 'CANCELLED', 'REFUNDED'],
+    allowedNext: ['DELIVERED', 'CONFIRMED', 'CANCELLED', 'REFUNDED'],
     sourceAliases: ['shipped', 'wc-shipped'],
     sortOrder: 5, active: true, isDefault: false,
   },
   {
     code: 'DELIVERED', labelEn: 'Delivered', labelAr: 'تم التسليم', customerCode: 'DELIVERED', icon: 'package-check',
     stockEffect: 'none', paymentEffect: 'paid', revenueEffect: 'realize', loyaltyEffect: 'credit', notifyAudience: 'customer', notifyTemplateKey: 'order.delivered',
-    allowedNext: ['REFUNDED'],
+    allowedNext: ['REFUNDED', 'CANCELLED', 'RETURNED'],
     sourceAliases: ['delivered', 'completed', 'cash delivered', 'card delivered', 'cash-delivered', 'card-delivered', 'cash_delivered', 'card_delivered', 'wc-completed'],
     sortOrder: 6, active: true, isDefault: false,
   },
   {
     code: 'CANCELLED', labelEn: 'Cancelled', labelAr: 'ملغى', customerCode: 'CANCELLED', icon: 'x-circle',
-    stockEffect: 'restock', paymentEffect: 'none', revenueEffect: 'reverse', loyaltyEffect: 'reverse', notifyAudience: 'customer', notifyTemplateKey: 'order.cancelled',
-    allowedNext: [],
+    // Restock ONLY if the order hadn't shipped — goods still on the shelf. A
+    // shipped-then-cancelled order restocks later via a Return, not here.
+    stockEffect: 'restock_if_unshipped', paymentEffect: 'none', revenueEffect: 'reverse', loyaltyEffect: 'reverse', notifyAudience: 'customer', notifyTemplateKey: 'order.cancelled',
+    allowedNext: ['RETURNED'],
     sourceAliases: ['cancelled', 'canceled', 'failed', 'wc-cancelled', 'wc-failed'],
     sortOrder: 7, active: true, isDefault: false,
   },
   {
     code: 'REFUNDED', labelEn: 'Refunded', labelAr: 'مُسترد', customerCode: 'REFUNDED', icon: 'rotate-ccw',
-    stockEffect: 'restock', paymentEffect: 'refunded', revenueEffect: 'reverse', loyaltyEffect: 'reverse', notifyAudience: 'customer', notifyTemplateKey: 'order.refunded',
-    allowedNext: [],
+    // A refund moves MONEY, never stock (owner rule: stock returns on a Return
+    // only). Recording the money refund is now decoupled from status anyway.
+    stockEffect: 'none', paymentEffect: 'refunded', revenueEffect: 'reverse', loyaltyEffect: 'reverse', notifyAudience: 'customer', notifyTemplateKey: 'order.refunded',
+    allowedNext: ['RETURNED'],
     sourceAliases: ['refunded', 'wc-refunded', 'partially-refunded'],
     sortOrder: 8, active: true, isDefault: false,
+  },
+  {
+    code: 'RETURNED', labelEn: 'Returned', labelAr: 'مُرتجع', customerCode: 'RETURNED', icon: 'undo-2',
+    // Goods physically came back and PASSED inspection — marking Returned is the
+    // sign-off, so stock goes straight to sellable (owner decision B-i).
+    stockEffect: 'restock', paymentEffect: 'none', revenueEffect: 'reverse', loyaltyEffect: 'reverse', notifyAudience: 'customer', notifyTemplateKey: 'order.returned',
+    allowedNext: [],
+    sourceAliases: ['returned', 'wc-returned'],
+    sortOrder: 9, active: true, isDefault: false,
   },
 ];
 

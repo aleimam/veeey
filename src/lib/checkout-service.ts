@@ -238,6 +238,10 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
       },
     });
 
+    // First entry of the durable status timeline (null → the order's opening
+    // status). Every later hop is appended in transitionOrder.
+    await tx.orderStatusHistory.create({ data: { orderId: ord.id, fromStatus: null, toStatus: ord.status, actorId: null, note: 'order placed' } });
+
     for (const r of reservations) {
       const unit = unitFor(r.lot.productId, r.lot.product.basePricePiastres, r.lot.priceOverridePiastres);
       await tx.orderItem.create({
@@ -373,6 +377,7 @@ export function getOrderByNumber(number: string) {
     include: {
       items: { include: { product: { select: { nameEn: true, nameAr: true, sku: true } } } },
       gifts: { include: { gift: { select: { internalName: true, nameEn: true, nameAr: true } } } },
+      statusHistory: { orderBy: { createdAt: 'asc' } },
     },
   });
 }

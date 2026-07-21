@@ -1130,9 +1130,26 @@ model Order {
   returns           Return[]
   couponRedemptions CouponRedemption[]
   loyaltyTxns       LoyaltyTransaction[]
+  statusHistory     OrderStatusHistory[]
 
   @@index([customerId])
   @@index([status])
+}
+
+/// Persistent, append-only status timeline (Phase-1 order lifecycle). The
+/// field-level change log is purged nightly, so this is the durable record
+/// shown to staff AND customers. `fromStatus` is null for the very first entry.
+model OrderStatusHistory {
+  id         String   @id @default(cuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fromStatus String?
+  toStatus   String
+  actorId    String? // staff user id; null = system/checkout
+  note       String?
+  createdAt  DateTime @default(now())
+
+  @@index([orderId])
 }
 
 model OrderItem {

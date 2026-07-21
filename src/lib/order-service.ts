@@ -4,7 +4,7 @@ import type { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
-import { type OrderStatus, type StatusConfig } from '@/lib/order-status';
+import { type OrderStatus, type StatusConfig, type StockEffect, stockEffectApplies } from '@/lib/order-status';
 import { canTransition, statusConfig } from '@/lib/order-status-service';
 import { NON_BOOKED_STATUSES } from '@/lib/sales-analytics-core';
 import { deriveSystemMethod } from '@/lib/payment-method-service';
@@ -153,8 +153,14 @@ export function getOrder(id: string) {
       pharmacist: { select: { id: true, name: true } },
       returns: { include: { items: true } },
       requests: { select: { id: true, uid: true, type: true, status: true }, orderBy: { createdAt: 'desc' } },
+      statusHistory: { orderBy: { createdAt: 'asc' } },
     },
   });
+}
+
+/** Just the durable status timeline for an order (customer + admin views). */
+export function getOrderStatusHistory(orderId: string) {
+  return prisma.orderStatusHistory.findMany({ where: { orderId }, orderBy: { createdAt: 'asc' } });
 }
 
 /** Interactive-transaction client of the (extended) prisma singleton. */
@@ -177,7 +183,7 @@ async function recomputeTotals(tx: Tx, orderId: string) {
 export async function restockOrder(orderId: string) {
   const marker = await prisma.movementLedger.findFirst({ where: { refType: 'status_restock', refId: orderId } });
   if (!marker) {
-    const items = await prisma.order.findUnique({ where: { id: orderId }, select: { items: { where: { lost: false, lotId: { not: null } }, include: { lot: { select: { locationId: true } } } } } });
+    const items = await prisma.order.findUnique({ where: { id: orderId }, select: { items: { where: { lost: false, lotId: { not: null } }, include: { lot: { select: { locationId: true, status: true, productId: true, expiryDate: true, condition: true } } } } } });
     // Units that went through the returns module are ITS responsibility (they
     // land in a quarantine lot or get written off) — restocking them here too
     // would count the same physical units twice, straight into the LIVE lot.
@@ -187,8 +193,21 @@ export async function restockOrder(orderId: string) {
       if (!it.lotId || !it.lot) continue;
       const qty = it.qty - (returnedBy.get(it.id) ?? 0);
       if (qty <= 0) continue;
-      await prisma.lot.update({ where: { id: it.lotId }, data: { qtyOnHand: { increment: qty } } });
-      await prisma.movementLedger.create({ data: { lotId: it.lotId, locationId: it.lot.locationId, type: 'RETURN', qtyDelta: qty, refType: 'status_restock', refId: orderId } });
+      // Restock must land in a SELLABLE lot (owner rule: restock = sellable). The
+      // original lot is usually still LIVE, but it may have EXPIRED or been
+      // quarantined since the order — in that case route the units to a LIVE lot
+      // for the same product+expiry+location+condition (create one if none),
+      // otherwise we'd "restock" into a lot nobody can buy from.
+      let targetLotId = it.lotId;
+      if (it.lot.status !== 'LIVE') {
+        const live = await prisma.lot.findFirst({
+          where: { productId: it.lot.productId, locationId: it.lot.locationId, expiryDate: it.lot.expiryDate, condition: it.lot.condition, status: 'LIVE' },
+          select: { id: true },
+        });
+        targetLotId = live?.id ?? (await prisma.lot.create({ data: { productId: it.lot.productId, locationId: it.lot.locationId, expiryDate: it.lot.expiryDate, condition: it.lot.condition, qtyOnHand: 0, status: 'LIVE' } })).id;
+      }
+      await prisma.lot.update({ where: { id: targetLotId }, data: { qtyOnHand: { increment: qty } } });
+      await prisma.movementLedger.create({ data: { lotId: targetLotId, locationId: it.lot.locationId, type: 'RETURN', qtyDelta: qty, refType: 'status_restock', refId: orderId } });
     }
   }
   const giftMarker = await prisma.giftMovement.findFirst({ where: { refType: 'status_restock', refId: orderId } });
@@ -213,7 +232,9 @@ async function runStatusNotify(orderId: string, cfg: StatusConfig | undefined) {
 /** Apply a status's configured effects (stock/payment/revenue/loyalty), idempotently. */
 async function applyStatusEffects(order: { id: string; number: string; totalPiastres: bigint; status: string }, from: string, cfg: StatusConfig | undefined) {
   if (!cfg) return;
-  if (cfg.stockEffect === 'restock') await restockOrder(order.id);
+  // 'restock' always restores (RETURNED); 'restock_if_unshipped' only when the
+  // order hadn't shipped at the moment it was cancelled (goods still on shelf).
+  if (stockEffectApplies(cfg.stockEffect as StockEffect, from)) await restockOrder(order.id);
   if (cfg.paymentEffect === 'paid') await prisma.order.update({ where: { id: order.id }, data: { paymentState: 'PAID' } });
   else if (cfg.paymentEffect === 'refunded') await prisma.order.update({ where: { id: order.id }, data: { paymentState: 'REFUNDED' } });
   if (cfg.revenueEffect === 'realize') {
@@ -250,6 +271,9 @@ export async function transitionOrder(id: string, to: OrderStatus, reason?: stri
     data: { status: to, ...(cfg?.customerCode ? { customerStatus: cfg.customerCode } : {}) },
   });
   if (claimed.count === 0) throw new Error('INVALID_TRANSITION');
+  // Durable, customer-visible timeline (the field-level change log is purged
+  // nightly). Append-only; best-effort so it never blocks the transition.
+  await prisma.orderStatusHistory.create({ data: { orderId: id, fromStatus: from, toStatus: to, actorId: user.id, note: reason ?? null } }).catch((e) => console.error('status history write failed', e));
   await applyStatusEffects(order, from, cfg);
   // net-sync Phase 3 (veeey.net only — no-op without NET_SYNC_WRITEBACK): report
   // this order's stock delta back to the egyptvitamins.net WP master. Best-effort;
@@ -272,6 +296,22 @@ export async function transitionOrder(id: string, to: OrderStatus, reason?: stri
     }
   }
   return prisma.order.findUniqueOrThrow({ where: { id } });
+}
+
+/**
+ * Record a money refund as a PAYMENT FACT, decoupled from the order status
+ * (owner decision (i)). This lets a pre-paid order be Cancelled/Returned —
+ * which restores stock — while the refund is tracked separately, instead of
+ * forcing one terminal status to mean both "stock back" and "money back".
+ * A COD order has nothing to refund, so this is only meaningful when paid.
+ */
+export async function refundPayment(id: string, note?: string) {
+  const user = await requirePermission('orders.write');
+  const order = await prisma.order.findUniqueOrThrow({ where: { id }, select: { paymentState: true } });
+  if (order.paymentState === 'REFUNDED') return; // idempotent
+  await prisma.order.update({ where: { id }, data: { paymentState: 'REFUNDED' } });
+  await prisma.orderStatusHistory.create({ data: { orderId: id, fromStatus: null, toStatus: 'PAYMENT_REFUNDED', actorId: user.id, note: note ?? null } }).catch(() => {});
+  await audit({ actorType: 'USER', actorId: user.id, action: 'order.payment_refunded', entityType: 'Order', entityId: id, data: { note } });
 }
 
 export async function assignPharmacist(id: string, pharmacistId: string | null) {
