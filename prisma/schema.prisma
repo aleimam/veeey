@@ -622,6 +622,8 @@ model OrderStatusConfig {
   loyaltyEffect     String   @default("none") // none | credit | reverse
   notifyAudience    String   @default("none") // none | customer | staff | both
   notifyTemplateKey String?
+  advancePermission String? // permission key required to move an order INTO this status (null = orders.write)
+  fastAction        Boolean  @default(false) // offer this transition as a one-click icon in the orders list
   allowedNext       String[] // codes reachable from this status
   sourceAliases     String[] // raw WC/EV status strings → this code
   sortOrder         Int      @default(0)
