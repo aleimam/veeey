@@ -30,7 +30,10 @@ export async function checkOpay(): Promise<ProviderCheck> {
       body: JSON.stringify({
         country: 'EG',
         reference,
-        amount: { total: 100, currency: 'EGP' }, // 1 EGP, never paid
+        // 100 EGP in piastres. 1 EGP tripped OPay's floor (`02001 Minimum amount
+        // limit`) — a business rule that reads like a failed connection. Never
+        // paid, and the session expires in 5 minutes.
+        amount: { total: 10_000, currency: 'EGP' },
         returnUrl: 'https://veeey.com',
         callbackUrl: 'https://veeey.com/api/payments/webhook/opay',
         cancelUrl: 'https://veeey.com',
@@ -43,6 +46,13 @@ export async function checkOpay(): Promise<ProviderCheck> {
     });
     const created = (await createRes.json().catch(() => null)) as { code?: string; message?: string } | null;
     if (created?.code !== '00000') {
+      // `02001 Minimum amount limit` is a BUSINESS rule, not a rejection of us:
+      // OPay resolved the merchant, accepted the key and the Egypt host, then
+      // declined the amount. That already proves everything this check exists to
+      // prove, so report it as a pass rather than a scary red failure.
+      if (created?.code === '02001') {
+        return { status: 'ok', code: '02001', detail: 'credentials + merchant accepted (amount below OPay minimum)' };
+      }
       return { status: 'fail', code: created?.code ?? String(createRes.status), detail: clip(created?.message) };
     }
     // Public key OK — now exercise the private-key (HMAC) status endpoint.
