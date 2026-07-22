@@ -277,6 +277,9 @@ export function getProduct(id: string) {
       tags: true,
       images: { orderBy: { sortOrder: 'asc' } },
       attributeValues: { include: { attributeValue: { include: { attribute: true } } } },
+      // Read-only links on the edit page's Organization tab (managed on their own pages).
+      variantGroup: { select: { id: true, name: true } },
+      collections: { select: { id: true, titleEn: true, titleAr: true } },
     },
   });
 }

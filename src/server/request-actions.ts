@@ -139,7 +139,9 @@ export async function setAlwaysNeededAction(fd: FormData): Promise<void> {
   const qty = str(fd, 'alwaysNeededQty') ? Number(str(fd, 'alwaysNeededQty')) : null;
   try { await setAlwaysNeeded(productId, on, qty); } catch (e) { console.error('set always-needed failed', e); }
   revalidatePath(`/${locale}/admin/products/edit/${productId}`);
-  redirect(`/${locale}/admin/products/edit/${productId}?an=1`);
+  // tab=selling: the Always-Needed block (and its "Saved." note) lives on the
+  // Selling tab of the tabbed product editor.
+  redirect(`/${locale}/admin/products/edit/${productId}?an=1&tab=selling`);
 }
 
 /**
