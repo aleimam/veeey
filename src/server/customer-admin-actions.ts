@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import {
   searchCustomers, quickCreateCustomer, updateCustomerDetails, updateCustomerStanding,
-  scanAndFlagSuspicious, saveCustomerAddress, deleteCustomerAddress, type CustomerHit,
+  scanAndFlagSuspicious, deleteSpamCustomers, saveCustomerAddress, deleteCustomerAddress, type CustomerHit,
 } from '@/lib/customer-admin-service';
 import { deleteCustomerAnalytics } from '@/lib/analytics/retention-service';
 import { requirePermission } from '@/lib/auth-guards';
@@ -71,6 +71,24 @@ export async function scanSuspiciousAction(fd: FormData): Promise<void> {
   }
   revalidatePath(`/${locale}/admin/customers`);
   redirect(`/${locale}/admin/customers?flagged=${flagged}${flagged > 0 ? '&status=FLAGGED' : ''}`);
+}
+
+/** Delete the fake accounts ticked on the review screen (owner 2026-07-22).
+ *  The service re-runs the heuristics and refuses anything that no longer
+ *  qualifies, so a stale selection can only ever delete less, never more. */
+export async function deleteSpamCustomersAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const ids = fd.getAll('ids').filter((v): v is string => typeof v === 'string');
+  let result: { deleted: number; skipped: number };
+  try {
+    result = await deleteSpamCustomers(ids);
+  } catch {
+    revalidatePath(`/${locale}/admin/customers/spam`);
+    redirect(`/${locale}/admin/customers/spam?error=delete`);
+  }
+  revalidatePath(`/${locale}/admin/customers/spam`);
+  revalidatePath(`/${locale}/admin/customers`);
+  redirect(`/${locale}/admin/customers/spam?deleted=${result.deleted}&skipped=${result.skipped}`);
 }
 
 export async function saveCustomerStandingAction(fd: FormData): Promise<void> {

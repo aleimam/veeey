@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
 import { generateReferralCode } from '@/lib/customer';
+import type { SpamReason } from '@/lib/customer-spam';
 
 /** Staff-side customer management (backend orders revamp, Phase A): search /
  *  quick-create for the order form + profile editing with address CRUD.
@@ -118,22 +119,33 @@ export async function updateCustomerStanding(id: string, raw: z.input<typeof sta
   await audit({ actorType: 'USER', actorId: user.id, action: 'customer.standing', entityType: 'Customer', entityId: id });
 }
 
-/** Heuristic spam scan (V5 F31): flags suspicious ACTIVE accounts as FLAGGED
- *  (reversible; review via the Flagged filter, then bulk block/delete). The
- *  reasons are appended to each customer's internal notes for review. */
-export async function scanAndFlagSuspicious(): Promise<{ scanned: number; flagged: number }> {
-  const user = await requirePermission('customers.write');
-  const { findSuspicious } = await import('@/lib/customer-spam');
+/** One suspected fake account as shown on the review screen. */
+export type SpamSuspect = {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  createdAt: Date;
+  ordersCount: number;
+  status: string;
+  reasons: SpamReason[];
+  purgeable: boolean; // strong signal + never bought + never verified
+};
 
+/** Run the heuristics over every non-blocked customer. Read-only — the review
+ *  screen and the delete action both start here so what staff approve is
+ *  exactly what gets deleted. */
+async function collectSuspects(): Promise<{ scanned: number; suspects: SpamSuspect[] }> {
+  const { findSuspicious, isPurgeable } = await import('@/lib/customer-spam');
   const rows = await prisma.customer.findMany({
-    where: { status: 'ACTIVE' },
+    where: { status: { in: ['ACTIVE', 'FLAGGED'] } },
     select: {
-      id: true, firstName: true, lastName: true, createdAt: true, adminNotes: true,
-      user: { select: { email: true, name: true, emailVerified: true, phoneVerified: true } },
+      id: true, firstName: true, lastName: true, createdAt: true, status: true,
+      user: { select: { email: true, name: true, phone: true, emailVerified: true, phoneVerified: true } },
       _count: { select: { orders: true } },
     },
   });
-  const suspects = findSuspicious(rows.map((r) => ({
+  const candidates = rows.map((r) => ({
     id: r.id,
     email: r.user.email,
     name: r.user.name,
@@ -143,20 +155,97 @@ export async function scanAndFlagSuspicious(): Promise<{ scanned: number; flagge
     ordersCount: r._count.orders,
     emailVerified: r.user.emailVerified,
     phoneVerified: r.user.phoneVerified,
-  })));
+  }));
+  const byId = new Map(candidates.map((c) => [c.id, c]));
+  const found = findSuspicious(candidates);
 
-  const notesById = new Map(rows.map((r) => [r.id, r.adminNotes]));
+  const suspects: SpamSuspect[] = [];
+  for (const r of rows) {
+    const reasons = found.get(r.id);
+    if (!reasons) continue;
+    suspects.push({
+      id: r.id,
+      name: [r.firstName, r.lastName].filter(Boolean).join(' ') || r.user.name || '',
+      email: r.user.email,
+      phone: r.user.phone,
+      createdAt: r.createdAt,
+      ordersCount: r._count.orders,
+      status: r.status,
+      reasons,
+      purgeable: isPurgeable(byId.get(r.id)!, reasons),
+    });
+  }
+  // Deletable first, then noisiest, then newest — the order staff review in.
+  suspects.sort((a, b) =>
+    Number(b.purgeable) - Number(a.purgeable)
+    || b.reasons.length - a.reasons.length
+    || b.createdAt.getTime() - a.createdAt.getTime());
+  return { scanned: rows.length, suspects };
+}
+
+/** Review screen data (owner 2026-07-22): who the detector thinks is fake, and
+ *  which of those are safe to delete outright. Read-only. */
+export async function listSpamSuspects(): Promise<{ scanned: number; suspects: SpamSuspect[] }> {
+  await requirePermission('customers.read');
+  return collectSuspects();
+}
+
+/** Heuristic spam scan (V5 F31): flags suspicious ACTIVE accounts as FLAGGED
+ *  (reversible; review via the Flagged filter, then bulk block/delete). The
+ *  reasons are appended to each customer's internal notes for review. */
+export async function scanAndFlagSuspicious(): Promise<{ scanned: number; flagged: number; purgeable: number }> {
+  const user = await requirePermission('customers.write');
+  const { scanned, suspects } = await collectSuspects();
+  const toFlag = suspects.filter((s) => s.status === 'ACTIVE');
+
+  const notes = await prisma.customer.findMany({
+    where: { id: { in: toFlag.map((s) => s.id) } },
+    select: { id: true, adminNotes: true },
+  });
+  const notesById = new Map(notes.map((r) => [r.id, r.adminNotes]));
   const stamp = new Date().toISOString().slice(0, 10);
-  for (const [id, reasons] of suspects) {
-    const line = `[spam-scan ${stamp}] ${reasons.join(', ')}`;
-    const existing = notesById.get(id);
+  for (const s of toFlag) {
+    const line = `[spam-scan ${stamp}] ${s.reasons.join(', ')}`;
+    const existing = notesById.get(s.id);
     await prisma.customer.update({
-      where: { id },
+      where: { id: s.id },
       data: { status: 'FLAGGED', adminNotes: existing ? `${existing}\n${line}` : line },
     });
   }
-  await audit({ actorType: 'USER', actorId: user.id, action: 'customer.spamScan', entityType: 'Customer', entityId: `${suspects.size} flagged of ${rows.length}` });
-  return { scanned: rows.length, flagged: suspects.size };
+  await audit({ actorType: 'USER', actorId: user.id, action: 'customer.spamScan', entityType: 'Customer', entityId: `${toFlag.length} flagged of ${scanned}` });
+  return { scanned, flagged: toFlag.length, purgeable: suspects.filter((s) => s.purgeable).length };
+}
+
+/**
+ * Delete suspected fake accounts (owner 2026-07-22). `ids` comes from the
+ * review screen, but the heuristics are re-run here and each id must STILL be
+ * purgeable — a stale tab, a hand-edited form or an account that ordered in the
+ * meantime can never delete a real customer. Anything not re-confirmed is
+ * skipped and reported. Deleting the User cascades the Customer and its
+ * addresses/wishlists; an unexpected FK just skips the row.
+ */
+export async function deleteSpamCustomers(ids: string[]): Promise<{ deleted: number; skipped: number }> {
+  const user = await requirePermission('customers.write');
+  if (ids.length === 0) return { deleted: 0, skipped: 0 };
+
+  const { suspects } = await collectSuspects();
+  const confirmed = new Set(suspects.filter((s) => s.purgeable).map((s) => s.id));
+  let deleted = 0;
+  let skipped = 0;
+
+  for (const id of ids) {
+    if (!confirmed.has(id)) { skipped++; continue; }
+    const c = await prisma.customer.findUnique({ where: { id }, select: { userId: true, _count: { select: { orders: true } } } });
+    if (!c || c._count.orders > 0) { skipped++; continue; }
+    try {
+      await prisma.user.delete({ where: { id: c.userId } });
+      deleted++;
+    } catch {
+      skipped++;
+    }
+  }
+  await audit({ actorType: 'USER', actorId: user.id, action: 'customer.spamDelete', entityType: 'Customer', entityId: `${deleted} deleted, ${skipped} skipped of ${ids.length} selected` });
+  return { deleted, skipped };
 }
 
 export async function updateCustomerDetails(id: string, raw: z.input<typeof detailsSchema>) {

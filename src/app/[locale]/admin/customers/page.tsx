@@ -141,10 +141,13 @@ export default async function CustomersPage({ params, searchParams }: { params: 
       <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-heading text-xl font-semibold">{tb('Customers', 'العملاء')} ({total})</h1>
         <div className="flex items-center gap-3">
+          <Link href="/admin/customers/spam" className="rounded-md border border-border px-3 py-2 text-sm hover:bg-surface">
+            {tb('Fake accounts', 'الحسابات الوهمية')}
+          </Link>
           <form action={scanSuspiciousAction}>
             <input type="hidden" name="locale" value={locale} />
             <ConfirmButton
-              warn={tb('Scan all active customers and flag suspicious accounts (disposable emails, nameless/unverified with no orders, signup bursts)? Flagging is reversible.', 'فحص جميع العملاء النشطين وتعليم الحسابات المشبوهة (بريد مؤقت، بلا اسم/غير مؤكد بلا طلبات، موجات تسجيل)؟ التعليم قابل للتراجع.')}
+              warn={tb('Scan all active customers and flag suspicious accounts (throwaway or junk-farm emails, links/Cyrillic in the name, nameless or unverified with no orders, signup bursts)? Flagging is reversible.', 'فحص جميع العملاء النشطين وتعليم الحسابات المشبوهة (بريد مؤقت أو نطاق مشبوه، روابط أو حروف سيريلية في الاسم، بلا اسم أو غير مؤكد بلا طلبات، موجات تسجيل)؟ التعليم قابل للتراجع.')}
               className="rounded-md border border-border px-3 py-2 text-sm hover:bg-surface"
             >
               {tb('Scan for suspicious', 'فحص الحسابات المشبوهة')}
