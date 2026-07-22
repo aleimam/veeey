@@ -268,6 +268,19 @@ fi
 git rev-parse --short HEAD           # confirm it matches the commit you pushed
 ```
 
+**Latest veeey.com redeploy: 2026-07-22 at `0846cae` — the "copy .net → .com" catch-up.** The box had
+drifted **51 commits** behind (it sat at `a827915`, the staff-sync commit); this pulled the checkout
+payment-flow rework, the fulfillment/incoming-shipments work, the whole owner batch 07-22B and the
+payment radio cards, applying **4 migrations** (`wp_ingest_shortfall`, `incoming_shipment_stock`,
+`checkout_payment_flow`, `deleted_spam_account`). A full DB dump was taken first —
+`/root/veeey-com-db-before-20260722.sql.gz` (17 MB). **Both documented pull traps were live and had
+to be cleared**: a modified `package-lock.json` and an untracked `staff-sync.log` (moved to
+`/root/staff-sync.log.bak-20260722`). Verified after: `/api/health` + `/en` + `/ar` + `/en/cart` +
+`/en/login` all 200, `veeey.com/en` 200, checkout payment radios confirmed live by DOM inspection.
+**Safety re-checked on this box: `WP_INGEST_*` / `NET_SYNC_*` still ABSENT, and the YeldnIN
+integration is still PARKED (`integration.enabled=false`, `integration.v2.enabled=0`)** — the deploy
+carries the customer-sync code but it stays inert.
+
 Verify before calling it done — the app listens on **:3100** behind nginx (not :3000, which answers
 nothing and looks like an outage):
 
