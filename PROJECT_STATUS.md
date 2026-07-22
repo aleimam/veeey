@@ -7,6 +7,22 @@
 
 ## Current state
 
+- **✅ Both owner batches (07-23) now LIVE on veeey.com too (`97a029f`, 2026-07-23).** The whole batch —
+  add-to-cart drawer + stepper, coupon Apply + reasons, City dropdown, and the payment-method
+  split/POS — was copied from .net to .com and **verified live on veeey.com**: cart drawer opens in
+  place (no navigation); checkout shows 4 offline methods (COD / Mobile Wallet / InstaPay / Bank
+  Transfer) + 2 card; POS present in Cairo, absent in Aswan; City dropdown disabled until a governorate
+  is picked, then 59 Cairo districts; coupon Apply present.
+  - **.com data operations:** 2 migrations (city + payment split) applied; 396 cities seeded; **5,720
+    of 6,274 addresses** had their WooCommerce state-codes (`EGC`→Cairo …) fixed, 544 left alone
+    (rollback `/root/veeey-com-address-governorate-rollback-20260723.sql`); POS enabled on Cairo + Giza
+    areas (rollback `/root/veeey-com-shipping-before-20260723.sql`). **.com already had a real Giza zone
+    (`gov_giza`) and rich per-governorate areas** — unlike .net, no zone had to be created.
+  - **Integration stays PARKED** on .com: `integration.enabled=false` DB Setting confirmed, no
+    `WP_INGEST_*`/`NET_SYNC_*`. (The `INTEGRATION_ENABLED=1` env is the long-standing baseline, untouched.)
+  - 🪤 **.com deploy note:** `unset NODE_ENV` before `npm install --include=dev` — sourcing `.env`
+    exports `NODE_ENV=production` and the build then dies on `@tailwindcss/postcss` (same trap as .net).
+
 - **✅ Payment methods split + POS live on veeey.net (`ce72650`, owner 2026-07-23).** The single
   "Bank Transfer / InstaPay / Wallet" radio became three — **Mobile Wallet**, **InstaPay (IPN)**,
   **Bank Transfer** — and **POS on Delivery** (which already existed, area-gated like UltraFast, but
