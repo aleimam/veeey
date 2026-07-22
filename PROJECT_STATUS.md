@@ -11,11 +11,11 @@
   Order: Card (Kashier) · Card (OPay) · InstaPay · Bank Transfer · Mobile Wallet · **POS upon
   Delivery** · Cash on Delivery. The order is one tested constant (`CHECKOUT_METHOD_ORDER` in
   `payment-copy.ts`); `CUSTOMER_METHODS` is sorted by it so the two can't drift. **The pre-selected
-  default stays COD** (not the now-first card) — decided in the checkout form, independent of list
-  order, because defaulting an Egyptian checkout onto an online card would hurt conversion and was
-  never requested. POS renamed in the customer label, the checkout i18n (was "Card machine on
-  delivery"), and the admin copy label; Arabic labels unchanged. **Verified live on veeey.net AND
-  veeey.com**: identical 7-item order, "POS upon Delivery", COD pre-ticked. 884 tests, build clean.
+  default is the top card (Card/Kashier)** — the owner reversed an initial COD-default to push card
+  payment (`53c471b`); it's `paymentMethods[0]` in the checkout form, following the list's lead. POS
+  renamed in the customer label, the checkout i18n (was "Card machine on delivery"), and the admin
+  copy label; Arabic labels unchanged. **Verified live on veeey.net AND veeey.com** (both at
+  `53c471b`): identical 7-item order, "POS upon Delivery", Card/Kashier pre-ticked. 884 tests, build clean.
 
 - **✅ Both owner batches (07-23) now LIVE on veeey.com too (`97a029f`, 2026-07-23).** The whole batch —
   add-to-cart drawer + stepper, coupon Apply + reasons, City dropdown, and the payment-method
