@@ -22,9 +22,15 @@
     Rates resolve *before* the transaction opens, cache daily in `Setting['fx.rate.<CUR>']`, and the
     rate + date are pinned onto the line — a cost is a historical fact and must not re-value. Ladder:
     today's cache → live → any cached rate flagged `fxStale` → no cost. Never hard-fails on an outage.
-  - **Won't do, by design, and says so on screen:** overwrite a cost already on a lot (⚠️ FIFO vs
-    weighted average is an open owner decision — nothing is averaged silently), or stock a line whose
-    SKU matches no product.
+  - **Costing = WEIGHTED AVERAGE** (owner decision 2026-07-22, `21e9c37`, `src/lib/lot-costing.ts`,
+    pure + 10 tests). A lot carries one cost per unit, so two purchase prices resolve to one weighted
+    by quantity, keeping the lot's total value equal to what was paid. Integer piastres, half up.
+    Asymmetric on purpose: unknown ARRIVING cost leaves the existing alone (averaging against a
+    missing number writes the lot down); unknown EXISTING cost adopts the arriving one (a lot with no
+    cost is worth nothing to a loss report). Verified live: 60 @ 51,000 + 40 @ 60,625 → 100 @ 54,850,
+    lot total == actually paid.
+  - **Won't do, by design, and says so on screen:** stock a line whose SKU matches no product — the
+    goods are here but unbooked, and the approver is given the count.
   - Verified live in a rolled-back transaction: two lines sharing an expiry merged into one 10-unit
     lot at 60,625 piastres (12.5 USD × 48.5), two STOCK_IN rows, re-run stocked nothing.
 
