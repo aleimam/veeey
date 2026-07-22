@@ -90,8 +90,11 @@ export const ROLE_DEFINITIONS: RoleDefinition[] = [
     permissions: '*',
   },
   {
-    key: 'pharmacist',
-    name: 'Pharmacist (Sales)',
+    // Was two departments: 'pharmacist' held the permissions and 'sales' drove
+    // the order-handler picker. Merged 2026-07-22 so departments map 1:1 onto
+    // YeldnIN teams — the picker already keys off 'sales'.
+    key: 'sales',
+    name: 'Sales',
     permissions: [
       'catalog.read', 'orders.read', 'orders.write', 'inventory.manage',
       'requests.manage', 'customers.read', 'reviews.moderate',
@@ -122,7 +125,12 @@ export const ROLE_DEFINITIONS: RoleDefinition[] = [
     name: 'Customer Support',
     permissions: ['orders.read', 'customers.read', 'customers.write', 'returns.manage'],
   },
-  { key: 'courier', name: 'Courier', permissions: ['couriers.access'] },
+  { key: 'couriers', name: 'Couriers', permissions: ['couriers.access'] },
+  // Mirror YeldnIN teams so membership syncs, but grant nothing: the owner
+  // defines each side's permission matrix separately and will tune these.
+  { key: 'logistics', name: 'Logistics', permissions: [] },
+  { key: 'purchasing', name: 'Purchasing', permissions: [] },
+  { key: 'development', name: 'Development', permissions: [] },
 ];
 
 /** Resolve a role's permission keys (expands '*'). */

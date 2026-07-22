@@ -10,29 +10,39 @@
  * Super Admin) it never touches anything, so hand-made assignments survive.
  */
 
-/** Departments this sync may ADD or REMOVE. Everything else is off-limits. */
-export const SYNCED_DEPARTMENTS = ['admin', 'pharmacist', 'sales', 'operations', 'courier'] as const;
+/**
+ * Departments this sync may ADD or REMOVE — one per YeldnIN team, same key.
+ *
+ * 1:1 since 2026-07-22 (owner). The old mapping split `sales` into
+ * pharmacist+sales and collapsed logistics/purchasing into operations, which
+ * meant nobody could tell from a department name what it corresponded to. Now
+ * the name IS the mapping, so there is nothing to look up and nothing to drift.
+ *
+ * `super_admin` is deliberately ABSENT. It is the sole holder of `rbac.manage`
+ * — the power to rewrite the permission model — and keeping it out of the sync
+ * is what guarantees no automated pipeline can ever grant that. Only a human,
+ * acting directly in Veeey, can.
+ */
+export const SYNCED_DEPARTMENTS = [
+  'admin', 'sales', 'operations', 'logistics', 'purchasing', 'couriers',
+  'development', 'marketing', 'finance', 'content_seo', 'support',
+] as const;
 export type SyncedDepartment = (typeof SYNCED_DEPARTMENTS)[number];
 
 /**
- * YeldnIN team → Veeey department(s).
+ * YeldnIN team → Veeey department. Identity, by design.
  *
- * `sales` maps to BOTH: `pharmacist` carries orders.write (the Status Matrix
- * rule "only Sales confirm"), while `sales` is the order handler picker — the
- * latter alone grants nothing.
- * `development` maps to nothing: it's an engineering group, not a storefront role.
- * `xoonx` maps to nothing and additionally excludes a user who is ONLY in it.
+ * What each department GRANTS is defined independently on each side (owner:
+ * "Departments for HR, Teams for permissions; permissions defined separately").
+ * So `logistics` and `purchasing` exist here with zero permissions until the
+ * owner tunes them — membership mirrors, authority does not.
+ *
+ * `xoonx` is simply absent — an unlisted team resolves to no departments, and a
+ * user whose ONLY team is xoonx is excluded outright by `isExcludedStaff`.
  */
-export const TEAM_TO_DEPARTMENTS: Record<string, SyncedDepartment[]> = {
-  admin: ['admin'],
-  sales: ['pharmacist', 'sales'],
-  operations: ['operations'],
-  logistics: ['operations'],
-  purchasing: ['operations'],
-  couriers: ['courier'],
-  development: [],
-  xoonx: [],
-};
+export const TEAM_TO_DEPARTMENTS: Record<string, SyncedDepartment[]> = Object.fromEntries(
+  SYNCED_DEPARTMENTS.map((d) => [d, [d]]),
+);
 
 export const XOONX_TEAM = 'xoonx';
 
