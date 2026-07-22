@@ -1,4 +1,6 @@
+import { createHash } from 'node:crypto';
 import { prisma } from '@/lib/prisma';
+import { storeImage } from '@/lib/storage';
 import {
   SYNCED_DEPARTMENTS, isExcludedStaff, departmentsForTeams, reconcileDepartments, parseStaffRecord,
   type StaffRecord,
@@ -14,7 +16,9 @@ import {
  *
  * Profile fields of an EXISTING user are left alone. The sync's authority is
  * membership, not identity: renaming someone in YeldnIN shouldn't rewrite the
- * account they log into here.
+ * account they log into here. ONE exception (owner 2026-07-22): the AVATAR is
+ * mirrored from YeldnIN — content-hashed filenames make the write idempotent,
+ * so an unchanged photo is a no-op every hour.
  */
 
 export type SyncOptions = { commit: boolean };
@@ -50,7 +54,7 @@ export async function syncStaff(raw: unknown[], opts: SyncOptions): Promise<Sync
   for (const s of records) {
     const user = await prisma.user.findUnique({
       where: { email: s.email },
-      select: { id: true, departments: { select: { department: { select: { key: true } } } } },
+      select: { id: true, image: true, departments: { select: { department: { select: { key: true } } } } },
     });
 
     let userId = user?.id ?? null;
@@ -82,6 +86,23 @@ export async function syncStaff(raw: unknown[], opts: SyncOptions): Promise<Sync
       report.changes.push({ email: s.email, created, add: plan.add, remove: plan.remove, ...(s.active ? {} : { skipped: 'inactive → revoked' }) });
     }
     if (!opts.commit || !userId) continue;
+
+    // Avatar mirror (owner 2026-07-22). Content-hash the bytes into the
+    // filename: same photo → same URL → skip; changed photo → new file + update.
+    // Best-effort — an avatar problem must never break membership sync.
+    if (s.avatar) {
+      try {
+        const bytes = Buffer.from(s.avatar.base64, 'base64');
+        const ext = s.avatar.mime === 'image/png' ? 'png' : s.avatar.mime === 'image/webp' ? 'webp' : s.avatar.mime === 'image/gif' ? 'gif' : 'jpg';
+        const url = `/uploads/staff-${createHash('sha1').update(bytes).digest('hex').slice(0, 12)}.${ext}`;
+        if (user?.image !== url) {
+          await storeImage(bytes, url.replace('/uploads/', ''));
+          await prisma.user.update({ where: { id: userId }, data: { image: url } });
+        }
+      } catch (e) {
+        report.warnings.push(`${s.email}: avatar mirror failed (${e instanceof Error ? e.message.slice(0, 60) : 'error'})`);
+      }
+    }
 
     for (const key of plan.add) {
       const departmentId = deptByKey.get(key);

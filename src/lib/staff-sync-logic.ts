@@ -93,7 +93,13 @@ export type StaffRecord = {
   phone: string | null;
   active: boolean;
   teams: string[];
+  /** Inline avatar from YeldnIN (owner 2026-07-22) — images only, size-capped. */
+  avatar: { mime: string; base64: string } | null;
 };
+
+// Base64 length cap ≈ 450KB of image bytes — matches YeldnIN's 400KB emit cap
+// with headroom, and bounds what a roster entry can make us buffer.
+const AVATAR_BASE64_MAX = 620_000;
 
 /** Normalise one inbound record; null = unusable (no email is not a person we can match). */
 export function parseStaffRecord(raw: unknown): StaffRecord | null {
@@ -111,5 +117,14 @@ export function parseStaffRecord(raw: unknown): StaffRecord | null {
     // for a field that governs whether someone keeps admin access.
     active: o.active === true,
     teams: Array.isArray(o.teams) ? o.teams.filter((t): t is string => typeof t === 'string') : [],
+    avatar: parseAvatar(o.avatar),
   };
+}
+
+function parseAvatar(raw: unknown): { mime: string; base64: string } | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const a = raw as Record<string, unknown>;
+  if (typeof a.mime !== 'string' || !a.mime.startsWith('image/')) return null;
+  if (typeof a.base64 !== 'string' || !a.base64 || a.base64.length > AVATAR_BASE64_MAX) return null;
+  return { mime: a.mime, base64: a.base64 };
 }

@@ -82,7 +82,16 @@ describe('parseStaffRecord', () => {
   const ok = { email: 'Ali@Yeldn.com ', name: ' Ali ', username: ' ali ', phone: ' +2010 ', active: true, teams: ['sales'] };
 
   it('normalises email/name/username and keeps teams', () => {
-    expect(parseStaffRecord(ok)).toEqual({ email: 'ali@yeldn.com', name: 'Ali', username: 'ali', phone: '+2010', active: true, teams: ['sales'] });
+    expect(parseStaffRecord(ok)).toEqual({ email: 'ali@yeldn.com', name: 'Ali', username: 'ali', phone: '+2010', active: true, teams: ['sales'], avatar: null });
+  });
+
+  it('accepts only sane inline avatars (image mime, capped base64) — else null', () => {
+    const img = { mime: 'image/png', base64: 'aGVsbG8=' };
+    expect(parseStaffRecord({ ...ok, avatar: img })!.avatar).toEqual(img);
+    expect(parseStaffRecord({ ...ok, avatar: { mime: 'application/pdf', base64: 'aGVsbG8=' } })!.avatar).toBeNull();
+    expect(parseStaffRecord({ ...ok, avatar: { mime: 'image/png', base64: 'x'.repeat(700_000) } })!.avatar).toBeNull();
+    expect(parseStaffRecord({ ...ok, avatar: 'not-an-object' })!.avatar).toBeNull();
+    expect(parseStaffRecord(ok)!.avatar).toBeNull();
   });
 
   it('treats anything but an explicit true as INACTIVE (safe direction for access)', () => {
