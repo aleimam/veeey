@@ -20,8 +20,42 @@
   avatars mirrored from YeldnIN** — the roster endpoint now ships a capped inline base64 image, Veeey
   writes it to a content-hashed `/uploads/staff-<sha1>.<ext>` and skips when unchanged; **quick-add
   "+" menu** in the admin topbar, permission-filtered), and `d1e9563` (**fake-signup detector** —
-  see below). Still open in this batch: the **login overhaul + country-code phone input** and the
-  **egyptvitamins.net restore**.
+  see below), `840dabd` (**login overhaul + phone input**, below) and `d844d7c` (**the tombstone**,
+  below). Verify gate on the finished batch: typecheck + lint clean, **838 tests / 106 files**, build
+  clean. Still open in this batch: the **egyptvitamins.net restore**.
+
+- **✅ Login overhaul + country-code phone input — `840dabd` (not yet deployed).** The OTP tab now
+  accepts **an email address or a phone number** (it was phone-only) by reusing the existing
+  `requestVerifyCode`/`verifyCode` pair, which already spoke both channels. Password fields got a
+  show/hide toggle (`components/ui/password-input.tsx`), and the vague single "Invalid credentials"
+  became ~20 specific messages in `src/lib/auth-errors.ts` (EN+AR) — unknown identifier vs wrong
+  password vs *this account has no password yet, sign in with a code* vs a rate-limit message naming
+  the wait in minutes.
+  - ⚠️ **Deliberate enumeration tradeoff, documented in `auth-errors.ts`:** telling "no such account"
+    apart from "wrong password" IS the owner's requirement, so it was honoured. Compensating: limits
+    tightened to **8/identifier and 20/IP per 15 min**, and a real bcrypt compare against a fixed
+    dummy hash runs when the account is unknown so the timing doesn't leak what the message won't.
+    The file names the one-line rollback.
+  - `components/ui/phone-input.tsx` (country code + national number, Egypt default) now backs **every**
+    phone field — login, register, checkout, account addresses, both special-order forms, admin
+    customer details + address rows, manual order, admin profile. It submits ONE hidden field in the
+    canonical `normalizeMobile` shape (`201012345678`) so SMS dispatch and existing `User.phone` rows
+    keep matching; a test pins that. Server-side re-validation via `checkPhoneValue` on every path.
+  - **Open question for the owner:** an email OTP for an address with no account **creates** one
+    (mirroring the existing phone-first signup), with `emailVerified` set. Refusing unknown emails
+    instead is a three-line change in `src/auth.ts`.
+
+- **✅ The tombstone that makes a junk delete stick — `d844d7c` (not yet deployed).** Deleting a fake
+  signup worked for about an hour: the `15 * * * *` customers cron (and the REST `wc-sync` on the .com
+  pair) is idempotent on `legacyWpId`/email, so every deletion walked straight back in on the next run,
+  silently. `DeletedSpamAccount` now records the email + WP id of anything deleted as junk, written in
+  the SAME transaction as the delete; both importers consult it via `isTombstoned()`. **Match is on
+  EITHER key** — a spammer who re-registers gets a fresh WP id, and a recycled id must not resurrect an
+  old address. Undo = the "Blocked from re-importing" section on the review screen. **Any future
+  feature that deletes customers must tombstone too, or the delete is a no-op after one hour.** Same
+  commit fixes a phone-search gap the phone work made common: `phoneSearchTerms` expands a query to
+  both the typed (`01…`) and normalized (`201…`) forms for the customers list and the staff picker.
+  Migration `20260722230000_deleted_spam_account` is new and idempotent (73rd).
 
 - **✅ Fake-signup detector — `d1e9563` (not yet deployed).** The junk registrations the owner
   spotted (CIS mailbox providers, throwaway TLDs, links smuggled into the name field, Cyrillic names)
