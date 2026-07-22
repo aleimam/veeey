@@ -34,6 +34,23 @@
   - Verified live in a rolled-back transaction: two lines sharing an expiry merged into one 10-unit
     lot at 60,625 piastres (12.5 USD × 48.5), two STOCK_IN rows, re-run stocked nothing.
 
+- **✅ Stock now flows BOTH ways with ev.net — LIVE 2026-07-22 (`ae5f996` + `1a3e1f1`).** Found by
+  asking what ev.net actually sees after the inversion; two holes, both real:
+  - **The writeback was decrement-only** (it fires from `transitionOrder` and nothing else). So
+    veeey.net could book a shipment and start selling while ev.net still showed the pre-shipment
+    figure — zero for anything sold out — and could not sell the new goods at all, breaking "both
+    storefronts show real stock". Approval now enqueues a **`STOCK_IN`** row per line, draining as an
+    increase like `RESTORE`, so the wp-cli applier is unchanged. Enqueued after the commit,
+    best-effort: a queue failure must not undo an approval Sales made.
+  - **`reconcileLots` still seeded a new lot with WP's quantity under `'net'`** — the last path by
+    which a WP edit could inject uncounted units. The lot is still created (WP is the only side that
+    knows the expiry) but at **zero**; stock arrives by shipment or stocktake now.
+  - Hardened in passing: the drain read "SALE = decrease, anything else = increase", so a typo'd
+    direction would silently ADD stock to a live storefront. `writebackOp` names the three real
+    directions and refuses the rest (row → FAILED).
+  - ⚠️ `NetStockOutbox.orderId` is now a **source reference**: a `STOCK_IN` row carries the
+    `IncomingShipmentLot` id. Column keeps its name — renaming rewrites a live table for nothing.
+
 - **✅ Sales can now review from EITHER app — LIVE 2026-07-22 (Veeey `ad47d74`, YeldnIN `ebaeaa8`).**
   The owner's "approve in both apps" was half-built: Veeey told YeldnIN its verdict, but a decision
   made in YeldnIN reached nothing here — and this is the store where approval creates stock.
