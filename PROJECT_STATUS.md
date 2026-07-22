@@ -65,9 +65,21 @@
     **Rollback** (`.net`→`.com` on those tables is exact — none of them contained `.net` beforehand,
     which was checked first): `/root/evnet-options-backup-20260722-emails.sql.gz`,
     `evnet-content-backup-20260722-emails.sql.gz`, `evnet-history-backup-20260722-emails.sql.gz`.
-  - ⚠️ **14 staff USER ACCOUNTS deliberately still on `.com`** (abdallah, m.ahmed, hanaa, evana, …) —
-    owner's choice. WordPress accepts username *or* email at login so nothing breaks; leaving them
-    means password recovery still reaches a mailbox that exists. Also stale but harmless:
+  - ✅ **The last 14 accounts moved to `.net` too (owner reversed the earlier "leave them" call).**
+    They turned out to be **`customer`-role accounts**, not admin logins — staff who shopped on their
+    own store with work emails — so the lockout worry was smaller than first described.
+    **Deliberately done with `wp search-replace`, NOT `wp user update`:** the latter calls
+    `wp_update_user()`, which emails a "Notice of Email Change" **to the old address** — i.e. it would
+    have sent 14 messages to the real `@egyptvitamins.com` mailboxes, the exact thing this whole
+    exercise was avoiding. Checked first that no `.net` user existed (no collisions, exact rollback)
+    and after that no duplicate `user_email` was created. Backup:
+    `/root/evnet-users-backup-20260722-emails.sql.gz`.
+    **The whole-database scan now returns ZERO `@egyptvitamins.com` in any table.**
+    ⚠️ **Known, harmless divergence:** veeey.net's Postgres still holds these 14 as `.com` (the
+    hourly customer importer matches on `legacyWpId` — all 14 have one — and its update path never
+    rewrites email, so they will NOT be duplicated, but they also will NOT be re-pointed). Align them
+    manually if it ever matters.
+    Also stale but harmless:
     `litespeed.conf.cdn-ori` lists the `.com` origin, and Site Kit is bound to the `.com` Search
     Console property.
   - 🔒 **`mailserver_*` cleared (owner asked, 2026-07-22).** WordPress stores the post-by-email POP3
