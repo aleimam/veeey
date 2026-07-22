@@ -146,7 +146,7 @@ function SuspectTable({ rows, locale, selectable, fmtDate }: { rows: Row[]; loca
                       key={reason}
                       className={`rounded-full px-2 py-0.5 text-xs ${STRONG_REASONS.includes(reason) ? 'bg-destructive/10 text-destructive' : 'bg-surface text-muted-foreground'}`}
                     >
-                      {pick(locale)(REASON_LABEL[reason][0], REASON_LABEL[reason][1])}
+                      {tb(REASON_LABEL[reason][0], REASON_LABEL[reason][1])}
                     </span>
                   ))}
                 </div>
