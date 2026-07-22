@@ -6,14 +6,17 @@ import { integrationSecret, yeldninBaseUrl, VEEEY_CLIENT_ID } from '@/lib/integr
 import { recordOutbox } from '@/lib/integration/integration-service';
 import { signRequest } from '@/lib/integration/hmac-logic';
 import { parseShipmentReceived, totalUnits, type WireShipmentReceived } from '@/lib/integration/shipment-wire';
+import { egpRatesFor, type FxResult } from '@/lib/fx';
+import { costToPiastres, normalizeCurrency } from '@/lib/fx-logic';
+import type { Tx } from '@/lib/order-service';
 
 /**
  * Incoming Shipments (YeldnIN stock-in), Stage 1 — the RECEIVER.
  *
  * A `shipment.received` event lands here as a **review record only**. It creates
  * NO lots and moves NO stock: Sales must compare the entered expiry dates against
- * Ops' photos and approve, and that approval (Stage 3) is what makes stock
- * sellable. So arming this channel is safe on its own.
+ * Ops' photos and approve, and that approval is what makes stock sellable (Stage
+ * 3, `approveShipment` below). So arming this channel is safe on its own.
  */
 
 export type ReceiveResult =
@@ -155,9 +158,7 @@ export async function shipmentPhotoExists(assetId: string): Promise<boolean> {
 }
 
 // ── Sales review ────────────────────────────────────────────────────────────
-// Stage 1 records the DECISION only. Approval does not yet create sellable lots
-// — that is Stage 3, deliberately, so this can ship and be exercised before the
-// stock-master inversion is anywhere near live.
+// Stage 3: approval is the single point where received goods become sellable.
 
 /** Tell Ops the verdict. A REJECTED shipment reopens in YeldnIN for correction;
  *  an approval is sent too so Ops can see the outcome without asking. */
@@ -165,21 +166,141 @@ async function emitReview(yeldninUid: string, decision: 'APPROVED' | 'REJECTED',
   await recordOutbox('shipment.review', yeldninUid, { shipmentUid: yeldninUid, decision, reason, reviewedAt: at.toISOString() });
 }
 
+export type StockResult = {
+  lotsStocked: number;
+  units: number;
+  /** Lines whose SKU matches no product — real goods we cannot book. */
+  skippedUnmatched: number;
+  /** Costs converted at a cached rate because the provider was unreachable. */
+  staleFx: number;
+  /** Priced in a currency we have no rate for at all — stocked without a cost. */
+  noRate: number;
+  /** Merged into a lot that already carries a different cost; the existing one stands. */
+  costConflicts: number;
+};
+
+/**
+ * Turn approved shipment lines into sellable stock.
+ *
+ * Units merge into the existing LIVE lot for the same product + expiry +
+ * location + condition, exactly as the rest of the system defines a lot; a new
+ * lot is created only when none exists. `lotId` on the line is the idempotency
+ * guard — a line that already has one is skipped, so a re-fired approval or a
+ * second click cannot stock the same goods twice.
+ *
+ * Runs inside the caller's transaction, alongside the status flip.
+ */
+async function stockShipmentLines(
+  tx: Tx,
+  lines: { id: string; productId: string | null; quantity: number; expiryDate: Date | null; lotCode: string | null; unitCost: number | null; currency: string | null; lotId: string | null }[],
+  locationId: string,
+  rates: Map<string, FxResult>,
+  receivedAt: Date,
+  shipmentUid: string,
+): Promise<StockResult> {
+  const r: StockResult = { lotsStocked: 0, units: 0, skippedUnmatched: 0, staleFx: 0, noRate: 0, costConflicts: 0 };
+
+  for (const line of lines) {
+    if (line.lotId) continue; // already stocked — the guard, not an error
+    if (!line.productId) { r.skippedUnmatched += 1; continue; }
+    if (line.quantity <= 0) continue;
+
+    const cur = normalizeCurrency(line.currency);
+    const fx = rates.get(cur) ?? null;
+    if (line.unitCost != null && !fx) r.noRate += 1;
+    if (fx?.stale) r.staleFx += 1;
+    const cost = fx ? costToPiastres(line.unitCost, fx.rate) : null;
+
+    // A lot is product × expiry × location (× condition). Arrivals are always
+    // NEW; damaged goods become a variant later, through spillage.
+    const existing = await tx.lot.findFirst({
+      where: { productId: line.productId, locationId, expiryDate: line.expiryDate, condition: 'NEW', status: 'LIVE' },
+      select: { id: true, costPiastres: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    let lotId: string;
+    if (existing) {
+      lotId = existing.id;
+      // Only fill a cost that is missing. Overwriting would silently re-value the
+      // units already on that lot, which were bought at a different price — and
+      // no costing method (FIFO / weighted average) has been chosen by the owner,
+      // so averaging here would be inventing a business rule. The conflict is
+      // reported instead.
+      const fillCost = existing.costPiastres == null && cost != null;
+      if (existing.costPiastres != null && cost != null && existing.costPiastres !== cost) r.costConflicts += 1;
+      await tx.lot.update({
+        where: { id: lotId },
+        data: { qtyOnHand: { increment: line.quantity }, ...(fillCost ? { costPiastres: cost } : {}) },
+      });
+    } else {
+      const created = await tx.lot.create({
+        data: {
+          productId: line.productId, locationId, expiryDate: line.expiryDate,
+          qtyOnHand: line.quantity, costPiastres: cost, status: 'LIVE', condition: 'NEW',
+          receivedAt, sourceBatchId: line.lotCode ?? null,
+        },
+        select: { id: true },
+      });
+      lotId = created.id;
+    }
+
+    await tx.movementLedger.create({
+      data: {
+        lotId, locationId, type: 'STOCK_IN', qtyDelta: line.quantity,
+        reason: `incoming shipment ${shipmentUid}`,
+        refType: 'INCOMING_SHIPMENT', refId: line.id,
+      },
+    });
+    await tx.incomingShipmentLot.update({
+      where: { id: line.id },
+      data: { lotId, costPiastres: cost, fxRate: fx?.rate ?? null, fxRateDate: fx?.date ?? null, fxStale: fx?.stale ?? false },
+    });
+    r.lotsStocked += 1;
+    r.units += line.quantity;
+  }
+  return r;
+}
+
 export async function approveShipment(id: string) {
   const user = await requirePermission('inventory.manage');
-  const found = await prisma.incomingShipment.findUnique({ where: { id }, select: { yeldninUid: true } });
-  if (!found) return { ok: false as const, error: 'not_found' };
-  const at = new Date();
-  // Only a pending shipment can be decided — re-approving would let a second
-  // click (or a stale tab) re-run whatever Stage 3 later attaches to approval.
-  const r = await prisma.incomingShipment.updateMany({
-    where: { id, status: 'PENDING_REVIEW' },
-    data: { status: 'APPROVED', reviewedById: user.id, reviewedAt: at, rejectReason: null },
+  const s = await prisma.incomingShipment.findUnique({
+    where: { id },
+    select: {
+      yeldninUid: true, status: true, locationId: true, receivedAt: true,
+      lots: { select: { id: true, productId: true, quantity: true, expiryDate: true, lotCode: true, unitCost: true, currency: true, lotId: true } },
+    },
   });
-  if (r.count === 0) return { ok: false as const, error: 'not_pending' };
-  await audit({ actorType: 'USER', actorId: user.id, action: 'incoming_shipment.approve', entityType: 'IncomingShipment', entityId: id });
-  await emitReview(found.yeldninUid, 'APPROVED', null, at);
-  return { ok: true as const };
+  if (!s) return { ok: false as const, error: 'not_found' };
+  if (s.status !== 'PENDING_REVIEW') return { ok: false as const, error: 'not_pending' };
+
+  // No hard-coded 'loc_main' — that id only exists in the dev seed.
+  const location = s.locationId
+    ? await prisma.location.findUnique({ where: { id: s.locationId }, select: { id: true } })
+    : await prisma.location.findFirst({ orderBy: { createdAt: 'asc' }, select: { id: true } });
+  if (!location) return { ok: false as const, error: 'no_location' };
+
+  // Rates are network I/O — resolve them BEFORE opening the transaction, or a
+  // slow third party would hold locks on the lot table.
+  const rates = await egpRatesFor(s.lots.filter((l) => l.unitCost != null).map((l) => l.currency));
+
+  const at = new Date();
+  const stocked = await prisma.$transaction(async (tx) => {
+    // Single-winner: only a pending shipment can be decided, and the claim and
+    // the stocking share one transaction. Sales can approve in Veeey OR YeldnIN,
+    // so two approvals racing is a real scenario — the second must be a no-op.
+    const claim = await tx.incomingShipment.updateMany({
+      where: { id, status: 'PENDING_REVIEW' },
+      data: { status: 'APPROVED', reviewedById: user.id, reviewedAt: at, rejectReason: null, locationId: location.id },
+    });
+    if (claim.count === 0) return null;
+    return stockShipmentLines(tx, s.lots, location.id, rates, s.receivedAt, s.yeldninUid);
+  });
+  if (!stocked) return { ok: false as const, error: 'not_pending' };
+
+  await audit({ actorType: 'USER', actorId: user.id, action: 'incoming_shipment.approve', entityType: 'IncomingShipment', entityId: id, data: stocked });
+  await emitReview(s.yeldninUid, 'APPROVED', null, at);
+  return { ok: true as const, stocked };
 }
 
 export async function rejectShipment(id: string, reason: string) {

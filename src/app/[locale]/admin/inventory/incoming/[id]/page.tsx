@@ -31,11 +31,30 @@ export default async function IncomingShipmentDetail({
   const noExpiry = s.lots.filter((l) => !l.expiryDate).length;
 
   const err = one(sp.error);
-  const banner = one(sp.approved) ? tb('Approved.', 'تم الاعتماد.')
+  const banner = one(sp.approved)
+      ? tb(`Approved — ${one(sp.units) ?? 0} unit(s) added across ${one(sp.lots) ?? 0} lot(s). They are on sale now.`,
+           `تم الاعتماد — أُضيفت ${one(sp.units) ?? 0} وحدة في ${one(sp.lots) ?? 0} تشغيلة، وهي معروضة للبيع الآن.`)
     : one(sp.rejected) ? tb('Sent back for correction.', 'أُعيدت للتصحيح.')
     : err === 'reason_required' ? tb('A reason is required to send it back.', 'يلزم ذكر سبب لإعادتها.')
+    : err === 'no_location' ? tb('No inventory location exists — create one before approving.', 'لا يوجد موقع مخزون — أنشئ موقعًا قبل الاعتماد.')
     : err ? tb('That shipment is no longer pending.', 'لم تعد هذه الشحنة في انتظار المراجعة.')
     : null;
+
+  // What approval could NOT do. Silence here would read as "all booked".
+  const unstocked = Number(one(sp.unstocked) ?? 0);
+  const staleFx = Number(one(sp.stale) ?? 0);
+  const noRate = Number(one(sp.norate) ?? 0);
+  const costClash = Number(one(sp.costclash) ?? 0);
+  const caveats = [
+    unstocked && tb(`${unstocked} lot(s) matched no product and were NOT added to stock — the goods are here but unbooked.`,
+                    `${unstocked} تشغيلة لم تطابق أي منتج ولم تُضف للمخزون — البضاعة موجودة لكنها غير مقيّدة.`),
+    staleFx && tb(`${staleFx} cost(s) used a cached exchange rate — the rate service was unreachable.`,
+                  `${staleFx} تكلفة استخدمت سعر صرف مخزّنًا — تعذّر الوصول لخدمة الأسعار.`),
+    noRate && tb(`${noRate} line(s) were stocked without a cost — no exchange rate was available for their currency.`,
+                 `${noRate} سطر أُضيف بدون تكلفة — لا يوجد سعر صرف متاح لعملته.`),
+    costClash && tb(`${costClash} line(s) merged into a lot that already had a different cost; the existing cost stands.`,
+                    `${costClash} سطر اندمج في تشغيلة لها تكلفة مختلفة؛ التكلفة الحالية هي المعتمدة.`),
+  ].filter(Boolean) as string[];
 
   const card = 'rounded-xl border border-border bg-card p-5';
 
@@ -50,6 +69,12 @@ export default async function IncomingShipmentDetail({
       </p>
 
       {banner && <div className="mb-5 max-w-4xl rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary">{banner}</div>}
+
+      {caveats.length > 0 && (
+        <div className="mb-5 max-w-4xl space-y-1 rounded-lg bg-gold/15 px-3 py-2 text-sm text-slate">
+          {caveats.map((c) => <div key={c}>{c}</div>)}
+        </div>
+      )}
 
       {/* Approval is a judgement call, so surface what makes it risky rather than
           letting it look uniformly fine. */}
@@ -87,6 +112,18 @@ export default async function IncomingShipmentDetail({
                     <td className="p-2 text-end">{l.quantity}</td>
                     <td className="whitespace-nowrap p-2 text-end text-muted-foreground">
                       {l.unitCost != null ? `${l.unitCost} ${l.currency ?? 'EGP'}` : '—'}
+                      {/* Once pinned, show what it actually became — the raw
+                          supplier figure alone can't be checked against anything. */}
+                      {l.costPiastres != null && (
+                        <div className="text-xs text-foreground">
+                          = {(Number(l.costPiastres) / 100).toFixed(2)} EGP
+                          {l.fxRate != null && l.fxRate !== 1 && (
+                            <span className={l.fxStale ? 'ms-1 text-destructive' : 'ms-1 text-muted-foreground'}>
+                              @{l.fxRate.toFixed(2)}{l.fxStale ? ' ⚠' : ''}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -94,8 +131,8 @@ export default async function IncomingShipmentDetail({
             </table>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
-            {tb('Costs are the supplier figures as entered. Conversion to EGP happens on approval, at that day’s rate.',
-                'التكاليف كما أدخلها المورّد. يتم التحويل إلى الجنيه عند الاعتماد بسعر ذلك اليوم.')}
+            {tb('Costs are the supplier figures as entered. Approval converts them to EGP at that day’s rate and pins it — a cost is a historical fact and never re-values later.',
+                'التكاليف كما أدخلها المورّد. عند الاعتماد تُحوَّل إلى الجنيه بسعر ذلك اليوم ويُثبَّت — فالتكلفة واقعة تاريخية لا يُعاد تقييمها لاحقًا.')}
           </p>
         </section>
 
@@ -142,8 +179,8 @@ export default async function IncomingShipmentDetail({
               </button>
             </form>
             <p className="w-full text-xs text-muted-foreground">
-              {tb('Approving records the decision. Stock is not created yet — that step ships with the stock-master switch.',
-                  'الاعتماد يسجّل القرار. لا يتم إنشاء المخزون بعد — تلك الخطوة تأتي مع تحويل مصدر المخزون.')}
+              {tb('Approving puts these units on sale immediately and pins today’s exchange rate onto their cost. It cannot be undone from here — send it back instead if anything looks wrong.',
+                  'الاعتماد يطرح هذه الوحدات للبيع فورًا ويثبّت سعر صرف اليوم على تكلفتها. لا يمكن التراجع من هنا — أعِدها للتصحيح إذا كان هناك أي خطأ.')}
             </p>
           </div>
         ) : (
