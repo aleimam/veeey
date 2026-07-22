@@ -1,6 +1,6 @@
 # Checkout backlog — owner feedback 2026-07-22 (after the first successful Kashier payment)
 
-✅ **Kashier v3 works end to end.** A real order paid successfully — validating the Payment
+✅ **BOTH GATEWAYS PROVEN by real transactions.** Kashier v3 (Payment Sessions migration + secret-key auth + `serverWebhook`) and OPay (Egypt host `api.opaycheckout.com`) each completed a real paid order.
 Sessions v3 migration, the secret-key auth fix, and `serverWebhook`.
 
 Items below are in the order I'd do them: correctness first, then UX.
@@ -28,6 +28,25 @@ gateway still gets "order placed".
 
 **Fix:** for online methods, fire the confirmation notification from the **payment webhook**
 (`markOrderPaid`), not from order creation. Offline methods keep notifying at placement.
+
+## 🔴 P0 — cancelling at the gateway still leaves an order behind
+Third symptom of the same root cause, found on the owner's OPay run: cancelling the payment left the
+order placed with payment FAILED. So abandoning at the gateway still produces an order.
+
+**The real cost is stock.** Stock leaves at placement, so every abandoned card attempt holds
+inventory hostage — on a store that oversells easily (ev.net sells the same pool) that matters more
+than the untidy order list.
+
+**Recommended handling — do NOT hard-cancel instantly.** The customer may have mis-clicked, or may
+retry. Better:
+- Keep the order in an explicit **unpaid/awaiting-payment** state that is excluded from the normal
+  order list and sends NO notifications.
+- Give it a retry link back to a fresh payment session.
+- Let the expiry sweep cancel it and **restore stock** once the gateway session expires (30 min for
+  Kashier v3), which is the natural deadline and needs no new timer.
+
+That way a genuine retry works, stock comes back on its own, and Sales never sees a phantom order.
+An instant hard-cancel is simpler but strands anyone who cancels by accident.
 
 ## P1 — inline field validation (owner item 3)
 Missing/invalid checkout fields must show a red message **below the offending field** and outline it
