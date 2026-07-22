@@ -155,11 +155,19 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
   const isFirstOrder = customerId ? (await prisma.order.count({ where: { customerId } })) === 0 : false;
 
   // Coupon (stacks with points + tier discount).
+  //
+  // A code that does not apply now ABORTS the order (owner 2026-07-23). It used
+  // to be dropped silently: the customer typed a code, saw no discount, and was
+  // charged full price with nothing to explain it — the worst outcome, because
+  // it looks like the coupon simply doesn't work rather than like a mistake they
+  // could fix. The reason travels so checkout can say which mistake it was.
   let couponDiscount = 0n;
   let couponId: string | null = null;
   if (data.couponCode) {
     const c = await applyCoupon(data.couponCode, { subtotalPiastres: subtotal, customerId, isFirstOrder });
-    if (c.ok) { couponDiscount = c.discountPiastres; couponId = c.couponId; }
+    if (!c.ok) throw new Error(`COUPON_REJECTED:${c.reason}`);
+    couponDiscount = c.discountPiastres;
+    couponId = c.couponId;
   }
 
   // Loyalty redemption — rate (points per EGP) is admin-configurable.

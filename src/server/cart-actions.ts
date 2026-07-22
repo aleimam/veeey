@@ -178,7 +178,11 @@ export async function removeFromCartAction(fd: FormData): Promise<void> {
   redirect(`/${locale}/cart`);
 }
 
-export type CheckoutState = { error?: string };
+export type CheckoutState = {
+  error?: string;
+  /** Which coupon rule rejected the code, when `error === 'coupon'`. */
+  couponReason?: string;
+};
 
 export async function placeOrderAction(_p: CheckoutState, fd: FormData): Promise<CheckoutState> {
   const locale = localeOf(fd);
@@ -240,6 +244,11 @@ export async function placeOrderAction(_p: CheckoutState, fd: FormData): Promise
   } catch (e) {
     if (e instanceof Error && e.message === 'EMPTY_CART') return { error: 'empty' };
     if (e instanceof Error && e.message === 'VERIFY_REQUIRED') return { error: 'verify' };
+    // The coupon stopped applying between Apply and Place — or was never
+    // checked. Name the rule, don't just refuse.
+    if (e instanceof Error && e.message.startsWith('COUPON_REJECTED:')) {
+      return { error: 'coupon', couponReason: e.message.slice('COUPON_REJECTED:'.length) };
+    }
     if (e instanceof Error && e.message === 'CUSTOMER_BLOCKED') return { error: 'blocked' };
     // The atomic points/coupon claims rejected: another order consumed the
     // balance or the last redemption between pricing and placement. Nothing was

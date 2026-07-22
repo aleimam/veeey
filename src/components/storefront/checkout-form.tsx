@@ -4,6 +4,7 @@ import { useActionState, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { placeOrderAction, type CheckoutState } from '@/server/cart-actions';
 import { CheckoutVerify } from '@/components/storefront/checkout-verify';
+import { CouponField } from '@/components/storefront/coupon-field';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { formatEGP } from '@/lib/format';
 import { checkPhoneValue } from '@/lib/phone';
@@ -138,6 +139,10 @@ export function CheckoutForm({
     : state.error === 'blocked' ? t('errBlocked')
     : state.error === 'stale' ? t('errStale')
     : state.error === 'stock' ? t('errStock')
+    // Placement re-checks the coupon, so it can fail even after Apply said yes
+    // (a last-redemption promo used up in between). Reuse the field's own
+    // wording rather than a second vocabulary for the same rules.
+    : state.error === 'coupon' ? (t.has(`coupon_${state.couponReason}`) ? t(`coupon_${state.couponReason}`) : t('coupon_invalid'))
     : state.error ? t('errGeneric') : null;
   const heading = 'mb-3 text-lg font-bold text-green-dark';
 
@@ -255,9 +260,7 @@ export function CheckoutForm({
           </button>
           <div id="discounts-panel" hidden={!discountsOpen} className="mt-3">
             <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block text-sm font-semibold text-ink">{t('couponCode')}
-                <input name="couponCode" placeholder={t('couponPlaceholder')} className={field} />
-              </label>
+              <CouponField locale={locale} className={field} />
               {isLoggedIn && pointsBalance > 0 && (
                 <label className="block text-sm font-semibold text-ink">{t('redeemPoints')} <span className="font-normal text-[color:var(--text-muted)]">{t('redeemPointsHint', { balance: pointsBalance, rate: pointsPerEgp })}</span>
                   <input name="redeemPoints" type="number" min="0" max={pointsBalance} step={pointsPerEgp} defaultValue="0" className={field} />
