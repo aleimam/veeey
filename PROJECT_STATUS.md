@@ -28,6 +28,20 @@
   - Verified live in a rolled-back transaction: two lines sharing an expiry merged into one 10-unit
     lot at 60,625 piastres (12.5 USD × 48.5), two STOCK_IN rows, re-run stocked nothing.
 
+- **✅ Sales can now review from EITHER app — LIVE 2026-07-22 (Veeey `ad47d74`, YeldnIN `ebaeaa8`).**
+  The owner's "approve in both apps" was half-built: Veeey told YeldnIN its verdict, but a decision
+  made in YeldnIN reached nothing here — and this is the store where approval creates stock.
+  - `shipment.review` now flows **both ways**. Veeey's `applyRemoteReview` runs the same
+    `decideShipment` path the admin UI uses (SYSTEM actor), so a remote approval really stocks lots.
+  - **Only the side where a human clicked emits** — each inbound handler applies without echoing, or
+    the two apps would ping-pong the verdict forever.
+  - Both sides are **predicated** (`PENDING_REVIEW` / `WEBSITE`): two Sales deciding at once resolves
+    first-wins, not two conflicting decisions.
+  - YeldnIN gates it on a new `order_requests.reviewShipment` capability (Sales, MANAGE, overridable).
+  - ⚠️ Found in passing: **YeldnIN's live app dir is `/home/yeldn/app`**, not the `/home/yeldnin/app`
+    its `DEPLOY.md` claimed, its branch is `main`, and it has **no ESLint config at all** — corrected
+    in that runbook.
+
 - **🔴 THE STOCK MASTER INVERTED — veeey.net now owns inventory, egyptvitamins.net does not.
   LIVE 2026-07-22 (`efa2e39`, 70 migrations, 738 tests, veeey.net only).** Both storefronts keep
   selling from one physical pool; the direction of authority is what changed. This overturns the
