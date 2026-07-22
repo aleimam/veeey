@@ -10,6 +10,7 @@ import { ConfirmButton } from '@/components/admin/confirm-button';
 import { formatEGP } from '@/lib/format';
 import { GOVERNORATES } from '@/lib/governorates';
 import { StatusBadge, Field, inputCls } from '@/components/admin/ui';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { pick } from '@/lib/admin-i18n';
 import { requirePermission } from '@/lib/auth-guards';
 import { hasPermission } from '@/lib/rbac';
@@ -56,6 +57,7 @@ export default async function CustomerProfilePage({ params, searchParams }: { pa
       {one(sp.analytics_erased) === '1' && <p className="mb-4 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">{tb('Analytics data erased for this customer.', 'تم مسح بيانات التحليلات لهذا العميل.')}</p>}
       {error === 'email_taken' && <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{tb('That email is already used by another account.', 'هذا البريد مستخدم بحساب آخر.')}</p>}
       {error === 'address_in_use' && <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{tb('This address is used by past orders — it cannot be deleted.', 'هذا العنوان مستخدم في طلبات سابقة — لا يمكن حذفه.')}</p>}
+      {error === 'phone' && <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{tb('That phone number is not valid — check the country code and the number.', 'رقم الهاتف غير صالح — راجع رمز الدولة والرقم.')}</p>}
       {error === 'pts_insufficient' && <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{tb('Not enough points to deduct that amount.', 'النقاط غير كافية لخصم هذا المقدار.')}</p>}
       {error === 'pts_bad' && <p className="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{tb('Enter a valid points amount.', 'أدخل مقدار نقاط صالحًا.')}</p>}
       {one(sp.backfilled) != null && <p className="mb-4 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">{tb(`Credited ${one(sp.pts)} points across ${one(sp.backfilled)} past order(s).`, `تم منح ${one(sp.pts)} نقطة عبر ${one(sp.backfilled)} طلب سابق.`)}</p>}
@@ -70,7 +72,7 @@ export default async function CustomerProfilePage({ params, searchParams }: { pa
           <Field label={tb('First name', 'الاسم الأول')}><input name="firstName" defaultValue={c.firstName ?? ''} className={inputCls} /></Field>
           <Field label={tb('Last name', 'اسم العائلة')}><input name="lastName" defaultValue={c.lastName ?? ''} className={inputCls} /></Field>
           <Field label={tb('Email', 'البريد الإلكتروني')} hint={tb('Used for login — must stay unique.', 'يُستخدم للدخول — يجب أن يبقى فريدًا.')}><input name="email" type="email" defaultValue={c.user.email ?? ''} className={inputCls} /></Field>
-          <Field label={tb('Primary phone', 'الهاتف الأساسي')} hint={tb('Extra numbers live on the addresses below.', 'الأرقام الإضافية على العناوين أدناه.')}><input name="phone" defaultValue={c.user.phone ?? ''} className={inputCls} /></Field>
+          <Field label={tb('Primary phone', 'الهاتف الأساسي')} hint={tb('Extra numbers live on the addresses below.', 'الأرقام الإضافية على العناوين أدناه.')}><PhoneInput name="phone" defaultValue={c.user.phone ?? ''} variant="admin" /></Field>
           <Field label={tb('Tier', 'الفئة')} hint={tb('Without the lock below, spend-based auto-tiering overrides this pick.', 'دون القفل أدناه، الترقية التلقائية حسب الإنفاق تتجاوز هذا الاختيار.')}>
             <select name="tierId" defaultValue={c.tierId ?? ''} className={inputCls}>
               <option value="">{tb('— None —', '— بدون —')}</option>
@@ -215,7 +217,7 @@ export default async function CustomerProfilePage({ params, searchParams }: { pa
                   <td className={cell}><input form={`addr-${a.id}`} name="area" defaultValue={a.area} className={`${inputCls} w-28`} /></td>
                   <td className={cell}><input form={`addr-${a.id}`} name="street" defaultValue={a.street ?? ''} className={`${inputCls} w-40`} /></td>
                   <td className={cell}><input form={`addr-${a.id}`} name="building" defaultValue={a.building ?? ''} className={`${inputCls} w-24`} /></td>
-                  <td className={cell}><input form={`addr-${a.id}`} name="phone" defaultValue={a.phone ?? ''} className={`${inputCls} w-32`} /></td>
+                  <td className={cell}><PhoneInput form={`addr-${a.id}`} name="phone" defaultValue={a.phone ?? ''} variant="admin" stacked className="w-40" /></td>
                   <td className={`${cell} text-center`}><input form={`addr-${a.id}`} type="checkbox" name="isDefaultShipping" defaultChecked={a.isDefaultShipping} className="size-4" /></td>
                   <td className={cell}>
                     <div className="flex items-center gap-2">
@@ -246,7 +248,7 @@ export default async function CustomerProfilePage({ params, searchParams }: { pa
                 <td className={cell}><input form="addr-new" name="area" placeholder={tb('Area', 'المنطقة')} className={`${inputCls} w-28`} /></td>
                 <td className={cell}><input form="addr-new" name="street" placeholder={tb('Street', 'الشارع')} className={`${inputCls} w-40`} /></td>
                 <td className={cell}><input form="addr-new" name="building" placeholder={tb('Building', 'المبنى')} className={`${inputCls} w-24`} /></td>
-                <td className={cell}><input form="addr-new" name="phone" placeholder={tb('Phone', 'الهاتف')} className={`${inputCls} w-32`} /></td>
+                <td className={cell}><PhoneInput form="addr-new" name="phone" variant="admin" stacked className="w-40" /></td>
                 <td className={`${cell} text-center`}><input form="addr-new" type="checkbox" name="isDefaultShipping" className="size-4" /></td>
                 <td className={cell}>
                   <form id="addr-new" action={saveCustomerAddressAction}>

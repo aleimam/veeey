@@ -4,7 +4,7 @@ import { useActionState } from 'react';
 import { useTranslations } from 'next-intl';
 import { createSpecialOrderRequestAction, type SpecialOrderFormState } from '@/server/special-order-actions';
 import { ImageUploader } from '@/components/admin/image-uploader';
-import { PHONE_PATTERN } from '@/lib/phone';
+import { PhoneInput } from '@/components/ui/phone-input';
 
 const field =
   'mt-1.5 w-full rounded-[8px] border border-[color:var(--slate-border)] bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition-colors placeholder:text-slate-45 focus:border-lime focus:bg-white';
@@ -39,7 +39,7 @@ export function SpecialOrderForm({ locale, isLoggedIn, needsPhone = false, defau
           <p className="rounded-[8px] bg-green-wash px-3 py-2 text-sm text-green-dark">{t('loggedInContact', { name: defaultName ?? defaultEmail ?? '' })}</p>
           {needsPhone && (
             <label className="block text-sm font-semibold text-ink">{t('phone')}
-              <input name="requesterPhone" required inputMode="tel" pattern={PHONE_PATTERN} title={t('phoneHint')} placeholder="01XXXXXXXXX" className={field} />
+              <PhoneInput name="requesterPhone" required inputClassName={field} />
             </label>
           )}
         </>
@@ -50,7 +50,7 @@ export function SpecialOrderForm({ locale, isLoggedIn, needsPhone = false, defau
               <input name="requesterName" required defaultValue={defaultName ?? ''} className={field} />
             </label>
             <label className="block text-sm font-semibold text-ink">{t('phone')}
-              <input name="requesterPhone" required inputMode="tel" pattern={PHONE_PATTERN} title={t('phoneHint')} placeholder="01XXXXXXXXX" className={field} />
+              <PhoneInput name="requesterPhone" required inputClassName={field} />
             </label>
           </div>
           <label className="block text-sm font-semibold text-ink">{t('email')}

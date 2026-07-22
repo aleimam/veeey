@@ -6,6 +6,7 @@ import { Link } from '@/i18n/navigation';
 import { saveStaffAction } from '@/server/staff-actions';
 import type { AdminFormState } from '@/server/admin-actions';
 import { Field, FormError, SubmitButton, inputCls } from './ui';
+import { PasswordInput } from '@/components/ui/password-input';
 import { pick } from '@/lib/admin-i18n';
 
 type DeptOpt = { id: string; nameEn: string; nameAr?: string | null; key: string };
@@ -60,7 +61,7 @@ export function StaffForm({
       </Field>
 
       <Field label={id ? tb('New password', 'كلمة مرور جديدة') : tb('Password', 'كلمة المرور')} hint={id ? tb('Leave empty to keep the current password.', 'اتركها فارغة للإبقاء على كلمة المرور الحالية.') : tb('At least 8 characters.', '8 أحرف على الأقل.')}>
-        <input name="password" type="password" minLength={8} required={!id} autoComplete="new-password" className={inputCls} />
+        <PasswordInput name="password" minLength={8} required={!id} autoComplete="new-password" variant="admin" />
       </Field>
 
       <div className="flex items-center gap-3">

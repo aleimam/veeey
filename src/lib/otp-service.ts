@@ -5,10 +5,11 @@ import { normalizeMobile, smsConfigured, emailConfigured } from '@/lib/provider-
 import { dispatchSms, dispatchEmail } from '@/lib/notification-dispatch';
 
 /**
- * One-time codes. Two uses share the OtpCode table:
- * - Phone-OTP login (FR-ACC-01b) — `requestOtp` / `verifyOtp`.
- * - Checkout verification (V5 F30) — `requestVerifyCode` / `verifyCode`, where
- *   the destination may be a phone (SMS) or an email address.
+ * One-time codes. Two uses share the OtpCode table, both through
+ * `requestVerifyCode` / `verifyCode`, and the destination may be a phone (SMS)
+ * or an email address:
+ * - Code sign-in (FR-ACC-01b) — by phone OR email since owner 2026-07-22 #226.
+ * - Checkout verification (V5 F30).
  * Codes are 6 digits, hashed at rest, valid for `OTP_TTL_MIN`, rate-limited
  * per destination. (The `phone` column holds the normalized destination.)
  */
@@ -39,19 +40,6 @@ async function issueCode(dest: string): Promise<{ code: string } | { error: 'rat
   const codeHash = await hashPassword(code);
   await prisma.otpCode.create({ data: { phone: dest, codeHash, expiresAt: new Date(Date.now() + OTP_TTL_MIN * 60_000) } });
   return { code };
-}
-
-export async function requestOtp(rawPhone: string): Promise<OtpResult> {
-  const phone = normalizeMobile(rawPhone || '');
-  if (!phone || phone.length < 10) return { ok: false, error: 'no_phone' };
-  if (!(await smsConfigured())) return { ok: false, error: 'sms_not_configured' };
-
-  const issued = await issueCode(phone);
-  if ('error' in issued) return { ok: false, error: 'rate_limited' };
-
-  const r = await dispatchSms(phone, `Veeey login code: ${issued.code} (valid ${OTP_TTL_MIN} min).`);
-  if (!r.ok) return { ok: false, error: r.skipped ? 'sms_not_configured' : 'sms_failed' };
-  return { ok: true };
 }
 
 /** Send a verification code to a phone (SMS) or email (V5 F30). */
@@ -99,9 +87,4 @@ export async function verifyCode(rawDest: string, code: string): Promise<boolean
   }
   await prisma.otpCode.update({ where: { id: row.id }, data: { consumedAt: new Date() } });
   return true;
-}
-
-/** Verify a code for a phone. Consumes the matching code on success. */
-export async function verifyOtp(rawPhone: string, code: string): Promise<boolean> {
-  return verifyCode(rawPhone, code);
 }

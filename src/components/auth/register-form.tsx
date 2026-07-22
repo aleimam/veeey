@@ -5,6 +5,8 @@ import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { registerCustomer, type AuthFormState } from '@/server/auth-actions';
 import { RecaptchaToken } from '@/components/auth/recaptcha-token';
+import { PhoneInput } from '@/components/ui/phone-input';
+import { PasswordInput } from '@/components/ui/password-input';
 
 const field =
   'mt-1.5 w-full rounded-[8px] border border-[color:var(--slate-border)] bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition-colors placeholder:text-slate-45 focus:border-lime focus:bg-white';
@@ -19,7 +21,9 @@ export function RegisterForm({ locale, referralCode, social }: { locale: string;
 
       {state.error && (
         <p role="alert" className="mt-4 rounded-[8px] bg-error-wash px-3 py-2 text-sm text-error">
-          {t(`errors.${state.error}`)}
+          {state.error === 'too_many_attempts'
+            ? t('errors.too_many_attempts', { minutes: state.minutes ?? 60 })
+            : t(`errors.${state.error}`)}
         </p>
       )}
 
@@ -38,7 +42,7 @@ export function RegisterForm({ locale, referralCode, social }: { locale: string;
         </label>
         <label className="mt-4 block text-sm font-semibold text-ink">
           {t('register.phone')}
-          <input name="phone" type="tel" autoComplete="tel" placeholder="01XXXXXXXXX" className={field} />
+          <PhoneInput name="phone" autoComplete="tel" />
         </label>
         <label className="mt-4 block text-sm font-semibold text-ink">
           {t('register.username')}
@@ -46,7 +50,7 @@ export function RegisterForm({ locale, referralCode, social }: { locale: string;
         </label>
         <label className="mt-4 block text-sm font-semibold text-ink">
           {t('register.password')}
-          <input name="password" type="password" required minLength={8} autoComplete="new-password" className={field} />
+          <PasswordInput name="password" required minLength={8} autoComplete="new-password" />
         </label>
 
         <button type="submit" disabled={pending} className="v-btn v-btn--primary v-btn--block mt-6">

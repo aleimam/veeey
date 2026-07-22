@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { getCurrentUser } from '@/lib/auth-guards';
 import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/password';
+import { checkPhoneValue } from '@/lib/phone';
 import { audit } from '@/lib/audit';
 import { PrismaClientKnownRequestError } from '@/generated/prisma/internal/prismaNamespace';
 
@@ -11,7 +12,7 @@ import { PrismaClientKnownRequestError } from '@/generated/prisma/internal/prism
  * Staff self-profile update (any logged-in staff may edit their OWN profile —
  * no extra permission). Email is not editable. Audited; revalidates the page.
  */
-export type ProfileFormState = { ok?: boolean; error?: 'taken' | 'invalid' };
+export type ProfileFormState = { ok?: boolean; error?: 'taken' | 'invalid' | 'phone' };
 
 const str = (fd: FormData, k: string): string | undefined => {
   const v = fd.get(k);
@@ -32,7 +33,8 @@ export async function updateProfileAction(
   if (username !== null && (username.length < 3 || username.length > 30)) return { error: 'invalid' };
 
   const phone = str(formData, 'phone') ?? null;
-  if (phone !== null && phone.length > 20) return { error: 'invalid' };
+  // Server-side re-check of what <PhoneInput> submitted (owner 2026-07-22 #226).
+  if (phone !== null && (phone.length > 20 || checkPhoneValue(phone))) return { error: 'phone' };
 
   const password = str(formData, 'password');
   if (password !== undefined && password.length < 8) return { error: 'invalid' };

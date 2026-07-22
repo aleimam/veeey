@@ -3,7 +3,24 @@
     "brand": "Veeey",
     "tagline": "Health Inside",
     "languageName": "English",
-    "switchTo": "العربية"
+    "switchTo": "العربية",
+    "phone": {
+      "countryLabel": "Country code",
+      "codeLabel": "Country calling code",
+      "numberLabel": "Phone number",
+      "codePlaceholder": "20",
+      "numberPlaceholder": "Phone number",
+      "other": "Other country…",
+      "otherCountry": "this country",
+      "errRequired": "Enter a phone number.",
+      "errCodeRequired": "Enter the country calling code.",
+      "errTooShort": "This number is too short for {country} — it needs at least {min} digits after the country code.",
+      "errTooLong": "This number is too long for {country} — it takes at most {max} digits after the country code."
+    },
+    "password": {
+      "show": "Show password",
+      "hide": "Hide password"
+    }
   },
   "home": {
     "eyebrow": "Premium supplements & health devices",
@@ -181,13 +198,17 @@
       "noAccount": "New to Veeey?",
       "registerLink": "Create an account",
       "identifier": "Email, phone, or username",
-      "withPassword": "Password",
-      "withOtp": "Phone code (OTP)",
+      "withPassword": "Sign in with a password",
+      "withOtp": "Sign in with a code",
       "phone": "Phone number",
       "sendCode": "Send code",
       "code": "Verification code",
       "verify": "Verify & sign in",
-      "otpSent": "Code sent — check your SMS."
+      "byPhone": "Phone",
+      "byEmail": "Email",
+      "otpHint": "We send a 6-digit code by SMS or email — no password needed.",
+      "otpSentSms": "Code sent — check your SMS.",
+      "otpSentEmail": "Code sent — check your inbox (and your spam folder)."
     },
     "register": {
       "title": "Create your Veeey account",
@@ -205,8 +226,26 @@
       "exists": "An account with this email already exists.",
       "recaptcha": "Verification failed. Please try again.",
       "credentials": "Incorrect email or password.",
-      "rate_limited": "Too many code requests. Try again later.",
-      "sms_off": "SMS login is not available right now."
+      "identifier_required": "Enter your email, phone number, or username.",
+      "password_required": "Enter your password.",
+      "unknown_identifier": "No account found with this email, phone number, or username.",
+      "no_password": "This account has no password yet — sign in with a code instead.",
+      "wrong_password": "The password is wrong.",
+      "too_many_attempts": "Too many attempts. Try again in {minutes} minutes.",
+      "code_required": "Enter the 6-digit code we sent you.",
+      "bad_code": "The code is wrong or has expired. Request a new one.",
+      "bad_destination": "That is not a valid phone number or email address.",
+      "sms_off": "SMS is not set up — sign in with your email instead, or contact support.",
+      "email_off": "Email is not set up — sign in with your phone instead, or contact support.",
+      "send_failed": "We could not send the code. Try again, or contact support.",
+      "email_taken": "An account with this email already exists.",
+      "username_taken": "That username is already taken.",
+      "phone_taken": "An account with this phone number already exists.",
+      "invalid_email": "Enter a valid email address.",
+      "invalid_name": "Enter your full name.",
+      "invalid_username": "The username must be 3–30 characters.",
+      "invalid_phone": "That phone number is not valid — check the country code and the number.",
+      "short_password": "The password must be at least 8 characters."
     }
   },
   "storefront": {
@@ -707,7 +746,8 @@
         "save": "Save address",
         "saved": "Address saved.",
         "back": "Back to account",
-        "manage": "Manage addresses"
+        "manage": "Manage addresses",
+        "errPhone": "That phone number is not valid — check the country code and the number."
       }
     },
     "accountNotif": {

@@ -4,7 +4,9 @@ import { useActionState, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { placeOrderAction, type CheckoutState } from '@/server/cart-actions';
 import { CheckoutVerify } from '@/components/storefront/checkout-verify';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { formatEGP } from '@/lib/format';
+import { checkPhoneValue } from '@/lib/phone';
 import { GOVERNORATES } from '@/lib/governorates';
 
 type ShipOpt = { type: string; label: string; feePiastres: number };
@@ -85,8 +87,11 @@ export function CheckoutForm({
       else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim())) errs.guestEmail = t('errFieldEmail');
     }
     if (!addr.name.trim()) errs.name = t('errFieldRequired');
-    if (!addr.phone.trim()) errs.phone = t('errFieldRequired');
-    else if (addr.phone.replace(/\D/g, '').length < 6) errs.phone = t('errFieldPhone');
+    // The country-code picker normalizes as you type; this re-checks the joined
+    // value against the selected country's national-number length.
+    const phoneIssue = checkPhoneValue(addr.phone);
+    if (phoneIssue === 'required') errs.phone = t('errFieldRequired');
+    else if (phoneIssue) errs.phone = t('errFieldPhone');
     if (!addr.governorate) errs.governorate = t('errFieldRequired');
     if (!addr.city.trim()) errs.city = t('errFieldRequired');
     if (!addr.street.trim()) errs.street = t('errFieldRequired');
@@ -122,6 +127,7 @@ export function CheckoutForm({
 
   const errorMsg =
     state.error === 'empty' ? t('errEmpty')
+    : state.error === 'phone' ? t('errFieldPhone')
     : state.error === 'verify' ? t('errVerify')
     : state.error === 'blocked' ? t('errBlocked')
     : state.error === 'stale' ? t('errStale')
@@ -168,8 +174,13 @@ export function CheckoutForm({
               {fieldError('name')}
             </label>
             <label className="block text-sm font-semibold text-ink">{t('phone')}
-              <input name="phone" value={addr.phone} onChange={set('phone')} {...fieldProps('phone')} />
-              {fieldError('phone')}
+              <PhoneInput
+                name="phone"
+                value={addr.phone}
+                onChange={(v) => { setAddr((a) => ({ ...a, phone: v })); setFieldErrors((f) => (f.phone ? { ...f, phone: '' } : f)); }}
+                required
+                error={fieldErrors.phone || undefined}
+              />
             </label>
             <label className="block text-sm font-semibold text-ink">{t('governorate')}
               <select name="governorate" value={addr.governorate} onChange={set('governorate')} {...fieldProps('governorate')}>

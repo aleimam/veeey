@@ -4,6 +4,7 @@ import { Link } from '@/i18n/navigation';
 import { auth } from '@/auth';
 import { listAddresses } from '@/lib/address-service';
 import { GOVERNORATES, governorateLabel } from '@/lib/governorates';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { saveAddressAction, deleteAddressAction, setDefaultAddressAction } from '@/server/address-actions';
 
 type SP = Record<string, string | string[] | undefined>;
@@ -27,6 +28,9 @@ export default async function AddressesPage({ params, searchParams }: { params: 
 
       {(Array.isArray(sp.saved) ? sp.saved[0] : sp.saved) === '1' && (
         <p className="mt-4 rounded-[8px] bg-green-wash px-3 py-2 text-sm text-green-dark">{t('saved')}</p>
+      )}
+      {(Array.isArray(sp.error) ? sp.error[0] : sp.error) === 'phone' && (
+        <p role="alert" className="mt-4 rounded-[8px] bg-error-wash px-3 py-2 text-sm text-error">{t('errPhone')}</p>
       )}
 
       <div className="mt-6 space-y-3">
@@ -69,7 +73,7 @@ export default async function AddressesPage({ params, searchParams }: { params: 
             </select>
           </label>
           <label className="block text-sm font-semibold text-ink">{t('city')}<input name="city" required className={field} /></label>
-          <label className="block text-sm font-semibold text-ink">{t('phone')}<input name="phone" className={field} /></label>
+          <label className="block text-sm font-semibold text-ink">{t('phone')}<PhoneInput name="phone" inputClassName={field} /></label>
           <label className="block text-sm font-semibold text-ink sm:col-span-2">{t('street')}<input name="street" className={field} /></label>
           <label className="block text-sm font-semibold text-ink sm:col-span-2">{t('building')}<input name="building" className={field} /></label>
         </div>

@@ -2,6 +2,7 @@ import { setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { isTokenValid } from '@/lib/password-token-service';
 import { setPasswordAction } from '@/server/password-actions';
+import { PasswordInput } from '@/components/ui/password-input';
 import { pick } from '@/lib/admin-i18n';
 
 type SP = Record<string, string | string[] | undefined>;
@@ -53,10 +54,10 @@ export default async function SetPasswordPage({ params, searchParams }: { params
         <input type="hidden" name="locale" value={locale} />
         <input type="hidden" name="token" value={token} />
         <label className="block text-sm font-semibold text-ink">{tb('New password', 'كلمة المرور الجديدة')}
-          <input name="password" type="password" required minLength={8} autoComplete="new-password" className={field} />
+          <PasswordInput name="password" required minLength={8} autoComplete="new-password" inputClassName={field} />
         </label>
         <label className="block text-sm font-semibold text-ink">{tb('Confirm password', 'تأكيد كلمة المرور')}
-          <input name="confirm" type="password" required minLength={8} autoComplete="new-password" className={field} />
+          <PasswordInput name="confirm" required minLength={8} autoComplete="new-password" inputClassName={field} />
         </label>
         <button type="submit" className="v-btn v-btn--primary v-btn--block">{tb('Save password', 'حفظ كلمة المرور')}</button>
       </form>

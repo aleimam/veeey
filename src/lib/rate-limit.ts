@@ -9,8 +9,16 @@ import { headers } from 'next/headers';
 
 const buckets = new Map<string, { n: number; resetAt: number }>();
 
-/** True = allowed. Counts a hit against `key` within the window. */
-export function rateLimit(key: string, max: number, windowMs: number): boolean {
+/**
+ * Counts a hit against `key` within the window and reports how long the caller
+ * must wait when it is blocked — the login form turns `retryAfterMs` into a
+ * "try again in N minutes" message (owner 2026-07-22 #226).
+ */
+export function rateLimitStatus(
+  key: string,
+  max: number,
+  windowMs: number,
+): { ok: boolean; retryAfterMs: number } {
   const now = Date.now();
   if (buckets.size > 20_000) {
     for (const [k, b] of buckets) if (b.resetAt < now) buckets.delete(k);
@@ -18,11 +26,16 @@ export function rateLimit(key: string, max: number, windowMs: number): boolean {
   const b = buckets.get(key);
   if (!b || b.resetAt < now) {
     buckets.set(key, { n: 1, resetAt: now + windowMs });
-    return true;
+    return { ok: true, retryAfterMs: 0 };
   }
-  if (b.n >= max) return false;
+  if (b.n >= max) return { ok: false, retryAfterMs: Math.max(0, b.resetAt - now) };
   b.n++;
-  return true;
+  return { ok: true, retryAfterMs: 0 };
+}
+
+/** True = allowed. Counts a hit against `key` within the window. */
+export function rateLimit(key: string, max: number, windowMs: number): boolean {
+  return rateLimitStatus(key, max, windowMs).ok;
 }
 
 /** Client IP for rate-limit keys (nginx sets x-forwarded-for in prod). */

@@ -10,7 +10,9 @@ import type { AdminFormState } from '@/server/admin-actions';
 import { useActionState } from 'react';
 import { Field, FormError, SubmitButton, inputCls } from './ui';
 import { ProductLinePicker } from './order-item-picker';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { GOVERNORATES } from '@/lib/governorates';
+import { checkPhoneValue } from '@/lib/phone';
 import { pick } from '@/lib/admin-i18n';
 
 type Opt = { value: string; label: string };
@@ -83,7 +85,7 @@ export function ManualOrderForm({
 
   async function createCustomer() {
     setCreateErr('');
-    if (!nc.name.trim() || nc.phone.trim().length < 6) { setCreateErr(tb('Name and a valid phone are required.', 'الاسم ورقم هاتف صحيح مطلوبان.')); return; }
+    if (!nc.name.trim() || checkPhoneValue(nc.phone)) { setCreateErr(tb('Name and a valid phone are required.', 'الاسم ورقم هاتف صحيح مطلوبان.')); return; }
     setBusy(true);
     try {
       const res = await quickCreateCustomerAction({ name: nc.name, phone: nc.phone, email: nc.email || undefined });
@@ -143,7 +145,9 @@ export function ManualOrderForm({
             {showCreate && (
               <div className="grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-3">
                 <input value={nc.name} onChange={(e) => setNc({ ...nc, name: e.target.value })} placeholder={tb('Full name *', 'الاسم بالكامل *')} className={inputCls} />
-                <input value={nc.phone} onChange={(e) => setNc({ ...nc, phone: e.target.value })} placeholder={tb('Phone *', 'الهاتف *')} className={inputCls} />
+                {/* Not `required`: this panel lives inside the order form, and a
+                    required-but-empty field would block the order submit. */}
+                <PhoneInput name="newCustomerPhone" value={nc.phone} onChange={(v) => setNc({ ...nc, phone: v })} variant="admin" stacked />
                 <input value={nc.email} onChange={(e) => setNc({ ...nc, email: e.target.value })} placeholder={tb('Email (optional)', 'البريد (اختياري)')} type="email" className={inputCls} />
                 <div className="sm:col-span-3 flex items-center gap-3">
                   <button type="button" onClick={createCustomer} disabled={busy} className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50">
@@ -174,7 +178,7 @@ export function ManualOrderForm({
         )}
         <div className="mt-3 grid gap-4 sm:grid-cols-2">
           <Field label={tb('Full name', 'الاسم بالكامل')}><input name="name" required value={deliv.name} onChange={(e) => setD('name', e.target.value)} className={inputCls} /></Field>
-          <Field label={tb('Phone', 'الهاتف')}><input name="phone" required value={deliv.phone} onChange={(e) => setD('phone', e.target.value)} className={inputCls} /></Field>
+          <Field label={tb('Phone', 'الهاتف')}><PhoneInput name="phone" required value={deliv.phone} onChange={(v) => setD('phone', v)} variant="admin" /></Field>
           <Field label={tb('Governorate', 'المحافظة')}>
             <select name="governorate" required value={deliv.governorate} onChange={(e) => setD('governorate', e.target.value, true)} className={inputCls}>
               <option value="" disabled>—</option>

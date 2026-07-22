@@ -22,6 +22,7 @@ import {
 } from '@/lib/order-service';
 import { saveGift } from '@/lib/gift-service';
 import { processReturn } from '@/lib/return-service';
+import { checkPhoneValue } from '@/lib/phone';
 import type { OrderStatus } from '@/lib/order-status';
 
 export type AdminFormState = { error?: string };
@@ -55,6 +56,8 @@ export async function createManualOrderAction(_p: AdminFormState, fd: FormData):
     .map((productId, i) => ({ productId, qty: Number(qtys[i] ?? 0), lotId: lotIds[i] ?? '' }))
     .filter((it) => it.productId && it.qty > 0);
   if (items.length === 0) return { error: 'no_items' };
+  // Re-validate the <PhoneInput> value server-side (owner 2026-07-22 #226).
+  if (checkPhoneValue(str(fd, 'phone') ?? '')) return { error: 'bad_phone' };
 
   const giftIds = fd.getAll('giftId').filter((v): v is string => typeof v === 'string');
   const giftQtys = fd.getAll('giftQty').filter((v): v is string => typeof v === 'string');

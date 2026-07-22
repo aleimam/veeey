@@ -4,6 +4,7 @@ import { useActionState } from 'react';
 import { useLocale } from 'next-intl';
 import { createSpecialOrderAdminAction, type SpecialOrderFormState } from '@/server/special-order-actions';
 import { inputCls, Field, FormError, SubmitButton } from '@/components/admin/ui';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { pick } from '@/lib/admin-i18n';
 
 export function SpecialOrderCreateForm({ locale }: { locale: string }) {
@@ -27,7 +28,7 @@ export function SpecialOrderCreateForm({ locale }: { locale: string }) {
           <input name="requesterName" required className={inputCls} />
         </Field>
         <Field label={t('Requester phone', 'هاتف مقدّم الطلب')}>
-          <input name="requesterPhone" required className={inputCls} />
+          <PhoneInput name="requesterPhone" required variant="admin" stacked />
         </Field>
       </div>
 

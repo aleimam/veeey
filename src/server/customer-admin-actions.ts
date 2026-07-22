@@ -8,6 +8,7 @@ import {
 } from '@/lib/customer-admin-service';
 import { deleteCustomerAnalytics } from '@/lib/analytics/retention-service';
 import { requirePermission } from '@/lib/auth-guards';
+import { checkPhoneValue } from '@/lib/phone';
 import { audit } from '@/lib/audit';
 
 /** Staff customer management actions (backend orders revamp, Phase A). The two
@@ -26,6 +27,7 @@ export async function searchCustomersAction(q: string): Promise<CustomerHit[]> {
 }
 
 export async function quickCreateCustomerAction(input: { name: string; phone: string; email?: string }): Promise<CustomerHit | { error: string }> {
+  if (checkPhoneValue(input.phone)) return { error: 'invalid' };
   try {
     return await quickCreateCustomer(input);
   } catch (e) {
@@ -43,6 +45,9 @@ function back(locale: string, id: string, flag: string): never {
 export async function saveCustomerDetailsAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
   const id = str(fd, 'id') ?? '';
+  // Re-validate the <PhoneInput> value server-side (owner 2026-07-22 #226).
+  const phone = str(fd, 'phone');
+  if (phone && checkPhoneValue(phone)) back(locale, id, 'error=phone');
   try {
     await updateCustomerDetails(id, {
       firstName: str(fd, 'firstName') ?? null,
@@ -111,6 +116,8 @@ export async function saveCustomerStandingAction(fd: FormData): Promise<void> {
 export async function saveCustomerAddressAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
   const customerId = str(fd, 'customerId') ?? '';
+  const phone = str(fd, 'phone');
+  if (phone && checkPhoneValue(phone)) back(locale, customerId, 'error=phone');
   try {
     await saveCustomerAddress(customerId, str(fd, 'addressId') ?? null, {
       governorate: str(fd, 'governorate') ?? '',

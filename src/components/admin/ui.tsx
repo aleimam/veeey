@@ -50,6 +50,7 @@ const ERRORS: Record<string, string> = {
   exists: 'An account with this email already exists.',
   self: 'You can’t change your own access here.',
   no_items: 'Add at least one product line.',
+  bad_phone: 'That phone number is not valid — check the country code and the number.',
   insufficient_stock: 'Not enough stock for one of the products. Reduce the quantity or check inventory.',
   gift_stock: 'Not enough gift stock for one of the selected gifts. Reduce the quantity or restock the gift.',
 };

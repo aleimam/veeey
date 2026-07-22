@@ -8,9 +8,9 @@ import Apple from 'next-auth/providers/apple';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { verifyPassword } from '@/lib/password';
-import { normalizeMobile } from '@/lib/provider-config';
-import { verifyOtp } from '@/lib/otp-service';
+import { normalizeDestination, verifyCode } from '@/lib/otp-service';
 import { ensureCustomerProfile } from '@/lib/customer';
+import { findByIdentifier } from '@/lib/user-lookup';
 import { getSocialAuthConfig, appleClientSecret } from '@/lib/social-auth';
 
 // Login by email OR phone OR username + password (FR-ACC-01).
@@ -18,25 +18,13 @@ const credentialsSchema = z.object({
   identifier: z.string().trim().min(1),
   password: z.string().min(1),
 });
-const otpSchema = z.object({ phone: z.string().trim().min(1), code: z.string().trim().min(4) });
+// `dest` is an email address OR a phone number — the OTP tab accepts both
+// (owner 2026-07-22 #226); it was phone-only before.
+const otpSchema = z.object({ dest: z.string().trim().min(1), code: z.string().trim().min(4) });
 
-/** Resolve a user by any of email / username / phone. */
-async function findByIdentifier(identifier: string) {
-  const phone = normalizeMobile(identifier);
-  return prisma.user.findFirst({
-    where: {
-      OR: [
-        { email: { equals: identifier, mode: 'insensitive' } },
-        { username: { equals: identifier, mode: 'insensitive' } },
-        { phone },
-        { phone: identifier },
-      ],
-    },
-  });
-}
-
-// Credentials (password) + phone-OTP. Social providers are added dynamically at
-// runtime from the admin-configured DB credentials (see buildProviders()).
+// Credentials (password) + code-by-SMS-or-email. Social providers are added
+// dynamically at runtime from the admin-configured DB credentials (see
+// buildProviders()).
 const baseProviders: Provider[] = [
   Credentials({
     credentials: { identifier: {}, password: {} },
@@ -52,17 +40,28 @@ const baseProviders: Provider[] = [
   }),
   Credentials({
     id: 'otp',
-    name: 'Phone OTP',
-    credentials: { phone: {}, code: {} },
+    name: 'One-time code',
+    credentials: { dest: {}, code: {} },
     authorize: async (raw) => {
       const parsed = otpSchema.safeParse(raw);
       if (!parsed.success) return null;
-      const phone = normalizeMobile(parsed.data.phone);
-      if (!(await verifyOtp(phone, parsed.data.code))) return null;
-      // Find-or-create a user for this phone (phone-first signup).
-      let user = await prisma.user.findFirst({ where: { phone } });
+      const norm = normalizeDestination(parsed.data.dest);
+      if (!norm) return null;
+      if (!(await verifyCode(norm.dest, parsed.data.code))) return null;
+
+      // Find-or-create for this destination. The verified code proves ownership
+      // of the channel, so the matching contact column is marked verified.
+      if (norm.channel === 'email') {
+        let user = await prisma.user.findFirst({ where: { email: { equals: norm.dest, mode: 'insensitive' } } });
+        if (!user) {
+          user = await prisma.user.create({ data: { email: norm.dest, emailVerified: new Date() } });
+          await ensureCustomerProfile(user.id);
+        }
+        return { id: user.id, email: user.email, name: user.name };
+      }
+      let user = await prisma.user.findFirst({ where: { phone: norm.dest } });
       if (!user) {
-        user = await prisma.user.create({ data: { phone } });
+        user = await prisma.user.create({ data: { phone: norm.dest, phoneVerified: new Date() } });
         await ensureCustomerProfile(user.id);
       }
       return { id: user.id, email: user.email, name: user.name };

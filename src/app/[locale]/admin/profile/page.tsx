@@ -4,6 +4,8 @@ import { getCurrentUser } from '@/lib/auth-guards';
 import { prisma } from '@/lib/prisma';
 import { updateProfileAction } from '@/server/profile-actions';
 import { inputCls } from '@/components/admin/ui';
+import { PasswordInput } from '@/components/ui/password-input';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { pick } from '@/lib/admin-i18n';
 
 export const dynamic = 'force-dynamic';
@@ -63,7 +65,12 @@ export default async function ProfilePage({
           {t('That username or phone is already in use.', 'اسم المستخدم أو الهاتف مستخدم بالفعل.')}
         </p>
       )}
-      {error && error !== 'taken' && (
+      {error === 'phone' && (
+        <p className="mb-4 max-w-xl rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {t('That phone number is not valid — check the country code and the number.', 'رقم الهاتف غير صالح — راجع رمز الدولة والرقم.')}
+        </p>
+      )}
+      {error && error !== 'taken' && error !== 'phone' && (
         <p className="mb-4 max-w-xl rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {t('Please check the fields and try again.', 'يرجى مراجعة الحقول والمحاولة مرة أخرى.')}
         </p>
@@ -98,13 +105,7 @@ export default async function ProfilePage({
 
         <label className="block text-sm font-medium text-foreground">
           {t('Phone', 'الهاتف')}
-          <input
-            name="phone"
-            maxLength={20}
-            autoComplete="off"
-            defaultValue={me?.phone ?? ''}
-            className={inputCls}
-          />
+          <PhoneInput name="phone" defaultValue={me?.phone ?? ''} variant="admin" autoComplete="off" />
           <span className="mt-1 block text-xs font-normal text-muted-foreground">
             {t('Optional.', 'اختياري.')}
           </span>
@@ -112,13 +113,7 @@ export default async function ProfilePage({
 
         <label className="block text-sm font-medium text-foreground">
           {t('New password', 'كلمة مرور جديدة')}
-          <input
-            name="password"
-            type="password"
-            minLength={8}
-            autoComplete="new-password"
-            className={inputCls}
-          />
+          <PasswordInput name="password" minLength={8} autoComplete="new-password" variant="admin" />
           <span className="mt-1 block text-xs font-normal text-muted-foreground">
             {t('Leave blank to keep your current password. At least 8 characters.', 'اتركها فارغة للإبقاء على كلمة المرور الحالية. 8 أحرف على الأقل.')}
           </span>

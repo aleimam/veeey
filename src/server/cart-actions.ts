@@ -8,6 +8,7 @@ import { syncCartSnapshot } from '@/lib/abandoned-cart-service';
 import { placeOrder, type CheckoutInput } from '@/lib/checkout-service';
 import { buildCardRedirect } from '@/lib/payment-gateways';
 import { isOnlineMethod, gatewayFor } from '@/lib/payment-method-service';
+import { checkPhoneValue } from '@/lib/phone';
 
 const localeOf = (fd: FormData) => (fd.get('locale') === 'ar' ? 'ar' : 'en');
 const str = (fd: FormData, k: string) => {
@@ -112,6 +113,10 @@ export async function placeOrderAction(_p: CheckoutState, fd: FormData): Promise
   const locale = localeOf(fd);
   const cartId = await readCartId();
   if (!cartId) return { error: 'empty' };
+
+  // Re-validate what <PhoneInput> submitted — client validation is a courtesy,
+  // this is the gate (owner 2026-07-22 #226).
+  if (checkPhoneValue(str(fd, 'phone') ?? '')) return { error: 'phone' };
 
   const input: CheckoutInput = {
     guestEmail: str(fd, 'guestEmail'),
