@@ -80,10 +80,19 @@
     Rollback: `/root/veeey-user-email-rollback-20260722.sql` (14 exact `UPDATE … WHERE id=` lines).
     **Checked the YeldnIN blast radius first**, because `CustomerWireV2.email` is documented as
     "YeldnIN's cross-store match key": `handleCustomerUpsert` matches **email → veeeyCustomerId →
-    name**, so when these customers are next pushed the email lookup misses but the
-    **`veeeyCustomerId` lookup hits**, and YeldnIN *updates* the existing record's email instead of
-    creating a duplicate. YeldnIN keeps the old `.com` value until such a push happens — writing the
-    Postgres rows directly does not enqueue an outbox event.
+    name**, so a re-push can re-key the email on the existing record rather than duplicate it.
+  - ✅ **Pushed to YeldnIN (owner asked).** Writing the Postgres rows directly does not enqueue an
+    outbox event, so a one-off script called `emitCustomerUpsertV2` for the 14 and drained
+    `dispatchOutbox`: **14 sent / 0 failed**, all 14 `customers.upsert` rows `SENT`. Verified on the
+    YeldnIN side (reached over the `yeldnin-tunnel`, which terminates on the veeey.com box) by
+    reading its SQLite directly: **14 on `.net`, 0 on `.com`, every row linked by `veeeyCustomerId`**.
+    ⚠️ **Reality check on the mechanism:** YeldnIN's `Customer` table currently holds **only these 14
+    rows in total** — it was emptied in the 2026-07-22 test-data wipe and is still awaiting its
+    reload — so the push *created* them rather than re-keying existing records. The no-duplicate
+    outcome held, but not for the reason predicted. Veeey has **16,235** customers against YeldnIN's
+    14; the bulk reload is still outstanding.
+    🪤 Running scripts in `/opt/veeey` needs the env sourced (`set -a; . ./.env; set +a`) or Prisma
+    falls back to a `root` DB user and the DB-backed feature gates silently read `false`.
     ⚠️ **Unrelated junk found while scanning** (left alone — it is a different, real customer's
     record, not part of this request): one `Address.street` belonging to `mostafa3287@gmail.com`
     contains the store's entire contact block pasted into the street line — phone,
