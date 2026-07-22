@@ -7,6 +7,45 @@
 
 ## Current state
 
+- **✅ Owner batch 2026-07-23 — 3 items, all LIVE on veeey.net (`4e15d5a` → `44ec170`, 74 migrations,
+  872 tests).**
+  1. **Add to cart no longer navigates.** It used to redirect to `/cart`, throwing a browsing shopper
+     out of the aisle. Now the add happens in place, the header drawer opens, and the button becomes a
+     quantity stepper on that cart line. Cart state is a client context (`CartProvider`) seeded by the
+     server layout, so SSR already knows what is in the cart — an already-added product renders as a
+     stepper instead of flashing "Add to Cart". Condition variants and pre-order lines stay separate;
+     Refill and pre-order submits are deliberately NOT intercepted (own flows, own destinations).
+     Every state is still a real `<form>` posting a server action, so the storefront sells without JS.
+     **Verified live**: badge 1→2, drawer opened, URL unchanged, "2 in your cart", and a
+     4th unit correctly refused with *"We could not add that — there is not enough stock left."*
+  2. **Coupon Apply + precise errors.** The field only promised "applied on the next step", and
+     `placeOrder` then **dropped an invalid code silently and charged full price** — the customer saw
+     no discount and no reason. Apply now answers immediately with the specific rule (expired /
+     not started / first-order-only / already used / fully redeemed / unknown / "spend EGP X"), and
+     placement REJECTS a coupon it cannot apply instead of ignoring it, passing the reason through so
+     both say the same sentence. A test asserts every failure reason has a string in EN **and** AR.
+     **Verified live**: a bogus code returns *"We don't recognise that code — check the spelling."*
+     ⚠️ The success path is unit-tested but was NOT exercised live — .net has **zero coupons** after
+     the wipe.
+  3. **City is a dropdown of delivery districts, nested under governorate.** 396 districts across the
+     27 governorates (`prisma/data/egypt-cities.json`, seeded via `scripts/seed-cities.ts`, editable at
+     `/admin/shipping/cities`). Districts, not the official markaz list — customers already type
+     مدينة نصر / التجمع الخامس / الشيخ زايد, and a markaz list would offer a Cairo customer one option.
+     Free text survives via "Other", and an unrecognised saved value stays selected. Changing
+     governorate clears a district that no longer belongs to it.
+     **Verified live**: Cairo → 57 districts + "Other"; the field is disabled until a governorate is picked.
+  - 🔧 **Found while doing (3): `Address.governorate` held WooCommerce STATE CODES**, and the
+    storefront printed them literally — customers were looking at "EGC" as their own address.
+    `scripts/fix-address-governorates.ts` rewrote **6,257 of 7,398** from WooCommerce's own
+    `states.php`, and left 1,107 alone on purpose (`—` ×1,060, `Amman`, `تبوك`, a phone number …) —
+    guessing there would bury a real data problem under a plausible value. Rollback:
+    `/root/veeey-address-governorate-rollback-20260723.sql`. ⚠️ **EGBA is Red Sea, EGBH is Beheira**
+    — they look interchangeable; there is a test.
+  - 🪤 **Deploy trap (new):** sourcing `.env` before `npm install` exports `NODE_ENV=production`, so
+    npm skips devDependencies and the build dies on `Cannot find module '@tailwindcss/postcss'`.
+    Install with `unset NODE_ENV; npm install --include=dev`, source `.env` only for the tsx/prisma
+    scripts.
+
 - **✅ Order numbers are now purely numeric on veeey.net (owner 2026-07-22).** New orders already drew
   from `order_number_seq`; the 4 surviving legacy `VY-…` orders were rewritten onto it (→ 1000002–5,
   oldest first), so nothing anywhere shows a prefixed number. Checked first that no other system holds
