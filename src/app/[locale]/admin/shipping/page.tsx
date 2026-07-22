@@ -27,7 +27,12 @@ export default async function ShippingPage({ params, searchParams }: { params: P
     <div className="p-6 space-y-10">
       <section>
         <h1 className="mb-1 font-heading text-xl font-semibold">{tb('Shipping', 'الشحن')}</h1>
-        <p className="mb-4 text-sm text-muted-foreground">{tb('Delivery methods, fees, and the areas they serve.', 'طرق التوصيل والرسوم والمناطق التي تخدمها.')}</p>
+        <p className="mb-4 text-sm text-muted-foreground">
+          {tb('Delivery methods, fees, and the areas they serve.', 'طرق التوصيل والرسوم والمناطق التي تخدمها.')}{' '}
+          <Link href="/admin/shipping/cities" className="font-medium text-primary hover:underline">
+            {tb('Cities & districts →', 'المدن والمناطق ←')}
+          </Link>
+        </p>
         <h2 className="mb-3 font-heading text-lg font-semibold">{tb('Delivery methods', 'طرق التوصيل')}</h2>
         <div className="space-y-3">
           {types.map((t) => (

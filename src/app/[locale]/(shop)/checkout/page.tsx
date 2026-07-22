@@ -11,6 +11,7 @@ import { getCurrentUser } from '@/lib/auth-guards';
 import { listAddresses } from '@/lib/address-service';
 import { prisma } from '@/lib/prisma';
 import { CheckoutForm } from '@/components/storefront/checkout-form';
+import { citiesByGovernorate } from '@/lib/city-service';
 import { TrackView } from '@/components/analytics/track-view';
 import { TrustpilotWidget } from '@/components/storefront/trustpilot';
 
@@ -30,6 +31,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ local
     ? (await listAddresses(user.customerId)).map((a) => ({ id: a.id, governorate: a.governorate, city: a.city, area: a.area, street: a.street, phone: a.phone }))
     : [];
 
+  const cities = await citiesByGovernorate();
   const tp = await getTranslations('storefront.checkout');
   const tb = pick(locale);
   const pointsPerEgp = await getNumberSetting('loyalty.redeemPointsPerEgp');
@@ -70,6 +72,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ local
         pointsBalance={customer?.pointsBalance ?? 0}
         pointsPerEgp={pointsPerEgp}
         savedAddresses={savedAddresses}
+        cities={cities}
         requireVerification={requireVerification}
         alreadyVerified={alreadyVerified}
         accountEmail={user?.email ?? undefined}

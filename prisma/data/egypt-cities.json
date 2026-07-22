@@ -1,0 +1,2378 @@
+[
+ {
+  "code": "alexandria:abu-qir",
+  "governorate": "Alexandria",
+  "nameEn": "Abu Qir",
+  "nameAr": "ابو قير"
+ },
+ {
+  "code": "alexandria:agamy",
+  "governorate": "Alexandria",
+  "nameEn": "Agamy",
+  "nameAr": "العجمي"
+ },
+ {
+  "code": "alexandria:al-ibrahimeyah",
+  "governorate": "Alexandria",
+  "nameEn": "Al Ibrahimeyah",
+  "nameAr": "الابراهيمية"
+ },
+ {
+  "code": "alexandria:al-mafrouza",
+  "governorate": "Alexandria",
+  "nameEn": "Al Mafrouza",
+  "nameAr": "المفروزة"
+ },
+ {
+  "code": "alexandria:al-mamurah",
+  "governorate": "Alexandria",
+  "nameEn": "Al Mamurah",
+  "nameAr": "المعمورة"
+ },
+ {
+  "code": "alexandria:al-mandara",
+  "governorate": "Alexandria",
+  "nameEn": "Al Mandara",
+  "nameAr": "المندرة"
+ },
+ {
+  "code": "alexandria:al-max",
+  "governorate": "Alexandria",
+  "nameEn": "Al Max",
+  "nameAr": "المكس"
+ },
+ {
+  "code": "alexandria:alattarin",
+  "governorate": "Alexandria",
+  "nameEn": "Alattarin",
+  "nameAr": "العطارين"
+ },
+ {
+  "code": "alexandria:alhadra",
+  "governorate": "Alexandria",
+  "nameEn": "Alhadra",
+  "nameAr": "الحضرة"
+ },
+ {
+  "code": "alexandria:ambrozo",
+  "governorate": "Alexandria",
+  "nameEn": "Ambrozo",
+  "nameAr": "امبروزو"
+ },
+ {
+  "code": "alexandria:ameria",
+  "governorate": "Alexandria",
+  "nameEn": "Ameria",
+  "nameAr": "العامرية"
+ },
+ {
+  "code": "alexandria:anfoushi",
+  "governorate": "Alexandria",
+  "nameEn": "Anfoushi",
+  "nameAr": "الانفوشى"
+ },
+ {
+  "code": "alexandria:asafra",
+  "governorate": "Alexandria",
+  "nameEn": "Asafra",
+  "nameAr": "العصافرة"
+ },
+ {
+  "code": "alexandria:azarita",
+  "governorate": "Alexandria",
+  "nameEn": "Azarita",
+  "nameAr": "الأزاريطة"
+ },
+ {
+  "code": "alexandria:bab-sharq",
+  "governorate": "Alexandria",
+  "nameEn": "Bab Sharq",
+  "nameAr": "باب شرق"
+ },
+ {
+  "code": "alexandria:bakos",
+  "governorate": "Alexandria",
+  "nameEn": "Bakos",
+  "nameAr": "بكوس"
+ },
+ {
+  "code": "alexandria:boulkly",
+  "governorate": "Alexandria",
+  "nameEn": "Boulkly",
+  "nameAr": "بولكلي"
+ },
+ {
+  "code": "alexandria:bourj-alarab",
+  "governorate": "Alexandria",
+  "nameEn": "Bourj Alarab",
+  "nameAr": "برج العرب"
+ },
+ {
+  "code": "alexandria:camp-shizar",
+  "governorate": "Alexandria",
+  "nameEn": "Camp Shizar",
+  "nameAr": "كامب شيزار"
+ },
+ {
+  "code": "alexandria:cleopatra",
+  "governorate": "Alexandria",
+  "nameEn": "Cleopatra",
+  "nameAr": "كليوباترا"
+ },
+ {
+  "code": "alexandria:dekheila",
+  "governorate": "Alexandria",
+  "nameEn": "Dekheila",
+  "nameAr": "الدخيلة"
+ },
+ {
+  "code": "alexandria:el-labban",
+  "governorate": "Alexandria",
+  "nameEn": "El Labban",
+  "nameAr": "اللبان"
+ },
+ {
+  "code": "alexandria:el-montaza",
+  "governorate": "Alexandria",
+  "nameEn": "El Montaza",
+  "nameAr": "المنتزه"
+ },
+ {
+  "code": "alexandria:el-soyof",
+  "governorate": "Alexandria",
+  "nameEn": "El Soyof",
+  "nameAr": "السيوف"
+ },
+ {
+  "code": "alexandria:elgomrok",
+  "governorate": "Alexandria",
+  "nameEn": "Elgomrok",
+  "nameAr": "الجمرك"
+ },
+ {
+  "code": "alexandria:elshatby",
+  "governorate": "Alexandria",
+  "nameEn": "Elshatby",
+  "nameAr": "الشاطبي"
+ },
+ {
+  "code": "alexandria:fleming",
+  "governorate": "Alexandria",
+  "nameEn": "Fleming",
+  "nameAr": "فلمينج"
+ },
+ {
+  "code": "alexandria:gheet-alenab",
+  "governorate": "Alexandria",
+  "nameEn": "Gheet Alenab",
+  "nameAr": "غيط العنب"
+ },
+ {
+  "code": "alexandria:glim",
+  "governorate": "Alexandria",
+  "nameEn": "Glim",
+  "nameAr": "جليم"
+ },
+ {
+  "code": "alexandria:karmooz",
+  "governorate": "Alexandria",
+  "nameEn": "Karmooz",
+  "nameAr": "كرموز"
+ },
+ {
+  "code": "alexandria:mahta-alraml",
+  "governorate": "Alexandria",
+  "nameEn": "Mahta Alraml",
+  "nameAr": "محطة الرمل"
+ },
+ {
+  "code": "alexandria:mansheya",
+  "governorate": "Alexandria",
+  "nameEn": "Mansheya",
+  "nameAr": "المنشية"
+ },
+ {
+  "code": "alexandria:marina",
+  "governorate": "Alexandria",
+  "nameEn": "Marina",
+  "nameAr": "مارينا"
+ },
+ {
+  "code": "alexandria:mina-el-basal",
+  "governorate": "Alexandria",
+  "nameEn": "Mina El-Basal",
+  "nameAr": "مينا البصل"
+ },
+ {
+  "code": "alexandria:moharam-bek",
+  "governorate": "Alexandria",
+  "nameEn": "Moharam Bek",
+  "nameAr": "محرم بك"
+ },
+ {
+  "code": "alexandria:naseria",
+  "governorate": "Alexandria",
+  "nameEn": "Naseria",
+  "nameAr": "الناصرية"
+ },
+ {
+  "code": "alexandria:north-coast-sahel",
+  "governorate": "Alexandria",
+  "nameEn": "North Coast/sahel",
+  "nameAr": "الساحل الشمالي"
+ },
+ {
+  "code": "alexandria:shads",
+  "governorate": "Alexandria",
+  "nameEn": "Shads",
+  "nameAr": "شدس"
+ },
+ {
+  "code": "alexandria:sidi-bishr",
+  "governorate": "Alexandria",
+  "nameEn": "Sidi Bishr",
+  "nameAr": "سيدى بشر"
+ },
+ {
+  "code": "alexandria:sidi-gaber",
+  "governorate": "Alexandria",
+  "nameEn": "Sidi Gaber",
+  "nameAr": "سيدي جابر"
+ },
+ {
+  "code": "alexandria:sidi-kerir",
+  "governorate": "Alexandria",
+  "nameEn": "Sidi Kerir",
+  "nameAr": "سيدي كرير"
+ },
+ {
+  "code": "alexandria:smouha",
+  "governorate": "Alexandria",
+  "nameEn": "Smouha",
+  "nameAr": "سموحة"
+ },
+ {
+  "code": "alexandria:stanley",
+  "governorate": "Alexandria",
+  "nameEn": "Stanley",
+  "nameAr": "ستانلى"
+ },
+ {
+  "code": "alexandria:victoria",
+  "governorate": "Alexandria",
+  "nameEn": "Victoria",
+  "nameAr": "فيكتوريا"
+ },
+ {
+  "code": "assiut:abnoub",
+  "governorate": "Assiut",
+  "nameEn": "Abnoub",
+  "nameAr": "أبنوب"
+ },
+ {
+  "code": "assiut:abu-tig",
+  "governorate": "Assiut",
+  "nameEn": "Abu Tig",
+  "nameAr": "أبو تيج"
+ },
+ {
+  "code": "assiut:assiut",
+  "governorate": "Assiut",
+  "nameEn": "Assiut",
+  "nameAr": "أسيوط"
+ },
+ {
+  "code": "assiut:assiut-el-gedida",
+  "governorate": "Assiut",
+  "nameEn": "Assiut El Gedida",
+  "nameAr": "أسيوط الجديدة"
+ },
+ {
+  "code": "assiut:dayrout",
+  "governorate": "Assiut",
+  "nameEn": "Dayrout",
+  "nameAr": "ديروط"
+ },
+ {
+  "code": "assiut:el-badari",
+  "governorate": "Assiut",
+  "nameEn": "El Badari",
+  "nameAr": "البداري"
+ },
+ {
+  "code": "assiut:el-ghanaim",
+  "governorate": "Assiut",
+  "nameEn": "El Ghanaim",
+  "nameAr": "الغنايم"
+ },
+ {
+  "code": "assiut:manfalut",
+  "governorate": "Assiut",
+  "nameEn": "Manfalut",
+  "nameAr": "منفلوط"
+ },
+ {
+  "code": "assiut:qusiya",
+  "governorate": "Assiut",
+  "nameEn": "Qusiya",
+  "nameAr": "القوصية"
+ },
+ {
+  "code": "assiut:sahel-selim",
+  "governorate": "Assiut",
+  "nameEn": "Sahel Selim",
+  "nameAr": "ساحل سليم"
+ },
+ {
+  "code": "assiut:sidfa",
+  "governorate": "Assiut",
+  "nameEn": "Sidfa",
+  "nameAr": "صدفا"
+ },
+ {
+  "code": "aswan:abo-simbl-al-siyahia",
+  "governorate": "Aswan",
+  "nameEn": "Abo Simbl Al Siyahia",
+  "nameAr": "ابوسمبل السياحية"
+ },
+ {
+  "code": "aswan:al-basilia",
+  "governorate": "Aswan",
+  "nameEn": "Al Basilia",
+  "nameAr": "البصيلية"
+ },
+ {
+  "code": "aswan:al-sibaeia",
+  "governorate": "Aswan",
+  "nameEn": "Al Sibaeia",
+  "nameAr": "السباعية"
+ },
+ {
+  "code": "aswan:al-radisiyah",
+  "governorate": "Aswan",
+  "nameEn": "Al-Radisiyah",
+  "nameAr": "الرديسية"
+ },
+ {
+  "code": "aswan:aswan",
+  "governorate": "Aswan",
+  "nameEn": "Aswan",
+  "nameAr": "أسوان"
+ },
+ {
+  "code": "aswan:aswan-el-gedida",
+  "governorate": "Aswan",
+  "nameEn": "Aswan El Gedida",
+  "nameAr": "أسوان الجديدة"
+ },
+ {
+  "code": "aswan:drau",
+  "governorate": "Aswan",
+  "nameEn": "Drau",
+  "nameAr": "دراو"
+ },
+ {
+  "code": "aswan:edfu",
+  "governorate": "Aswan",
+  "nameEn": "Edfu",
+  "nameAr": "إدفو"
+ },
+ {
+  "code": "aswan:kalabsha",
+  "governorate": "Aswan",
+  "nameEn": "Kalabsha",
+  "nameAr": "كلابشة"
+ },
+ {
+  "code": "aswan:kom-ombo",
+  "governorate": "Aswan",
+  "nameEn": "Kom Ombo",
+  "nameAr": "كوم أمبو"
+ },
+ {
+  "code": "aswan:marsa-alam",
+  "governorate": "Aswan",
+  "nameEn": "Marsa Alam",
+  "nameAr": "مرسى علم"
+ },
+ {
+  "code": "aswan:nasr-al-nuba",
+  "governorate": "Aswan",
+  "nameEn": "Nasr Al Nuba",
+  "nameAr": "نصر النوبة"
+ },
+ {
+  "code": "beheira:abu-al-matamir",
+  "governorate": "Beheira",
+  "nameEn": "Abu al-Matamir",
+  "nameAr": "أبو المطامير"
+ },
+ {
+  "code": "beheira:abu-homs",
+  "governorate": "Beheira",
+  "nameEn": "Abu Homs",
+  "nameAr": "أبو حمص"
+ },
+ {
+  "code": "beheira:alnoubareya",
+  "governorate": "Beheira",
+  "nameEn": "Alnoubareya",
+  "nameAr": "النوبارية"
+ },
+ {
+  "code": "beheira:badr",
+  "governorate": "Beheira",
+  "nameEn": "Badr",
+  "nameAr": "بدر"
+ },
+ {
+  "code": "beheira:damanhour",
+  "governorate": "Beheira",
+  "nameEn": "Damanhour",
+  "nameAr": "دمنهور"
+ },
+ {
+  "code": "beheira:delengat",
+  "governorate": "Beheira",
+  "nameEn": "Delengat",
+  "nameAr": "الدلنجات"
+ },
+ {
+  "code": "beheira:edco",
+  "governorate": "Beheira",
+  "nameEn": "Edco",
+  "nameAr": "إدكو"
+ },
+ {
+  "code": "beheira:housh-eissa",
+  "governorate": "Beheira",
+  "nameEn": "Housh Eissa",
+  "nameAr": "حوش عيسى"
+ },
+ {
+  "code": "beheira:itai-baroud",
+  "governorate": "Beheira",
+  "nameEn": "Itai Baroud",
+  "nameAr": "إيتاي البارود"
+ },
+ {
+  "code": "beheira:kafr-el-dawar",
+  "governorate": "Beheira",
+  "nameEn": "Kafr El Dawar",
+  "nameAr": "كفر الدوار"
+ },
+ {
+  "code": "beheira:kom-hamada",
+  "governorate": "Beheira",
+  "nameEn": "Kom Hamada",
+  "nameAr": "كوم حمادة"
+ },
+ {
+  "code": "beheira:mahmoudiyah",
+  "governorate": "Beheira",
+  "nameEn": "Mahmoudiyah",
+  "nameAr": "المحمودية"
+ },
+ {
+  "code": "beheira:new-nubaria",
+  "governorate": "Beheira",
+  "nameEn": "New Nubaria",
+  "nameAr": "النوبارية الجديدة"
+ },
+ {
+  "code": "beheira:rahmaniyah",
+  "governorate": "Beheira",
+  "nameEn": "Rahmaniyah",
+  "nameAr": "الرحمانية"
+ },
+ {
+  "code": "beheira:rashid",
+  "governorate": "Beheira",
+  "nameEn": "Rashid",
+  "nameAr": "رشيد"
+ },
+ {
+  "code": "beheira:shubrakhit",
+  "governorate": "Beheira",
+  "nameEn": "Shubrakhit",
+  "nameAr": "شبراخيت"
+ },
+ {
+  "code": "beheira:wadi-natrun",
+  "governorate": "Beheira",
+  "nameEn": "Wadi Natrun",
+  "nameAr": "وادي النطرون"
+ },
+ {
+  "code": "beni-suef:al-wasta",
+  "governorate": "Beni Suef",
+  "nameEn": "Al Wasta",
+  "nameAr": "الواسطى"
+ },
+ {
+  "code": "beni-suef:alabbaseri",
+  "governorate": "Beni Suef",
+  "nameEn": "Alabbaseri",
+  "nameAr": "الاباصيرى"
+ },
+ {
+  "code": "beni-suef:bani-sweif",
+  "governorate": "Beni Suef",
+  "nameEn": "Bani Sweif",
+  "nameAr": "بني سويف"
+ },
+ {
+  "code": "beni-suef:beba",
+  "governorate": "Beni Suef",
+  "nameEn": "beba",
+  "nameAr": "ببا"
+ },
+ {
+  "code": "beni-suef:beni-suef-el-gedida",
+  "governorate": "Beni Suef",
+  "nameEn": "Beni Suef El Gedida",
+  "nameAr": "بني سويف الجديدة"
+ },
+ {
+  "code": "beni-suef:ehnasia",
+  "governorate": "Beni Suef",
+  "nameEn": "Ehnasia",
+  "nameAr": "إهناسيا"
+ },
+ {
+  "code": "beni-suef:fashn",
+  "governorate": "Beni Suef",
+  "nameEn": "Fashn",
+  "nameAr": "الفشن"
+ },
+ {
+  "code": "beni-suef:mokbel",
+  "governorate": "Beni Suef",
+  "nameEn": "Mokbel",
+  "nameAr": "مقبل"
+ },
+ {
+  "code": "beni-suef:naser",
+  "governorate": "Beni Suef",
+  "nameEn": "Naser",
+  "nameAr": "ناصر"
+ },
+ {
+  "code": "beni-suef:somasta",
+  "governorate": "Beni Suef",
+  "nameEn": "Somasta",
+  "nameAr": "سمسطا"
+ },
+ {
+  "code": "cairo:10th-of-ramadan-city",
+  "governorate": "Cairo",
+  "nameEn": "10th of Ramadan City",
+  "nameAr": "العاشر من رمضان"
+ },
+ {
+  "code": "cairo:15-may",
+  "governorate": "Cairo",
+  "nameEn": "15 May",
+  "nameAr": "15 مايو"
+ },
+ {
+  "code": "cairo:abaseya",
+  "governorate": "Cairo",
+  "nameEn": "Abaseya",
+  "nameAr": "عباسية"
+ },
+ {
+  "code": "cairo:abdeen",
+  "governorate": "Cairo",
+  "nameEn": "Abdeen",
+  "nameAr": "عابدين"
+ },
+ {
+  "code": "cairo:ain-shams",
+  "governorate": "Cairo",
+  "nameEn": "Ain Shams",
+  "nameAr": "عين شمس"
+ },
+ {
+  "code": "cairo:al-azbakeyah",
+  "governorate": "Cairo",
+  "nameEn": "Al Azbakeyah",
+  "nameAr": "الازبكية"
+ },
+ {
+  "code": "cairo:al-basatin",
+  "governorate": "Cairo",
+  "nameEn": "Al Basatin",
+  "nameAr": "البساتين"
+ },
+ {
+  "code": "cairo:aldarb-alahmar",
+  "governorate": "Cairo",
+  "nameEn": "Aldarb Alahmar",
+  "nameAr": "الدرب الاحمر"
+ },
+ {
+  "code": "cairo:ataba",
+  "governorate": "Cairo",
+  "nameEn": "Ataba",
+  "nameAr": "العتبة"
+ },
+ {
+  "code": "cairo:bab-al-shereia",
+  "governorate": "Cairo",
+  "nameEn": "Bab al-Shereia",
+  "nameAr": "باب الشعرية"
+ },
+ {
+  "code": "cairo:badr-city",
+  "governorate": "Cairo",
+  "nameEn": "Badr City",
+  "nameAr": "مدينة بدر"
+ },
+ {
+  "code": "cairo:bolaq",
+  "governorate": "Cairo",
+  "nameEn": "Bolaq",
+  "nameAr": "بولاق"
+ },
+ {
+  "code": "cairo:cairo-downtown",
+  "governorate": "Cairo",
+  "nameEn": "Cairo Downtown",
+  "nameAr": "وسط البلد"
+ },
+ {
+  "code": "cairo:capital-new",
+  "governorate": "Cairo",
+  "nameEn": "Capital New",
+  "nameAr": "العاصمة الإدارية"
+ },
+ {
+  "code": "cairo:dar-al-salam",
+  "governorate": "Cairo",
+  "nameEn": "Dar Al Salam",
+  "nameAr": "دار السلام"
+ },
+ {
+  "code": "cairo:el-daher",
+  "governorate": "Cairo",
+  "nameEn": "El Daher",
+  "nameAr": "الظاهر"
+ },
+ {
+  "code": "cairo:el-darrasa",
+  "governorate": "Cairo",
+  "nameEn": "El darrasa",
+  "nameAr": "الدراسة"
+ },
+ {
+  "code": "cairo:el-marg",
+  "governorate": "Cairo",
+  "nameEn": "El Marg",
+  "nameAr": "المرج"
+ },
+ {
+  "code": "cairo:el-salam",
+  "governorate": "Cairo",
+  "nameEn": "El Salam",
+  "nameAr": "السلام"
+ },
+ {
+  "code": "cairo:el-sharabeya",
+  "governorate": "Cairo",
+  "nameEn": "El Sharabeya",
+  "nameAr": "الشرابية"
+ },
+ {
+  "code": "cairo:el-gamaleya",
+  "governorate": "Cairo",
+  "nameEn": "El-Gamaleya",
+  "nameAr": "الجمالية"
+ },
+ {
+  "code": "cairo:el-khalifa",
+  "governorate": "Cairo",
+  "nameEn": "El-Khalifa",
+  "nameAr": "الخليفة"
+ },
+ {
+  "code": "cairo:el-zaytoun",
+  "governorate": "Cairo",
+  "nameEn": "El-Zaytoun",
+  "nameAr": "الزيتون"
+ },
+ {
+  "code": "cairo:ezbet-el-nakhl",
+  "governorate": "Cairo",
+  "nameEn": "Ezbet el Nakhl",
+  "nameAr": "عزبة النخل"
+ },
+ {
+  "code": "cairo:garden-city",
+  "governorate": "Cairo",
+  "nameEn": "Garden City",
+  "nameAr": "جاردن سيتى"
+ },
+ {
+  "code": "cairo:hadayek-el-kobba",
+  "governorate": "Cairo",
+  "nameEn": "Hadayek El-Kobba",
+  "nameAr": "حدائق القبة"
+ },
+ {
+  "code": "cairo:helmeyat-alzaytoun",
+  "governorate": "Cairo",
+  "nameEn": "Helmeyat Alzaytoun",
+  "nameAr": "الحلمية"
+ },
+ {
+  "code": "cairo:helwan",
+  "governorate": "Cairo",
+  "nameEn": "Helwan",
+  "nameAr": "حلوان"
+ },
+ {
+  "code": "cairo:kasr-el-nile",
+  "governorate": "Cairo",
+  "nameEn": "Kasr El Nile",
+  "nameAr": "قصر النيل"
+ },
+ {
+  "code": "cairo:katameya",
+  "governorate": "Cairo",
+  "nameEn": "Katameya",
+  "nameAr": "القطامية"
+ },
+ {
+  "code": "cairo:maadi",
+  "governorate": "Cairo",
+  "nameEn": "Maadi",
+  "nameAr": "المعادى"
+ },
+ {
+  "code": "cairo:maasara",
+  "governorate": "Cairo",
+  "nameEn": "Maasara",
+  "nameAr": "المعصرة"
+ },
+ {
+  "code": "cairo:madinty",
+  "governorate": "Cairo",
+  "nameEn": "Madinty",
+  "nameAr": "مدينتي"
+ },
+ {
+  "code": "cairo:mansheya-nasir",
+  "governorate": "Cairo",
+  "nameEn": "Mansheya Nasir",
+  "nameAr": "منشية ناصر"
+ },
+ {
+  "code": "cairo:manyal",
+  "governorate": "Cairo",
+  "nameEn": "Manyal",
+  "nameAr": "المنيل"
+ },
+ {
+  "code": "cairo:masr-al-qadima",
+  "governorate": "Cairo",
+  "nameEn": "Masr Al Qadima",
+  "nameAr": "مصر القديمة"
+ },
+ {
+  "code": "cairo:matareya",
+  "governorate": "Cairo",
+  "nameEn": "Matareya",
+  "nameAr": "المطرية"
+ },
+ {
+  "code": "cairo:mokattam",
+  "governorate": "Cairo",
+  "nameEn": "Mokattam",
+  "nameAr": "المقطم"
+ },
+ {
+  "code": "cairo:mosky",
+  "governorate": "Cairo",
+  "nameEn": "Mosky",
+  "nameAr": "الموسكى"
+ },
+ {
+  "code": "cairo:nasr-city",
+  "governorate": "Cairo",
+  "nameEn": "Nasr City",
+  "nameAr": "مدينة نصر"
+ },
+ {
+  "code": "cairo:new-cairo",
+  "governorate": "Cairo",
+  "nameEn": "New Cairo",
+  "nameAr": "القاهرة الجديدة"
+ },
+ {
+  "code": "cairo:new-heliopolis",
+  "governorate": "Cairo",
+  "nameEn": "New Heliopolis",
+  "nameAr": "مصر الجديدة"
+ },
+ {
+  "code": "cairo:new-nozha",
+  "governorate": "Cairo",
+  "nameEn": "New Nozha",
+  "nameAr": "النزهة الجديدة"
+ },
+ {
+  "code": "cairo:nozha",
+  "governorate": "Cairo",
+  "nameEn": "Nozha",
+  "nameAr": "النزهة"
+ },
+ {
+  "code": "cairo:obour-city",
+  "governorate": "Cairo",
+  "nameEn": "Obour City",
+  "nameAr": "مدينة العبور"
+ },
+ {
+  "code": "cairo:rehab",
+  "governorate": "Cairo",
+  "nameEn": "Rehab",
+  "nameAr": "الرحاب"
+ },
+ {
+  "code": "cairo:rod-alfarag",
+  "governorate": "Cairo",
+  "nameEn": "Rod Alfarag",
+  "nameAr": "روض الفرج"
+ },
+ {
+  "code": "cairo:sahel",
+  "governorate": "Cairo",
+  "nameEn": "Sahel",
+  "nameAr": "الساحل"
+ },
+ {
+  "code": "cairo:sayeda-zeinab",
+  "governorate": "Cairo",
+  "nameEn": "Sayeda Zeinab",
+  "nameAr": "السيدة زينب"
+ },
+ {
+  "code": "cairo:sheraton",
+  "governorate": "Cairo",
+  "nameEn": "Sheraton",
+  "nameAr": "شيراتون"
+ },
+ {
+  "code": "cairo:shorouk",
+  "governorate": "Cairo",
+  "nameEn": "Shorouk",
+  "nameAr": "مدينة الشروق"
+ },
+ {
+  "code": "cairo:shubra",
+  "governorate": "Cairo",
+  "nameEn": "Shubra",
+  "nameAr": "شبرا"
+ },
+ {
+  "code": "cairo:tebin",
+  "governorate": "Cairo",
+  "nameEn": "Tebin",
+  "nameAr": "التبين"
+ },
+ {
+  "code": "cairo:tura",
+  "governorate": "Cairo",
+  "nameEn": "Tura",
+  "nameAr": "طره"
+ },
+ {
+  "code": "cairo:waily",
+  "governorate": "Cairo",
+  "nameEn": "Waily",
+  "nameAr": "الوايلى"
+ },
+ {
+  "code": "cairo:zamalek",
+  "governorate": "Cairo",
+  "nameEn": "Zamalek",
+  "nameAr": "الزمالك"
+ },
+ {
+  "code": "cairo:zawya-al-hamra",
+  "governorate": "Cairo",
+  "nameEn": "Zawya al-Hamra",
+  "nameAr": "الزاوية الحمراء"
+ },
+ {
+  "code": "dakahlia:aga",
+  "governorate": "Dakahlia",
+  "nameEn": "Aga",
+  "nameAr": "أجا"
+ },
+ {
+  "code": "dakahlia:al-manzala",
+  "governorate": "Dakahlia",
+  "nameEn": "Al Manzala",
+  "nameAr": "المنزلة"
+ },
+ {
+  "code": "dakahlia:aljamalia",
+  "governorate": "Dakahlia",
+  "nameEn": "aljamalia",
+  "nameAr": "الجمالية"
+ },
+ {
+  "code": "dakahlia:bani-ubaid",
+  "governorate": "Dakahlia",
+  "nameEn": "Bani Ubaid",
+  "nameAr": "بني عبيد"
+ },
+ {
+  "code": "dakahlia:belqas",
+  "governorate": "Dakahlia",
+  "nameEn": "Belqas",
+  "nameAr": "بلقاس"
+ },
+ {
+  "code": "dakahlia:dekernes",
+  "governorate": "Dakahlia",
+  "nameEn": "Dekernes",
+  "nameAr": "دكرنس"
+ },
+ {
+  "code": "dakahlia:el-kurdi",
+  "governorate": "Dakahlia",
+  "nameEn": "El Kurdi",
+  "nameAr": "الكردي"
+ },
+ {
+  "code": "dakahlia:gamasa",
+  "governorate": "Dakahlia",
+  "nameEn": "Gamasa",
+  "nameAr": "جمصة"
+ },
+ {
+  "code": "dakahlia:mahalat-damana",
+  "governorate": "Dakahlia",
+  "nameEn": "Mahalat Damana",
+  "nameAr": "محلة دمنة"
+ },
+ {
+  "code": "dakahlia:mansoura",
+  "governorate": "Dakahlia",
+  "nameEn": "Mansoura",
+  "nameAr": "المنصورة"
+ },
+ {
+  "code": "dakahlia:mataria",
+  "governorate": "Dakahlia",
+  "nameEn": "Mataria",
+  "nameAr": "المطرية"
+ },
+ {
+  "code": "dakahlia:meet-salsil",
+  "governorate": "Dakahlia",
+  "nameEn": "Meet Salsil",
+  "nameAr": "ميت سلسيل"
+ },
+ {
+  "code": "dakahlia:menia-el-nasr",
+  "governorate": "Dakahlia",
+  "nameEn": "Menia El Nasr",
+  "nameAr": "منية النصر"
+ },
+ {
+  "code": "dakahlia:mitt-ghamr",
+  "governorate": "Dakahlia",
+  "nameEn": "Mitt Ghamr",
+  "nameAr": "ميت غمر"
+ },
+ {
+  "code": "dakahlia:nabroh",
+  "governorate": "Dakahlia",
+  "nameEn": "Nabroh",
+  "nameAr": "نبروه"
+ },
+ {
+  "code": "dakahlia:sherbin",
+  "governorate": "Dakahlia",
+  "nameEn": "Sherbin",
+  "nameAr": "شربين"
+ },
+ {
+  "code": "dakahlia:sinbillawin",
+  "governorate": "Dakahlia",
+  "nameEn": "Sinbillawin",
+  "nameAr": "السنبلاوين"
+ },
+ {
+  "code": "dakahlia:talkha",
+  "governorate": "Dakahlia",
+  "nameEn": "Talkha",
+  "nameAr": "طلخا"
+ },
+ {
+  "code": "dakahlia:tami-al-amdid",
+  "governorate": "Dakahlia",
+  "nameEn": "tami al'amdid",
+  "nameAr": "تمي الأمديد"
+ },
+ {
+  "code": "damietta:alruwda",
+  "governorate": "Damietta",
+  "nameEn": "alruwda",
+  "nameAr": "الروضة"
+ },
+ {
+  "code": "damietta:alsaru",
+  "governorate": "Damietta",
+  "nameEn": "alsaru",
+  "nameAr": "السرو"
+ },
+ {
+  "code": "damietta:azbet-al-burg",
+  "governorate": "Damietta",
+  "nameEn": "Azbet Al Burg",
+  "nameAr": "عزبة البرج"
+ },
+ {
+  "code": "damietta:damietta",
+  "governorate": "Damietta",
+  "nameEn": "Damietta",
+  "nameAr": "دمياط"
+ },
+ {
+  "code": "damietta:faraskour",
+  "governorate": "Damietta",
+  "nameEn": "Faraskour",
+  "nameAr": "فارسكور"
+ },
+ {
+  "code": "damietta:kafr-el-batikh",
+  "governorate": "Damietta",
+  "nameEn": "Kafr El-Batikh",
+  "nameAr": "كفر البطيخ"
+ },
+ {
+  "code": "damietta:kafr-saad",
+  "governorate": "Damietta",
+  "nameEn": "Kafr Saad",
+  "nameAr": "كفر سعد"
+ },
+ {
+  "code": "damietta:meet-abou-ghalib",
+  "governorate": "Damietta",
+  "nameEn": "Meet Abou Ghalib",
+  "nameAr": "ميت أبو غالب"
+ },
+ {
+  "code": "damietta:new-damietta",
+  "governorate": "Damietta",
+  "nameEn": "New Damietta",
+  "nameAr": "دمياط الجديدة"
+ },
+ {
+  "code": "damietta:ras-el-bar",
+  "governorate": "Damietta",
+  "nameEn": "Ras El Bar",
+  "nameAr": "رأس البر"
+ },
+ {
+  "code": "damietta:zarqa",
+  "governorate": "Damietta",
+  "nameEn": "Zarqa",
+  "nameAr": "الزرقا"
+ },
+ {
+  "code": "fayoum:algamaa",
+  "governorate": "Fayoum",
+  "nameEn": "Algamaa",
+  "nameAr": "الجامعة"
+ },
+ {
+  "code": "fayoum:atsa",
+  "governorate": "Fayoum",
+  "nameEn": "Atsa",
+  "nameAr": "اطسا"
+ },
+ {
+  "code": "fayoum:epschway",
+  "governorate": "Fayoum",
+  "nameEn": "Epschway",
+  "nameAr": "إبشواي"
+ },
+ {
+  "code": "fayoum:etsa",
+  "governorate": "Fayoum",
+  "nameEn": "Etsa",
+  "nameAr": "إطسا"
+ },
+ {
+  "code": "fayoum:fayoum",
+  "governorate": "Fayoum",
+  "nameEn": "Fayoum",
+  "nameAr": "الفيوم"
+ },
+ {
+  "code": "fayoum:fayoum-el-gedida",
+  "governorate": "Fayoum",
+  "nameEn": "Fayoum El Gedida",
+  "nameAr": "الفيوم الجديدة"
+ },
+ {
+  "code": "fayoum:hadqa",
+  "governorate": "Fayoum",
+  "nameEn": "Hadqa",
+  "nameAr": "الحادقة"
+ },
+ {
+  "code": "fayoum:sayala",
+  "governorate": "Fayoum",
+  "nameEn": "Sayala",
+  "nameAr": "السيالة"
+ },
+ {
+  "code": "fayoum:snores",
+  "governorate": "Fayoum",
+  "nameEn": "Snores",
+  "nameAr": "سنورس"
+ },
+ {
+  "code": "fayoum:tamiya",
+  "governorate": "Fayoum",
+  "nameEn": "Tamiya",
+  "nameAr": "طامية"
+ },
+ {
+  "code": "fayoum:yusuf-el-sediaq",
+  "governorate": "Fayoum",
+  "nameEn": "Yusuf El Sediaq",
+  "nameAr": "يوسف الصديق"
+ },
+ {
+  "code": "gharbia:al-mahalla-al-kobra",
+  "governorate": "Gharbia",
+  "nameEn": "Al Mahalla Al Kobra",
+  "nameAr": "المحلة الكبرى"
+ },
+ {
+  "code": "gharbia:basion",
+  "governorate": "Gharbia",
+  "nameEn": "Basion",
+  "nameAr": "بسيون"
+ },
+ {
+  "code": "gharbia:el-santa",
+  "governorate": "Gharbia",
+  "nameEn": "El Santa",
+  "nameAr": "السنطة"
+ },
+ {
+  "code": "gharbia:kafr-el-zayat",
+  "governorate": "Gharbia",
+  "nameEn": "Kafr El Zayat",
+  "nameAr": "كفر الزيات"
+ },
+ {
+  "code": "gharbia:qutour",
+  "governorate": "Gharbia",
+  "nameEn": "Qutour",
+  "nameAr": "قطور"
+ },
+ {
+  "code": "gharbia:samannoud",
+  "governorate": "Gharbia",
+  "nameEn": "Samannoud",
+  "nameAr": "سمنود"
+ },
+ {
+  "code": "gharbia:tanta",
+  "governorate": "Gharbia",
+  "nameEn": "Tanta",
+  "nameAr": "طنطا"
+ },
+ {
+  "code": "gharbia:zefta",
+  "governorate": "Gharbia",
+  "nameEn": "Zefta",
+  "nameAr": "زفتى"
+ },
+ {
+  "code": "giza:abu-nomros",
+  "governorate": "Giza",
+  "nameEn": "Abu Nomros",
+  "nameAr": "أبو النمرس"
+ },
+ {
+  "code": "giza:abu-rawash",
+  "governorate": "Giza",
+  "nameEn": "Abu Rawash",
+  "nameAr": "أبو رواش"
+ },
+ {
+  "code": "giza:agouza",
+  "governorate": "Giza",
+  "nameEn": "Agouza",
+  "nameAr": "العجوزة"
+ },
+ {
+  "code": "giza:al-ayat",
+  "governorate": "Giza",
+  "nameEn": "Al Ayat",
+  "nameAr": "العياط"
+ },
+ {
+  "code": "giza:al-badrasheen",
+  "governorate": "Giza",
+  "nameEn": "Al Badrasheen",
+  "nameAr": "البدرشين"
+ },
+ {
+  "code": "giza:al-wahat-al-baharia",
+  "governorate": "Giza",
+  "nameEn": "Al Wahat Al Baharia",
+  "nameAr": "الواحات البحرية"
+ },
+ {
+  "code": "giza:al-bawaiti",
+  "governorate": "Giza",
+  "nameEn": "Al-Bawaiti",
+  "nameAr": "الباويطي"
+ },
+ {
+  "code": "giza:ard-ellwaa",
+  "governorate": "Giza",
+  "nameEn": "Ard Ellwaa",
+  "nameAr": "ارض اللواء"
+ },
+ {
+  "code": "giza:atfih",
+  "governorate": "Giza",
+  "nameEn": "Atfih",
+  "nameAr": "أطفيح"
+ },
+ {
+  "code": "giza:bin-alsarayat",
+  "governorate": "Giza",
+  "nameEn": "Bin Alsarayat",
+  "nameAr": "بين السرايات"
+ },
+ {
+  "code": "giza:boulaq-dakrour",
+  "governorate": "Giza",
+  "nameEn": "Boulaq Dakrour",
+  "nameAr": "بولاق الدكرور"
+ },
+ {
+  "code": "giza:cheikh-zayed",
+  "governorate": "Giza",
+  "nameEn": "Cheikh Zayed",
+  "nameAr": "الشيخ زايد"
+ },
+ {
+  "code": "giza:dokki",
+  "governorate": "Giza",
+  "nameEn": "Dokki",
+  "nameAr": "الدقى"
+ },
+ {
+  "code": "giza:faisal",
+  "governorate": "Giza",
+  "nameEn": "Faisal",
+  "nameAr": "فيصل"
+ },
+ {
+  "code": "giza:giza",
+  "governorate": "Giza",
+  "nameEn": "Giza",
+  "nameAr": "الجيزة"
+ },
+ {
+  "code": "giza:hadayek-alahram",
+  "governorate": "Giza",
+  "nameEn": "Hadayek Alahram",
+  "nameAr": "حدائق الأهرام"
+ },
+ {
+  "code": "giza:hadayek-october",
+  "governorate": "Giza",
+  "nameEn": "Hadayek October",
+  "nameAr": "حدائق اكتوبر"
+ },
+ {
+  "code": "giza:haram",
+  "governorate": "Giza",
+  "nameEn": "Haram",
+  "nameAr": "الهرم"
+ },
+ {
+  "code": "giza:haraneya",
+  "governorate": "Giza",
+  "nameEn": "Haraneya",
+  "nameAr": "الحرانية"
+ },
+ {
+  "code": "giza:hawamdiyah",
+  "governorate": "Giza",
+  "nameEn": "Hawamdiyah",
+  "nameAr": "الحوامدية"
+ },
+ {
+  "code": "giza:imbaba",
+  "governorate": "Giza",
+  "nameEn": "Imbaba",
+  "nameAr": "امبابة"
+ },
+ {
+  "code": "giza:kafr-ghati",
+  "governorate": "Giza",
+  "nameEn": "Kafr Ghati",
+  "nameAr": "كفر غطاطي"
+ },
+ {
+  "code": "giza:kerdasa",
+  "governorate": "Giza",
+  "nameEn": "Kerdasa",
+  "nameAr": "كرداسة"
+ },
+ {
+  "code": "giza:kit-kat",
+  "governorate": "Giza",
+  "nameEn": "Kit Kat",
+  "nameAr": "الكيت كات"
+ },
+ {
+  "code": "giza:manshiyet-al-bakari",
+  "governorate": "Giza",
+  "nameEn": "Manshiyet Al Bakari",
+  "nameAr": "منشأة البكاري"
+ },
+ {
+  "code": "giza:manshiyetal-qanater",
+  "governorate": "Giza",
+  "nameEn": "ManshiyetAl Qanater",
+  "nameAr": "منشأة القناطر"
+ },
+ {
+  "code": "giza:mohandessin",
+  "governorate": "Giza",
+  "nameEn": "Mohandessin",
+  "nameAr": "المهندسين"
+ },
+ {
+  "code": "giza:moneeb",
+  "governorate": "Giza",
+  "nameEn": "Moneeb",
+  "nameAr": "المنيب"
+ },
+ {
+  "code": "giza:oaseem",
+  "governorate": "Giza",
+  "nameEn": "Oaseem",
+  "nameAr": "أوسيم"
+ },
+ {
+  "code": "giza:omraneya",
+  "governorate": "Giza",
+  "nameEn": "Omraneya",
+  "nameAr": "العمرانية"
+ },
+ {
+  "code": "giza:saf",
+  "governorate": "Giza",
+  "nameEn": "Saf",
+  "nameAr": "الصف"
+ },
+ {
+  "code": "giza:saft-allaban",
+  "governorate": "Giza",
+  "nameEn": "Saft Allaban",
+  "nameAr": "صفط اللبن"
+ },
+ {
+  "code": "giza:sixth-of-october",
+  "governorate": "Giza",
+  "nameEn": "Sixth of October",
+  "nameAr": "السادس من أكتوبر"
+ },
+ {
+  "code": "giza:smart-village",
+  "governorate": "Giza",
+  "nameEn": "Smart Village",
+  "nameAr": "القرية الذكية"
+ },
+ {
+  "code": "giza:warraq",
+  "governorate": "Giza",
+  "nameEn": "Warraq",
+  "nameAr": "الوراق"
+ },
+ {
+  "code": "ismailia:abu-sawir",
+  "governorate": "Ismailia",
+  "nameEn": "Abu Sawir",
+  "nameAr": "أبو صوير"
+ },
+ {
+  "code": "ismailia:el-tal-el-kabier",
+  "governorate": "Ismailia",
+  "nameEn": "El Tal El Kabier",
+  "nameAr": "التل الكبير"
+ },
+ {
+  "code": "ismailia:fayed",
+  "governorate": "Ismailia",
+  "nameEn": "Fayed",
+  "nameAr": "فايد"
+ },
+ {
+  "code": "ismailia:ismailia",
+  "governorate": "Ismailia",
+  "nameEn": "Ismailia",
+  "nameAr": "الإسماعيلية"
+ },
+ {
+  "code": "ismailia:kasasien-el-gedida",
+  "governorate": "Ismailia",
+  "nameEn": "Kasasien El Gedida",
+  "nameAr": "القصاصين الجديدة"
+ },
+ {
+  "code": "ismailia:nefesha",
+  "governorate": "Ismailia",
+  "nameEn": "Nefesha",
+  "nameAr": "نفيشة"
+ },
+ {
+  "code": "ismailia:qantara-gharb",
+  "governorate": "Ismailia",
+  "nameEn": "Qantara Gharb",
+  "nameAr": "القنطرة غرب"
+ },
+ {
+  "code": "ismailia:qantara-sharq",
+  "governorate": "Ismailia",
+  "nameEn": "Qantara Sharq",
+  "nameAr": "القنطرة شرق"
+ },
+ {
+  "code": "ismailia:sheikh-zayed",
+  "governorate": "Ismailia",
+  "nameEn": "Sheikh Zayed",
+  "nameAr": "الشيخ زايد"
+ },
+ {
+  "code": "kafr-el-sheikh:baltim",
+  "governorate": "Kafr El Sheikh",
+  "nameEn": "Baltim",
+  "nameAr": "بلطيم"
+ },
+ {
+  "code": "kafr-el-sheikh:bella",
+  "governorate": "Kafr El Sheikh",
+  "nameEn": "Bella",
+  "nameAr": "بيلا"
+ },
+ {
+  "code": "kafr-el-sheikh:burg-al-burullus",
+  "governorate": "Kafr El Sheikh",
+  "nameEn": "Burg Al Burullus",
+  "nameAr": "برج البرلس"
+ },
+ {
+  "code": "kafr-el-sheikh:desouq",
+  "governorate": "Kafr El Sheikh",
+  "nameEn": "Desouq",
+  "nameAr": "دسوق"
+ },
+ {
+  "code": "kafr-el-sheikh:fooh",
+  "governorate": "Kafr El Sheikh",
+  "nameEn": "Fooh",
+  "nameAr": "فوه"
+ },
+ {
+  "code": "kafr-el-sheikh:hamol",
+  "governorate": "Kafr El Sheikh",
+  "nameEn": "Hamol",
+  "nameAr": "الحامول"
+ },
+ {
+  "code": "kafr-el-sheikh:kafr-el-sheikh",
+  "governorate": "Kafr El Sheikh",
+  "nameEn": "Kafr El Sheikh",
+  "nameAr": "كفر الشيخ"
+ },
+ {
+  "code": "kafr-el-sheikh:kafr-el-sheikh-downtown",
+  "governorate": "Kafr El Sheikh",
+  "nameEn": "Kafr El Sheikh Downtown",
+  "nameAr": "وسط البلد كفر الشيخ"
+ },
+ {
+  "code": "kafr-el-sheikh:masief-baltim",
+  "governorate": "Kafr El Sheikh",
+  "nameEn": "Masief Baltim",
+  "nameAr": "مصيف بلطيم"
+ },
+ {
+  "code": "kafr-el-sheikh:metobas",
+  "governorate": "Kafr El Sheikh",
+  "nameEn": "Metobas",
+  "nameAr": "مطوبس"
+ },
+ {
+  "code": "kafr-el-sheikh:qellen",
+  "governorate": "Kafr El Sheikh",
+  "nameEn": "Qellen",
+  "nameAr": "قلين"
+ },
+ {
+  "code": "kafr-el-sheikh:riyadh",
+  "governorate": "Kafr El Sheikh",
+  "nameEn": "Riyadh",
+  "nameAr": "الرياض"
+ },
+ {
+  "code": "kafr-el-sheikh:sidi-ghazi",
+  "governorate": "Kafr El Sheikh",
+  "nameEn": "Sidi Ghazi",
+  "nameAr": "سيدي غازي"
+ },
+ {
+  "code": "kafr-el-sheikh:sidi-salm",
+  "governorate": "Kafr El Sheikh",
+  "nameEn": "Sidi Salm",
+  "nameAr": "سيدي سالم"
+ },
+ {
+  "code": "luxor:al-bayadieh",
+  "governorate": "Luxor",
+  "nameEn": "Al Bayadieh",
+  "nameAr": "البياضية"
+ },
+ {
+  "code": "luxor:al-qarna",
+  "governorate": "Luxor",
+  "nameEn": "Al Qarna",
+  "nameAr": "القرنة"
+ },
+ {
+  "code": "luxor:al-tud",
+  "governorate": "Luxor",
+  "nameEn": "Al Tud",
+  "nameAr": "الطود"
+ },
+ {
+  "code": "luxor:al-ziynia",
+  "governorate": "Luxor",
+  "nameEn": "Al ziynia",
+  "nameAr": "الزينية"
+ },
+ {
+  "code": "luxor:armant",
+  "governorate": "Luxor",
+  "nameEn": "Armant",
+  "nameAr": "أرمنت"
+ },
+ {
+  "code": "luxor:esna",
+  "governorate": "Luxor",
+  "nameEn": "Esna",
+  "nameAr": "إسنا"
+ },
+ {
+  "code": "luxor:luxor",
+  "governorate": "Luxor",
+  "nameEn": "Luxor",
+  "nameAr": "الأقصر"
+ },
+ {
+  "code": "luxor:new-luxor",
+  "governorate": "Luxor",
+  "nameEn": "New Luxor",
+  "nameAr": "الأقصر الجديدة"
+ },
+ {
+  "code": "luxor:new-tiba",
+  "governorate": "Luxor",
+  "nameEn": "New Tiba",
+  "nameAr": "طيبة الجديدة"
+ },
+ {
+  "code": "matrouh:al-nagila",
+  "governorate": "Matrouh",
+  "nameEn": "Al-Nagila",
+  "nameAr": "النجيلة"
+ },
+ {
+  "code": "matrouh:alamein",
+  "governorate": "Matrouh",
+  "nameEn": "Alamein",
+  "nameAr": "العلمين"
+ },
+ {
+  "code": "matrouh:dabaa",
+  "governorate": "Matrouh",
+  "nameEn": "Dabaa",
+  "nameAr": "الضبعة"
+ },
+ {
+  "code": "matrouh:el-hamam",
+  "governorate": "Matrouh",
+  "nameEn": "El Hamam",
+  "nameAr": "الحمام"
+ },
+ {
+  "code": "matrouh:marina",
+  "governorate": "Matrouh",
+  "nameEn": "Marina",
+  "nameAr": "مارينا"
+ },
+ {
+  "code": "matrouh:marsa-matrouh",
+  "governorate": "Matrouh",
+  "nameEn": "Marsa Matrouh",
+  "nameAr": "مرسى مطروح"
+ },
+ {
+  "code": "matrouh:north-coast",
+  "governorate": "Matrouh",
+  "nameEn": "North Coast",
+  "nameAr": "الساحل الشمالى"
+ },
+ {
+  "code": "matrouh:salloum",
+  "governorate": "Matrouh",
+  "nameEn": "Salloum",
+  "nameAr": "السلوم"
+ },
+ {
+  "code": "matrouh:sidi-brani",
+  "governorate": "Matrouh",
+  "nameEn": "Sidi Brani",
+  "nameAr": "سيدي براني"
+ },
+ {
+  "code": "matrouh:siwa",
+  "governorate": "Matrouh",
+  "nameEn": "Siwa",
+  "nameAr": "سيوة"
+ },
+ {
+  "code": "minya:abu-qurqas",
+  "governorate": "Minya",
+  "nameEn": "Abu Qurqas",
+  "nameAr": "ابو قرقاص"
+ },
+ {
+  "code": "minya:ard-sultan",
+  "governorate": "Minya",
+  "nameEn": "Ard Sultan",
+  "nameAr": "ارض سلطان"
+ },
+ {
+  "code": "minya:bani-mazar",
+  "governorate": "Minya",
+  "nameEn": "Bani Mazar",
+  "nameAr": "بني مزار"
+ },
+ {
+  "code": "minya:deir-mawas",
+  "governorate": "Minya",
+  "nameEn": "Deir Mawas",
+  "nameAr": "دير مواس"
+ },
+ {
+  "code": "minya:el-adwa",
+  "governorate": "Minya",
+  "nameEn": "El Adwa",
+  "nameAr": "العدوة"
+ },
+ {
+  "code": "minya:madinat-el-fekria",
+  "governorate": "Minya",
+  "nameEn": "Madinat El Fekria",
+  "nameAr": "المدينة الفكرية"
+ },
+ {
+  "code": "minya:magagha",
+  "governorate": "Minya",
+  "nameEn": "Magagha",
+  "nameAr": "مغاغة"
+ },
+ {
+  "code": "minya:mattay",
+  "governorate": "Minya",
+  "nameEn": "Mattay",
+  "nameAr": "مطاي"
+ },
+ {
+  "code": "minya:meloy",
+  "governorate": "Minya",
+  "nameEn": "Meloy",
+  "nameAr": "ملوي"
+ },
+ {
+  "code": "minya:minya",
+  "governorate": "Minya",
+  "nameEn": "Minya",
+  "nameAr": "المنيا"
+ },
+ {
+  "code": "minya:minya-el-gedida",
+  "governorate": "Minya",
+  "nameEn": "Minya El Gedida",
+  "nameAr": "المنيا الجديدة"
+ },
+ {
+  "code": "minya:samalut",
+  "governorate": "Minya",
+  "nameEn": "Samalut",
+  "nameAr": "سمالوط"
+ },
+ {
+  "code": "monufia:al-bagor",
+  "governorate": "Monufia",
+  "nameEn": "Al Bagor",
+  "nameAr": "الباجور"
+ },
+ {
+  "code": "monufia:al-shohada",
+  "governorate": "Monufia",
+  "nameEn": "Al Shohada",
+  "nameAr": "الشهداء"
+ },
+ {
+  "code": "monufia:ashmon",
+  "governorate": "Monufia",
+  "nameEn": "Ashmon",
+  "nameAr": "أشمون"
+ },
+ {
+  "code": "monufia:berkat-el-saba",
+  "governorate": "Monufia",
+  "nameEn": "Berkat El Saba",
+  "nameAr": "بركة السبع"
+ },
+ {
+  "code": "monufia:menouf",
+  "governorate": "Monufia",
+  "nameEn": "Menouf",
+  "nameAr": "منوف"
+ },
+ {
+  "code": "monufia:quesna",
+  "governorate": "Monufia",
+  "nameEn": "Quesna",
+  "nameAr": "قويسنا"
+ },
+ {
+  "code": "monufia:sadat-city",
+  "governorate": "Monufia",
+  "nameEn": "Sadat City",
+  "nameAr": "مدينة السادات"
+ },
+ {
+  "code": "monufia:sars-el-layan",
+  "governorate": "Monufia",
+  "nameEn": "Sars El-Layan",
+  "nameAr": "سرس الليان"
+ },
+ {
+  "code": "monufia:shbeen-el-koom",
+  "governorate": "Monufia",
+  "nameEn": "Shbeen El Koom",
+  "nameAr": "شبين الكوم"
+ },
+ {
+  "code": "monufia:tala",
+  "governorate": "Monufia",
+  "nameEn": "Tala",
+  "nameAr": "تلا"
+ },
+ {
+  "code": "new-valley:balat",
+  "governorate": "New Valley",
+  "nameEn": "Balat",
+  "nameAr": "بلاط"
+ },
+ {
+  "code": "new-valley:dakhla",
+  "governorate": "New Valley",
+  "nameEn": "Dakhla",
+  "nameAr": "الداخلة"
+ },
+ {
+  "code": "new-valley:el-kharga",
+  "governorate": "New Valley",
+  "nameEn": "El Kharga",
+  "nameAr": "الخارجة"
+ },
+ {
+  "code": "new-valley:farafra",
+  "governorate": "New Valley",
+  "nameEn": "Farafra",
+  "nameAr": "الفرافرة"
+ },
+ {
+  "code": "new-valley:mout",
+  "governorate": "New Valley",
+  "nameEn": "Mout",
+  "nameAr": "موط"
+ },
+ {
+  "code": "new-valley:paris",
+  "governorate": "New Valley",
+  "nameEn": "Paris",
+  "nameAr": "باريس"
+ },
+ {
+  "code": "north-sinai:al-hasana",
+  "governorate": "North Sinai",
+  "nameEn": "Al Hasana",
+  "nameAr": "الحسنة"
+ },
+ {
+  "code": "north-sinai:arish",
+  "governorate": "North Sinai",
+  "nameEn": "Arish",
+  "nameAr": "العريش"
+ },
+ {
+  "code": "north-sinai:bir-al-abed",
+  "governorate": "North Sinai",
+  "nameEn": "Bir al-Abed",
+  "nameAr": "بئر العبد"
+ },
+ {
+  "code": "north-sinai:nakhl",
+  "governorate": "North Sinai",
+  "nameEn": "Nakhl",
+  "nameAr": "نخل"
+ },
+ {
+  "code": "north-sinai:rafah",
+  "governorate": "North Sinai",
+  "nameEn": "Rafah",
+  "nameAr": "رفح"
+ },
+ {
+  "code": "north-sinai:sheikh-zowaid",
+  "governorate": "North Sinai",
+  "nameEn": "Sheikh Zowaid",
+  "nameAr": "الشيخ زويد"
+ },
+ {
+  "code": "port-said:alarab",
+  "governorate": "Port Said",
+  "nameEn": "Alarab",
+  "nameAr": "العرب"
+ },
+ {
+  "code": "port-said:aldawahi",
+  "governorate": "Port Said",
+  "nameEn": "Aldawahi",
+  "nameAr": "حى الضواحى"
+ },
+ {
+  "code": "port-said:almanakh",
+  "governorate": "Port Said",
+  "nameEn": "Almanakh",
+  "nameAr": "حى المناخ"
+ },
+ {
+  "code": "port-said:alsharq",
+  "governorate": "Port Said",
+  "nameEn": "Alsharq",
+  "nameAr": "حى الشرق"
+ },
+ {
+  "code": "port-said:mubarak",
+  "governorate": "Port Said",
+  "nameEn": "Mubarak",
+  "nameAr": "حى مبارك"
+ },
+ {
+  "code": "port-said:porsaid",
+  "governorate": "Port Said",
+  "nameEn": "PorSaid",
+  "nameAr": "بورسعيد"
+ },
+ {
+  "code": "port-said:port-fouad",
+  "governorate": "Port Said",
+  "nameEn": "Port Fouad",
+  "nameAr": "بورفؤاد"
+ },
+ {
+  "code": "port-said:zohour",
+  "governorate": "Port Said",
+  "nameEn": "Zohour",
+  "nameAr": "حى الزهور"
+ },
+ {
+  "code": "qalyubia:al-qanater-charity",
+  "governorate": "Qalyubia",
+  "nameEn": "Al Qanater Charity",
+  "nameAr": "القناطر الخيرية"
+ },
+ {
+  "code": "qalyubia:banha",
+  "governorate": "Qalyubia",
+  "nameEn": "Banha",
+  "nameAr": "بنها"
+ },
+ {
+  "code": "qalyubia:kafr-shukr",
+  "governorate": "Qalyubia",
+  "nameEn": "Kafr Shukr",
+  "nameAr": "كفر شكر"
+ },
+ {
+  "code": "qalyubia:khanka",
+  "governorate": "Qalyubia",
+  "nameEn": "Khanka",
+  "nameAr": "الخانكة"
+ },
+ {
+  "code": "qalyubia:khosous",
+  "governorate": "Qalyubia",
+  "nameEn": "Khosous",
+  "nameAr": "الخصوص"
+ },
+ {
+  "code": "qalyubia:mostorod",
+  "governorate": "Qalyubia",
+  "nameEn": "Mostorod",
+  "nameAr": "مسطرد"
+ },
+ {
+  "code": "qalyubia:obour",
+  "governorate": "Qalyubia",
+  "nameEn": "Obour",
+  "nameAr": "العبور"
+ },
+ {
+  "code": "qalyubia:qaha",
+  "governorate": "Qalyubia",
+  "nameEn": "Qaha",
+  "nameAr": "قها"
+ },
+ {
+  "code": "qalyubia:qalyub",
+  "governorate": "Qalyubia",
+  "nameEn": "Qalyub",
+  "nameAr": "قليوب"
+ },
+ {
+  "code": "qalyubia:shibin-al-qanater",
+  "governorate": "Qalyubia",
+  "nameEn": "Shibin Al Qanater",
+  "nameAr": "شبين القناطر"
+ },
+ {
+  "code": "qalyubia:shubra-al-khaimah",
+  "governorate": "Qalyubia",
+  "nameEn": "Shubra Al Khaimah",
+  "nameAr": "شبرا الخيمة"
+ },
+ {
+  "code": "qalyubia:tukh",
+  "governorate": "Qalyubia",
+  "nameEn": "Tukh",
+  "nameAr": "طوخ"
+ },
+ {
+  "code": "qena:abu-tesht",
+  "governorate": "Qena",
+  "nameEn": "Abu Tesht",
+  "nameAr": "ابو طشت"
+ },
+ {
+  "code": "qena:alwaqf",
+  "governorate": "Qena",
+  "nameEn": "Alwaqf",
+  "nameAr": "الوقف"
+ },
+ {
+  "code": "qena:deshna",
+  "governorate": "Qena",
+  "nameEn": "Deshna",
+  "nameAr": "دشنا"
+ },
+ {
+  "code": "qena:farshout",
+  "governorate": "Qena",
+  "nameEn": "Farshout",
+  "nameAr": "فرشوط"
+ },
+ {
+  "code": "qena:nag-hammadi",
+  "governorate": "Qena",
+  "nameEn": "Nag Hammadi",
+  "nameAr": "نجع حمادي"
+ },
+ {
+  "code": "qena:naqada",
+  "governorate": "Qena",
+  "nameEn": "Naqada",
+  "nameAr": "نقادة"
+ },
+ {
+  "code": "qena:new-qena",
+  "governorate": "Qena",
+  "nameEn": "New Qena",
+  "nameAr": "قنا الجديدة"
+ },
+ {
+  "code": "qena:qaft",
+  "governorate": "Qena",
+  "nameEn": "Qaft",
+  "nameAr": "قفط"
+ },
+ {
+  "code": "qena:qena",
+  "governorate": "Qena",
+  "nameEn": "Qena",
+  "nameAr": "قنا"
+ },
+ {
+  "code": "qena:quos",
+  "governorate": "Qena",
+  "nameEn": "Quos",
+  "nameAr": "قوص"
+ },
+ {
+  "code": "red-sea:aldahar",
+  "governorate": "Red Sea",
+  "nameEn": "Aldahar",
+  "nameAr": "الدهار"
+ },
+ {
+  "code": "red-sea:el-qusiar",
+  "governorate": "Red Sea",
+  "nameEn": "El Qusiar",
+  "nameAr": "القصير"
+ },
+ {
+  "code": "red-sea:halaib",
+  "governorate": "Red Sea",
+  "nameEn": "Halaib",
+  "nameAr": "حلايب"
+ },
+ {
+  "code": "red-sea:hurghada",
+  "governorate": "Red Sea",
+  "nameEn": "Hurghada",
+  "nameAr": "الغردقة"
+ },
+ {
+  "code": "red-sea:marsa-alam",
+  "governorate": "Red Sea",
+  "nameEn": "Marsa Alam",
+  "nameAr": "مرسى علم"
+ },
+ {
+  "code": "red-sea:ras-ghareb",
+  "governorate": "Red Sea",
+  "nameEn": "Ras Ghareb",
+  "nameAr": "رأس غارب"
+ },
+ {
+  "code": "red-sea:safaga",
+  "governorate": "Red Sea",
+  "nameEn": "Safaga",
+  "nameAr": "سفاجا"
+ },
+ {
+  "code": "red-sea:shalatin",
+  "governorate": "Red Sea",
+  "nameEn": "Shalatin",
+  "nameAr": "الشلاتين"
+ },
+ {
+  "code": "sharqia:abu-hammad",
+  "governorate": "Sharqia",
+  "nameEn": "Abu Hammad",
+  "nameAr": "أبو حماد"
+ },
+ {
+  "code": "sharqia:abu-kabir",
+  "governorate": "Sharqia",
+  "nameEn": "Abu Kabir",
+  "nameAr": "أبو كبير"
+ },
+ {
+  "code": "sharqia:al-ashr-men-ramadan",
+  "governorate": "Sharqia",
+  "nameEn": "Al Ashr Men Ramadan",
+  "nameAr": "العاشر من رمضان"
+ },
+ {
+  "code": "sharqia:al-ibrahimiyah",
+  "governorate": "Sharqia",
+  "nameEn": "Al Ibrahimiyah",
+  "nameAr": "الإبراهيمية"
+ },
+ {
+  "code": "sharqia:awlad-saqr",
+  "governorate": "Sharqia",
+  "nameEn": "Awlad Saqr",
+  "nameAr": "أولاد صقر"
+ },
+ {
+  "code": "sharqia:belbeis",
+  "governorate": "Sharqia",
+  "nameEn": "Belbeis",
+  "nameAr": "بلبيس"
+ },
+ {
+  "code": "sharqia:deirb-negm",
+  "governorate": "Sharqia",
+  "nameEn": "Deirb Negm",
+  "nameAr": "ديرب نجم"
+ },
+ {
+  "code": "sharqia:el-qurain",
+  "governorate": "Sharqia",
+  "nameEn": "El Qurain",
+  "nameAr": "القرين"
+ },
+ {
+  "code": "sharqia:el-salihia-el-gedida",
+  "governorate": "Sharqia",
+  "nameEn": "El Salihia El Gedida",
+  "nameAr": "الصالحية الجديدة"
+ },
+ {
+  "code": "sharqia:faccus",
+  "governorate": "Sharqia",
+  "nameEn": "Faccus",
+  "nameAr": "فاقوس"
+ },
+ {
+  "code": "sharqia:hehia",
+  "governorate": "Sharqia",
+  "nameEn": "Hehia",
+  "nameAr": "ههيا"
+ },
+ {
+  "code": "sharqia:husseiniya",
+  "governorate": "Sharqia",
+  "nameEn": "Husseiniya",
+  "nameAr": "الحسينية"
+ },
+ {
+  "code": "sharqia:kafr-saqr",
+  "governorate": "Sharqia",
+  "nameEn": "Kafr Saqr",
+  "nameAr": "كفر صقر"
+ },
+ {
+  "code": "sharqia:manshayat-abu-omar",
+  "governorate": "Sharqia",
+  "nameEn": "Manshayat Abu Omar",
+  "nameAr": "منشأة أبو عمر"
+ },
+ {
+  "code": "sharqia:mashtoul-el-souq",
+  "governorate": "Sharqia",
+  "nameEn": "Mashtoul El Souq",
+  "nameAr": "مشتول السوق"
+ },
+ {
+  "code": "sharqia:minya-al-qamh",
+  "governorate": "Sharqia",
+  "nameEn": "Minya Al Qamh",
+  "nameAr": "منيا القمح"
+ },
+ {
+  "code": "sharqia:qenaiat",
+  "governorate": "Sharqia",
+  "nameEn": "Qenaiat",
+  "nameAr": "القنايات"
+ },
+ {
+  "code": "sharqia:san-alhajar-alqablia",
+  "governorate": "Sharqia",
+  "nameEn": "san alhajar alqablia",
+  "nameAr": "صان الحجر القبلية"
+ },
+ {
+  "code": "sharqia:zagazig",
+  "governorate": "Sharqia",
+  "nameEn": "Zagazig",
+  "nameAr": "الزقازيق"
+ },
+ {
+  "code": "sohag:akhmeem",
+  "governorate": "Sohag",
+  "nameEn": "Akhmeem",
+  "nameAr": "أخميم"
+ },
+ {
+  "code": "sohag:akhmim-el-gedida",
+  "governorate": "Sohag",
+  "nameEn": "Akhmim El Gedida",
+  "nameAr": "أخميم الجديدة"
+ },
+ {
+  "code": "sohag:albalina",
+  "governorate": "Sohag",
+  "nameEn": "Albalina",
+  "nameAr": "البلينا"
+ },
+ {
+  "code": "sohag:alkawthar",
+  "governorate": "Sohag",
+  "nameEn": "Alkawthar",
+  "nameAr": "الكوثر"
+ },
+ {
+  "code": "sohag:almunsha-a",
+  "governorate": "Sohag",
+  "nameEn": "almunsha'a",
+  "nameAr": "المنشأة"
+ },
+ {
+  "code": "sohag:dar-aisalaam",
+  "governorate": "Sohag",
+  "nameEn": "Dar AISalaam",
+  "nameAr": "دار السلام"
+ },
+ {
+  "code": "sohag:el-maragha",
+  "governorate": "Sohag",
+  "nameEn": "El Maragha",
+  "nameAr": "المراغة"
+ },
+ {
+  "code": "sohag:gerga",
+  "governorate": "Sohag",
+  "nameEn": "Gerga",
+  "nameAr": "جرجا"
+ },
+ {
+  "code": "sohag:jahina-al-gharbia",
+  "governorate": "Sohag",
+  "nameEn": "Jahina Al Gharbia",
+  "nameAr": "جهينة الغربية"
+ },
+ {
+  "code": "sohag:saqilatuh",
+  "governorate": "Sohag",
+  "nameEn": "Saqilatuh",
+  "nameAr": "ساقلته"
+ },
+ {
+  "code": "sohag:sohag",
+  "governorate": "Sohag",
+  "nameEn": "Sohag",
+  "nameAr": "سوهاج"
+ },
+ {
+  "code": "sohag:sohag-el-gedida",
+  "governorate": "Sohag",
+  "nameEn": "Sohag El Gedida",
+  "nameAr": "سوهاج الجديدة"
+ },
+ {
+  "code": "sohag:tahta",
+  "governorate": "Sohag",
+  "nameEn": "Tahta",
+  "nameAr": "طهطا"
+ },
+ {
+  "code": "sohag:tama",
+  "governorate": "Sohag",
+  "nameEn": "Tama",
+  "nameAr": "طما"
+ },
+ {
+  "code": "south-sinai:abu-redis",
+  "governorate": "South Sinai",
+  "nameEn": "Abu Redis",
+  "nameAr": "أبو رديس"
+ },
+ {
+  "code": "south-sinai:abu-zenaima",
+  "governorate": "South Sinai",
+  "nameEn": "Abu Zenaima",
+  "nameAr": "أبو زنيمة"
+ },
+ {
+  "code": "south-sinai:al-toor",
+  "governorate": "South Sinai",
+  "nameEn": "Al Toor",
+  "nameAr": "الطور"
+ },
+ {
+  "code": "south-sinai:dahab",
+  "governorate": "South Sinai",
+  "nameEn": "Dahab",
+  "nameAr": "دهب"
+ },
+ {
+  "code": "south-sinai:nuweiba",
+  "governorate": "South Sinai",
+  "nameEn": "Nuweiba",
+  "nameAr": "نويبع"
+ },
+ {
+  "code": "south-sinai:ras-sidr",
+  "governorate": "South Sinai",
+  "nameEn": "Ras Sidr",
+  "nameAr": "رأس سدر"
+ },
+ {
+  "code": "south-sinai:saint-catherine",
+  "governorate": "South Sinai",
+  "nameEn": "Saint Catherine",
+  "nameAr": "سانت كاترين"
+ },
+ {
+  "code": "south-sinai:sharm-el-shaikh",
+  "governorate": "South Sinai",
+  "nameEn": "Sharm El-Shaikh",
+  "nameAr": "شرم الشيخ"
+ },
+ {
+  "code": "south-sinai:taba",
+  "governorate": "South Sinai",
+  "nameEn": "Taba",
+  "nameAr": "طابا"
+ },
+ {
+  "code": "suez:ain-sokhna",
+  "governorate": "Suez",
+  "nameEn": "Ain Sokhna",
+  "nameAr": "العين السخنة"
+ },
+ {
+  "code": "suez:alganayen",
+  "governorate": "Suez",
+  "nameEn": "Alganayen",
+  "nameAr": "الجناين"
+ },
+ {
+  "code": "suez:ataqah",
+  "governorate": "Suez",
+  "nameEn": "Ataqah",
+  "nameAr": "عتاقة"
+ },
+ {
+  "code": "suez:faysal",
+  "governorate": "Suez",
+  "nameEn": "Faysal",
+  "nameAr": "فيصل"
+ },
+ {
+  "code": "suez:suez",
+  "governorate": "Suez",
+  "nameEn": "Suez",
+  "nameAr": "السويس"
+ }
+]

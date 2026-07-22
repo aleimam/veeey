@@ -580,7 +580,10 @@
       "noVat": "No VAT. You can pay cash on delivery.",
       "savedAddress": "Use a saved address",
       "newAddress": "Enter a new address",
-      "selectGovernorate": "Select governorate"
+      "selectGovernorate": "Select governorate",
+      "selectGovernorateFirst": "Choose a governorate first",
+      "selectCity": "Select city / area",
+      "cityOther": "Other — type it in"
     },
     "cart": {
       "emptyTitle": "Your cart is empty",

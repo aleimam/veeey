@@ -9,6 +9,8 @@ import { PhoneInput } from '@/components/ui/phone-input';
 import { formatEGP } from '@/lib/format';
 import { checkPhoneValue } from '@/lib/phone';
 import { GOVERNORATES } from '@/lib/governorates';
+import { CitySelect } from '@/components/storefront/city-select';
+import type { CitiesByGovernorate } from '@/lib/city-service';
 
 type ShipOpt = { type: string; label: string; feePiastres: number };
 type PayOpt = { key: string; label: string };
@@ -30,6 +32,7 @@ export function CheckoutForm({
   pointsBalance = 0,
   pointsPerEgp = 200,
   savedAddresses = [],
+  cities = {},
   requireVerification = false,
   alreadyVerified = false,
   accountEmail,
@@ -47,6 +50,8 @@ export function CheckoutForm({
   pointsBalance?: number;
   pointsPerEgp?: number;
   savedAddresses?: SavedAddr[];
+  /** Delivery districts grouped by governorate — the whole list, filtered client-side. */
+  cities?: CitiesByGovernorate;
   requireVerification?: boolean;
   alreadyVerified?: boolean;
   accountEmail?: string;
@@ -194,16 +199,38 @@ export function CheckoutForm({
               />
             </label>
             <label className="block text-sm font-semibold text-ink">{t('governorate')}
-              <select name="governorate" value={addr.governorate} onChange={set('governorate')} {...fieldProps('governorate')}>
+              <select
+                name="governorate"
+                value={addr.governorate}
+                // Changing governorate invalidates the district: keeping a Cairo
+                // district selected under Giza would post an address that cannot
+                // be delivered, and looks correct on screen.
+                onChange={(e) => {
+                  const gov = e.target.value;
+                  const stillValid = (cities[gov] ?? []).some((c) => (locale === 'ar' ? c.nameAr : c.nameEn) === addr.city);
+                  setAddr((a) => ({ ...a, governorate: gov, city: stillValid ? a.city : '' }));
+                  setFieldErrors((f) => (f.governorate || f.city ? { ...f, governorate: '', city: '' } : f));
+                }}
+                {...fieldProps('governorate')}
+              >
                 <option value="" disabled>{t('selectGovernorate')}</option>
                 {GOVERNORATES.map((g) => <option key={g.en} value={g.en}>{locale === 'ar' ? g.ar : g.en}</option>)}
               </select>
               {fieldError('governorate')}
             </label>
-            <label className="block text-sm font-semibold text-ink">{t('city')}
-              <input name="city" value={addr.city} onChange={set('city')} {...fieldProps('city')} />
-              {fieldError('city')}
-            </label>
+            <CitySelect
+              value={addr.city}
+              governorate={addr.governorate}
+              cities={cities}
+              locale={locale}
+              onChange={(v) => { setAddr((a) => ({ ...a, city: v })); setFieldErrors((f) => (f.city ? { ...f, city: '' } : f)); }}
+              label={t('city')}
+              chooseLabel={t('selectCity')}
+              otherLabel={t('cityOther')}
+              pickGovernorateFirstLabel={t('selectGovernorateFirst')}
+              className={field}
+              error={fieldError('city')}
+            />
             <label className="block text-sm font-semibold text-ink sm:col-span-2">{t('street')}
               <input name="street" value={addr.street} onChange={set('street')} {...fieldProps('street')} />
               {fieldError('street')}

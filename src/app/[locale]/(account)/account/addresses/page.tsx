@@ -3,7 +3,9 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { auth } from '@/auth';
 import { listAddresses } from '@/lib/address-service';
-import { GOVERNORATES, governorateLabel } from '@/lib/governorates';
+import { governorateLabel } from '@/lib/governorates';
+import { citiesByGovernorate } from '@/lib/city-service';
+import { GovernorateCityFields } from '@/components/storefront/governorate-city-fields';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { saveAddressAction, deleteAddressAction, setDefaultAddressAction } from '@/server/address-actions';
 
@@ -20,6 +22,10 @@ export default async function AddressesPage({ params, searchParams }: { params: 
 
   const addresses = await listAddresses(cid);
   const t = await getTranslations('storefront.account.addresses');
+  // Same district list the checkout uses, so an address saved here and one typed
+  // at checkout can never disagree about what a valid city is.
+  const tc = await getTranslations('storefront.checkout');
+  const cities = await citiesByGovernorate();
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
@@ -66,13 +72,19 @@ export default async function AddressesPage({ params, searchParams }: { params: 
         <h2 className="mb-3 text-lg font-bold text-green-dark">{t('addNew')}</h2>
         <input type="hidden" name="locale" value={locale} />
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block text-sm font-semibold text-ink">{t('governorate')}
-            <select name="governorate" required defaultValue="" className={field}>
-              <option value="" disabled>—</option>
-              {GOVERNORATES.map((g) => <option key={g.en} value={g.en}>{locale === 'ar' ? g.ar : g.en}</option>)}
-            </select>
-          </label>
-          <label className="block text-sm font-semibold text-ink">{t('city')}<input name="city" required className={field} /></label>
+          <GovernorateCityFields
+            cities={cities}
+            locale={locale}
+            className={field}
+            labels={{
+              governorate: t('governorate'),
+              selectGovernorate: '—',
+              city: t('city'),
+              selectCity: tc('selectCity'),
+              cityOther: tc('cityOther'),
+              selectGovernorateFirst: tc('selectGovernorateFirst'),
+            }}
+          />
           <label className="block text-sm font-semibold text-ink">{t('phone')}<PhoneInput name="phone" inputClassName={field} /></label>
           <label className="block text-sm font-semibold text-ink sm:col-span-2">{t('street')}<input name="street" className={field} /></label>
           <label className="block text-sm font-semibold text-ink sm:col-span-2">{t('building')}<input name="building" className={field} /></label>

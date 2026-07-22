@@ -1187,6 +1187,38 @@ model ShippingZone {
   createdAt   DateTime        @default(now())
 }
 
+/// Delivery districts, nested under a governorate — what the checkout "City"
+/// dropdown offers (owner 2026-07-23).
+///
+/// City was free text, and 7,398 saved addresses produced 1,070 distinct
+/// spellings of it: `cairo`, `القاهرة`, `القاهره`, `—`, `.`. Worse, the values
+/// people actually typed were DISTRICTS — مدينة نصر, التجمع الخامس, الشيخ زايد —
+/// not administrative cities, so an official markaz list would have offered a
+/// Cairo customer exactly one option and thrown away the part couriers price by.
+/// Hence districts, seeded from the Egypt Post-derived public dataset and
+/// editable by staff (AGENTS.md #2: never hard-code business data).
+///
+/// `governorate` holds the canonical ENGLISH name and matches
+/// `GOVERNORATES[].en` and `Address.governorate` — the same string the address
+/// stores, so no lookup table stands between an address and its label.
+model City {
+  id          String   @id @default(cuid())
+  /// Stable portable key, `<governorate-slug>:<name-slug>` — survives a rename
+  /// and lets the config transfer carry cities between stores.
+  code        String   @unique
+  governorate String
+  nameEn      String
+  nameAr      String
+  /// Hidden from the storefront without deleting it — an area that stops being
+  /// deliverable must not orphan the addresses already pointing at it.
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([governorate, active])
+}
+
 model ShippingArea {
   id                 String       @id @default(cuid())
   zoneId             String

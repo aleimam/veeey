@@ -148,6 +148,9 @@ export const CONFIG_TABLES: ConfigTable[] = [
   { model: 'shippingZone', key: ['id'], label: 'Shipping zones' },
   { model: 'shippingArea', key: ['id'], label: 'Shipping sub-areas (governorates)' },
   { model: 'shippingTypeConfig', key: ['type'], drop: ['id'], label: 'Shipping types' },
+  // Seeded from a file, but staff edit them (renames, local compounds, areas
+  // switched off), and those edits are configuration a cutover must not lose.
+  { model: 'city', key: ['code'], drop: ['id'], label: 'Cities & delivery districts' },
   { model: 'returnReason', key: ['id'], label: 'Return reasons' },
   { model: 'spillageReason', key: ['code'], drop: ['id'], label: 'Spillage / damage reasons' },
   // Unique is composite (key, channel, locale); Prisma's update() wants a single

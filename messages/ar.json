@@ -580,7 +580,10 @@
       "noVat": "بدون ضريبة قيمة مضافة. يمكنك الدفع نقدًا عند الاستلام.",
       "savedAddress": "استخدام عنوان محفوظ",
       "newAddress": "إدخال عنوان جديد",
-      "selectGovernorate": "اختر المحافظة"
+      "selectGovernorate": "اختر المحافظة",
+      "selectGovernorateFirst": "اختر المحافظة أولًا",
+      "selectCity": "اختر المدينة / المنطقة",
+      "cityOther": "أخرى — اكتبها"
     },
     "cart": {
       "emptyTitle": "سلتك فارغة",

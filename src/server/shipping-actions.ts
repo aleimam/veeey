@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
+import { saveCity, deleteCity } from '@/lib/city-service';
 import {
   updateShippingType,
   saveZone,
@@ -114,4 +115,32 @@ export async function deleteAreaAction(fd: FormData): Promise<void> {
   if (id) { try { await deleteArea(id); } catch (e) { console.error('area delete failed', e); } }
   revalidatePath(`/${locale}/admin/shipping/zones/${zoneId}`);
   redirect(`/${locale}/admin/shipping/zones/${zoneId}`);
+}
+
+/* ---- Delivery districts (owner 2026-07-23) ------------------------------- */
+
+export async function saveCityAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  try {
+    await saveCity(str(fd, 'id') ?? null, {
+      governorate: str(fd, 'governorate') ?? '',
+      nameEn: str(fd, 'nameEn') ?? '',
+      nameAr: str(fd, 'nameAr') ?? '',
+      active: fd.get('active') != null,
+      sortOrder: str(fd, 'sortOrder') ?? '0',
+    });
+  } catch (e) {
+    // CITY_EXISTS is the one an admin can act on — the rest are bugs.
+    const err = e instanceof Error && e.message === 'CITY_EXISTS' ? 'exists' : 'invalid';
+    revalidatePath(`/${locale}/admin/shipping/cities`);
+    redirect(`/${locale}/admin/shipping/cities?error=${err}&gov=${encodeURIComponent(str(fd, 'governorate') ?? '')}`);
+  }
+  back(locale, `shipping/cities?gov=${encodeURIComponent(str(fd, 'governorate') ?? '')}&saved=1`);
+}
+
+export async function deleteCityAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const id = str(fd, 'id');
+  if (id) await deleteCity(id);
+  back(locale, `shipping/cities?gov=${encodeURIComponent(str(fd, 'governorate') ?? '')}`);
 }
