@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { audit } from '@/lib/audit';
 import { getSetting } from '@/lib/settings-service';
 import { getKashierConfig, getOpayConfig } from '@/lib/provider-config';
-import { kashierAmount, kashierOrderHash, opaySignature } from '@/lib/payment-crypto';
+import { kashierAmount, opaySignature } from '@/lib/payment-crypto';
 
 /**
  * Online card payment orchestration (FR-PAY-02/03). The storefront card method
@@ -55,26 +55,88 @@ export async function buildCardRedirect(order: CardOrder, prefer?: CardGateway |
 }
 
 // ---- Kashier ---------------------------------------------------------------
+
+/** Where Kashier posts the server-to-server payment notification. */
+export const kashierWebhookUrl = () => `${SITE_URL}/api/payments/webhook/kashier`;
+
+/**
+ * Kashier **Payment Sessions v3**: POST the order server-side, redirect the
+ * customer to the returned `sessionUrl`.
+ *
+ * Replaces the old `iframe.kashier.io/?merchantId=…&hash=…` redirect for two
+ * reasons. The decisive one: that flow has **no way to pass `serverWebhook`**,
+ * so Kashier had no address to notify — the customer paid, saw the confirmation
+ * page, and the order never left PENDING. Silent, and only visible by
+ * reconciling takings against orders. The second: it put the merchant id, amount
+ * and hash in a URL the customer can read and edit.
+ *
+ * Auth uses BOTH credentials, which is the same split that made the connection
+ * check fail: `Authorization` is the SECRET key, `api-key` is the API key.
+ *
+ * Returns null on any failure so the caller falls back to a pending order rather
+ * than sending a customer to a broken page.
+ */
 async function buildKashierRedirect(order: CardOrder): Promise<string | null> {
   const cfg = await getKashierConfig();
   if (!cfg) return null;
   const live = cfg.environment === 'live';
-  const amount = kashierAmount(order.totalPiastres);
-  const hash = kashierOrderHash({ mid: cfg.merchantId, orderId: order.number, amount, currency: 'EGP', apiKey: cfg.apiKey });
-  const host = live ? 'iframe.kashier.io' : 'test-iframe.kashier.io';
-  const q = new URLSearchParams({
+  const base = live ? 'https://api.kashier.io' : 'https://test-api.kashier.io';
+
+  // v3 validates STRICTLY: an undocumented field is a 400, not an ignored extra.
+  // Verified field-by-field against the test endpoint — the parameter table is
+  // wrong in three places. It calls this `orderId` ("orderId is not allowed"),
+  // lists `mode` as required ("mode is not allowed" — the environment is chosen
+  // by the HOST, test-api vs api), and marks `customer` optional though the API
+  // rejects a request without it.
+  const body = {
+    order: order.number,
     merchantId: cfg.merchantId,
-    orderId: order.number,
-    amount,
+    amount: kashierAmount(order.totalPiastres),
     currency: 'EGP',
-    hash,
-    mode: live ? 'live' : 'test',
-    merchantRedirect: returnUrl(order),
+    type: 'one-time',
+    paymentType: 'credit',
     allowedMethods: 'card',
     display: order.locale === 'ar' ? 'ar' : 'en',
-    redirectMethod: 'get',
-  });
-  return `https://${host}/?${q.toString()}`;
+    merchantRedirect: returnUrl(order),
+    serverWebhook: kashierWebhookUrl(),
+    // A session that never expires is a payment link that stays live forever.
+    expireAt: new Date(Date.now() + 30 * 60_000).toISOString(),
+    maxFailureAttempts: 3,
+    description: `Veeey order ${order.number}`.slice(0, 119),
+    // ALWAYS sent. Kashier's parameter table marks `customer` optional; the v3
+    // API rejects the request without it ("customer is required"), verified
+    // against the test endpoint. `reference` is what links our order to their
+    // payment record, so it matters even for a guest with no email.
+    customer: { reference: order.number, ...(order.email ? { email: order.email } : {}) },
+  };
+
+  try {
+    const res = await fetch(`${base}/v3/payment/sessions`, {
+      method: 'POST',
+      headers: {
+        Authorization: cfg.secretKey,
+        'api-key': cfg.apiKey,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      redirect: 'manual', // a redirect here would hand back HTML as "the session"
+      signal: AbortSignal.timeout(15_000),
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      await audit({ actorType: 'SYSTEM', action: 'payment.session.fail', entityType: 'Order', entityId: order.number, data: { provider: 'kashier', status: res.status, detail: text.slice(0, 300) } });
+      return null;
+    }
+    const json = JSON.parse(text) as { sessionUrl?: string };
+    if (!json.sessionUrl) {
+      await audit({ actorType: 'SYSTEM', action: 'payment.session.fail', entityType: 'Order', entityId: order.number, data: { provider: 'kashier', detail: 'no sessionUrl in response' } });
+      return null;
+    }
+    return json.sessionUrl;
+  } catch (e) {
+    await audit({ actorType: 'SYSTEM', action: 'payment.session.fail', entityType: 'Order', entityId: order.number, data: { provider: 'kashier', detail: e instanceof Error ? e.message.slice(0, 200) : 'error' } });
+    return null;
+  }
 }
 
 // ---- OPay ------------------------------------------------------------------
