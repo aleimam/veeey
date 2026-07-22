@@ -1,7 +1,7 @@
 import 'dotenv/config'; // tsx doesn't auto-load .env — load it for the standalone run
 import { prisma } from '@/lib/prisma';
 import { createSourcePool, readCatalog } from '@/lib/net-sync/wp-source';
-import { importCatalog, archiveVanished } from '@/lib/net-sync/importer';
+import { importCatalog, archiveVanished, currentStockMaster } from '@/lib/net-sync/importer';
 
 /**
  * veeey.net catalog import / dry-run CLI (Phase 1).
@@ -21,6 +21,10 @@ async function main() {
   const limit = limArg >= 0 ? Number(args[limArg + 1]) : undefined;
 
   console.log(`\n=== veeey.net catalog sync — ${commit ? 'COMMIT (writing Postgres)' : 'DRY RUN (no writes)'} ===`);
+  const master = currentStockMaster();
+  console.log(master === 'net'
+    ? '  stock master: VEEEY.NET — catalog only; lot quantities are NOT touched by this sync'
+    : '  stock master: WP — lot quantities are overwritten from the source');
   const pool = await createSourcePool();
   try {
     console.log('Reading source catalog (egyptvitamins.net WP/ATUM/WPML)…');

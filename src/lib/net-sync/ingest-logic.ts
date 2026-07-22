@@ -36,6 +36,37 @@ export function directionForWpStatus(status: string | null | undefined): IngestD
   return null;
 }
 
+/**
+ * THE CUTOVER BOUNDARY.
+ *
+ * At the flip, veeey.net's lot quantities are whatever the WP-master sync last
+ * wrote — i.e. WP's stock *already net of every order it had processed*. Ingesting
+ * those same orders afterwards would subtract them a second time, and because the
+ * poller's window covers hours of history that isn't gradual drift: it would read
+ * as a catalog-wide stockout within one cron tick.
+ *
+ * Which timestamp gates which direction is not interchangeable:
+ *   SALE    → **created**. Woo reserves stock when the order is PLACED, so a sale
+ *             placed before the snapshot is in it, however late it's updated.
+ *   RESTORE → **updated**. The put-back happens at the status change, so a
+ *             pre-cutover order cancelled after the flip is a real, unbooked gain.
+ *
+ * A missing timestamp can't be placed either side of the line, so it does not
+ * apply — being wrong here is silent and permanent, and a skipped row is visible
+ * in the ledger.
+ */
+export function appliesAfterCutover(
+  direction: IngestDirection,
+  createdAt: Date | null | undefined,
+  updatedAt: Date | null | undefined,
+  cutover: Date | null,
+): boolean {
+  if (!cutover) return true; // no boundary configured — every movement counts
+  const at = direction === 'SALE' ? createdAt : updatedAt;
+  if (!(at instanceof Date) || Number.isNaN(at.getTime())) return false;
+  return at.getTime() > cutover.getTime();
+}
+
 export type WpLine = { wpId: number | null; qty: number };
 export type WpDelta = { wpId: number; qty: number };
 
@@ -55,6 +86,32 @@ export function linesToIngestDeltas(lines: WpLine[]): WpDelta[] {
   return [...by.entries()]
     .map(([wpId, qty]) => ({ wpId, qty }))
     .sort((a, b) => a.wpId - b.wpId); // deterministic → reconciliations are comparable
+}
+
+/**
+ * FEFO plan for an ev.net sale: take from the soonest expiry first, exactly as
+ * veeey.net's own checkout does, so a unit sold on either site consumes the same
+ * physical stock.
+ *
+ * A shortfall is REPORTED, not thrown. ev.net has already handed the goods over —
+ * refusing the movement would leave veeey.net holding stock that no longer exists
+ * and keep selling it. Taking what we can and surfacing the rest is the only
+ * honest option; the remainder is a real discrepancy for the physical count.
+ */
+export type FefoLot = { id: string; qtyOnHand: number };
+export type FefoTake = { lotId: string; qty: number };
+
+export function planFefoTake(lots: FefoLot[], qty: number): { takes: FefoTake[]; shortfall: number } {
+  let left = Math.max(0, Math.floor(qty));
+  const takes: FefoTake[] = [];
+  for (const l of lots) {
+    if (left <= 0) break;
+    const take = Math.min(left, Math.max(0, l.qtyOnHand));
+    if (take <= 0) continue;
+    takes.push({ lotId: l.id, qty: take });
+    left -= take;
+  }
+  return { takes, shortfall: left };
 }
 
 /**

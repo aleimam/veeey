@@ -31,6 +31,9 @@ export type RawOrder = {
   billingEmail: string | null;
   paymentMethod: string | null;
   createdAt: Date;
+  /// Last WP edit. The Stage-2 cutover judges a RESTORE on this and a SALE on
+  /// `createdAt` — see `appliesAfterCutover`. Null when WP never set it.
+  updatedAt: Date | null;
   items: { productWpId: number; qty: number; grossEgp: number }[];
 };
 
@@ -46,7 +49,8 @@ export async function readOrders(pool: Pool, opts: { updatedSince?: Date } = {})
   const since = opts.updatedSince;
   const [orders] = await pool.query<Row[]>(
     `SELECT o.id, o.status, o.total_amount AS total, o.customer_id AS cust, o.billing_email AS email,
-            o.payment_method AS pay, o.date_created_gmt AS created, COALESCE(st.shipping_total, 0) AS shipping
+            o.payment_method AS pay, o.date_created_gmt AS created, o.date_updated_gmt AS updated,
+            COALESCE(st.shipping_total, 0) AS shipping
      FROM ${T('wc_orders')} o
      LEFT JOIN ${T('wc_order_stats')} st ON st.order_id = o.id
      WHERE o.type = 'shop_order'${since ? ' AND COALESCE(o.date_updated_gmt, o.date_created_gmt) >= ?' : ''}`,
@@ -57,7 +61,8 @@ export async function readOrders(pool: Pool, opts: { updatedSince?: Date } = {})
     byId.set(Number(o.id), {
       wpId: Number(o.id), status: String(o.status ?? ''), totalEgp: Number(o.total ?? 0), shippingEgp: Number(o.shipping ?? 0),
       customerWpId: Number(o.cust ?? 0), billingEmail: o.email ? String(o.email) : null,
-      paymentMethod: o.pay ? String(o.pay) : null, createdAt: new Date(String(o.created)), items: [],
+      paymentMethod: o.pay ? String(o.pay) : null, createdAt: new Date(String(o.created)),
+      updatedAt: o.updated ? new Date(String(o.updated)) : null, items: [],
     });
   }
   const ids = [...byId.keys()];

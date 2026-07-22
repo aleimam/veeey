@@ -22,6 +22,14 @@ export const dynamic = 'force-dynamic';
 
 const secret = () => (process.env.NET_SYNC_WC_WEBHOOK_SECRET ?? '').trim();
 
+/** `2026-07-22T09:15:00` from a `*_gmt` field is UTC — pin the zone before parsing. */
+function wcDate(v: unknown): Date | null {
+  if (typeof v !== 'string' || !v.trim()) return null;
+  const s = v.trim();
+  const d = new Date(/[Zz]|[+-]\d{2}:?\d{2}$/.test(s) ? s : `${s}Z`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 export async function POST(req: Request): Promise<Response> {
   // Inert unless this deployment is actually ingesting — on veeey.com, which has
   // no WP peer, the endpoint simply doesn't exist.
@@ -47,7 +55,10 @@ export async function POST(req: Request): Promise<Response> {
   } catch {
     return new Response('invalid json', { status: 400 });
   }
-  const o = (body ?? {}) as { id?: unknown; number?: unknown; status?: unknown; line_items?: unknown };
+  const o = (body ?? {}) as {
+    id?: unknown; number?: unknown; status?: unknown; line_items?: unknown;
+    date_created_gmt?: unknown; date_modified_gmt?: unknown;
+  };
   const wpOrderId = Number(o.id);
   if (!Number.isInteger(wpOrderId) || wpOrderId <= 0) return new Response('no order id', { status: 400 });
 
@@ -60,6 +71,10 @@ export async function POST(req: Request): Promise<Response> {
     wpOrderId,
     orderNumber: typeof o.number === 'string' ? o.number : String(wpOrderId),
     status: typeof o.status === 'string' ? o.status : null,
+    // WC serialises these without a zone; they ARE UTC, so say so — parsed as
+    // local time they'd land hours off the cutover boundary.
+    createdAt: wcDate(o.date_created_gmt),
+    updatedAt: wcDate(o.date_modified_gmt),
     lines,
   });
 

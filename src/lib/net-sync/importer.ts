@@ -8,6 +8,10 @@
  *
  * This module is shared by the one-time import (Phase 1) and the 10-minute sync
  * (Phase 2) — same transform, same reconcile.
+ *
+ * ⚠️ The quantity half of that is conditional on `StockMaster`. After the Stage-2
+ * flip veeey.net owns quantities and this sync brings across catalog data ONLY —
+ * see `reconcileLots`.
  */
 import { prisma } from '@/lib/prisma';
 import { ProductStatus, LotStatus } from '@/generated/prisma/client';
@@ -104,8 +108,22 @@ async function uniqueProductSlug(base: string, wpId: number): Promise<string> {
 
 const lotKey = (expiry: Date | null) => (expiry ? expiry.toISOString().slice(0, 10) : 'NULL');
 
+/**
+ * WHO OWNS QUANTITIES.
+ *
+ * `'wp'` — the original arrangement: WP is the stock master and every sync writes
+ * its numbers over ours.
+ * `'net'` — after the Stage-2 flip: veeey.net owns quantities. The sync still
+ * brings across the catalog (names, prices, new expiries, new products), but it
+ * must not touch `qtyOnHand` on a lot we already have, and must not zero a lot WP
+ * has stopped reporting. Otherwise every 10-minute tick would overwrite the very
+ * ledger the ingest is maintaining — the two would fight and WP would always win,
+ * simply by running last.
+ */
+export type StockMaster = 'wp' | 'net';
+
 /** Reconcile a product's lots against the plan (match by expiry date). */
-async function reconcileLots(productId: string, locationId: string, planned: PlannedProduct['lots'], dryRun: boolean, s: ImportSummary) {
+async function reconcileLots(productId: string, locationId: string, planned: PlannedProduct['lots'], dryRun: boolean, s: ImportSummary, master: StockMaster) {
   const existing = productId.startsWith('DRY_') ? [] : await prisma.lot.findMany({ where: { productId }, select: { id: true, expiryDate: true, qtyOnHand: true } });
   const byKey = new Map<string, { id: string }[]>();
   for (const l of existing) {
@@ -121,22 +139,31 @@ async function reconcileLots(productId: string, locationId: string, planned: Pla
     if (match) {
       touched.add(match.id);
       s.lotsUpdated++;
-      if (!dryRun) await prisma.lot.update({ where: { id: match.id }, data: { qtyOnHand: lot.qtyOnHand, priceOverridePiastres: lot.priceOverridePiastres, status: lot.status as LotStatus } });
+      // Price and expiry status still follow WP; the QUANTITY does not, once we
+      // are the master — that number is ours to move.
+      const qty = master === 'wp' ? { qtyOnHand: lot.qtyOnHand } : {};
+      if (!dryRun) await prisma.lot.update({ where: { id: match.id }, data: { ...qty, priceOverridePiastres: lot.priceOverridePiastres, status: lot.status as LotStatus } });
     } else {
+      // A lot we've never seen is seeded from WP even under 'net': it's the only
+      // side that knows this expiry exists yet, and we hold none of it to protect.
       s.lotsCreated++;
       if (!dryRun) await prisma.lot.create({ data: { productId, locationId, expiryDate: lot.expiryDate, qtyOnHand: lot.qtyOnHand, priceOverridePiastres: lot.priceOverridePiastres, status: lot.status as LotStatus } });
     }
   }
-  // Lots that vanished from source → zero them out (WP is the stock master).
-  for (const l of existing) {
-    if (!touched.has(l.id) && l.qtyOnHand !== 0) {
-      s.lotsZeroed++;
-      if (!dryRun) await prisma.lot.update({ where: { id: l.id }, data: { qtyOnHand: 0 } });
+  // Lots that vanished from source → zero them out, but ONLY while WP is the
+  // master. Under 'net' a lot missing from WP means WP has sold out of it, which
+  // says nothing about the stock we hold and still sell.
+  if (master === 'wp') {
+    for (const l of existing) {
+      if (!touched.has(l.id) && l.qtyOnHand !== 0) {
+        s.lotsZeroed++;
+        if (!dryRun) await prisma.lot.update({ where: { id: l.id }, data: { qtyOnHand: 0 } });
+      }
     }
   }
 }
 
-async function importOne(p: PlannedProduct, locationId: string, tax: TaxonomyCache, dryRun: boolean, s: ImportSummary) {
+async function importOne(p: PlannedProduct, locationId: string, tax: TaxonomyCache, dryRun: boolean, s: ImportSummary, master: StockMaster) {
   const brandId = await tax.brandId(p.brandName);
   const categoryIds = await tax.categoryIds(p.categories);
   if (p.flags.noPrice) s.noPrice++;
@@ -178,7 +205,7 @@ async function importOne(p: PlannedProduct, locationId: string, tax: TaxonomyCac
       productId = created.id;
     }
   }
-  await reconcileLots(productId, locationId, p.lots, dryRun, s);
+  await reconcileLots(productId, locationId, p.lots, dryRun, s, master);
 }
 
 export type ArchiveResult = { candidates: number; archived: number; skippedForSafety: boolean };
@@ -190,7 +217,8 @@ export type ArchiveResult = { candidates: number; archived: number; skippedForSa
  * products (e.g. a failed/partial source read), we refuse to archive, so a
  * transient error can never wipe the catalog. Only call on a FULL scan.
  */
-export async function archiveVanished(seenWpIds: number[], opts: { dryRun: boolean; minSeenRatio?: number } = { dryRun: true }): Promise<ArchiveResult> {
+export async function archiveVanished(seenWpIds: number[], opts: { dryRun: boolean; minSeenRatio?: number; stockMaster?: StockMaster } = { dryRun: true }): Promise<ArchiveResult> {
+  const master = opts.stockMaster ?? currentStockMaster();
   const seen = new Set(seenWpIds);
   const existing = await prisma.product.findMany({
     where: { legacyWpId: { not: null }, status: { not: ProductStatus.ARCHIVED } },
@@ -204,16 +232,29 @@ export async function archiveVanished(seenWpIds: number[], opts: { dryRun: boole
   if (!opts.dryRun) {
     for (const p of gone) {
       await prisma.product.update({ where: { id: p.id }, data: { status: ProductStatus.ARCHIVED } });
-      await prisma.lot.updateMany({ where: { productId: p.id, qtyOnHand: { not: 0 } }, data: { qtyOnHand: 0 } });
+      // Archiving hides it either way. Zeroing the lots is WP-master behaviour
+      // only: once we're the master those units are ours, still on a shelf, and
+      // still owed an explanation at the physical count.
+      if (master === 'wp') await prisma.lot.updateMany({ where: { productId: p.id, qtyOnHand: { not: 0 } }, data: { qtyOnHand: 0 } });
     }
   }
   return { candidates: gone.length, archived: gone.length, skippedForSafety: false };
 }
 
+/**
+ * Who owns quantities right now. The Stage-2 ingest going live IS the handover:
+ * the moment veeey.net starts booking ev.net's sales onto its own lots, it is the
+ * master, and one flag has to switch both halves or they'd contradict each other.
+ */
+export function currentStockMaster(): StockMaster {
+  return (process.env.WP_INGEST_MODE ?? '').trim().toLowerCase() === 'apply' ? 'net' : 'wp';
+}
+
 /** Import (or dry-run) the full catalog. */
-export async function importCatalog(raws: RawProduct[], opts: { dryRun: boolean; now?: Date; onProgress?: (n: number, total: number) => void } = { dryRun: true }): Promise<ImportSummary> {
+export async function importCatalog(raws: RawProduct[], opts: { dryRun: boolean; now?: Date; stockMaster?: StockMaster; onProgress?: (n: number, total: number) => void } = { dryRun: true }): Promise<ImportSummary> {
   const s = emptySummary();
   const now = opts.now ?? new Date();
+  const master = opts.stockMaster ?? currentStockMaster();
   const locationId = await ensureLocation(opts.dryRun);
   const tax = new TaxonomyCache(opts.dryRun, s);
 
@@ -221,7 +262,7 @@ export async function importCatalog(raws: RawProduct[], opts: { dryRun: boolean;
   for (const raw of raws) {
     s.productsSeen++;
     try {
-      await importOne(planProduct(raw, now), locationId, tax, opts.dryRun, s);
+      await importOne(planProduct(raw, now), locationId, tax, opts.dryRun, s, master);
     } catch (e) {
       s.errors.push({ wpId: raw.wpId, detail: e instanceof Error ? e.message : String(e) });
     }

@@ -66,23 +66,35 @@ async function main() {
     const since = new Date(Date.now() - hours * 3_600_000);
     const orders = await readOrders(pool, { updatedSince: since });
     let recorded = 0;
-    let moved = 0;
+    let withEffect = 0;
+    let units = 0;
+    let shortfall = 0;
+    let duplicates = 0;
     const skips = new Map<string, number>();
     for (const o of orders) {
       const r = await ingestWpOrder({
         wpOrderId: o.wpId,
         orderNumber: String(o.wpId),
         status: o.status,
+        createdAt: o.createdAt,
+        updatedAt: o.updatedAt,
         lines: o.items.map((i) => ({ wpId: i.productWpId, qty: i.qty })),
       });
       recorded += r.recorded;
-      if (r.direction) moved += 1;
+      units += r.moved;
+      shortfall += r.shortfall;
+      duplicates += r.duplicates;
+      if (r.direction) withEffect += 1;
       if (r.skipped) skips.set(r.skipped, (skips.get(r.skipped) ?? 0) + 1);
     }
     console.log(`  WP orders in window:  ${orders.length}`);
-    console.log(`  with a stock effect:  ${moved}`);
-    console.log(`  movements recorded:   ${recorded}  (duplicates are skipped silently — the webhook usually got there first)`);
+    console.log(`  with a stock effect:  ${withEffect}`);
+    console.log(`  movements recorded:   ${recorded}  (already seen: ${duplicates})`);
     if (skips.size) console.log('  skipped: ' + [...skips].map(([k, v]) => `${k}=${v}`).join(', '));
+    if (mode === 'apply') {
+      console.log(`  units moved on lots:  ${units}`);
+      if (shortfall) console.log(`  ⚠️ shortfall:         ${shortfall} unit(s) ev.net sold that we could not take off a lot — for the physical count`);
+    }
     console.log(mode === 'shadow' ? '\n  SHADOW — nothing applied to stock.\n' : '\n  APPLY — movements are live.\n');
   } finally {
     await pool.end();

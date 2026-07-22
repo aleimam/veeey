@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
-import { directionForWpStatus, linesToIngestDeltas, netUnits, type WpLine } from '@/lib/net-sync/ingest-logic';
+import { appliesAfterCutover, directionForWpStatus, linesToIngestDeltas, netUnits, type WpLine } from '@/lib/net-sync/ingest-logic';
+import { applyIngestMovement } from '@/lib/net-sync/ingest-apply';
 
 /**
  * Stage 2 (the inversion) — ingesting **egyptvitamins.net**'s own sales so
@@ -24,31 +25,62 @@ export function ingestMode(): IngestMode {
   return m === 'apply' ? 'apply' : m === 'shadow' ? 'shadow' : 'off';
 }
 
+/**
+ * The flip's cutover instant (env `WP_INGEST_SINCE`, ISO-8601).
+ *
+ * Set it to the moment veeey.net stopped taking its stock from WP. Orders on the
+ * snapshot's side of the line are recorded PRE_CUTOVER and never applied — their
+ * effect is already inside the quantities we imported. See `appliesAfterCutover`
+ * for why SALE and RESTORE are judged on different timestamps.
+ */
+export function ingestCutover(): Date | null {
+  const raw = (process.env.WP_INGEST_SINCE ?? '').trim();
+  if (!raw) return null;
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 export type WpOrderInput = {
   wpOrderId: number;
   orderNumber?: string | null;
   status: string | null;
+  createdAt?: Date | null;
+  updatedAt?: Date | null;
   lines: WpLine[];
 };
 
-export type IngestResult = { recorded: number; direction: 'SALE' | 'RESTORE' | null; skipped?: string };
+export type IngestResult = {
+  recorded: number;
+  direction: 'SALE' | 'RESTORE' | null;
+  moved: number;
+  shortfall: number;
+  duplicates: number;
+  skipped?: string;
+};
 
 /**
- * Record the stock movement an ev.net order implies. Idempotent on
- * (wpOrderId, wpId, direction), because the webhook and the polling safety net
- * will both see the same sale and neither may double-count it.
+ * Record — and in `apply` mode actually make — the stock movement an ev.net order
+ * implies.
+ *
+ * Idempotent on (wpOrderId, wpId, direction): the webhook and the polling safety
+ * net both see the same sale, an order visited twice in one window is normal, and
+ * neither may double-count. The row IS the idempotency token, so it is written in
+ * the same transaction as the movement — a token without its movement would
+ * suppress the retry forever, and a movement without its token would be applied
+ * again on the next tick.
  */
 export async function ingestWpOrder(o: WpOrderInput): Promise<IngestResult> {
+  const empty = { recorded: 0, moved: 0, shortfall: 0, duplicates: 0 };
   const mode = ingestMode();
-  if (mode === 'off') return { recorded: 0, direction: null, skipped: 'mode_off' };
+  if (mode === 'off') return { ...empty, direction: null, skipped: 'mode_off' };
 
   const direction = directionForWpStatus(o.status);
   // No commitment yet (pending / draft) — nothing to record. Recording a zero
   // would pollute the reconciliation with movements that never happened.
-  if (!direction) return { recorded: 0, direction: null, skipped: 'no_movement' };
+  if (!direction) return { ...empty, direction: null, skipped: 'no_movement' };
 
   const deltas = linesToIngestDeltas(o.lines);
-  if (!deltas.length) return { recorded: 0, direction, skipped: 'no_lines' };
+  if (!deltas.length) return { ...empty, direction, skipped: 'no_lines' };
 
   // Resolve to Veeey products where we can. An unmatched wpId is still RECORDED
   // (productId null) — it's a real movement of real goods, and dropping it would
@@ -60,21 +92,43 @@ export async function ingestWpOrder(o: WpOrderInput): Promise<IngestResult> {
   });
   const byWp = new Map(products.map((p) => [p.legacyWpId!, p.id]));
 
-  const r = await prisma.wpStockIngest.createMany({
-    data: deltas.map((d) => ({
-      wpOrderId: o.wpOrderId,
-      orderNumber: o.orderNumber ?? null,
-      wpId: d.wpId,
-      productId: byWp.get(d.wpId) ?? null,
-      qty: d.qty,
-      direction,
-      status: mode === 'apply' ? 'APPLIED' : 'SHADOW',
-      ...(mode === 'apply' ? { appliedAt: new Date() } : {}),
-    })),
-    skipDuplicates: true, // the webhook and the poller both see this order
-  });
+  const live = mode === 'apply' && appliesAfterCutover(direction, o.createdAt, o.updatedAt, ingestCutover());
+  const status = mode !== 'apply' ? 'SHADOW' : live ? 'APPLIED' : 'PRE_CUTOVER';
 
-  return { recorded: r.count, direction };
+  const res = { ...empty, direction } as IngestResult;
+  for (const d of deltas) {
+    const productId = byWp.get(d.wpId) ?? null;
+    const base = {
+      wpOrderId: o.wpOrderId, orderNumber: o.orderNumber ?? null, wpId: d.wpId,
+      productId, qty: d.qty, direction,
+    };
+    try {
+      await prisma.$transaction(async (tx) => {
+        // Reserve the token first: if the movement then fails, the whole
+        // transaction rolls back and the next poll retries cleanly.
+        const row = await tx.wpStockIngest.create({
+          data: { ...base, status: productId ? status : 'UNMATCHED' },
+          select: { id: true },
+        });
+        if (!live || !productId) return;
+        const r = await applyIngestMovement(tx, { productId, qty: d.qty, direction, wpOrderId: o.wpOrderId, wpId: d.wpId });
+        await tx.wpStockIngest.update({ where: { id: row.id }, data: { appliedAt: new Date(), shortfall: r.shortfall } });
+        res.moved += r.moved;
+        res.shortfall += r.shortfall;
+      });
+      res.recorded++;
+    } catch (e) {
+      if (isDuplicate(e)) { res.duplicates++; continue; } // already ingested — the point of the constraint
+      throw e;
+    }
+  }
+  if (!live && mode === 'apply') res.skipped = 'pre_cutover';
+  return res;
+}
+
+/** Prisma's unique-constraint violation — here it means "seen already", not an error. */
+function isDuplicate(e: unknown): boolean {
+  return typeof e === 'object' && e !== null && (e as { code?: string }).code === 'P2002';
 }
 
 /**
