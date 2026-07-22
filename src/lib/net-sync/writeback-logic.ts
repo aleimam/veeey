@@ -34,6 +34,22 @@ export function writebackAction(from: string, to: string): 'SALE' | 'RESTORE' | 
  *  (defense against a corrupted qty reaching the live WP store). */
 export const MAX_DELTA_PER_ROW = 100;
 
+/**
+ * Which way an outbox row moves WP's stock.
+ *
+ * Explicit rather than "SALE means down, anything else means up": these rows
+ * drive a live storefront's inventory, and a direction we don't recognise —
+ * a typo, a half-deployed rename — must not silently ADD stock. Unknown returns
+ * null so the drain can refuse it.
+ */
+export function writebackOp(direction: string): 'decrease' | 'increase' | null {
+  if (direction === 'SALE') return 'decrease';
+  // RESTORE = a cancelled/refunded order; STOCK_IN = goods received here that
+  // ev.net must also be able to sell.
+  if (direction === 'RESTORE' || direction === 'STOCK_IN') return 'increase';
+  return null;
+}
+
 /** Group order lines into per-WP-product positive deltas (skips non-WP products,
  *  merges duplicate lines, drops zero/negative qty, enforces the cap). */
 export function linesToDeltas(

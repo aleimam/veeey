@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { writebackAction, linesToDeltas, MAX_DELTA_PER_ROW } from './writeback-logic';
+import { writebackAction, linesToDeltas, writebackOp, MAX_DELTA_PER_ROW } from './writeback-logic';
 
 describe('writebackAction (confirm-triggered · restore on cancel)', () => {
   it('SALE on first entry into the committed set', () => {
@@ -41,5 +41,26 @@ describe('linesToDeltas', () => {
     expect(linesToDeltas([{ wpId: 111, qty: 0 }, { wpId: 222, qty: -2 }])).toEqual([]);
     expect(linesToDeltas([{ wpId: 111, qty: MAX_DELTA_PER_ROW + 1 }])).toEqual([]);
     expect(linesToDeltas([{ wpId: 111, qty: MAX_DELTA_PER_ROW }])).toEqual([{ wpId: 111, qty: MAX_DELTA_PER_ROW }]);
+  });
+});
+
+describe('writebackOp — which way a row moves ev.net stock', () => {
+  it('a sale here decreases stock there', () => {
+    expect(writebackOp('SALE')).toBe('decrease');
+  });
+
+  it('a cancel and a stock-in both increase it', () => {
+    expect(writebackOp('RESTORE')).toBe('increase');
+    // Goods received via an Incoming Shipment — ev.net must be able to sell
+    // them too, or the two storefronts disagree about what is on the shelf.
+    expect(writebackOp('STOCK_IN')).toBe('increase');
+  });
+
+  it('REFUSES an unrecognised direction instead of defaulting to increase', () => {
+    // These rows drive a live storefront's inventory. A typo or a half-deployed
+    // rename must not silently add stock.
+    expect(writebackOp('STOCKIN')).toBeNull();
+    expect(writebackOp('sale')).toBeNull();
+    expect(writebackOp('')).toBeNull();
   });
 });

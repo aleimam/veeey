@@ -21,7 +21,7 @@
  * renaming it would rewrite a live table for no behavioural gain.
  */
 import { prisma } from '@/lib/prisma';
-import { writebackAction, linesToDeltas, MAX_DELTA_PER_ROW } from './writeback-logic';
+import { writebackAction, linesToDeltas, writebackOp, MAX_DELTA_PER_ROW } from './writeback-logic';
 
 export const writebackMode = (): 'off' | 'dry' | 'on' => {
   const v = (process.env.NET_SYNC_WRITEBACK ?? '').toLowerCase();
@@ -109,7 +109,18 @@ export async function drainWriteback(apply: WritebackApplier, opts: { dryRun: bo
   });
   const s: DrainSummary = { pending: rows.length, applied: 0, failed: 0, dry: opts.dryRun };
   for (const r of rows) {
-    const op = r.direction === 'SALE' ? 'decrease' : 'increase';
+    const op = writebackOp(r.direction);
+    if (!op) {
+      // Refuse rather than guess — guessing here would move a live storefront's
+      // stock in a direction nobody asked for.
+      await prisma.netStockOutbox.update({
+        where: { id: r.id },
+        data: { status: 'FAILED', lastError: `unknown direction '${r.direction}'` },
+      });
+      s.failed++;
+      console.error(`  REFUSED wp#${r.wpId}: unknown direction '${r.direction}'`);
+      continue;
+    }
     if (opts.dryRun) {
       console.log(`  [dry] would ${op} wp#${r.wpId} by ${r.qty} (order ${r.orderNumber ?? r.orderId})`);
       continue;
