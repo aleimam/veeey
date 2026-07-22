@@ -7,6 +7,34 @@
 
 ## Current state
 
+- **🔄 Owner batch 2026-07-22B — 13 items from the owner's screenshots. Built, NOT yet deployed.**
+  Shipped to `master` in order: `06322e2` (**PDF invoice fixed** — pdfkit was being bundled with
+  `__dirname` rewritten to `/ROOT`, so its `Helvetica.afm` was unreachable; the fix is
+  `serverExternalPackages: [… 'pdfkit']` in `next.config.ts`, plus the route now returns a real 500
+  instead of a half-written stream — *if a server-side lib reads its own files at runtime, it must be
+  external*), plus that commit's quick wins: newest-first default sort everywhere, DD/MM dates and a
+  customer link in the orders list, View-store as an icon, pharmacist pre-selected on staff orders.
+  Then `333713b` (**product editor → 7 tabs**, owner-approved structure with Stock as its own tab;
+  one form, panels mounted-but-hidden so a save from any tab still submits every field, `?tab=`
+  deep-links, invalid-field badges on the tab that owns the error), `615d5e1`+`cec4f54` (**staff
+  avatars mirrored from YeldnIN** — the roster endpoint now ships a capped inline base64 image, Veeey
+  writes it to a content-hashed `/uploads/staff-<sha1>.<ext>` and skips when unchanged; **quick-add
+  "+" menu** in the admin topbar, permission-filtered), and `d1e9563` (**fake-signup detector** —
+  see below). Still open in this batch: the **login overhaul + country-code phone input** and the
+  **egyptvitamins.net restore**.
+
+- **✅ Fake-signup detector — `d1e9563` (not yet deployed).** The junk registrations the owner
+  spotted (CIS mailbox providers, throwaway TLDs, links smuggled into the name field, Cyrillic names)
+  are now three extra heuristics in `src/lib/customer-spam.ts` alongside the V5 F31 ones. The new
+  review screen `/admin/customers/spam` splits the result in two, and the split is the whole point:
+  - **Safe to delete** = a STRONG signal (throwaway inbox, junk-farm domain, link-in-name, Cyrillic
+    name) **and** never ordered **and** no verified email or phone. Nothing of value can be lost.
+  - **Flagged for review** = weak signals only (no name, long-unverified, signup burst). Quiet real
+    customers — especially WP imports — look identical, so these are never deleted automatically.
+  Deleting asks for the row count to be typed back; then `deleteSpamCustomers` **re-runs the
+  heuristics server-side** and refuses any id that no longer qualifies, so a stale tab or an account
+  that ordered in the meantime can only ever delete *less* than was ticked. Runs are audited.
+
 - **✅ Checkout backlog P0+P1+P2 — ALL SHIPPED 2026-07-22 (`92db6c1`→`3088495`, 72nd migration
   `checkout_payment_flow`, 790 tests, deployed veeey.net).** The owner's post-first-payment feedback
   (`CHECKOUT_BACKLOG.md` — statuses recorded there). The heart of it: **an online card order is only
