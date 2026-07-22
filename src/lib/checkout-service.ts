@@ -41,6 +41,9 @@ export const checkoutSchema = z.object({
   discreetPackaging: z.boolean().default(false),
   couponCode: z.string().trim().optional(),
   redeemPoints: z.coerce.number().int().nonnegative().default(0),
+  // P2-6: guest opted into account creation (set-password link is emailed).
+  createAccount: z.boolean().default(false),
+  locale: z.enum(['en', 'ar']).default('en'), // for the set-password link
 });
 export type CheckoutInput = z.input<typeof checkoutSchema>;
 
@@ -360,7 +363,45 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
     if (!online) await sendOrderPlacedNotifications(order.id);
   } catch { /* notifications never block checkout */ }
 
+  // P2-6: guest → account. Best-effort AFTER the order exists — account trouble
+  // must never lose a sale. The server sets NO password: a hashed single-use
+  // set-password link is emailed (password-token-service). An email that already
+  // has an account is NOT auto-linked (a guest typing someone else's email must
+  // not inject orders into their account) — the customer is told to sign in.
+  let account: 'created' | 'exists' | null = null;
+  if (!customerId && data.createAccount && data.guestEmail) {
+    try {
+      const email = data.guestEmail.trim().toLowerCase();
+      const existing = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+      if (existing) {
+        account = 'exists';
+      } else {
+        const { ensureCustomerProfile } = await import('@/lib/customer');
+        const user = await prisma.user.create({ data: { email, name: data.name, phone: data.phone } });
+        const profile = await ensureCustomerProfile(user.id);
+        // The order (and its address) they just placed belongs to the new account.
+        await prisma.order.update({ where: { id: order.id }, data: { customerId: profile.id } });
+        await prisma.address.create({ data: { customerId: profile.id, governorate: data.governorate, city: data.city, area: data.area, street: data.street, phone: data.phone, isDefaultShipping: true } });
+        const { issueSetPasswordToken } = await import('@/lib/password-token-service');
+        const token = await issueSetPasswordToken(user.id);
+        const { SITE_URL } = await import('@/lib/payment-gateways');
+        const link = `${SITE_URL}/${data.locale}/set-password?token=${token}`;
+        const { enqueue, QUEUES } = await import('@/lib/jobs');
+        const { notify } = await import('@/lib/notification-service');
+        // NotifyType has no ACCOUNT bucket; ORDER = transactional (never opt-out),
+        // which is exactly what a set-password link from checkout is.
+        const payload = { customerId: profile.id, toAddress: email, type: 'ORDER' as const, channel: 'EMAIL' as const, templateKey: 'account.setPassword', vars: { name: data.name, link }, refType: 'user', refId: user.id, locale: data.locale };
+        await enqueue(QUEUES.notify, payload, () => notify(payload));
+        await audit({ actorType: 'SYSTEM', action: 'customer.guest_account_created', entityType: 'Customer', entityId: profile.id, data: { orderNumber: number } });
+        account = 'created';
+      }
+    } catch (e) {
+      console.error('guest account creation failed', e);
+    }
+  }
+
   return {
+    account,
     number: order.number,
     riskLevel: risk.level,
     totalPiastres: total,

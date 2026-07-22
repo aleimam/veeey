@@ -27,6 +27,7 @@ export default async function ConfirmationPage({
   const number = Array.isArray(sp.order) ? sp.order[0] : sp.order;
   const cancelled = (Array.isArray(sp.cancelled) ? sp.cancelled[0] : sp.cancelled) === '1';
   const payfail = (Array.isArray(sp.payfail) ? sp.payfail[0] : sp.payfail) === '1';
+  const acct = Array.isArray(sp.acct) ? sp.acct[0] : sp.acct; // P2-6 guest→account outcome
   let order = number ? await getOrderByNumber(number) : null;
 
   // Order numbers are semi-predictable, so gate the page: the browser that
@@ -99,6 +100,17 @@ export default async function ConfirmationPage({
           </>
         )}
       </div>
+
+      {(acct === 'created' || acct === 'exists') && (
+        <div className="mt-6 rounded-[12px] bg-green-wash px-4 py-3 text-center text-sm text-green-dark">
+          {acct === 'created' ? t('acctCreated') : (
+            <>
+              {t('acctExists')}{' '}
+              <Link href="/login" className="font-semibold underline">{t('acctSignIn')}</Link>
+            </>
+          )}
+        </div>
+      )}
 
       {payBanner && (
         <div className={`mt-6 rounded-[12px] px-4 py-3 text-center text-sm ${toneCls[payBanner.tone]}`}>

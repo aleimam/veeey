@@ -126,14 +126,18 @@ export async function placeOrderAction(_p: CheckoutState, fd: FormData): Promise
     discreetPackaging: fd.get('discreetPackaging') != null,
     couponCode: str(fd, 'couponCode'),
     redeemPoints: Number(str(fd, 'redeemPoints') ?? '0') || 0,
+    createAccount: fd.get('createAccount') != null, // P2-6 guest opt-in
+    locale,
   };
 
   let number: string;
   let gatewayUrl: string | null = null;
   let online = false;
+  let acct: 'created' | 'exists' | null = null;
   try {
     const result = await placeOrder(cartId, input);
     number = result.number;
+    acct = result.account;
     // Online card method → hand off to the hosted gateway. The customer's choice
     // (CARD_OPAY / CARD_KASHIER) selects the gateway; if it isn't configured,
     // buildCardRedirect falls back to the admin default. The order opened in
@@ -174,7 +178,7 @@ export async function placeOrderAction(_p: CheckoutState, fd: FormData): Promise
   if (gatewayUrl) redirect(gatewayUrl);
   // Card order whose gateway session failed to start → the confirmation page
   // renders the "payment could not be started" state (P0-1), never a silent ✓.
-  redirect(`/${locale}/checkout/confirmation?order=${number}${online ? '&payfail=1' : ''}`);
+  redirect(`/${locale}/checkout/confirmation?order=${number}${online ? '&payfail=1' : ''}${acct ? `&acct=${acct}` : ''}`);
 }
 
 /**

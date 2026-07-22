@@ -474,6 +474,9 @@
       "errFieldRequired": "This field is required.",
       "errFieldEmail": "Please enter a valid email address.",
       "errFieldPhone": "Please enter a valid phone number.",
+      "createAccount": "Create an account for faster checkout",
+      "createAccountHint": "We'll save your details to a new account and email you a link to set a password.",
+      "haveDiscount": "Have a discount code?",
       "errVerify": "Please verify your phone or email below before placing the order.",
       "errBlocked": "This account cannot place orders. Please contact support.",
       "errStale": "Your points balance or coupon changed while you were checking out. No order was placed and nothing was charged — please refresh to see the updated total.",
@@ -562,6 +565,9 @@
       "payNow": "Pay now",
       "autoCancelNote": "Unpaid orders are cancelled automatically after {minutes} minutes and the items are released.",
       "cancelledUnpaid": "This order was cancelled because the payment was not completed. Nothing was charged.",
+      "acctCreated": "Your account has been created — check your email for a link to set your password.",
+      "acctExists": "This email already has a Veeey account.",
+      "acctSignIn": "Sign in to see your orders",
       "backToCart": "Back to cart"
     },
     "wishlist": {

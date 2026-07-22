@@ -61,6 +61,9 @@ export function CheckoutForm({
   const [addr, setAddr] = useState(firstSaved ? fromSaved(firstSaved) : { ...blankAddr, name: defaultName ?? '' });
   const [guestEmail, setGuestEmail] = useState('');
   const [verified, setVerified] = useState(alreadyVerified);
+  // P2-7: the coupon/points area hides behind a chevron — a visible empty coupon
+  // box invites hunting for a code (and abandoning the cart to go find one).
+  const [discountsOpen, setDiscountsOpen] = useState(false);
   // P1-3: inline field validation — a missing/invalid field shows a red message
   // under the field itself (aria-wired), instead of a silent native tooltip.
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -145,10 +148,20 @@ export function CheckoutForm({
           )}
           <div className="grid gap-4 sm:grid-cols-2">
             {!isLoggedIn && (
-              <label className="block text-sm font-semibold text-ink sm:col-span-2">{t('email')}
-                <input name="guestEmail" type="email" value={guestEmail} onChange={(e) => { setGuestEmail(e.target.value); setFieldErrors((f) => (f.guestEmail ? { ...f, guestEmail: '' } : f)); }} {...fieldProps('guestEmail')} />
-                {fieldError('guestEmail')}
-              </label>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-semibold text-ink">{t('email')}
+                  <input name="guestEmail" type="email" value={guestEmail} onChange={(e) => { setGuestEmail(e.target.value); setFieldErrors((f) => (f.guestEmail ? { ...f, guestEmail: '' } : f)); }} {...fieldProps('guestEmail')} />
+                  {fieldError('guestEmail')}
+                </label>
+                {/* P2-6: opt-in account creation — details saved, set-password link emailed. */}
+                <label className="mt-2 flex items-start gap-2 text-sm text-ink">
+                  <input type="checkbox" name="createAccount" className="mt-0.5 size-4 accent-[color:var(--green-dark)]" />
+                  <span>
+                    {t('createAccount')}
+                    <span className="block text-xs font-normal text-[color:var(--text-muted)]">{t('createAccountHint')}</span>
+                  </span>
+                </label>
+              </div>
             )}
             <label className="block text-sm font-semibold text-ink">{t('fullName')}
               <input name="name" value={addr.name} onChange={set('name')} {...fieldProps('name')} />
@@ -211,18 +224,31 @@ export function CheckoutForm({
         </section>
 
         <section>
-          <h2 className={heading}>{t('discounts')}</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block text-sm font-semibold text-ink">{t('couponCode')}
-              <input name="couponCode" placeholder={t('couponPlaceholder')} className={field} />
-            </label>
-            {isLoggedIn && pointsBalance > 0 && (
-              <label className="block text-sm font-semibold text-ink">{t('redeemPoints')} <span className="font-normal text-[color:var(--text-muted)]">{t('redeemPointsHint', { balance: pointsBalance, rate: pointsPerEgp })}</span>
-                <input name="redeemPoints" type="number" min="0" max={pointsBalance} step={pointsPerEgp} defaultValue="0" className={field} />
+          {/* P2-7: collapsed by default behind a chevron. The panel stays mounted
+              (hidden) so a typed code survives collapsing and still submits. */}
+          <button
+            type="button"
+            onClick={() => setDiscountsOpen((o) => !o)}
+            aria-expanded={discountsOpen}
+            aria-controls="discounts-panel"
+            className="flex w-full items-center justify-between text-start text-lg font-bold text-green-dark"
+          >
+            <span>{t('haveDiscount')}</span>
+            <span aria-hidden className={`text-sm transition-transform ${discountsOpen ? 'rotate-180' : ''}`}>▾</span>
+          </button>
+          <div id="discounts-panel" hidden={!discountsOpen} className="mt-3">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block text-sm font-semibold text-ink">{t('couponCode')}
+                <input name="couponCode" placeholder={t('couponPlaceholder')} className={field} />
               </label>
-            )}
+              {isLoggedIn && pointsBalance > 0 && (
+                <label className="block text-sm font-semibold text-ink">{t('redeemPoints')} <span className="font-normal text-[color:var(--text-muted)]">{t('redeemPointsHint', { balance: pointsBalance, rate: pointsPerEgp })}</span>
+                  <input name="redeemPoints" type="number" min="0" max={pointsBalance} step={pointsPerEgp} defaultValue="0" className={field} />
+                </label>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-[color:var(--text-muted)]">{t('discountsNote')}</p>
           </div>
-          <p className="mt-1 text-xs text-[color:var(--text-muted)]">{t('discountsNote')}</p>
         </section>
 
         <section>
