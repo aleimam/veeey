@@ -70,10 +70,17 @@
     means password recovery still reaches a mailbox that exists. Also stale but harmless:
     `litespeed.conf.cdn-ori` lists the `.com` origin, and Site Kit is bound to the `.com` Search
     Console property.
-  - 🔒 **Security note:** `mailserver_pass` holds the live store's POP3 password **in plain text**
-    (standard WordPress post-by-email storage) and it came across in the backup, so the live mailbox
-    credential now also sits in the test store's database. Worth rotating it, or clearing the
-    `mailserver_*` options if post-by-email is unused.
+  - 🔒 **`mailserver_*` cleared (owner asked, 2026-07-22).** WordPress stores the post-by-email POP3
+    password in **plain text**, and the restore carried the live store's credential into the test
+    database. Confirmed nothing used it first — no `wp-mail.php` cron entry, and the only plugin
+    references are Wordfence's file scanner and WPvivid's file list, not actual usage — then emptied
+    `mailserver_url` / `mailserver_login` / `mailserver_pass` (port left at the WP default 110).
+    Site + wp-login still 200.
+    ⚠️ **This does NOT un-leak the credential.** It is still inside every backup taken before the
+    change — `/root/evnet-db-safety-20260722-1320.sql.gz`, the three
+    `evnet-*-backup-20260722-emails.sql.gz` files, and the WPvivid archive in Google Drive. **If the
+    password is considered exposed, rotate it at the mail provider** — clearing the DB row only stops
+    it being read out of the live site.
 
 - **✅ Login overhaul + country-code phone input — `840dabd` (not yet deployed).** The OTP tab now
   accepts **an email address or a phone number** (it was phone-only) by reusing the existing
