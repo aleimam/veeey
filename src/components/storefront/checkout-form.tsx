@@ -56,6 +56,7 @@ export function CheckoutForm({
   const tPay = useTranslations('storefront.payments');
   const [state, action] = useActionState<CheckoutState, FormData>(placeOrderAction, {});
   const [shipping, setShipping] = useState(shippingOptions[0]?.type ?? 'FAST_FREE');
+  const [payment, setPayment] = useState(paymentMethods[0]?.key ?? '');
   // P1-5: a returning customer starts with their default (or latest) saved
   // address pre-filled — the details they typed last order are not re-typed.
   const firstSaved = savedAddresses[0];
@@ -122,6 +123,11 @@ export function CheckoutForm({
   // governorate after selecting it, the choice falls back to the first option.
   const visibleShipping = shippingOptions.filter((s) => s.type !== 'ULTRAFAST' || ultraFastGovernorates.includes(addr.governorate));
   const effectiveShipping = visibleShipping.some((s) => s.type === shipping) ? shipping : (visibleShipping[0]?.type ?? 'FAST_FREE');
+  // Same shape as shipping: POS-on-delivery only exists in some governorates, so
+  // a chosen method can vanish when the address changes — fall back to the first
+  // visible one rather than submitting a method the customer can no longer see.
+  const visiblePayment = paymentMethods.filter((m) => m.key !== 'POS_ON_DELIVERY' || posGovernorates.includes(addr.governorate));
+  const effectivePayment = visiblePayment.some((m) => m.key === payment) ? payment : (visiblePayment[0]?.key ?? '');
   const fee = visibleShipping.find((s) => s.type === effectiveShipping)?.feePiastres ?? 0;
   const total = subtotalPiastres + fee;
 
@@ -264,9 +270,28 @@ export function CheckoutForm({
 
         <section>
           <h2 className={heading}>{t('payment')}</h2>
-          <select name="paymentMethod" className={field}>
-            {paymentMethods.filter((m) => m.key !== 'POS_ON_DELIVERY' || posGovernorates.includes(addr.governorate)).map((m) => <option key={m.key} value={m.key}>{tPay.has(m.key) ? tPay(m.key) : m.label}</option>)}
-          </select>
+          {/* Radio cards, matching the delivery list above (owner 2026-07-22) —
+              a dropdown hid the choices behind a click; these are all visible. */}
+          <div className="space-y-2">
+            {visiblePayment.map((m) => (
+              <label
+                key={m.key}
+                className={`flex cursor-pointer items-center gap-2.5 rounded-[10px] border p-3.5 text-sm transition-colors ${
+                  effectivePayment === m.key ? 'border-[1.5px] border-green-dark bg-green-wash' : 'border-[color:var(--slate-border)]'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value={m.key}
+                  checked={effectivePayment === m.key}
+                  onChange={() => setPayment(m.key)}
+                  className="accent-[color:var(--green-dark)]"
+                />
+                <span className="text-ink">{tPay.has(m.key) ? tPay(m.key) : m.label}</span>
+              </label>
+            ))}
+          </div>
           <label className="mt-3 flex items-center gap-2 text-sm text-ink">
             <input type="checkbox" name="discreetPackaging" className="size-4 accent-[color:var(--green-dark)]" /> {t('discreet')}
           </label>
