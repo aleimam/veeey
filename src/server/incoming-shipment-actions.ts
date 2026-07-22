@@ -23,7 +23,7 @@ export async function approveShipmentAction(fd: FormData): Promise<void> {
   if (r.stocked.skippedUnmatched) q.set('unstocked', String(r.stocked.skippedUnmatched));
   if (r.stocked.staleFx) q.set('stale', String(r.stocked.staleFx));
   if (r.stocked.noRate) q.set('norate', String(r.stocked.noRate));
-  if (r.stocked.costConflicts) q.set('costclash', String(r.stocked.costConflicts));
+  if (r.stocked.costAveraged) q.set('costavg', String(r.stocked.costAveraged));
   redirect(`${PATH(locale, id)}?${q}`);
 }
 

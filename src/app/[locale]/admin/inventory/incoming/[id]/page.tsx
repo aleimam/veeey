@@ -44,7 +44,7 @@ export default async function IncomingShipmentDetail({
   const unstocked = Number(one(sp.unstocked) ?? 0);
   const staleFx = Number(one(sp.stale) ?? 0);
   const noRate = Number(one(sp.norate) ?? 0);
-  const costClash = Number(one(sp.costclash) ?? 0);
+  const costAvg = Number(one(sp.costavg) ?? 0);
   const caveats = [
     unstocked && tb(`${unstocked} lot(s) matched no product and were NOT added to stock — the goods are here but unbooked.`,
                     `${unstocked} تشغيلة لم تطابق أي منتج ولم تُضف للمخزون — البضاعة موجودة لكنها غير مقيّدة.`),
@@ -52,8 +52,8 @@ export default async function IncomingShipmentDetail({
                   `${staleFx} تكلفة استخدمت سعر صرف مخزّنًا — تعذّر الوصول لخدمة الأسعار.`),
     noRate && tb(`${noRate} line(s) were stocked without a cost — no exchange rate was available for their currency.`,
                  `${noRate} سطر أُضيف بدون تكلفة — لا يوجد سعر صرف متاح لعملته.`),
-    costClash && tb(`${costClash} line(s) merged into a lot that already had a different cost; the existing cost stands.`,
-                    `${costClash} سطر اندمج في تشغيلة لها تكلفة مختلفة؛ التكلفة الحالية هي المعتمدة.`),
+    costAvg && tb(`${costAvg} lot(s) were bought at a different price, so their unit cost is now the weighted average of old and new stock.`,
+                  `${costAvg} تشغيلة اشتُريت بسعر مختلف، لذا صارت تكلفة الوحدة هي المتوسط المرجّح للمخزون القديم والجديد.`),
   ].filter(Boolean) as string[];
 
   const card = 'rounded-xl border border-border bg-card p-5';
@@ -131,8 +131,8 @@ export default async function IncomingShipmentDetail({
             </table>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
-            {tb('Costs are the supplier figures as entered. Approval converts them to EGP at that day’s rate and pins it — a cost is a historical fact and never re-values later.',
-                'التكاليف كما أدخلها المورّد. عند الاعتماد تُحوَّل إلى الجنيه بسعر ذلك اليوم ويُثبَّت — فالتكلفة واقعة تاريخية لا يُعاد تقييمها لاحقًا.')}
+            {tb('Costs are the supplier figures as entered. Approval converts them to EGP at that day’s rate and pins it, so nothing re-values when the rate moves. Where units join a lot bought at a different price, the lot’s unit cost becomes the weighted average of the two.',
+                'التكاليف كما أدخلها المورّد. عند الاعتماد تُحوَّل إلى الجنيه بسعر ذلك اليوم ويُثبَّت، فلا يتغيّر التقييم مع تغيّر سعر الصرف. وعند انضمام وحدات إلى تشغيلة اشتُريت بسعر مختلف، تصبح تكلفة الوحدة هي المتوسط المرجّح للسعرين.')}
           </p>
         </section>
 

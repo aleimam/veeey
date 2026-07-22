@@ -8,6 +8,7 @@ import { signRequest } from '@/lib/integration/hmac-logic';
 import { parseShipmentReceived, parseShipmentReview, totalUnits, type WireShipmentReceived } from '@/lib/integration/shipment-wire';
 import { egpRatesFor, type FxResult } from '@/lib/fx';
 import { costToPiastres, normalizeCurrency } from '@/lib/fx-logic';
+import { weightedAverageCost } from '@/lib/lot-costing';
 import type { Tx } from '@/lib/order-service';
 
 /**
@@ -166,7 +167,7 @@ async function emitReview(yeldninUid: string, decision: 'APPROVED' | 'REJECTED',
   await recordOutbox('shipment.review', yeldninUid, { shipmentUid: yeldninUid, decision, reason, reviewedAt: at.toISOString() });
 }
 
-export const NOTHING_STOCKED: StockResult = { lotsStocked: 0, units: 0, skippedUnmatched: 0, staleFx: 0, noRate: 0, costConflicts: 0 };
+export const NOTHING_STOCKED: StockResult = { lotsStocked: 0, units: 0, skippedUnmatched: 0, staleFx: 0, noRate: 0, costAveraged: 0 };
 
 export type StockResult = {
   lotsStocked: number;
@@ -177,8 +178,8 @@ export type StockResult = {
   staleFx: number;
   /** Priced in a currency we have no rate for at all — stocked without a cost. */
   noRate: number;
-  /** Merged into a lot that already carries a different cost; the existing one stands. */
-  costConflicts: number;
+  /** Merged into a lot bought at a different price, so its unit cost was re-averaged. */
+  costAveraged: number;
 };
 
 /**
@@ -202,7 +203,7 @@ export async function stockShipmentLines(
   receivedAt: Date,
   shipmentUid: string,
 ): Promise<StockResult> {
-  const r: StockResult = { lotsStocked: 0, units: 0, skippedUnmatched: 0, staleFx: 0, noRate: 0, costConflicts: 0 };
+  const r: StockResult = { lotsStocked: 0, units: 0, skippedUnmatched: 0, staleFx: 0, noRate: 0, costAveraged: 0 };
 
   for (const line of lines) {
     if (line.lotId) continue; // already stocked — the guard, not an error
@@ -219,23 +220,21 @@ export async function stockShipmentLines(
     // NEW; damaged goods become a variant later, through spillage.
     const existing = await tx.lot.findFirst({
       where: { productId: line.productId, locationId, expiryDate: line.expiryDate, condition: 'NEW', status: 'LIVE' },
-      select: { id: true, costPiastres: true },
+      select: { id: true, costPiastres: true, qtyOnHand: true },
       orderBy: { createdAt: 'asc' },
     });
 
     let lotId: string;
     if (existing) {
       lotId = existing.id;
-      // Only fill a cost that is missing. Overwriting would silently re-value the
-      // units already on that lot, which were bought at a different price — and
-      // no costing method (FIFO / weighted average) has been chosen by the owner,
-      // so averaging here would be inventing a business rule. The conflict is
-      // reported instead.
-      const fillCost = existing.costPiastres == null && cost != null;
-      if (existing.costPiastres != null && cost != null && existing.costPiastres !== cost) r.costConflicts += 1;
+      // Owner decision 2026-07-22: WEIGHTED AVERAGE. A lot carries one cost per
+      // unit, so units bought at two prices have to resolve to one — averaging by
+      // quantity is what keeps the lot's total value equal to what was paid.
+      const blended = weightedAverageCost(existing.qtyOnHand, existing.costPiastres, line.quantity, cost);
+      if (blended != null && existing.costPiastres != null && blended !== existing.costPiastres) r.costAveraged += 1;
       await tx.lot.update({
         where: { id: lotId },
-        data: { qtyOnHand: { increment: line.quantity }, ...(fillCost ? { costPiastres: cost } : {}) },
+        data: { qtyOnHand: { increment: line.quantity }, ...(blended != null ? { costPiastres: blended } : {}) },
       });
     } else {
       const created = await tx.lot.create({
