@@ -49,6 +49,7 @@ export const SETTINGS: SettingDef[] = [
   { key: 'referral.codeLength', label: 'Referral code random length', group: 'Referrals', type: 'number', default: '8', hint: 'Number of random characters after the prefix (4–16).' },
   // Payments
   { key: 'payments.cardGateway', label: 'Card gateway', group: 'Payments', type: 'text', default: 'auto', hint: 'auto | kashier | opay — which gateway handles Visa/MasterCard (auto prefers Kashier). Configure keys in Providers.' },
+  { key: 'payments.awaitingAutoCancelMinutes', label: 'Unpaid card order auto-cancel (minutes)', group: 'Payments', type: 'number', default: '35', hint: 'A card order left unpaid this long is cancelled automatically and its stock restored. Keep it past the gateway session lifetime (Kashier sessions last 30 minutes).' },
   // Inventory reorder (Requests / To-buy)
   { key: 'inventory.featuredCollectionSlug', label: 'Featured collection (reorder)', group: 'Inventory', type: 'text', default: 'best-sellers', hint: 'Products in this collection use a 6-month sales window (instead of 3) for the To-buy "Short stock" list. Point it at Best Sellers or a manual Featured collection.' },
   // Post-delivery review requests

@@ -83,7 +83,10 @@ function orderWhere(opts: OrderListOpts): Prisma.OrderWhereInput {
             ? { isSpecialOrder: true } // special-order list (Requests epic B2)
             : opts.status
               ? { status: opts.status as OrderStatus }
-              : {}),
+              // Default list: hide AWAITING_PAYMENT (checkout backlog P0-3) —
+              // an unpaid gateway order isn't Sales work; the sweep will settle
+              // it either way. Staff see them via the explicit status filter.
+              : { status: { not: 'AWAITING_PAYMENT' } }),
     ...(opts.payment ? { paymentMethod: opts.payment as Prisma.OrderWhereInput['paymentMethod'] } : {}),
     // `lost` lines are excluded from revenue everywhere, so an order that only
     // contains a lost line of this product isn't one of "its" orders.
@@ -258,7 +261,7 @@ async function applyStatusEffects(order: { id: string; number: string; totalPias
   }
 }
 
-export async function transitionOrder(id: string, to: OrderStatus, reason?: string, opts?: { system?: boolean }) {
+export async function transitionOrder(id: string, to: OrderStatus, reason?: string, opts?: { system?: boolean; silent?: boolean }) {
   const cfg = await statusConfig(to);
   // Status Matrix (STAT): who may advance an order INTO this status is
   // admin-configured per target status, falling back to the baseline. Owner
@@ -297,7 +300,11 @@ export async function transitionOrder(id: string, to: OrderStatus, reason?: stri
     console.error('net-sync writeback enqueue failed', e);
   }
   await audit({ actorType: user ? 'USER' : 'SYSTEM', actorId: user?.id ?? null, action: `order.${to.toLowerCase()}`, entityType: 'Order', entityId: id, data: { reason } });
-  await runStatusNotify(id, cfg);
+  // `silent` suppresses the status's customer notification for THIS transition
+  // only (checkout backlog P0-3): the awaiting-payment sweep cancels orders whose
+  // customers were never told "placed" — texting them "cancelled" would be the
+  // first they hear of it. Every other effect above still ran.
+  if (!opts?.silent) await runStatusNotify(id, cfg);
   if (to === 'DELIVERED') {
     // #188: schedule a post-delivery review request (best-effort; never blocks the transition).
     try {

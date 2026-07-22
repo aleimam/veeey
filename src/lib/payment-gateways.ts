@@ -194,9 +194,17 @@ export async function opayQueryStatus(reference: string): Promise<string | null>
 }
 
 /** Idempotently flip an order's payment state from a verified gateway signal.
- *  Only transitions out of PENDING/FAILED so we never clobber refunds. */
+ *  Only transitions out of PENDING/FAILED so we never clobber refunds.
+ *
+ *  Checkout backlog P0: settlement is also what PLACES an online order — a paid
+ *  AWAITING_PAYMENT order is promoted to PENDING (the sweep stops chasing it)
+ *  and only then do the order-placed notifications fire, so nobody is told
+ *  "order placed" for money that never moved. A payment that lands AFTER the
+ *  sweep already cancelled (customer paid in the last seconds of an expiring
+ *  session) is not silently swallowed: the order is flagged payCheck=PROBLEM
+ *  for staff to refund or reinstate by hand. */
 export async function markOrderPaid(number: string, provider: string, paid: boolean): Promise<void> {
-  const order = await prisma.order.findUnique({ where: { number }, select: { id: true, paymentState: true } });
+  const order = await prisma.order.findUnique({ where: { number }, select: { id: true, paymentState: true, status: true } });
   if (!order) return;
   if (order.paymentState === 'PAID' && paid) return; // already settled — idempotent
   if (['REFUNDED', 'PARTIALLY_REFUNDED'].includes(order.paymentState)) return;
@@ -204,6 +212,30 @@ export async function markOrderPaid(number: string, provider: string, paid: bool
   if (order.paymentState === state) return;
   await prisma.order.update({ where: { id: order.id }, data: { paymentState: state } });
   await audit({ actorType: 'SYSTEM', action: 'payment.settle', entityType: 'Order', entityId: order.id, data: { provider, number, state } });
+  if (!paid) return;
+  if (order.status === 'AWAITING_PAYMENT') {
+    try {
+      // Dynamic imports keep this module's load graph lean for the webhook path
+      // (and mirror the codebase's cycle-avoidance pattern).
+      const { transitionOrder } = await import('@/lib/order-service');
+      await transitionOrder(order.id, 'PENDING', 'payment received', { system: true, silent: true });
+    } catch (e) {
+      // CAS lost against the sweep's cancel — fall through to the flag below.
+      console.error('paid-order promotion failed', number, e instanceof Error ? e.message : e);
+      const now = await prisma.order.findUnique({ where: { id: order.id }, select: { status: true } });
+      if (now?.status !== 'PENDING') {
+        await prisma.order.update({ where: { id: order.id }, data: { payCheck: 'PROBLEM' } });
+        await audit({ actorType: 'SYSTEM', action: 'payment.after_cancel', entityType: 'Order', entityId: order.id, data: { provider, number } });
+        return;
+      }
+    }
+    const { sendOrderPlacedNotifications } = await import('@/lib/order-placed-notify');
+    await sendOrderPlacedNotifications(order.id);
+  } else if (order.status === 'CANCELLED') {
+    // Paid after the sweep cancelled — money moved for a dead order.
+    await prisma.order.update({ where: { id: order.id }, data: { payCheck: 'PROBLEM' } });
+    await audit({ actorType: 'SYSTEM', action: 'payment.after_cancel', entityType: 'Order', entityId: order.id, data: { provider, number } });
+  }
 }
 
 export { getKashierConfig, getOpayConfig };

@@ -21,7 +21,10 @@ export type Bucket = { label: string; count: number };
  * ONE list, shared: `order-service` uses it for the `booked` filter so
  * /admin/orders can reproduce the Sales number exactly. Don't inline a copy.
  */
-export const NON_BOOKED_STATUSES = ['CANCELLED', 'CANCELED', 'REFUNDED', 'RETURNED', 'FAILED', 'VOID'];
+// AWAITING_PAYMENT (checkout backlog P0): an online order whose money never
+// moved is not booked revenue — it either becomes PENDING (webhook) or
+// CANCELLED (sweep) within the payment window.
+export const NON_BOOKED_STATUSES = ['CANCELLED', 'CANCELED', 'REFUNDED', 'RETURNED', 'FAILED', 'VOID', 'AWAITING_PAYMENT'];
 
 const daysInMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
 /** True when `d` is the final day of its month (leap-safe). */

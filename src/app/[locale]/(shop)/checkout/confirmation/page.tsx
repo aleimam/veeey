@@ -3,6 +3,8 @@ import { cookies } from 'next/headers';
 import { Link } from '@/i18n/navigation';
 import { getCurrentUser } from '@/lib/auth-guards';
 import { getOrderByNumber } from '@/lib/checkout-service';
+import { getNumberSetting } from '@/lib/settings-service';
+import { retryPaymentAction } from '@/server/cart-actions';
 import { customerLabel, isOnlineMethod } from '@/lib/payment-method-service';
 import { formatEGP } from '@/lib/format';
 import { conditionLabel, isConditionVariant } from '@/lib/lot-condition';
@@ -24,6 +26,7 @@ export default async function ConfirmationPage({
   const t = await getTranslations('storefront.confirmation');
   const number = Array.isArray(sp.order) ? sp.order[0] : sp.order;
   const cancelled = (Array.isArray(sp.cancelled) ? sp.cancelled[0] : sp.cancelled) === '1';
+  const payfail = (Array.isArray(sp.payfail) ? sp.payfail[0] : sp.payfail) === '1';
   let order = number ? await getOrderByNumber(number) : null;
 
   // Order numbers are semi-predictable, so gate the page: the browser that
@@ -46,14 +49,23 @@ export default async function ConfirmationPage({
   }
 
   const isCard = isOnlineMethod(order.paymentMethod);
-  // Online card flow: surface the gateway settlement state (webhook is the source
-  // of truth). Cancelled return → prompt a retry from the cart.
+  // Checkout backlog P0: an online order is only "placed" once paid. While it
+  // sits in AWAITING_PAYMENT this page is a payment screen, not a success
+  // screen — headline, banner and a Pay-now retry that opens a FRESH gateway
+  // session for the SAME order (the cart is already cleared). The sweep
+  // auto-cancels + restocks it after the configured window.
+  const awaiting = order.status === 'AWAITING_PAYMENT';
+  const autoCancelMinutes = awaiting ? (await getNumberSetting('payments.awaitingAutoCancelMinutes')) || 35 : 0;
   const payBanner = isCard
-    ? cancelled || order.paymentState === 'FAILED'
-      ? { tone: 'error' as const, msg: cancelled ? t('paymentCancelled') : t('paymentFailed'), retry: true }
+    ? awaiting
+      ? { tone: 'error' as const, msg: payfail ? t('paymentNotStarted') : cancelled ? t('paymentCancelled') : t('paymentAwaiting'), retry: true }
       : order.paymentState === 'PAID'
         ? { tone: 'ok' as const, msg: t('paymentPaid'), retry: false }
-        : { tone: 'pending' as const, msg: t('paymentPending'), retry: false }
+        : order.status === 'CANCELLED' // and not PAID (narrowed above)
+          ? { tone: 'error' as const, msg: t('cancelledUnpaid'), retry: false }
+          : order.paymentState === 'FAILED'
+            ? { tone: 'error' as const, msg: t('paymentFailed'), retry: false }
+            : { tone: 'pending' as const, msg: t('paymentPending'), retry: false }
     : null;
   const toneCls = { ok: 'bg-green-wash text-green-dark', pending: 'bg-gold-wash text-gold-deep', error: 'bg-error-wash text-error' };
 
@@ -73,16 +85,31 @@ export default async function ConfirmationPage({
     <div className="mx-auto max-w-2xl px-4 py-16">
       {purchaseProps && <TrackView name="purchase" props={purchaseProps} />}
       <div className="rounded-[16px] border border-[color:var(--green-dark-05)] bg-white p-8 text-center shadow-[var(--shadow-card)]">
-        <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-green-wash text-2xl text-green-dark">✓</div>
-        <h1 className="mt-4 text-3xl font-bold text-green-dark">{t('thankYou')}</h1>
-        <p className="mt-2 text-[color:var(--text-muted)]">{t('placed', { number: order.number })}</p>
+        {awaiting ? (
+          <>
+            <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-gold-wash text-2xl text-gold-deep">⏳</div>
+            <h1 className="mt-4 text-3xl font-bold text-green-dark">{t('awaitingTitle')}</h1>
+            <p className="mt-2 text-[color:var(--text-muted)]">{t('awaitingLead', { number: order.number })}</p>
+          </>
+        ) : (
+          <>
+            <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-green-wash text-2xl text-green-dark">✓</div>
+            <h1 className="mt-4 text-3xl font-bold text-green-dark">{t('thankYou')}</h1>
+            <p className="mt-2 text-[color:var(--text-muted)]">{t('placed', { number: order.number })}</p>
+          </>
+        )}
       </div>
 
       {payBanner && (
         <div className={`mt-6 rounded-[12px] px-4 py-3 text-center text-sm ${toneCls[payBanner.tone]}`}>
-          {payBanner.msg}
+          <p role={payBanner.tone === 'error' ? 'alert' : undefined}>{payBanner.msg}</p>
           {payBanner.retry && (
-            <Link href="/cart" className="mt-1 block font-semibold underline">{t('retryPayment')}</Link>
+            <form action={retryPaymentAction} className="mt-3">
+              <input type="hidden" name="locale" value={locale} />
+              <input type="hidden" name="number" value={order.number} />
+              <button type="submit" className="v-btn v-btn--primary">{t('payNow')}</button>
+              <p className="mt-2 text-xs text-[color:var(--text-muted)]">{t('autoCancelNote', { minutes: autoCancelMinutes })}</p>
+            </form>
           )}
         </div>
       )}

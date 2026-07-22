@@ -20,10 +20,9 @@ import { maxRedeemablePoints, pointsToPiastres } from '@/lib/loyalty';
 import { getNumberSetting, getSetting } from '@/lib/settings-service';
 import { normalizeDestination } from '@/lib/otp-service';
 import { VERIFY_COOKIE, verifyCookieMatches } from '@/lib/verify-cookie';
-import { enqueue, QUEUES } from '@/lib/jobs';
-import { notify, type NotifyInput } from '@/lib/notification-service';
-import { smsConfigured, whatsappConfigured, emailConfigured } from '@/lib/provider-config';
-import { deriveSystemMethod } from '@/lib/payment-method-service';
+import { smsConfigured, emailConfigured } from '@/lib/provider-config';
+import { deriveSystemMethod, isOnlineMethod } from '@/lib/payment-method-service';
+import { sendOrderPlacedNotifications } from '@/lib/order-placed-notify';
 
 /** Checkout → Order (FR-CHK-*, FR-ORD-01). Converts cart soft-holds into a real
  *  order: each reservation becomes an OrderItem bound to its lot (exact expiry
@@ -203,6 +202,13 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
     name: data.name, phone: data.phone, governorate: data.governorate,
     city: data.city, area: data.area, street: data.street,
   };
+  // Checkout backlog P0: an online card order is NOT "placed" until the money
+  // moves. It opens in AWAITING_PAYMENT — hidden from the default admin list,
+  // no notifications — and the payment webhook promotes it to PENDING (or the
+  // sweep cancels + restocks it when the gateway session lapses). Offline
+  // methods (COD / bank / POS) are genuinely placed right away, as before.
+  const online = isOnlineMethod(data.paymentMethod);
+  const openingStatus = online ? 'AWAITING_PAYMENT' : 'PENDING';
 
   const order = await prisma.$transaction(async (tx) => {
     let shippingAddressId: string | null = null;
@@ -215,7 +221,7 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
         number,
         customerId,
         guestEmail: data.guestEmail,
-        status: 'PENDING',
+        status: openingStatus,
         customerStatus: 'PENDING',
         paymentMethod: data.paymentMethod,
         systemPaymentMethod,
@@ -240,7 +246,7 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
 
     // First entry of the durable status timeline (null → the order's opening
     // status). Every later hop is appended in transitionOrder.
-    await tx.orderStatusHistory.create({ data: { orderId: ord.id, fromStatus: null, toStatus: ord.status, actorId: null, note: 'order placed' } });
+    await tx.orderStatusHistory.create({ data: { orderId: ord.id, fromStatus: null, toStatus: ord.status, actorId: null, note: online ? 'order placed — awaiting payment' : 'order placed' } });
 
     for (const r of reservations) {
       const unit = unitFor(r.lot.productId, r.lot.product.basePricePiastres, r.lot.priceOverridePiastres);
@@ -335,27 +341,15 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
   } catch { /* cookie best-effort */ }
   await audit({ actorType: customerId ? 'CUSTOMER' : 'SYSTEM', actorId: customerId, action: 'order.placed', entityType: 'Order', entityId: order.id, data: { number, risk } });
 
-  // Order-confirmation email (FR-NOT-01) — best effort, off the critical path.
+  // Order-placed notifications (FR-NOT-01) — best effort, off the critical path.
+  // ONLINE methods defer to the payment webhook (checkout backlog P0-2): the
+  // customer is told "order placed" only once the money actually moved.
   let toEmail: string | null = null;
   try {
     toEmail = customerId
       ? (await prisma.customer.findUnique({ where: { id: customerId }, include: { user: { select: { email: true } } } }))?.user.email ?? null
       : data.guestEmail ?? null;
-    const vars = { name: data.name, number, total: Number(total) / 100 };
-    if (toEmail) {
-      const payload: NotifyInput = { customerId, toAddress: toEmail, type: 'ORDER', channel: 'EMAIL', templateKey: 'order.placed', vars, refType: 'order', refId: order.id };
-      await enqueue(QUEUES.notify, payload, () => notify(payload));
-    }
-    // Order-placed SMS — only when SMS is configured and the customer gave a phone.
-    if (data.phone && (await smsConfigured())) {
-      const sms: NotifyInput = { customerId, toAddress: data.phone, type: 'ORDER', channel: 'SMS', templateKey: 'order.placed', vars, refType: 'order', refId: order.id };
-      await enqueue(QUEUES.notify, sms, () => notify(sms));
-    }
-    // Order-placed WhatsApp — only when the WhatsApp provider is configured.
-    if (data.phone && (await whatsappConfigured())) {
-      const wa: NotifyInput = { customerId, toAddress: data.phone, type: 'ORDER', channel: 'WHATSAPP', templateKey: 'order.placed', vars, refType: 'order', refId: order.id };
-      await enqueue(QUEUES.notify, wa, () => notify(wa));
-    }
+    if (!online) await sendOrderPlacedNotifications(order.id);
   } catch { /* notifications never block checkout */ }
 
   return {

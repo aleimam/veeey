@@ -550,8 +550,15 @@
       "paymentPaid": "Payment received — thank you!",
       "paymentPending": "We are confirming your payment. This page will update once it is settled.",
       "paymentFailed": "Payment was not completed.",
-      "paymentCancelled": "Payment was cancelled.",
+      "paymentCancelled": "Payment was cancelled — your order is reserved but not yet paid.",
       "retryPayment": "Try payment again",
+      "awaitingTitle": "Payment required",
+      "awaitingLead": "Order {number} is reserved but not yet paid.",
+      "paymentNotStarted": "The payment could not be started. Nothing was charged — please try again.",
+      "paymentAwaiting": "We have not received your payment yet. If you just paid, this page will update shortly.",
+      "payNow": "Pay now",
+      "autoCancelNote": "Unpaid orders are cancelled automatically after {minutes} minutes and the items are released.",
+      "cancelledUnpaid": "This order was cancelled because the payment was not completed. Nothing was charged.",
       "backToCart": "Back to cart"
     },
     "wishlist": {

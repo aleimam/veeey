@@ -130,14 +130,19 @@ export async function placeOrderAction(_p: CheckoutState, fd: FormData): Promise
 
   let number: string;
   let gatewayUrl: string | null = null;
+  let online = false;
   try {
     const result = await placeOrder(cartId, input);
     number = result.number;
     // Online card method → hand off to the hosted gateway. The customer's choice
     // (CARD_OPAY / CARD_KASHIER) selects the gateway; if it isn't configured,
-    // buildCardRedirect falls back to the admin default, else returns null and we
-    // fall through to the local confirmation (order stays pending payment).
+    // buildCardRedirect falls back to the admin default. The order opened in
+    // AWAITING_PAYMENT (checkout backlog P0) — if the session can't even be
+    // created, the customer lands on the payment-required screen, NOT a
+    // success page: the order is held with a retry button and the sweep will
+    // cancel + restock it if they walk away.
     if (isOnlineMethod(result.paymentMethod)) {
+      online = true;
       const g = gatewayFor(result.paymentMethod);
       gatewayUrl = await buildCardRedirect(
         {
@@ -167,5 +172,50 @@ export async function placeOrderAction(_p: CheckoutState, fd: FormData): Promise
     return { error: 'invalid' };
   }
   if (gatewayUrl) redirect(gatewayUrl);
-  redirect(`/${locale}/checkout/confirmation?order=${number}`);
+  // Card order whose gateway session failed to start → the confirmation page
+  // renders the "payment could not be started" state (P0-1), never a silent ✓.
+  redirect(`/${locale}/checkout/confirmation?order=${number}${online ? '&payfail=1' : ''}`);
+}
+
+/**
+ * Retry payment for an AWAITING_PAYMENT order (checkout backlog P0): builds a
+ * FRESH gateway session for the same order — the cart is long cleared, so
+ * "try again" must not require rebuilding it. Gated exactly like the
+ * confirmation page: the placing browser (vy_orders cookie) or the logged-in
+ * owner. Amount = deposit for pre-orders, else the full total (same as placement).
+ */
+export async function retryPaymentAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const number = str(fd, 'number');
+  if (!number) redirect(`/${locale}/cart`);
+  const { cookies } = await import('next/headers');
+  const { prisma } = await import('@/lib/prisma');
+  const mine = ((await cookies()).get('vy_orders')?.value ?? '').split(',');
+  const order = await prisma.order.findUnique({
+    where: { number },
+    select: { number: true, status: true, customerId: true, paymentMethod: true, isPreorder: true, depositPaidPiastres: true, totalPiastres: true, guestEmail: true, shippingAddressJson: true, customer: { select: { user: { select: { email: true } } } } },
+  });
+  let allowed = !!order && mine.includes(order.number);
+  if (order && !allowed) {
+    const user = await getCurrentUser();
+    allowed = !!user?.customerId && user.customerId === order.customerId;
+  }
+  if (!order || !allowed || order.status !== 'AWAITING_PAYMENT' || !isOnlineMethod(order.paymentMethod)) {
+    redirect(`/${locale}/checkout/confirmation?order=${encodeURIComponent(number!)}`);
+  }
+  const addr = (order.shippingAddressJson ?? {}) as { name?: string; phone?: string };
+  const g = gatewayFor(order.paymentMethod);
+  const url = await buildCardRedirect(
+    {
+      number: order.number,
+      totalPiastres: order.isPreorder && order.depositPaidPiastres != null ? order.depositPaidPiastres : order.totalPiastres,
+      locale,
+      name: addr.name,
+      email: order.customer?.user.email ?? order.guestEmail,
+      phone: addr.phone,
+    },
+    g === 'KASHIER' ? 'kashier' : g === 'OPAY' ? 'opay' : null,
+  );
+  if (url) redirect(url);
+  redirect(`/${locale}/checkout/confirmation?order=${encodeURIComponent(order.number)}&payfail=1`);
 }

@@ -16,11 +16,12 @@ import {
 const M = DEFAULT_STATUS_MAP;
 
 describe('order status engine (defaults)', () => {
-  it('exposes the fixed system codes (9 incl. RETURNED)', () => {
-    expect(ORDER_STATUSES).toHaveLength(9);
+  it('exposes the fixed system codes (10 incl. RETURNED + AWAITING_PAYMENT)', () => {
+    expect(ORDER_STATUSES).toHaveLength(10);
     expect([...ORDER_STATUSES]).toContain('PENDING');
     expect([...ORDER_STATUSES]).toContain('DELIVERED');
     expect([...ORDER_STATUSES]).toContain('RETURNED');
+    expect([...ORDER_STATUSES]).toContain('AWAITING_PAYMENT');
   });
 
   it('guards transitions per config allowedNext', () => {
@@ -51,6 +52,41 @@ describe('order status engine (defaults)', () => {
   it('flags the revenue-realizing status', () => {
     expect(isRevenueStatus(M, 'DELIVERED')).toBe(true);
     expect(isRevenueStatus(M, 'SHIPPED')).toBe(false);
+  });
+});
+
+describe('AWAITING_PAYMENT (checkout backlog P0 — placed ≠ paid)', () => {
+  it('reaches only PENDING (webhook paid) and CANCELLED (sweep/abandon)', () => {
+    expect(canTransitionWith(M, 'AWAITING_PAYMENT', 'PENDING')).toBe(true);
+    expect(canTransitionWith(M, 'AWAITING_PAYMENT', 'CANCELLED')).toBe(true);
+    expect(canTransitionWith(M, 'AWAITING_PAYMENT', 'CONFIRMED')).toBe(false); // must pay first
+    expect(canTransitionWith(M, 'AWAITING_PAYMENT', 'SHIPPED')).toBe(false);
+  });
+
+  it('nothing transitions INTO it — it is an opening state only', () => {
+    for (const from of ORDER_STATUSES) {
+      if (from === 'AWAITING_PAYMENT') continue;
+      expect(canTransitionWith(M, from, 'AWAITING_PAYMENT')).toBe(false);
+    }
+  });
+
+  it('sweep-cancelling an awaiting order restocks (it was never shipped)', () => {
+    const cancelled = M.get('CANCELLED')!;
+    expect(stockEffectApplies(cancelled.stockEffect, 'AWAITING_PAYMENT')).toBe(true);
+  });
+
+  it('is inert itself: no stock/payment/revenue/loyalty effects, no notifications', () => {
+    const cfg = M.get('AWAITING_PAYMENT')!;
+    expect(cfg.stockEffect).toBe('none');
+    expect(cfg.paymentEffect).toBe('none');
+    expect(cfg.revenueEffect).toBe('none');
+    expect(cfg.loyaltyEffect).toBe('none');
+    expect(cfg.notifyAudience).toBe('none');
+    expect(cfg.isDefault).toBe(false); // COD orders still open in PENDING
+  });
+
+  it('the customer just sees "Pending" — the nuance lives on the confirmation page', () => {
+    expect(customerStatusOf(M, 'AWAITING_PAYMENT')).toBe('PENDING');
   });
 });
 

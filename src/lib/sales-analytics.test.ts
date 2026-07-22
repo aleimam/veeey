@@ -118,7 +118,9 @@ describe('NON_BOOKED_STATUSES (V6 audit S4)', () => {
     const excludedSystem = ORDER_STATUSES.filter((s) => NON_BOOKED_STATUSES.includes(s));
     // RETURNED joined the system statuses in Phase 1 — a returned order is not a
     // sale, so it must be excluded from bookings alongside cancelled/refunded.
-    expect(excludedSystem).toEqual(['CANCELLED', 'REFUNDED', 'RETURNED']);
+    // AWAITING_PAYMENT joined with the checkout backlog P0: an online order
+    // whose money never moved is not booked revenue either.
+    expect(excludedSystem).toEqual(['AWAITING_PAYMENT', 'CANCELLED', 'REFUNDED', 'RETURNED']);
 
     for (const s of ['PENDING', 'EDIT', 'HOLD', 'CONFIRMED', 'SHIPPED', 'DELIVERED']) {
       expect(NON_BOOKED_STATUSES).not.toContain(s);

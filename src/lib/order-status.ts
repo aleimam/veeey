@@ -13,7 +13,7 @@
  * in `order-status-service.ts`.
  */
 
-export const ORDER_STATUSES = ['PENDING', 'EDIT', 'HOLD', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED', 'RETURNED'] as const;
+export const ORDER_STATUSES = ['AWAITING_PAYMENT', 'PENDING', 'EDIT', 'HOLD', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED', 'RETURNED'] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
 export const CUSTOMER_STATUSES = ['PENDING', 'HOLD', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED', 'RETURNED'] as const;
@@ -79,6 +79,19 @@ export const DEFAULT_ADVANCE_PERMISSION = 'orders.write';
 
 /** Seeded defaults (owner-signed-off). All fields editable in admin afterwards. */
 export const DEFAULT_STATUS_CONFIG: StatusConfig[] = [
+  {
+    // Checkout backlog P0: an online-payment order between placement and the
+    // gateway webhook. No notifications, hidden from the default admin list and
+    // excluded from sales analytics; PAID moves it to PENDING, the sweep cancels
+    // (and restocks — it's never "shipped") an abandoned one. The customer sees
+    // plain "Pending" — the awaiting nuance lives on the confirmation page.
+    code: 'AWAITING_PAYMENT', labelEn: 'Awaiting payment', labelAr: 'بانتظار الدفع', customerCode: 'PENDING', icon: 'credit-card',
+    stockEffect: 'none', paymentEffect: 'none', revenueEffect: 'none', loyaltyEffect: 'none', notifyAudience: 'none', notifyTemplateKey: null,
+    advancePermission: null, fastAction: false,
+    allowedNext: ['PENDING', 'CANCELLED'],
+    sourceAliases: ['awaiting-payment', 'awaiting_payment'],
+    sortOrder: 0, active: true, isDefault: false,
+  },
   {
     code: 'PENDING', labelEn: 'Pending', labelAr: 'قيد الانتظار', customerCode: 'PENDING', icon: 'clock',
     stockEffect: 'none', paymentEffect: 'none', revenueEffect: 'none', loyaltyEffect: 'none', notifyAudience: 'none', notifyTemplateKey: null,

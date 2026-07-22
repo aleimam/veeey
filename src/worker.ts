@@ -43,6 +43,7 @@ async function main() {
   await boss.createQueue(QUEUES.optionalRefill);
   await boss.createQueue(QUEUES.integrationDispatch);
   await boss.createQueue(QUEUES.backupSweep);
+  await boss.createQueue(QUEUES.awaitingPaymentSweep);
 
   await boss.work(QUEUES.notify, async ([job]) => {
     await notify(job.data as NotifyInput);
@@ -190,6 +191,14 @@ async function main() {
     console.log(`[worker] optional refill: ${r.created} created, ${r.reset} reset, ${r.refreshed} refreshed`);
   });
 
+  // Checkout backlog P0-3: cancel (and restock) card orders whose gateway
+  // session lapsed unpaid. Silent — those customers were never told "placed".
+  await boss.work(QUEUES.awaitingPaymentSweep, async () => {
+    const { sweepAwaitingPayment } = await import('@/lib/awaiting-payment-sweep');
+    const r = await sweepAwaitingPayment();
+    if (r.cancelled > 0) console.log(`[worker] awaiting-payment sweep: ${r.cancelled} cancelled + restocked`);
+  });
+
   // Drain the YeldnIN outbox (Requests epic D) — signs + POSTs due request events.
   // Returns {skipped:true} (no-op) while INTEGRATION_ENABLED is off.
   await boss.work(QUEUES.integrationDispatch, async () => {
@@ -255,6 +264,9 @@ async function main() {
   // its own cadence (BACKUP.md) and the app decides which are due. No-op until
   // backups are enabled and configured.
   await boss.schedule(QUEUES.backupSweep, '*/10 * * * *', {});
+  // Awaiting-payment reaper — every 5 min; the Setting-driven window (default
+  // 35 min) is what actually decides staleness, this only bounds the latency.
+  await boss.schedule(QUEUES.awaitingPaymentSweep, '*/5 * * * *', {});
   console.log('[worker] started — notify + alerts + woo-sync + audit queues registered, schedules set.');
 }
 
