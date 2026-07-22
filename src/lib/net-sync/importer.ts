@@ -144,10 +144,14 @@ async function reconcileLots(productId: string, locationId: string, planned: Pla
       const qty = master === 'wp' ? { qtyOnHand: lot.qtyOnHand } : {};
       if (!dryRun) await prisma.lot.update({ where: { id: match.id }, data: { ...qty, priceOverridePiastres: lot.priceOverridePiastres, status: lot.status as LotStatus } });
     } else {
-      // A lot we've never seen is seeded from WP even under 'net': it's the only
-      // side that knows this expiry exists yet, and we hold none of it to protect.
+      // A lot we've never seen still gets created under 'net' — WP is the only
+      // side that knows this expiry exists — but with ZERO quantity. Once we are
+      // the master, stock arrives by an Incoming Shipment or a stocktake, never
+      // by a WP edit; seeding the quantity here is the one remaining path by
+      // which WP could inject units nobody counted.
       s.lotsCreated++;
-      if (!dryRun) await prisma.lot.create({ data: { productId, locationId, expiryDate: lot.expiryDate, qtyOnHand: lot.qtyOnHand, priceOverridePiastres: lot.priceOverridePiastres, status: lot.status as LotStatus } });
+      const qty = master === 'wp' ? lot.qtyOnHand : 0;
+      if (!dryRun) await prisma.lot.create({ data: { productId, locationId, expiryDate: lot.expiryDate, qtyOnHand: qty, priceOverridePiastres: lot.priceOverridePiastres, status: lot.status as LotStatus } });
     }
   }
   // Lots that vanished from source → zero them out, but ONLY while WP is the

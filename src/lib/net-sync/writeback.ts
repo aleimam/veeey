@@ -15,9 +15,13 @@
  * idempotent; the drain stamps APPLIED per row. Cancelling an order whose SALE
  * rows are still PENDING just SKIPs them (WP was never touched → nothing to
  * restore); only APPLIED sales get RESTORE rows.
+ *
+ * ⚠️ `orderId` is really a SOURCE REFERENCE, not always an order: a STOCK_IN row
+ * carries the `IncomingShipmentLot` id instead. The column keeps its name because
+ * renaming it would rewrite a live table for no behavioural gain.
  */
 import { prisma } from '@/lib/prisma';
-import { writebackAction, linesToDeltas } from './writeback-logic';
+import { writebackAction, linesToDeltas, MAX_DELTA_PER_ROW } from './writeback-logic';
 
 export const writebackMode = (): 'off' | 'dry' | 'on' => {
   const v = (process.env.NET_SYNC_WRITEBACK ?? '').toLowerCase();
@@ -63,6 +67,31 @@ export async function enqueueWriteback(orderId: string, from: string, to: string
       skipDuplicates: true,
     });
   }
+}
+
+/**
+ * Stock ARRIVING — push it down to ev.net so it can sell the new goods too.
+ *
+ * Without this the writeback is decrement-only, and the inversion breaks the
+ * owner's requirement that both storefronts show real stock: veeey.net books a
+ * shipment and starts selling, while ev.net still shows whatever it had before
+ * (zero, for anything that had sold out) and cannot sell any of it.
+ *
+ * `orderId` carries the IncomingShipmentLot id — one row per stocked line, so the
+ * unique key gives exactly-once for free. Direction `STOCK_IN` drains as an
+ * increase like RESTORE does, but reads as what it is in the log.
+ */
+export async function enqueueStockInWriteback(
+  shipmentUid: string,
+  lines: { lineId: string; wpId: number; qty: number }[],
+): Promise<number> {
+  if (writebackMode() === 'off' || !lines.length) return 0;
+  const rows = lines
+    .filter((l) => Number.isInteger(l.wpId) && l.qty > 0 && l.qty <= MAX_DELTA_PER_ROW)
+    .map((l) => ({ orderId: l.lineId, orderNumber: shipmentUid, wpId: l.wpId, qty: l.qty, direction: 'STOCK_IN' }));
+  if (!rows.length) return 0;
+  const r = await prisma.netStockOutbox.createMany({ data: rows, skipDuplicates: true });
+  return r.count;
 }
 
 export type WritebackApplier = (wpId: number, qty: number, op: 'decrease' | 'increase') => Promise<number>;

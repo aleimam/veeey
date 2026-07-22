@@ -167,7 +167,7 @@ async function emitReview(yeldninUid: string, decision: 'APPROVED' | 'REJECTED',
   await recordOutbox('shipment.review', yeldninUid, { shipmentUid: yeldninUid, decision, reason, reviewedAt: at.toISOString() });
 }
 
-export const NOTHING_STOCKED: StockResult = { lotsStocked: 0, units: 0, skippedUnmatched: 0, staleFx: 0, noRate: 0, costAveraged: 0 };
+export const NOTHING_STOCKED: StockResult = { lotsStocked: 0, units: 0, skippedUnmatched: 0, staleFx: 0, noRate: 0, costAveraged: 0, stockedLines: [] };
 
 export type StockResult = {
   lotsStocked: number;
@@ -180,6 +180,13 @@ export type StockResult = {
   noRate: number;
   /** Merged into a lot bought at a different price, so its unit cost was re-averaged. */
   costAveraged: number;
+  /**
+   * What actually landed, per line, for products ev.net also sells. The writeback
+   * pushes these down so ev.net can sell the new goods too — without it veeey.net
+   * would book a shipment and start selling while ev.net still showed the old
+   * (often zero) figure.
+   */
+  stockedLines: { lineId: string; wpId: number; qty: number }[];
 };
 
 /**
@@ -197,13 +204,13 @@ export type StockResult = {
  */
 export async function stockShipmentLines(
   tx: Tx,
-  lines: { id: string; productId: string | null; quantity: number; expiryDate: Date | null; lotCode: string | null; unitCost: number | null; currency: string | null; lotId: string | null }[],
+  lines: { id: string; productId: string | null; quantity: number; expiryDate: Date | null; lotCode: string | null; unitCost: number | null; currency: string | null; lotId: string | null; product?: { legacyWpId: number | null } | null }[],
   locationId: string,
   rates: Map<string, FxResult>,
   receivedAt: Date,
   shipmentUid: string,
 ): Promise<StockResult> {
-  const r: StockResult = { lotsStocked: 0, units: 0, skippedUnmatched: 0, staleFx: 0, noRate: 0, costAveraged: 0 };
+  const r: StockResult = { lotsStocked: 0, units: 0, skippedUnmatched: 0, staleFx: 0, noRate: 0, costAveraged: 0, stockedLines: [] };
 
   for (const line of lines) {
     if (line.lotId) continue; // already stocked — the guard, not an error
@@ -261,6 +268,9 @@ export async function stockShipmentLines(
     });
     r.lotsStocked += 1;
     r.units += line.quantity;
+    if (line.product?.legacyWpId != null) {
+      r.stockedLines.push({ lineId: line.id, wpId: line.product.legacyWpId, qty: line.quantity });
+    }
   }
   return r;
 }
@@ -290,7 +300,7 @@ async function decideShipment(
     where: { id },
     select: {
       yeldninUid: true, status: true, locationId: true, receivedAt: true,
-      lots: { select: { id: true, productId: true, quantity: true, expiryDate: true, lotCode: true, unitCost: true, currency: true, lotId: true } },
+      lots: { select: { id: true, productId: true, quantity: true, expiryDate: true, lotCode: true, unitCost: true, currency: true, lotId: true, product: { select: { legacyWpId: true } } } },
     },
   });
   if (!s) return { ok: false as const, error: 'not_found' };
@@ -334,6 +344,15 @@ async function decideShipment(
     return stockShipmentLines(tx, s.lots, location.id, rates, s.receivedAt, s.yeldninUid);
   });
   if (!stocked) return { ok: false as const, error: 'not_pending' };
+
+  // AFTER the commit, never inside it: ev.net has to learn about the new goods or
+  // it will keep showing the pre-shipment figure and be unable to sell any of it.
+  // Best-effort — the stock is already booked here, and a queue failure must not
+  // undo an approval Sales has made.
+  try {
+    const { enqueueStockInWriteback } = await import('@/lib/net-sync/writeback');
+    await enqueueStockInWriteback(s.yeldninUid, stocked.stockedLines);
+  } catch { /* the 2-min drain reports its own failures; approval stands */ }
 
   await audit({ actorType, actorId: reviewedById, action: 'incoming_shipment.approve', entityType: 'IncomingShipment', entityId: id, data: stocked });
   if (opts.emit) await emitReview(s.yeldninUid, 'APPROVED', null, at);
