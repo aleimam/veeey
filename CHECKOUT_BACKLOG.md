@@ -1,7 +1,6 @@
 # Checkout backlog — owner feedback 2026-07-22 (after the first successful Kashier payment)
 
 ✅ **BOTH GATEWAYS PROVEN by real transactions.** Kashier v3 (Payment Sessions migration + secret-key auth + `serverWebhook`) and OPay (Egypt host `api.opaycheckout.com`) each completed a real paid order.
-Sessions v3 migration, the secret-key auth fix, and `serverWebhook`.
 
 Items below are in the order I'd do them: correctness first, then UX.
 
@@ -80,11 +79,10 @@ empty coupon box invites hunting for a code and abandoning the cart.
 ## Still open from the same session
 - **Kashier test-environment keys** — the stored keys are LIVE; with Environment on Test the API
   returns `API Key Not Found`. Live works (proven by the successful order).
-- **OPay is completely unproven** — no checkout call has ever reached it. Both test orders routed to
-  Kashier. Verified so far: Egypt host (`api`/`sandboxapi.opaycheckout.com`), merchant id, public
-  key, webhook registered. Unverified: the private-key HMAC status query and `buildOpayRedirect`.
-  Sandbox needs separate OPay-issued credentials — live keys return `00003 merchant is null` there.
-- ⚠️ Keep `payments.cardGateway` on `kashier` or `auto` until OPay completes a real transaction.
+- **OPay ✅ proven on LIVE** — a real order paid through it. Egypt host, merchant id, public key,
+  webhook and `buildOpayRedirect` all validated end to end. **Sandbox still needs separate
+  OPay-issued credentials** — live keys return `00003 merchant is null` there.
+- Both gateways are now safe to leave selectable; `payments.cardGateway` no longer needs pinning.
 
 ## Payment methods — do NOT delete the 11 SystemPaymentMethod rows
 The owner asked whether the shipping/payment "couples" are still needed. They are, and they are not
