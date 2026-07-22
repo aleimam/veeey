@@ -7,6 +7,27 @@
 
 ## Current state
 
+- **✅ Payment methods split + POS live on veeey.net (`ce72650`, owner 2026-07-23).** The single
+  "Bank Transfer / InstaPay / Wallet" radio became three — **Mobile Wallet**, **InstaPay (IPN)**,
+  **Bank Transfer** — and **POS on Delivery** (which already existed, area-gated like UltraFast, but
+  hidden because `allowsPos` was false everywhere) now shows in **Cairo + Giza**. Each method carries a
+  short description shown **only when selected**, editable in **Settings → Payments** (holds the wallet
+  number / IPN address / bank account — the parts that change without a deploy). Owner chose **text,
+  not logos**, so the four wallets are named in the copy (Vodafone Cash / Orange Cash / Etisalat Flous
+  / WE Pay). **Verified live**: 4 offline radios + 2 card; wallet note shows on select and COD's stays
+  hidden; POS present in Cairo/Giza, absent in Aswan, with the "subject to availability, we confirm"
+  caveat in its note.
+  - **Data on .net:** a **Giza zone** was created (governorate=Giza) and the Giza area moved into it,
+    because `posGovernorates` derives from `zone.governorate` and Giza had only been an *area* under
+    "Greater Cairo" (governorate=Cairo). `allowsPos=true` set on Cairo (Nasr City, New Cairo) + Giza.
+    Rollback `/root/veeey-shipping-before-20260723.sql`.
+  - **Care taken:** `BANK_TRANSFER` stays a customer-facing code (past orders carry it). The idempotent
+    migration remaps `SystemPaymentMethod` rows (WALLET→MOBILE_WALLET, new INSTAPAY, instapay aliases
+    moved off the bank rows) **without touching `Order.paymentMethod`**. The per-method setting DEFAULT
+    is the real sentence, never `''` — `saveSettings` upserts every known key, so a blank default would
+    wipe all seven on first Save (there's a test). Pure copy in `src/lib/payment-copy.ts` shared by
+    settings-service + payment-method-service (both drag in next-auth). Gate: **881 tests**, build clean.
+
 - **✅ Owner batch 2026-07-23 — 3 items, all LIVE on veeey.net (`4e15d5a` → `44ec170`, 74 migrations,
   872 tests).**
   1. **Add to cart no longer navigates.** It used to redirect to `/cart`, throwing a browsing shopper
