@@ -1,5 +1,5 @@
 import webpush from 'web-push';
-import { getSmtpConfig, getSmsConfig, getWhatsappConfig, normalizeMobile } from '@/lib/provider-config';
+import { getSmtpConfig, getSmsConfig, getWhatsappConfig, normalizeMobile, emailConfigured } from '@/lib/provider-config';
 import { needsUnicodeSms, toUcs2Hex } from '@/lib/sms-encoding';
 
 /**
@@ -9,8 +9,15 @@ import { needsUnicodeSms, toUcs2Hex } from '@/lib/sms-encoding';
  */
 export type DispatchResult = { ok: boolean; skipped?: boolean; error?: string };
 
-// Sync env check (for the admin status line); the real send also resolves DB-stored SMTP.
-export const emailEnabled = () => !!(process.env.RESEND_API_KEY || process.env.SMTP_HOST);
+/**
+ * Can we actually send email?
+ *
+ * Must resolve the DB-stored SMTP config, not just env: `/admin/providers` saves
+ * credentials to `Setting`, which is the documented way to configure this. An
+ * env-only check told an admin who had just configured SMTP that email was still
+ * off — and pointed them at an environment variable they were never meant to set.
+ */
+export const emailEnabled = async () => (await emailConfigured()) || !!process.env.RESEND_API_KEY;
 export const pushEnabled = () => !!(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
 
 let vapidReady = false;

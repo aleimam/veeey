@@ -14,7 +14,7 @@ export default async function AdminNotificationsPage({ params }: { params: Promi
   const { locale } = await params;
   setRequestLocale(locale);
   const tb = pick(locale);
-  const [notifs, templateCount] = await Promise.all([listNotifications(100), prisma.notificationTemplate.count()]);
+  const [notifs, templateCount, mailOk] = await Promise.all([listNotifications(100), prisma.notificationTemplate.count(), emailEnabled()]);
 
   return (
     <div className="p-6">
@@ -26,7 +26,7 @@ export default async function AdminNotificationsPage({ params }: { params: Promi
         </form>
       </header>
       <p className="mb-4 text-xs text-muted-foreground">
-        {tb('Channels: Email ', 'القنوات: البريد ')}{emailEnabled() ? tb('✓ configured', '✓ مُهيّأ') : tb('— set RESEND_API_KEY', '— اضبط RESEND_API_KEY')} · {tb('Push ', 'الإشعارات الفورية ')}{pushEnabled() ? tb('✓ configured', '✓ مُهيّأ') : tb('— set VAPID keys', '— اضبط مفاتيح VAPID')}. {tb('Unconfigured channels are logged as ', 'تُسجَّل القنوات غير المُهيّأة على أنها ')}<em>{tb('skipped', 'متخطّاة')}</em>.
+        {tb('Channels: Email ', 'القنوات: البريد ')}{mailOk ? tb('✓ configured', '✓ مُهيّأ') : tb('— configure SMTP in Providers', '— اضبط SMTP من صفحة المزوّدين')} · {tb('Push ', 'الإشعارات الفورية ')}{pushEnabled() ? tb('✓ configured', '✓ مُهيّأ') : tb('— set VAPID keys', '— اضبط مفاتيح VAPID')}. {tb('Unconfigured channels are logged as ', 'تُسجَّل القنوات غير المُهيّأة على أنها ')}<em>{tb('skipped', 'متخطّاة')}</em>.
       </p>
 
       <div className="overflow-x-auto rounded-lg border border-border">
