@@ -36,19 +36,38 @@
   `siteurl=https://egyptvitamins.net`, front page and a product page both 200, **14 GB** of uploads,
   no `.maintenance` file, `veeey-net-worker` back online. Safety dump kept at
   `/root/evnet-db-safety-20260722-1320.sql.gz`.
-  - ✅ **Emails repointed to `.net` (owner asked, 2026-07-22).** The restore carried the LIVE store's
-    mailbox across: the URLs were rewritten but `admin_email`, `new_admin_email`,
-    `woocommerce_email_from_address`, `woocommerce_stock_email_recipient`, the new/cancelled/failed
-    order recipients, `woocommerce_pos_store_email` and `mailserver_login` all still pointed at
-    `admin@egyptvitamins.com`, so a TEST-site email would have landed in the real store's inbox.
-    Fixed with `wp search-replace '@egyptvitamins.com' '@egyptvitamins.net' SFPgx_options --precise`
-    (+ `mail.egyptvitamins.com` → `.net` for `mailserver_url`) — **17 replacements, options table
-    only**. `--precise` matters: three of those rows are serialized PHP arrays; verified afterwards by
-    reading them back as JSON. Zero `@egyptvitamins.com` left in options; home/product/wp-login all
-    200. Rollback: `/root/evnet-options-backup-20260722-emails.sql.gz` (full options table).
-  - ⚠️ **Still on the live domain, deliberately left alone:** **14 staff USER ACCOUNTS** log in with
-    `@egyptvitamins.com` addresses (abdallah, m.ahmed, hanaa, …). Changing a login email can lock
-    someone out, so that is a separate owner decision. Also stale but harmless:
+  - ✅ **Every `@egyptvitamins.com` address rewritten to `.net` (owner asked, 2026-07-22) — EXCEPT the
+    14 staff logins.** Done in three passes, because the three kinds of data need different care:
+    1. **Config (17 rows, options table).** `admin_email`, `new_admin_email`,
+       `woocommerce_email_from_address`, `woocommerce_stock_email_recipient`, the
+       new/cancelled/failed order recipients, `woocommerce_pos_store_email`, `filemanager_*`,
+       `mailserver_login` + `mailserver_url`. This was the actual hazard: a TEST-site email would
+       have reached the real store's inbox.
+    2. **Site-visible content (157).** Both published Contact pages (EN + AR), 114 pending posts,
+       WPML strings (`admin@`/`orders@`), Yoast titles, and the **contact-form recipients** in
+       `_elementor_data` + the feedback shortcode (targeted SQL by `meta_key`, so order billing meta
+       was not caught in that pass). `https://egyptvitamins.net/contact-us/` now renders
+       `admin@egyptvitamins.net` + `orders@egyptvitamins.net`.
+    3. **History (141,549) — owner explicitly chose to rewrite it.** 129,495 order notes, 11,854
+       audit-log rows, 27 order `billing_email` + 27 order addresses + 28 order meta, 14 customer
+       lookup rows, 15 usermeta billing rows, 29 Wordfence login records, plus a few plugin
+       internals. ⚠️ This means the audit trail now shows `.net` addresses for actions that were
+       actually performed under `.com` ones.
+    **Two traps worth remembering.** (a) `wp search-replace` **silently skips tables it doesn't
+    recognise** — the WPML/Yoast/WooCommerce/audit tables reported "0 replacements" until
+    `--all-tables` was added; without noticing that, the job would have looked finished while most of
+    the data was untouched. (b) `.com`→`.net` is the **same byte length**, so serialized PHP survives
+    either way — but `--precise` was used regardless, and the serialized WooCommerce order-email
+    settings were read back as JSON to prove it.
+    **Verified after:** zero `@egyptvitamins.com` anywhere except `SFPgx_users.user_email`; 21,377
+    orders / 4,284 published products / 183,740 order notes unchanged; home + contact + wp-login all
+    200; veeey.net unaffected.
+    **Rollback** (`.net`→`.com` on those tables is exact — none of them contained `.net` beforehand,
+    which was checked first): `/root/evnet-options-backup-20260722-emails.sql.gz`,
+    `evnet-content-backup-20260722-emails.sql.gz`, `evnet-history-backup-20260722-emails.sql.gz`.
+  - ⚠️ **14 staff USER ACCOUNTS deliberately still on `.com`** (abdallah, m.ahmed, hanaa, evana, …) —
+    owner's choice. WordPress accepts username *or* email at login so nothing breaks; leaving them
+    means password recovery still reaches a mailbox that exists. Also stale but harmless:
     `litespeed.conf.cdn-ori` lists the `.com` origin, and Site Kit is bound to the `.com` Search
     Console property.
   - 🔒 **Security note:** `mailserver_pass` holds the live store's POP3 password **in plain text**
