@@ -11,24 +11,18 @@ import { VeeeyLogo } from '@/components/storefront/veeey-logo';
 import { LanguageSwitcher } from '@/components/storefront/language-switcher';
 import { SearchAutocomplete } from '@/components/storefront/chewy/search-autocomplete';
 import { navFontResolve, type NavConfig, type NavItem } from '@/lib/nav-config';
-
-export type CartLine = { name: string; image: string; pricePiastres: number; qty: number };
+import { useCart } from '@/components/storefront/cart-store';
+import type { SnapshotLine } from '@/lib/cart-snapshot';
 
 export function ChewyHeader({
   locale,
   nav,
-  cartCount = 0,
-  cartLines = [],
-  subtotalPiastres = 0,
   isStaff = false,
   help,
   branding,
 }: {
   locale: string;
   nav: NavConfig;
-  cartCount?: number;
-  cartLines?: CartLine[];
-  subtotalPiastres?: number;
   isStaff?: boolean;
   help?: { whatsapp?: string; phone?: string };
   branding?: { logoUrl?: string; logoLightUrl?: string; logoIconUrl?: string; siteName?: string };
@@ -37,8 +31,11 @@ export function ChewyHeader({
   const t = pick(loc);
   const [mega, setMega] = useState<string | null>(null);
   const [mobOpen, setMobOpen] = useState(false);
-  const [cartOpen, setCartOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  // The cart is shared state now, not props: adding from a product card has to
+  // move this badge and open this drawer without a page load (owner 2026-07-23).
+  const { cart, open: cartOpen, openDrawer, closeDrawer, error, clearError } = useCart();
+  const cartCount = cart.count;
 
   const navFontCss = navFontResolve(nav.fontFamily).css;
   const navItems = nav.items.filter((i) => i.visible);
@@ -143,7 +140,7 @@ export function ChewyHeader({
                 </span>
               </Link>
 
-              <button onClick={() => setCartOpen(true)} className="relative flex items-center gap-1.5 px-1.5 py-1.5 text-white" aria-label={t('Cart', 'السلة')}>
+              <button onClick={openDrawer} className="relative flex items-center gap-1.5 px-1.5 py-1.5 text-white" aria-label={t('Cart', 'السلة')}>
                 <span className="relative">
                   <Icon name="shopping-cart" size={26} color="#fff" />
                   {cartCount > 0 && (
@@ -204,10 +201,11 @@ export function ChewyHeader({
       {cartOpen && (
         <CartDrawer
           t={t}
-          lines={cartLines}
-          subtotalPiastres={subtotalPiastres}
+          lines={cart.lines}
+          subtotalPiastres={cart.subtotalPiastres}
           count={cartCount}
-          onClose={() => setCartOpen(false)}
+          error={error}
+          onClose={() => { clearError(); closeDrawer(); }}
         />
       )}
     </>
@@ -295,23 +293,60 @@ function MobileNav({ nav, t, onClose, logoUrl, siteName }: { nav: NavConfig; t: 
   );
 }
 
+function DrawerQty({ line, t }: { line: SnapshotLine; t: T }) {
+  const { setQty, busyId } = useCart();
+  const move = (qty: number) =>
+    setQty({ productId: line.productId, qty, condition: line.condition, preorder: line.preorder });
+  const btn = 'flex size-7 items-center justify-center rounded-full text-slate transition-colors hover:bg-green-wash disabled:opacity-40';
+  return (
+    <div className="mt-1.5 inline-flex items-center rounded-full border border-[color:var(--slate-border)] px-1" aria-busy={busyId === line.productId}>
+      <button
+        type="button"
+        onClick={() => move(line.qty - 1)}
+        disabled={busyId === line.productId}
+        className={btn}
+        aria-label={line.qty === 1 ? t('Remove from cart', 'إزالة من السلة') : t('Decrease quantity', 'إنقاص الكمية')}
+      >
+        <Icon name={line.qty === 1 ? 'x' : 'minus'} size={13} color="var(--slate)" />
+      </button>
+      <span className="min-w-6 text-center text-[13px] font-bold text-ink">{line.qty}</span>
+      <button
+        type="button"
+        onClick={() => move(line.qty + 1)}
+        disabled={busyId === line.productId}
+        className={btn}
+        aria-label={t('Increase quantity', 'زيادة الكمية')}
+      >
+        <Icon name="plus" size={13} color="var(--slate)" />
+      </button>
+    </div>
+  );
+}
+
 function CartDrawer({
   t,
   lines,
   subtotalPiastres,
   count,
+  error,
   onClose,
 }: {
   t: T;
-  lines: CartLine[];
+  lines: SnapshotLine[];
   subtotalPiastres: number;
   count: number;
+  error: 'stock' | null;
   onClose: () => void;
 }) {
   return (
     <div className="fixed inset-0 z-[70]">
       <div onClick={onClose} className="absolute inset-0" style={{ background: 'var(--scrim)' }} />
-      <div className="absolute inset-y-0 end-0 flex w-[92%] max-w-[420px] flex-col bg-white shadow-[var(--shadow-lg)]">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('Your Cart', 'سلتك')}
+        className="absolute inset-y-0 end-0 flex w-[92%] max-w-[420px] flex-col bg-white shadow-[var(--shadow-lg)]"
+      >
         <div className="flex items-center justify-between border-b border-[color:var(--slate-border)] px-5 py-4">
           <div className="text-[22px] font-bold text-green-dark" style={{ fontFamily: 'var(--font-display)' }}>
             {t('Your Cart', 'سلتك')} ({count})
@@ -321,6 +356,17 @@ function CartDrawer({
           </button>
         </div>
 
+        {/* The add silently failing is the one outcome a shopper must never get:
+            they'd think the item is in the cart and find it missing at checkout. */}
+        {error === 'stock' && (
+          <p role="alert" className="border-b border-[color:var(--slate-border)] bg-[color:var(--gold-wash)] px-5 py-3 text-sm text-slate">
+            {t(
+              'We could not add that — there is not enough stock left.',
+              'تعذّر الإضافة — الكمية المتاحة غير كافية.',
+            )}
+          </p>
+        )}
+
         {/* Free-delivery threshold banner removed (V4 E23) — Fast & Free ships
             free nationwide by method design; there is no minimum to message. */}
 
@@ -328,17 +374,19 @@ function CartDrawer({
           {lines.length === 0 ? (
             <div className="py-12 text-center text-sm text-[color:var(--text-muted)]">{t('Your cart is empty.', 'سلتك فارغة.')}</div>
           ) : (
-            lines.map((it, i) => (
-              <div key={i} className="flex gap-3.5 border-b border-[color:var(--slate-border)] py-4">
+            lines.map((it) => (
+              <div key={`${it.productId}:${it.condition}:${it.preorder}`} className="flex gap-3.5 border-b border-[color:var(--slate-border)] py-4">
                 <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-surface">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   {it.image ? <img src={it.image} alt="" className="size-full object-contain p-1.5" /> : <Icon name="package" size={24} color="var(--slate-45)" />}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="text-[13px] font-semibold leading-snug text-ink">{it.name}</div>
-                  <div className="mt-1 text-sm font-bold text-green-dark">
-                    {formatEGP(it.pricePiastres)} <span className="text-xs font-medium text-[color:var(--text-muted)]">× {it.qty}</span>
-                  </div>
+                  <div className="mt-1 text-sm font-bold text-green-dark">{formatEGP(it.unitPricePiastres)}</div>
+                  {/* Editable here, not only on /cart: the shopper now lands in this
+                      drawer instead of the cart page, so a mis-tapped quantity must
+                      be fixable without leaving what they were browsing. */}
+                  <DrawerQty line={it} t={t} />
                 </div>
               </div>
             ))

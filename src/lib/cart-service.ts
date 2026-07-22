@@ -8,6 +8,7 @@ import {
   PREORDER_COOKIE, parsePreorderCart, serializePreorderCart, addPreorderLine,
   setPreorderQty as setPreorderQtyPure, removePreorderLine, preorderCount, type PreorderLine,
 } from '@/lib/preorder-cart';
+import { snapshotOf, EMPTY_CART, type CartSnapshot } from '@/lib/cart-snapshot';
 
 /**
  * Cart (FR-CHK-02). The cart IS the set of FEFO soft-holds for a cart session —
@@ -162,6 +163,25 @@ export async function getCart(cartId: string, locale = 'en'): Promise<CartLine[]
     map.set(key, line);
   }
   return [...map.values(), ...(await preorderCartLines(locale))];
+}
+
+/**
+ * The cart as plain JSON, for the client-side store that drives the drawer, the
+ * header badge and every add-to-cart button. One reader so the three layouts
+ * and the drawer actions cannot disagree about what "the cart" is.
+ *
+ * `nearestExpiry` (a Date) and `brand` are dropped: nothing in the drawer shows
+ * them, and this crosses the server→client boundary on every add.
+ */
+export async function readCartSnapshot(locale = 'en'): Promise<CartSnapshot> {
+  const cartId = await readCartId();
+  if (!cartId) return EMPTY_CART;
+  const lines = await getCart(cartId, locale);
+  return snapshotOf(lines.map((l) => ({
+    productId: l.productId, slug: l.slug, name: l.name, image: l.image,
+    qty: l.qty, unitPricePiastres: l.unitPricePiastres, subtotalPiastres: l.subtotalPiastres,
+    condition: l.condition, preorder: l.preorder,
+  })));
 }
 
 export async function cartCount(cartId: string): Promise<number> {

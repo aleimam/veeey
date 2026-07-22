@@ -2,7 +2,8 @@
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { ensureCartId, readCartId, addToCart, setCartQty, removeFromCart, addPreorder, setPreorderQty, removePreorder, reorderToCart } from '@/lib/cart-service';
+import { ensureCartId, readCartId, addToCart, setCartQty, removeFromCart, addPreorder, setPreorderQty, removePreorder, reorderToCart, readCartSnapshot } from '@/lib/cart-service';
+import { type CartSnapshot } from '@/lib/cart-snapshot';
 import { getCurrentUser } from '@/lib/auth-guards';
 import { syncCartSnapshot } from '@/lib/abandoned-cart-service';
 import { placeOrder, type CheckoutInput } from '@/lib/checkout-service';
@@ -35,6 +36,76 @@ export async function addToCartAction(fd: FormData): Promise<void> {
   await syncCartSnapshot();
   revalidatePath(`/${locale}/cart`);
   redirect(`/${locale}/cart${failed ? '?add=out' : ''}`);
+}
+
+/* ------------------------------------------------------------------------- *
+ * Drawer actions — same writes as the form actions above, but they RETURN the
+ * cart instead of redirecting to /cart.
+ *
+ * Redirecting is what threw a browsing shopper out of the aisle: they added one
+ * tub of protein and landed on the cart page, having to navigate back to keep
+ * shopping. These let the page stay exactly where it is (owner 2026-07-23).
+ * The form actions stay for the no-JS path.
+ * ------------------------------------------------------------------------- */
+
+export type CartResult = {
+  ok: boolean;
+  /** 'stock' = the lot could not cover the requested quantity. */
+  error?: 'stock';
+  cart: CartSnapshot;
+};
+
+/** Current cart, for a client that needs to resync (e.g. after a failed add). */
+export async function readCartAction(locale = 'en'): Promise<CartSnapshot> {
+  return readCartSnapshot(locale);
+}
+
+export async function addToCartJsonAction(input: {
+  productId: string;
+  qty?: number;
+  lotId?: string;
+  locale?: string;
+}): Promise<CartResult> {
+  const locale = input.locale === 'ar' ? 'ar' : 'en';
+  let error: CartResult['error'];
+  const cartId = await ensureCartId();
+  try {
+    await addToCart(cartId, input.productId, Math.max(1, input.qty ?? 1), { lotId: input.lotId });
+  } catch {
+    error = 'stock';
+  }
+  await syncCartSnapshot();
+  // The cart PAGE is server-rendered; without this it would still show the old
+  // contents when the shopper eventually navigates there.
+  revalidatePath(`/${locale}/cart`);
+  return { ok: !error, error, cart: await readCartSnapshot(locale) };
+}
+
+export async function setCartQtyJsonAction(input: {
+  productId: string;
+  qty: number;
+  condition?: string;
+  preorder?: boolean;
+  locale?: string;
+}): Promise<CartResult> {
+  const locale = input.locale === 'ar' ? 'ar' : 'en';
+  const qty = Math.max(0, Math.trunc(input.qty));
+  let error: CartResult['error'];
+  if (input.preorder) {
+    await setPreorderQty(input.productId, qty);
+  } else {
+    const cartId = await readCartId();
+    if (cartId) {
+      try {
+        await setCartQty(cartId, input.productId, qty, input.condition ?? 'NEW');
+      } catch {
+        error = 'stock';
+      }
+    }
+  }
+  await syncCartSnapshot();
+  revalidatePath(`/${locale}/cart`);
+  return { ok: !error, error, cart: await readCartSnapshot(locale) };
 }
 
 /** Buy again — re-add a past order's lines to the current cart (customer only). */

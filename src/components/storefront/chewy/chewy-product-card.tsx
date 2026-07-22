@@ -2,8 +2,8 @@ import Image from 'next/image';
 import { formatEGP } from '@/lib/format';
 import { pick } from '@/lib/admin-i18n';
 import { Link } from '@/i18n/navigation';
-import { addToCartAction } from '@/server/cart-actions';
 import { toggleWishlistAction } from '@/server/engagement-actions';
+import { AddToCartButton } from '@/components/storefront/add-to-cart';
 import { Icon } from '@/components/storefront/ui/icon';
 import { Rating } from '@/components/storefront/ui/rating';
 import { isFeatureEnabledCached } from '@/lib/feature-service';
@@ -66,17 +66,13 @@ export async function ChewyProductCard({ product, locale = 'en' }: { product: Pr
       </div>
 
       <div className="p-[18px]">
-        <form action={addToCartAction}>
-          <input type="hidden" name="productId" value={product.id} />
-          <input type="hidden" name="qty" value="1" />
-          <input type="hidden" name="locale" value={locale} />
-          <button type="submit" aria-label={t(`Add ${product.name} to cart`, `أضف ${product.name} إلى السلة`)} className="v-btn v-btn--primary v-btn--sm v-btn--block">
-            <span className="v-btn__icon" aria-hidden="true">
-              <Icon name="shopping-cart" size={16} />
-            </span>
-            {t('Add to Cart', 'أضف للسلة')}
-          </button>
-        </form>
+        <AddToCartButton
+          productId={product.id}
+          locale={locale}
+          label={t('Add to Cart', 'أضف للسلة')}
+          inCartLabel={t('In cart', 'في السلة')}
+          ariaLabel={t(`Add ${product.name} to cart`, `أضف ${product.name} إلى السلة`)}
+        />
       </div>
 
       <form action={toggleWishlistAction} className="absolute end-3 top-3 z-10">

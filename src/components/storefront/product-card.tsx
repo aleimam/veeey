@@ -1,11 +1,10 @@
 import Image from 'next/image'
-import { ShoppingCart } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { formatEGP, formatPoints } from '@/lib/format'
 import { Link } from '@/i18n/navigation'
-import { addToCartAction } from '@/server/cart-actions'
 import { Chip } from '@/components/storefront/ui/chip'
 import { Rating } from '@/components/storefront/ui/rating'
+import { AddToCartButton } from '@/components/storefront/add-to-cart'
 
 export type Product = {
   id: string
@@ -70,21 +69,13 @@ export function ProductCard({ product, locale = 'en' }: { product: Product; loca
       </div>
 
       <div className="v-product__foot">
-        <form action={addToCartAction}>
-          <input type="hidden" name="productId" value={product.id} />
-          <input type="hidden" name="qty" value="1" />
-          <input type="hidden" name="locale" value={locale} />
-          <button
-            type="submit"
-            aria-label={t('addToCart', { name: product.name })}
-            className="v-btn v-btn--primary v-btn--sm v-btn--block"
-          >
-            <span className="v-btn__icon" aria-hidden="true">
-              <ShoppingCart className="size-full" />
-            </span>
-            {t('add')}
-          </button>
-        </form>
+        <AddToCartButton
+          productId={product.id}
+          locale={locale}
+          label={t('add')}
+          inCartLabel={t('inCart')}
+          ariaLabel={t('addToCart', { name: product.name })}
+        />
       </div>
     </article>
   )

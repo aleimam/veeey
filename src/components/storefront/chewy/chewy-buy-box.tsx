@@ -10,6 +10,7 @@ import { useTrack } from '@/components/analytics/analytics-provider';
 import { Icon } from '@/components/storefront/ui/icon';
 import { Rating } from '@/components/storefront/ui/rating';
 import { TierBadge } from '@/components/storefront/ui/tier-badge';
+import { useCartOptional } from '@/components/storefront/cart-store';
 import type { BuyLot } from '@/components/storefront/buy-box';
 
 /**
@@ -71,6 +72,7 @@ export function ChewyBuyBox({
 }) {
   const t = pick(locale);
   const track = useTrack();
+  const cart = useCartOptional();
   const [selected, setSelected] = useState(0);
   const [mode, setMode] = useState<'once' | 'refill'>('once');
   const [qty, setQty] = useState(1);
@@ -91,6 +93,10 @@ export function ChewyBuyBox({
   const showWas = lot ? lot.sale || unit < basePricePiastres : false;
   const depositNow = Math.round((unit * qty * depositPercent) / 100);
   const balanceLater = unit * qty - depositNow;
+  // Tracks the SELECTED lot's condition: a NEW unit and an Open-box unit are
+  // separate cart lines at separate prices, so switching chips must switch which
+  // line this reads.
+  const inCartQty = cart?.qtyOf(productId, { condition: lot?.condition ?? 'NEW' }) ?? 0;
 
   return (
     <div className="flex flex-col gap-[18px]">
@@ -257,7 +263,18 @@ export function ChewyBuyBox({
           {t('Out of stock', 'غير متوفر')}
         </button>
       ) : (
-        <form action={activeMode === 'refill' && !preorderMode ? startRefillPlanAction : preorderMode ? addPreorderToCartAction : addToCartAction} className="flex items-stretch gap-3">
+        <form
+          action={activeMode === 'refill' && !preorderMode ? startRefillPlanAction : preorderMode ? addPreorderToCartAction : addToCartAction}
+          // Only the plain add stays on the page. Refill and pre-order are their
+          // own flows with their own destinations — intercepting those would
+          // strand the shopper mid-journey.
+          onSubmit={(e) => {
+            if (!cart || preorderMode || activeMode === 'refill') return;
+            e.preventDefault();
+            cart.add({ productId, qty, lotId: lot?.id, condition: lot?.condition ?? 'NEW' });
+          }}
+          className="flex items-stretch gap-3"
+        >
           <input type="hidden" name="productId" value={productId} />
           {/* Pin the SELECTED lot — the expiry & price chip is a real choice, so the
               cart must reserve exactly that lot (audit: FEFO used to override it). */}
@@ -282,6 +299,7 @@ export function ChewyBuyBox({
           </div>
           <button
             type="submit"
+            disabled={cart?.busyId === productId}
             onClick={() => { if (!preorderMode) track(activeMode === 'refill' ? 'refill_subscribe' : 'add_to_cart', { productId, qty }); }}
             className="v-btn v-btn--primary v-btn--lg v-btn--block"
           >
@@ -295,6 +313,38 @@ export function ChewyBuyBox({
                 : t('Add to Cart', 'أضف للسلة')}
           </button>
         </form>
+      )}
+
+      {/* Adding no longer navigates, so the PDP has to say what happened — and
+          let the quantity be changed here rather than on a page they left. */}
+      {inCartQty > 0 && (
+        <div className="flex items-center justify-between gap-3 rounded-[12px] border-[1.5px] border-green-dark bg-green-wash px-3.5 py-2.5">
+          <span className="inline-flex items-center gap-2 text-[13px] font-bold text-green-dark">
+            <Icon name="check-circle" size={16} color="var(--green-dark)" />
+            {t(`${inCartQty} in your cart`, `${inCartQty} في سلتك`)}
+          </span>
+          <span className="inline-flex items-center rounded-full bg-white px-1">
+            <button
+              type="button"
+              onClick={() => cart?.setQty({ productId, qty: inCartQty - 1, condition: lot?.condition ?? 'NEW' })}
+              disabled={cart?.busyId === productId}
+              aria-label={inCartQty === 1 ? t('Remove from cart', 'إزالة من السلة') : t('Decrease quantity', 'إنقاص الكمية')}
+              className="flex size-8 items-center justify-center text-slate disabled:opacity-40"
+            >
+              <Icon name={inCartQty === 1 ? 'x' : 'minus'} size={15} color="var(--slate)" />
+            </button>
+            <span className="min-w-6 text-center text-[15px] font-bold text-ink">{inCartQty}</span>
+            <button
+              type="button"
+              onClick={() => cart?.setQty({ productId, qty: inCartQty + 1, condition: lot?.condition ?? 'NEW' })}
+              disabled={cart?.busyId === productId}
+              aria-label={t('Increase quantity', 'زيادة الكمية')}
+              className="flex size-8 items-center justify-center text-slate disabled:opacity-40"
+            >
+              <Icon name="plus" size={15} color="var(--slate)" />
+            </button>
+          </span>
+        </div>
       )}
 
       <div className="flex flex-wrap gap-x-4 gap-y-2 text-[13px] text-[color:var(--text-muted)]">

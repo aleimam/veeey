@@ -462,6 +462,7 @@
       "earnPoints": "اكسب {points} نقطة",
       "add": "أضف إلى السلة",
       "addToCart": "أضف {name} إلى السلة",
+      "inCart": "في السلة",
       "ratingLabel": "تقييم {rating} من 5 من {reviews} مراجعة"
     },
     "whatsapp": {
@@ -497,7 +498,8 @@
       "noExpiry": "بدون تاريخ انتهاء",
       "sale": "تخفيض",
       "inStock": "متوفر",
-      "addToCart": "أضف إلى السلة"
+      "addToCart": "أضف إلى السلة",
+      "inCart": "في السلة"
     },
     "duration": {
       "title": "كم ستدوم هذه العبوة؟",

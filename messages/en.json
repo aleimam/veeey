@@ -462,6 +462,7 @@
       "earnPoints": "Earn {points} pts",
       "add": "Add to cart",
       "addToCart": "Add {name} to cart",
+      "inCart": "In cart",
       "ratingLabel": "Rated {rating} out of 5 from {reviews} reviews"
     },
     "whatsapp": {
@@ -497,7 +498,8 @@
       "noExpiry": "No expiry",
       "sale": "sale",
       "inStock": "In stock",
-      "addToCart": "Add to cart"
+      "addToCart": "Add to cart",
+      "inCart": "In cart"
     },
     "duration": {
       "title": "How long will this last?",

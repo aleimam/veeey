@@ -1,11 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { ShoppingCart } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { formatEGP, formatPoints } from '@/lib/format';
-import { addToCartAction } from '@/server/cart-actions';
 import { Chip } from '@/components/storefront/ui/chip';
+import { AddToCartButton } from '@/components/storefront/add-to-cart';
 
 export type BuyLot = {
   id: string;
@@ -86,17 +85,15 @@ export function BuyBox({
         </Chip>
       </div>
 
-      <form action={addToCartAction} className="mt-4">
-        <input type="hidden" name="productId" value={productId} />
-        <input type="hidden" name="qty" value="1" />
-        <input type="hidden" name="locale" value={locale} />
-        <button type="submit" className="v-btn v-btn--primary v-btn--block">
-          <span className="v-btn__icon" aria-hidden="true">
-            <ShoppingCart className="size-full" />
-          </span>
-          {t('addToCart')}
-        </button>
-      </form>
+      <div className="mt-4">
+        <AddToCartButton
+          productId={productId}
+          locale={locale}
+          label={t('addToCart')}
+          inCartLabel={t('inCart')}
+          className="v-btn v-btn--primary v-btn--block"
+        />
+      </div>
     </div>
   );
 }
