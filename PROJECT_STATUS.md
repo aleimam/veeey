@@ -7,6 +7,28 @@
 
 ## Current state
 
+- **✅ Checkout backlog P0+P1+P2 — ALL SHIPPED 2026-07-22 (`92db6c1`→`3088495`, 72nd migration
+  `checkout_payment_flow`, 790 tests, deployed veeey.net).** The owner's post-first-payment feedback
+  (`CHECKOUT_BACKLOG.md` — statuses recorded there). The heart of it: **an online card order is only
+  "placed" once it is PAID.** New opening status `AWAITING_PAYMENT` (hidden from the default admin
+  list + analytics, zero notifications) → the payment webhook promotes to PENDING and only then fires
+  the placed email/SMS/WhatsApp (`order-placed-notify.ts`; offline methods still notify at placement).
+  Failed-to-start sessions, gateway cancels and unpaid returns all render the confirmation page as a
+  **payment screen** (⏳ + honest banner + **Pay now** retry that opens a fresh session for the SAME
+  order — the cart is already cleared). Worker sweep `awaiting-payment-sweep` (*/5) cancels + restocks
+  past Setting `payments.awaitingAutoCancelMinutes` (35 > Kashier's 30-min session) with a new
+  `silent` transitionOrder option (never-notified customers aren't texted "cancelled"); a payment
+  landing after the cancel flags `payCheck=PROBLEM`. Plus: **numeric order numbers**
+  (`order-number.ts` → `order_number_seq`, seeded above imported WP ids; VY-/EV- history kept — the
+  number is half of YeldnIN's (storeKey, orderNumber) key), **inline checkout validation**
+  (aria-wired red under-field errors), **saved-address prefill + find-or-create** (no more duplicate
+  address rows per order), **guest→account** (opt-in checkbox → account + hashed single-use 7-day
+  set-password link at the new public `/set-password`; existing emails are NOT auto-linked — sign-in
+  prompt instead; server never invents a password) and the **collapsed coupon field**. The two
+  artefact orders (`VY-MRVZGPAS-284`, `VY-MRVZHS69-698`) were cancelled at deploy (stock restored).
+  ⚠️ veeey.com is NOT yet on this code (owner workflow: build on .net, copy to .com at production) —
+  when it is deployed there, `migrate deploy` applies the same idempotent migration.
+
 - **✅ Incoming Shipments Stage 3 — approval now creates SELLABLE STOCK. LIVE 2026-07-22
   (`f9841ca`, 71 migrations, 751 tests, veeey.net).** Closes the loop: Ops enter per-unit expiry +
   photos in YeldnIN → Sales check them at `/admin/inventory/incoming` → approval is the single point
