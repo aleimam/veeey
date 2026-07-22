@@ -423,7 +423,17 @@ curl -s  -o /dev/null -w 'veeey.net    %{http_code}\n' https://veeey.net/en
 curl -sL -o /dev/null -w 'wordpress    %{http_code}\n' https://egyptvitamins.net/   # co-tenant
 ```
 
-**Latest redeploy 2026-07-22 at `efa2e39` (70 migrations)** — the Stage-2 **stock-master inversion**.
+**Latest redeploy 2026-07-22 at `06a1232` (73 migrations, 838 tests)** — the owner batch 07-22B:
+PDF invoice fix, product editor tabs, quick-add menu, staff avatars, the fake-signup detector +
+`DeletedSpamAccount` tombstone (73rd migration `20260722230000_deleted_spam_account`), and the login
+overhaul + country-code phone input. Verified after restart: pm2 runs `server.js`, `/api/health` +
+`/en` + `/ar` + `/en/cart` + `/en/login` all 200, `veeey.net/en` 200, WordPress co-tenant 200,
+`DeletedSpamAccount` present. **Invoice fix proven live, not assumed:** the build no longer contains
+the `/ROOT/node_modules/pdfkit` path (0 hits) — pdfkit is traced as an external asset in
+`.next/server/app/api/admin/orders/[id]/invoice/route.js.nft.json` and `require.resolve` finds the
+real `Helvetica.afm` under `/opt/veeey/node_modules`. **veeey.com is NOT on this code.**
+
+Earlier that day: redeploy at `efa2e39` (70 migrations) — the Stage-2 **stock-master inversion**.
 veeey.net now owns lot quantities and ingests egyptvitamins.net's sales onto its own lots; the
 10-minute catalog sync no longer writes `qtyOnHand`. Two new lines in `/opt/veeey/.env`:
 

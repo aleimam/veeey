@@ -7,7 +7,8 @@
 
 ## Current state
 
-- **🔄 Owner batch 2026-07-22B — 13 items from the owner's screenshots. Built, NOT yet deployed.**
+- **✅ Owner batch 2026-07-22B — 13 items from the owner's screenshots. ALL SHIPPED + DEPLOYED to
+  veeey.net at `06a1232` (73 migrations, 838 tests).**
   Shipped to `master` in order: `06322e2` (**PDF invoice fixed** — pdfkit was being bundled with
   `__dirname` rewritten to `/ROOT`, so its `Helvetica.afm` was unreachable; the fix is
   `serverExternalPackages: [… 'pdfkit']` in `next.config.ts`, plus the route now returns a real 500
@@ -22,7 +23,26 @@
   "+" menu** in the admin topbar, permission-filtered), and `d1e9563` (**fake-signup detector** —
   see below), `840dabd` (**login overhaul + phone input**, below) and `d844d7c` (**the tombstone**,
   below). Verify gate on the finished batch: typecheck + lint clean, **838 tests / 106 files**, build
-  clean. Still open in this batch: the **egyptvitamins.net restore**.
+  clean.
+
+- **✅ egyptvitamins.net restored from the egyptvitamins.com Google-Drive backup (2026-07-22).** The
+  WPvivid set from 11:39 (71 outer parts, 13.2 GB) was pulled via the existing `evcloud:` rclone
+  remote and restored by `/root/ev_restore_0722.sh`: worker paused + maintenance on → 10 SQL parts
+  imported in order (~2h10m) → wp-cli `search-replace` `.com`→`.net` → uploads/themes/plugins
+  extracted → verify → worker resumed. **Verified directly rather than trusting the script**, because
+  its own `products=`/`orders=` verify lines came back EMPTY (that one wp-cli count invocation fails;
+  the data is fine): **4,284 published products** (+96 private, 50 draft), **21,377 orders** in
+  `wc_orders` (11,421 card-delivered / 7,040 delivered / 2,839 cancelled), **16,260 users**,
+  `siteurl=https://egyptvitamins.net`, front page and a product page both 200, **14 GB** of uploads,
+  no `.maintenance` file, `veeey-net-worker` back online. Safety dump kept at
+  `/root/evnet-db-safety-20260722-1320.sql.gz`.
+  - ⚠️ **The restore carried the LIVE store's email addresses across.** 37 option rows still contain
+    `egyptvitamins.com` — the URLs were rewritten correctly, but `admin_email`, `new_admin_email`,
+    `woocommerce_email_from_address`, `woocommerce_stock_email_recipient`, the new/cancelled/failed
+    order recipients and `woocommerce_pos_store_email` all still point at **`admin@egyptvitamins.com`**,
+    the real store's mailbox. Anything on the TEST site that triggers a WooCommerce email would land
+    in the live store's inbox. Also stale: `litespeed.conf.cdn-ori` still lists the `.com` origin, and
+    Site Kit is bound to the `.com` Search Console property. **Owner decision — not changed unasked.**
 
 - **✅ Login overhaul + country-code phone input — `840dabd` (not yet deployed).** The OTP tab now
   accepts **an email address or a phone number** (it was phone-only) by reusing the existing
