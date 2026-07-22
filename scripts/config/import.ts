@@ -35,6 +35,7 @@ async function main() {
 
   const applied: Record<string, number> = {};
   let skippedSecrets = 0;
+  let unkeyable = 0;
 
   for (const t of CONFIG_TABLES) {
     const rows = file.tables[t.model];
@@ -51,14 +52,29 @@ async function main() {
       // Belt and braces: the exporter redacts, and the importer refuses anyway.
       if (t.model === 'setting' && isSecretSettingKey(String(row.key))) { skippedSecrets++; continue; }
       const where = keyOf(row, t.key);
-      if (Object.values(where).some((v) => v == null)) continue; // unkeyable row
+      if (Object.values(where).some((v) => v == null)) { unkeyable++; continue; }
+
+      // Split relation arrays out of the scalar payload and turn them into
+      // `set` — `set` rather than `connect` so a permission REMOVED at the
+      // source is also removed here; otherwise an import could only ever widen
+      // access, never narrow it.
+      const data: Record<string, unknown> = { ...row };
+      const rel: Record<string, unknown> = {};
+      for (const c of t.connect ?? []) {
+        const linked = data[c.field];
+        delete data[c.field];
+        if (Array.isArray(linked)) {
+          rel[c.field] = { set: linked.map((l) => ({ [c.on]: (l as Record<string, unknown>)[c.on] })) };
+        }
+      }
+
       const existing = await client.findFirst({ where });
       if (existing) {
         updated++;
-        if (commit) await client.update!({ where, data: row });
+        if (commit) await client.update!({ where, data: { ...data, ...rel } });
       } else {
         created++;
-        if (commit) await client.create!({ data: row });
+        if (commit) await client.create!({ data: { ...data, ...rel } });
       }
     }
     applied[t.model] = created + updated;
@@ -66,9 +82,10 @@ async function main() {
   }
 
   console.log(`\n  ${summarize(applied)}`);
+  if (unkeyable) console.log(`  ⚠️ ${unkeyable} row(s) had no usable key and were skipped — the manifest key is wrong for that table.`);
   if (skippedSecrets) console.log(`  🔒 ${skippedSecrets} secret setting(s) in the file were refused — set them on this store by hand.`);
   if (file.redactedSettings?.length) {
-    console.log(`\n  ⚠️ the source had ${file.redactedSettings.length} secret(s) that were never exported. Configure on this store:`);
+    console.log(`\n  ⚠️ the source withheld ${file.redactedSettings.length} setting(s) — secrets and per-store provider identity. Configure on this store:`);
     for (const k of file.redactedSettings.sort()) console.log(`     ${k}`);
   }
   console.log(commit ? '\n✅ applied.\n' : '\nℹ️ DRY RUN — nothing written. Re-run with --commit.\n');

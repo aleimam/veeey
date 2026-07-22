@@ -28,10 +28,21 @@
 export type ConfigTable = {
   /** Prisma model accessor, e.g. 'shippingZone'. */
   model: string;
-  /** Columns forming the natural key used to upsert on import. */
+  /**
+   * Column used to match an existing row on import. It MUST be `@unique` or
+   * `@id` — Prisma's `update({ where })` rejects anything else, and a wrong
+   * guess makes rows silently skip. Verified against schema.prisma; several of
+   * the obvious guesses (`tier.code`, `searchRule.term`) do not exist.
+   */
   key: string[];
-  /** Columns never carried across (ids, timestamps, foreign keys to data). */
+  /**
+   * Columns never carried across. `id` is dropped ONLY where a natural key
+   * exists; where none does, the id is kept and used as the key, so a reload is
+   * an exact restore and a repeated import stays idempotent.
+   */
   drop?: string[];
+  /** Many-to-many relations to re-link on import, matched by the target's field. */
+  connect?: { field: string; on: string }[];
   label: string;
 };
 
@@ -78,21 +89,29 @@ export const CONFIG_TABLES: ConfigTable[] = [
   { model: 'setting', key: ['key'], label: 'Settings (flags, tiers, nav, homepage, theme, branding, SEO)' },
   { model: 'orderStatusConfig', key: ['code'], drop: ['id'], label: 'Order statuses + Status Matrix' },
   { model: 'systemPaymentMethod', key: ['code'], drop: ['id'], label: 'Payment methods' },
-  { model: 'department', key: ['key'], drop: ['id'], label: 'Departments + permissions' },
-  { model: 'tier', key: ['code'], drop: ['id'], label: 'Loyalty tiers' },
-  { model: 'tierBenefit', key: ['label'], drop: ['id'], label: 'Tier benefits matrix' },
-  { model: 'shippingZone', key: ['name'], drop: ['id'], label: 'Shipping zones' },
-  { model: 'shippingTypeConfig', key: ['code'], drop: ['id'], label: 'Shipping types' },
-  { model: 'returnReason', key: ['code'], drop: ['id'], label: 'Return reasons' },
+  // A department with no permissions grants nothing. The relation is NOT
+  // returned by a plain findMany, so it has to be asked for and re-linked, or
+  // the import silently produces empty departments that look correct.
+  { model: 'department', key: ['key'], drop: ['id'], connect: [{ field: 'permissions', on: 'key' }], label: 'Departments + permissions' },
+  { model: 'tier', key: ['key'], drop: ['id'], label: 'Loyalty tiers' },
+  // `key` is nullable here — manual benefits have none — so it cannot identify a
+  // row. Keep the id.
+  { model: 'tierBenefit', key: ['id'], connect: [{ field: 'tiers', on: 'key' }], label: 'Tier benefits matrix' },
+  { model: 'shippingZone', key: ['id'], label: 'Shipping zones' },
+  { model: 'shippingArea', key: ['id'], label: 'Shipping sub-areas (governorates)' },
+  { model: 'shippingTypeConfig', key: ['type'], drop: ['id'], label: 'Shipping types' },
+  { model: 'returnReason', key: ['id'], label: 'Return reasons' },
   { model: 'spillageReason', key: ['code'], drop: ['id'], label: 'Spillage / damage reasons' },
-  { model: 'notificationTemplate', key: ['key'], drop: ['id'], label: 'Notification templates' },
-  { model: 'searchSynonym', key: ['term'], drop: ['id'], label: 'Search synonyms' },
-  { model: 'searchRule', key: ['term'], drop: ['id'], label: 'Search rules (zero-result fixes)' },
-  { model: 'socialLink', key: ['platform'], drop: ['id'], label: 'Social links' },
+  // Unique is composite (key, channel, locale); Prisma's update() wants a single
+  // unique selector, so the id is simpler and equally correct.
+  { model: 'notificationTemplate', key: ['id'], label: 'Notification templates' },
+  { model: 'searchSynonym', key: ['normalized'], drop: ['id'], label: 'Search synonyms' },
+  { model: 'searchRule', key: ['query'], drop: ['id'], label: 'Search rules (zero-result fixes)' },
+  { model: 'socialLink', key: ['id'], label: 'Social links' },
   { model: 'homeTestimonial', key: ['id'], label: 'Home testimonials' },
   { model: 'homeTrustBadge', key: ['id'], label: 'Home trust badges' },
   { model: 'redirect', key: ['fromPath'], drop: ['id'], label: 'Redirects' },
-  { model: 'giftRule', key: ['name'], drop: ['id'], label: 'Gift rules' },
+  { model: 'giftRule', key: ['id'], label: 'Gift rules' },
 ];
 
 export type ExportFile = {

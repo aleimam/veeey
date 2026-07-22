@@ -31,7 +31,12 @@ async function main() {
     const client = (prisma as unknown as Record<string, { findMany?: (a?: unknown) => Promise<Record<string, unknown>[]> }>)[t.model];
     if (!client?.findMany) { console.log(`  ${t.label.padEnd(52)} — model '${t.model}' not found, skipped`); continue; }
 
-    let rows = await client.findMany();
+    // Relations are NOT returned by a plain findMany. Without this, departments
+    // export with no permissions and import as empty shells that look right.
+    const include = t.connect?.length
+      ? { include: Object.fromEntries(t.connect.map((c) => [c.field, { select: { [c.on]: true } }])) }
+      : undefined;
+    let rows = await client.findMany(include);
     if (t.model === 'setting') {
       const before = rows.length;
       const kept: Record<string, unknown>[] = [];
@@ -52,7 +57,11 @@ async function main() {
   writeFileSync(out, JSON.stringify(file, null, 2));
   console.log(`\n  ${summarize(file.counts)}`);
   if (file.redactedSettings.length) {
-    console.log(`\n  🔒 REDACTED (re-enter these by hand on the target store):`);
+    // Not all of these are secrets — smtp.host/from/fromName and sms.sender are
+    // per-STORE identity, which must not travel: veeey.net sends as
+    // info@veeey.net and veeey.com must not inherit that. Withholding them is
+    // correct for both reasons, so the label says both.
+    console.log(`\n  🔒 NOT EXPORTED — secrets and per-store provider identity. Set these on the target store:`);
     for (const k of file.redactedSettings.sort()) console.log(`     ${k}`);
   }
   console.log(`\n✅ written to ${out}\n`);
