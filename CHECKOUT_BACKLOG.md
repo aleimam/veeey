@@ -2,7 +2,29 @@
 
 ✅ **BOTH GATEWAYS PROVEN by real transactions.** Kashier v3 (Payment Sessions migration + secret-key auth + `serverWebhook`) and OPay (Egypt host `api.opaycheckout.com`) each completed a real paid order.
 
-Items below are in the order I'd do them: correctness first, then UX.
+> **✅ ALL ITEMS BELOW SHIPPED 2026-07-22** (commits `92db6c1` migration → `f54dd8e` P0 →
+> `259a757` P1 → `d7e1c0b` P2; migration `20260722210000_checkout_payment_flow` = 72nd).
+> How each landed:
+> - **P0 (one root cause, one fix):** online card orders now open in **AWAITING_PAYMENT** —
+>   hidden from the default admin list, excluded from analytics, NO notifications. The payment
+>   webhook promotes to PENDING and only then fires the placed email/SMS/WhatsApp. A failed
+>   session, a gateway cancel and a still-unpaid return all land on the confirmation page as a
+>   **payment screen** (⏳, honest banner, **Pay now** retry that opens a fresh session for the
+>   same order). A worker sweep (*/5) cancels + **restocks** orders unpaid past
+>   Setting `payments.awaitingAutoCancelMinutes` (default 35 > Kashier's 30-min session) —
+>   silently, since those customers were never told "placed". A payment landing after the
+>   cancel is flagged `payCheck=PROBLEM`, never swallowed.
+> - **P1:** numeric order numbers from a per-store sequence (existing VY-/EV- numbers kept —
+>   they're echoed to the gateways and are half of YeldnIN's (storeKey, orderNumber) key);
+>   inline red under-field validation with aria wiring; checkout pre-fills the default saved
+>   address and placeOrder find-or-creates instead of duplicating the address book.
+> - **P2:** guest "Create an account" checkbox → account + emailed single-use hashed
+>   set-password link (`/set-password`; server never invents a password; existing emails are
+>   NOT auto-linked — sign-in prompt instead); coupon field collapsed behind
+>   "Have a discount code?".
+> The two artefact orders below were cancelled at deploy (stock restored).
+
+Items below are in the order I'd do them: correctness first, then UX. (Kept for the record.)
 
 ---
 
