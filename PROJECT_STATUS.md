@@ -75,10 +75,20 @@
     and after that no duplicate `user_email` was created. Backup:
     `/root/evnet-users-backup-20260722-emails.sql.gz`.
     **The whole-database scan now returns ZERO `@egyptvitamins.com` in any table.**
-    ⚠️ **Known, harmless divergence:** veeey.net's Postgres still holds these 14 as `.com` (the
-    hourly customer importer matches on `legacyWpId` — all 14 have one — and its update path never
-    rewrites email, so they will NOT be duplicated, but they also will NOT be re-pointed). Align them
-    manually if it ever matters.
+  - ✅ **veeey.net's Postgres aligned too** — the same 14 `User.email` rows moved to `.net`
+    (`com=0 / net=14`, no duplicate emails, storefront + `/api/health` + `/en/login` all 200).
+    Rollback: `/root/veeey-user-email-rollback-20260722.sql` (14 exact `UPDATE … WHERE id=` lines).
+    **Checked the YeldnIN blast radius first**, because `CustomerWireV2.email` is documented as
+    "YeldnIN's cross-store match key": `handleCustomerUpsert` matches **email → veeeyCustomerId →
+    name**, so when these customers are next pushed the email lookup misses but the
+    **`veeeyCustomerId` lookup hits**, and YeldnIN *updates* the existing record's email instead of
+    creating a duplicate. YeldnIN keeps the old `.com` value until such a push happens — writing the
+    Postgres rows directly does not enqueue an outbox event.
+    ⚠️ **Unrelated junk found while scanning** (left alone — it is a different, real customer's
+    record, not part of this request): one `Address.street` belonging to `mostafa3287@gmail.com`
+    contains the store's entire contact block pasted into the street line — phone,
+    `egyptvitamins.com`, `admin@egyptvitamins.com`, Facebook and Instagram URLs. Worth cleaning as
+    data hygiene.
     Also stale but harmless:
     `litespeed.conf.cdn-ori` lists the `.com` origin, and Site Kit is bound to the `.com` Search
     Console property.
