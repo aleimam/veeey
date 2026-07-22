@@ -7,6 +7,27 @@
 
 ## Current state
 
+- **✅ Incoming Shipments Stage 3 — approval now creates SELLABLE STOCK. LIVE 2026-07-22
+  (`f9841ca`, 71 migrations, 751 tests, veeey.net).** Closes the loop: Ops enter per-unit expiry +
+  photos in YeldnIN → Sales check them at `/admin/inventory/incoming` → approval is the single point
+  where goods become sellable. This was dead code until the inversion below; while the WP sync owned
+  `qtyOnHand`, anything stocked here was overwritten within ten minutes.
+  - Units **merge into the existing LIVE lot** for the same product + expiry + location + condition.
+    A `MovementLedger` STOCK_IN is written per line, so traceability survives the merge.
+  - **`IncomingShipmentLot.lotId` is the idempotency guard**; the claim and the stocking share one
+    transaction predicated on `PENDING_REVIEW`. Sales can approve in Veeey *or* YeldnIN, so two
+    approvals racing is real — the second is a no-op. `stockShipmentLines` is exported so the future
+    YeldnIN-side handler stocks through the same path instead of a parallel one.
+  - **FX**: `open.er-api.com` (free, no key, and it publishes EGP — the ECB-backed services don't).
+    Rates resolve *before* the transaction opens, cache daily in `Setting['fx.rate.<CUR>']`, and the
+    rate + date are pinned onto the line — a cost is a historical fact and must not re-value. Ladder:
+    today's cache → live → any cached rate flagged `fxStale` → no cost. Never hard-fails on an outage.
+  - **Won't do, by design, and says so on screen:** overwrite a cost already on a lot (⚠️ FIFO vs
+    weighted average is an open owner decision — nothing is averaged silently), or stock a line whose
+    SKU matches no product.
+  - Verified live in a rolled-back transaction: two lines sharing an expiry merged into one 10-unit
+    lot at 60,625 piastres (12.5 USD × 48.5), two STOCK_IN rows, re-run stocked nothing.
+
 - **🔴 THE STOCK MASTER INVERTED — veeey.net now owns inventory, egyptvitamins.net does not.
   LIVE 2026-07-22 (`efa2e39`, 70 migrations, 738 tests, veeey.net only).** Both storefronts keep
   selling from one physical pool; the direction of authority is what changed. This overturns the
