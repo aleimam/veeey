@@ -61,14 +61,26 @@ export async function checkOpay(): Promise<ProviderCheck> {
   }
 }
 
-/** Kashier: order-inquiry API with the payment API key. A 404 for our dummy
- *  order still proves the key was accepted; 401/403 means it was not. */
+/**
+ * Kashier: order-inquiry API, authenticated with the **SECRET key**.
+ *
+ * Kashier splits the two credentials and they are not interchangeable: the API
+ * key signs the hosted-payment hash, the secret key authenticates
+ * server-to-server calls. Sending the API key here returns 401 "Token
+ * validation failed / Session expired" — a dashboard-session error that reads
+ * like the credentials are wrong when they are perfectly good.
+ *
+ * A valid key on an order that doesn't exist answers **200** with
+ * `status: FAILURE, "Order is not exist"`. That is a PASS: it proves the key was
+ * accepted and the API answered. Only 401/403 means the credential is bad.
+ */
 export async function checkKashier(): Promise<ProviderCheck> {
   const cfg = await getKashierConfig();
   if (!cfg) return { status: 'skip' };
+  if (!cfg.secretKey) return { status: 'fail', code: 'no_secret', detail: 'Secret key is required for the API check' };
   try {
     const res = await fetch(`https://api.kashier.io/payments/orders/CONNCHECK-${Date.now()}`, {
-      headers: { Authorization: cfg.apiKey, accept: 'application/json' },
+      headers: { Authorization: cfg.secretKey, accept: 'application/json' },
       signal: AbortSignal.timeout(TIMEOUT),
     });
     const body = clip(await res.text().catch(() => ''));
