@@ -65,12 +65,10 @@ export function CheckoutForm({
   const tPay = useTranslations('storefront.payments');
   const [state, action] = useActionState<CheckoutState, FormData>(placeOrderAction, {});
   const [shipping, setShipping] = useState(shippingOptions[0]?.type ?? 'FAST_FREE');
-  // Pre-select COD, not the first-listed method. Cards now lead the list (owner
-  // 2026-07-23), but defaulting an Egyptian checkout onto an online card would
-  // quietly hurt conversion — so the DEFAULT stays COD, independent of order.
-  const [payment, setPayment] = useState(
-    (paymentMethods.find((m) => m.key === 'COD') ?? paymentMethods[0])?.key ?? '',
-  );
+  // Pre-select the FIRST-listed method — the top card (owner 2026-07-23,
+  // deliberately, to push card payment). Order is CHECKOUT_METHOD_ORDER, so this
+  // follows whatever leads that list.
+  const [payment, setPayment] = useState(paymentMethods[0]?.key ?? '');
   // P1-5: a returning customer starts with their default (or latest) saved
   // address pre-filled — the details they typed last order are not re-typed.
   const firstSaved = savedAddresses[0];
