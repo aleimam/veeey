@@ -407,6 +407,22 @@ model User {
   reviewsModerated Review[]           @relation("ReviewModerator")
   departments      DepartmentMember[]
   adminUsage       AdminSectionUsage[]
+  passwordTokens   PasswordResetToken[]
+}
+
+// Set/reset-password links (checkout backlog P2 — guest→account creation emails a
+// set-password link; also the future forgot-password flow). Token is stored
+// HASHED (sha256) — the raw value exists only inside the emailed link.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 // Per-user admin section visit counters — drives the dashboard's personal
