@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { randomInt } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/auth';
@@ -23,6 +22,7 @@ import { VERIFY_COOKIE, verifyCookieMatches } from '@/lib/verify-cookie';
 import { smsConfigured, emailConfigured } from '@/lib/provider-config';
 import { deriveSystemMethod, isOnlineMethod } from '@/lib/payment-method-service';
 import { sendOrderPlacedNotifications } from '@/lib/order-placed-notify';
+import { nextOrderNumber } from '@/lib/order-number';
 
 /** Checkout → Order (FR-CHK-*, FR-ORD-01). Converts cart soft-holds into a real
  *  order: each reservation becomes an OrderItem bound to its lot (exact expiry
@@ -191,7 +191,8 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
     addressProvided: !!data.street,
   });
 
-  const number = `VY-${Date.now().toString(36).toUpperCase()}-${randomInt(100, 999)}`;
+  // Numeric order number from the per-store sequence (checkout backlog P1).
+  const number = await nextOrderNumber();
   // Attribution snapshot (owner batch #7) — the proxy-captured last non-direct
   // touch travels onto the order; the manual Channel (source) stays separate.
   const attribution = parseAttribution((await cookies()).get(ATTR_COOKIE)?.value);
@@ -213,8 +214,15 @@ export async function placeOrder(cartId: string, raw: CheckoutInput) {
   const order = await prisma.$transaction(async (tx) => {
     let shippingAddressId: string | null = null;
     if (customerId) {
-      const addr = await tx.address.create({ data: { customerId, governorate: data.governorate, city: data.city, area: data.area, street: data.street, phone: data.phone } });
-      shippingAddressId = addr.id;
+      // Persist the checkout address to the account (checkout backlog P1-5) —
+      // find-or-create rather than create-always, so ordering twice with the
+      // same details stops duplicating the address book.
+      const same = await tx.address.findFirst({
+        where: { customerId, governorate: data.governorate, city: data.city, area: data.area, street: data.street, phone: data.phone },
+        select: { id: true },
+      });
+      shippingAddressId = same?.id
+        ?? (await tx.address.create({ data: { customerId, governorate: data.governorate, city: data.city, area: data.area, street: data.street, phone: data.phone } })).id;
     }
     const ord = await tx.order.create({
       data: {

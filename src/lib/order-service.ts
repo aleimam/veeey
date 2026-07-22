@@ -1,11 +1,11 @@
 import { z } from 'zod';
-import { randomInt } from 'node:crypto';
 import type { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
 import { type OrderStatus, type StatusConfig, type StockEffect, stockEffectApplies, DEFAULT_ADVANCE_PERMISSION } from '@/lib/order-status';
 import { canTransition, statusConfig } from '@/lib/order-status-service';
+import { nextOrderNumber } from '@/lib/order-number';
 import type { PermissionKey } from '@/lib/permissions';
 import { NON_BOOKED_STATUSES } from '@/lib/sales-analytics-core';
 import { deriveSystemMethod } from '@/lib/payment-method-service';
@@ -654,7 +654,8 @@ export async function createManualOrder(raw: ManualOrderInput) {
     else guestEmail = email;
   }
 
-  const number = `VY-${Date.now().toString(36).toUpperCase()}-${randomInt(100, 999)}`;
+  // Numeric order number from the per-store sequence (checkout backlog P1).
+  const number = await nextOrderNumber();
   const addressSnapshot = { name: d.name, phone: d.phone, governorate: d.governorate, city: d.city, area: d.area, street: d.street };
 
   const order = await prisma.$transaction(async (tx) => {

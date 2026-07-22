@@ -1,5 +1,6 @@
-import { randomBytes, randomInt } from 'crypto';
+import { randomBytes } from 'crypto';
 import { prisma } from '@/lib/prisma';
+import { nextOrderNumber } from '@/lib/order-number';
 import { audit } from '@/lib/audit';
 import { requirePermission } from '@/lib/auth-guards';
 import { getSetting, getNumberSetting } from '@/lib/settings-service';
@@ -64,7 +65,9 @@ async function placeRefillOrder(
   if (!addr) throw new Error('NO_ADDRESS');
   const shipping = await getShippingFee('FAST_FREE');
   const systemPaymentMethod = await deriveSystemMethod('COD', null);
-  const number = `VY-RF-${Date.now().toString(36).toUpperCase()}-${randomInt(100, 999)}`;
+  // Numeric order number from the per-store sequence (checkout backlog P1 —
+  // the RF marker was cosmetic; refill orders are identifiable by their plan).
+  const number = await nextOrderNumber();
 
   return prisma.$transaction(async (tx) => {
     const ord = await tx.order.create({

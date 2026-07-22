@@ -54,15 +54,61 @@ export function CheckoutForm({
   const tPay = useTranslations('storefront.payments');
   const [state, action] = useActionState<CheckoutState, FormData>(placeOrderAction, {});
   const [shipping, setShipping] = useState(shippingOptions[0]?.type ?? 'FAST_FREE');
-  const [addr, setAddr] = useState({ ...blankAddr, name: defaultName ?? '' });
+  // P1-5: a returning customer starts with their default (or latest) saved
+  // address pre-filled — the details they typed last order are not re-typed.
+  const firstSaved = savedAddresses[0];
+  const fromSaved = (a: SavedAddr) => ({ name: defaultName ?? '', phone: a.phone ?? '', governorate: a.governorate, city: a.city, street: a.street ?? '' });
+  const [addr, setAddr] = useState(firstSaved ? fromSaved(firstSaved) : { ...blankAddr, name: defaultName ?? '' });
   const [guestEmail, setGuestEmail] = useState('');
   const [verified, setVerified] = useState(alreadyVerified);
+  // P1-3: inline field validation — a missing/invalid field shows a red message
+  // under the field itself (aria-wired), instead of a silent native tooltip.
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const showVerify = requireVerification && !verified;
-  const set = (k: keyof typeof blankAddr) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setAddr((a) => ({ ...a, [k]: e.target.value }));
+  const set = (k: keyof typeof blankAddr) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setAddr((a) => ({ ...a, [k]: e.target.value }));
+    setFieldErrors((f) => (f[k] ? { ...f, [k]: '' } : f));
+  };
   const pickSaved = (id: string) => {
     const a = savedAddresses.find((x) => x.id === id);
-    setAddr(a ? { name: defaultName ?? '', phone: a.phone ?? '', governorate: a.governorate, city: a.city, street: a.street ?? '' } : { ...blankAddr, name: defaultName ?? '' });
+    setAddr(a ? fromSaved(a) : { ...blankAddr, name: defaultName ?? '' });
+    setFieldErrors({});
   };
+
+  const validate = (): boolean => {
+    const errs: Record<string, string> = {};
+    if (!isLoggedIn) {
+      if (!guestEmail.trim()) errs.guestEmail = t('errFieldRequired');
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim())) errs.guestEmail = t('errFieldEmail');
+    }
+    if (!addr.name.trim()) errs.name = t('errFieldRequired');
+    if (!addr.phone.trim()) errs.phone = t('errFieldRequired');
+    else if (addr.phone.replace(/\D/g, '').length < 6) errs.phone = t('errFieldPhone');
+    if (!addr.governorate) errs.governorate = t('errFieldRequired');
+    if (!addr.city.trim()) errs.city = t('errFieldRequired');
+    if (!addr.street.trim()) errs.street = t('errFieldRequired');
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    if (!validate()) {
+      e.preventDefault();
+      // Take the reader to the first offending field.
+      const first = e.currentTarget.querySelector<HTMLElement>('[aria-invalid="true"]');
+      first?.focus();
+    }
+  };
+  /** Error-aware input styling + aria wiring for one field. */
+  const fieldProps = (k: string) => {
+    const err = fieldErrors[k];
+    return {
+      className: `${field} ${err ? 'border-[1.5px] border-[color:var(--error)]' : ''}`,
+      'aria-invalid': err ? true : undefined,
+      'aria-describedby': err ? `err-${k}` : undefined,
+    };
+  };
+  const fieldError = (k: string) =>
+    fieldErrors[k] ? <span id={`err-${k}`} role="alert" className="mt-1 block text-xs font-normal text-error">{fieldErrors[k]}</span> : null;
   // UltraFast (3–6h same-day) is only selectable in eligible governorates
   // (Greater Cairo + Giza by seed, V4 E24). If the shopper picks another
   // governorate after selecting it, the choice falls back to the first option.
@@ -81,7 +127,7 @@ export function CheckoutForm({
   const heading = 'mb-3 text-lg font-bold text-green-dark';
 
   return (
-    <form action={action} className="grid gap-8 lg:grid-cols-[1fr_320px]">
+    <form action={action} onSubmit={onSubmit} noValidate className="grid gap-8 lg:grid-cols-[1fr_320px]">
       <input type="hidden" name="locale" value={locale} />
 
       <div className="space-y-6">
@@ -91,7 +137,7 @@ export function CheckoutForm({
           <h2 className={heading}>{t('deliveryDetails')}</h2>
           {savedAddresses.length > 0 && (
             <label className="mb-4 block text-sm font-semibold text-ink">{t('savedAddress')}
-              <select onChange={(e) => pickSaved(e.target.value)} className={field}>
+              <select defaultValue={firstSaved?.id ?? ''} onChange={(e) => pickSaved(e.target.value)} className={field}>
                 <option value="">{t('newAddress')}</option>
                 {savedAddresses.map((a) => <option key={a.id} value={a.id}>{a.governorate} · {a.city} · {a.area}</option>)}
               </select>
@@ -100,26 +146,32 @@ export function CheckoutForm({
           <div className="grid gap-4 sm:grid-cols-2">
             {!isLoggedIn && (
               <label className="block text-sm font-semibold text-ink sm:col-span-2">{t('email')}
-                <input name="guestEmail" type="email" required value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} className={field} />
+                <input name="guestEmail" type="email" value={guestEmail} onChange={(e) => { setGuestEmail(e.target.value); setFieldErrors((f) => (f.guestEmail ? { ...f, guestEmail: '' } : f)); }} {...fieldProps('guestEmail')} />
+                {fieldError('guestEmail')}
               </label>
             )}
             <label className="block text-sm font-semibold text-ink">{t('fullName')}
-              <input name="name" required value={addr.name} onChange={set('name')} className={field} />
+              <input name="name" value={addr.name} onChange={set('name')} {...fieldProps('name')} />
+              {fieldError('name')}
             </label>
             <label className="block text-sm font-semibold text-ink">{t('phone')}
-              <input name="phone" required value={addr.phone} onChange={set('phone')} className={field} />
+              <input name="phone" value={addr.phone} onChange={set('phone')} {...fieldProps('phone')} />
+              {fieldError('phone')}
             </label>
             <label className="block text-sm font-semibold text-ink">{t('governorate')}
-              <select name="governorate" required value={addr.governorate} onChange={set('governorate')} className={field}>
+              <select name="governorate" value={addr.governorate} onChange={set('governorate')} {...fieldProps('governorate')}>
                 <option value="" disabled>{t('selectGovernorate')}</option>
                 {GOVERNORATES.map((g) => <option key={g.en} value={g.en}>{locale === 'ar' ? g.ar : g.en}</option>)}
               </select>
+              {fieldError('governorate')}
             </label>
             <label className="block text-sm font-semibold text-ink">{t('city')}
-              <input name="city" required value={addr.city} onChange={set('city')} className={field} />
+              <input name="city" value={addr.city} onChange={set('city')} {...fieldProps('city')} />
+              {fieldError('city')}
             </label>
             <label className="block text-sm font-semibold text-ink sm:col-span-2">{t('street')}
-              <input name="street" required value={addr.street} onChange={set('street')} className={field} />
+              <input name="street" value={addr.street} onChange={set('street')} {...fieldProps('street')} />
+              {fieldError('street')}
             </label>
           </div>
         </section>
