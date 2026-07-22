@@ -5,7 +5,7 @@ import { audit } from '@/lib/audit';
 import { integrationSecret, yeldninBaseUrl, VEEEY_CLIENT_ID } from '@/lib/integration/config';
 import { recordOutbox } from '@/lib/integration/integration-service';
 import { signRequest } from '@/lib/integration/hmac-logic';
-import { parseShipmentReceived, totalUnits, type WireShipmentReceived } from '@/lib/integration/shipment-wire';
+import { parseShipmentReceived, parseShipmentReview, totalUnits, type WireShipmentReceived } from '@/lib/integration/shipment-wire';
 import { egpRatesFor, type FxResult } from '@/lib/fx';
 import { costToPiastres, normalizeCurrency } from '@/lib/fx-logic';
 import type { Tx } from '@/lib/order-service';
@@ -166,6 +166,8 @@ async function emitReview(yeldninUid: string, decision: 'APPROVED' | 'REJECTED',
   await recordOutbox('shipment.review', yeldninUid, { shipmentUid: yeldninUid, decision, reason, reviewedAt: at.toISOString() });
 }
 
+export const NOTHING_STOCKED: StockResult = { lotsStocked: 0, units: 0, skippedUnmatched: 0, staleFx: 0, noRate: 0, costConflicts: 0 };
+
 export type StockResult = {
   lotsStocked: number;
   units: number;
@@ -264,8 +266,27 @@ export async function stockShipmentLines(
   return r;
 }
 
-export async function approveShipment(id: string) {
-  const user = await requirePermission('inventory.manage');
+/**
+ * The one decision path, whoever decided.
+ *
+ * Sales review the same shipment in Veeey OR in YeldnIN (owner decision — the
+ * section is mirrored), so a verdict reaches this store either from the admin UI
+ * or over the integration. Both must stock through this exact code: a parallel
+ * implementation for the remote case would drift, and the drift would only show
+ * up as wrong stock.
+ *
+ * `emit` is false for a verdict that ARRIVED from YeldnIN — echoing it back
+ * would ping-pong the same decision between the two apps.
+ */
+type Decider = { kind: 'USER'; id: string } | { kind: 'SYSTEM' };
+
+async function decideShipment(
+  id: string,
+  decision: 'APPROVED' | 'REJECTED',
+  reason: string | null,
+  by: Decider,
+  opts: { emit: boolean; at?: Date },
+) {
   const s = await prisma.incomingShipment.findUnique({
     where: { id },
     select: {
@@ -275,6 +296,23 @@ export async function approveShipment(id: string) {
   });
   if (!s) return { ok: false as const, error: 'not_found' };
   if (s.status !== 'PENDING_REVIEW') return { ok: false as const, error: 'not_pending' };
+
+  const at = opts.at ?? new Date();
+  const reviewedById = by.kind === 'USER' ? by.id : null;
+  const actorType = by.kind === 'USER' ? ('USER' as const) : ('SYSTEM' as const);
+
+  if (decision === 'REJECTED') {
+    const r = await prisma.incomingShipment.updateMany({
+      where: { id, status: 'PENDING_REVIEW' },
+      data: { status: 'REJECTED', reviewedById, reviewedAt: at, rejectReason: reason?.slice(0, 500) ?? null },
+    });
+    if (r.count === 0) return { ok: false as const, error: 'not_pending' };
+    await audit({ actorType, actorId: reviewedById, action: 'incoming_shipment.reject', entityType: 'IncomingShipment', entityId: id, data: { reason } });
+    if (opts.emit) await emitReview(s.yeldninUid, 'REJECTED', reason?.slice(0, 500) ?? null, at);
+    // A rejection genuinely stocked nothing — say so with zeros rather than an
+    // absent field, so every caller gets the same shape.
+    return { ok: true as const, stocked: NOTHING_STOCKED };
+  }
 
   // No hard-coded 'loc_main' — that id only exists in the dev seed.
   const location = s.locationId
@@ -286,23 +324,26 @@ export async function approveShipment(id: string) {
   // slow third party would hold locks on the lot table.
   const rates = await egpRatesFor(s.lots.filter((l) => l.unitCost != null).map((l) => l.currency));
 
-  const at = new Date();
   const stocked = await prisma.$transaction(async (tx) => {
-    // Single-winner: only a pending shipment can be decided, and the claim and
-    // the stocking share one transaction. Sales can approve in Veeey OR YeldnIN,
-    // so two approvals racing is a real scenario — the second must be a no-op.
+    // Single-winner: the claim and the stocking share one transaction, so two
+    // approvals racing (one per app) cannot both stock — the second is a no-op.
     const claim = await tx.incomingShipment.updateMany({
       where: { id, status: 'PENDING_REVIEW' },
-      data: { status: 'APPROVED', reviewedById: user.id, reviewedAt: at, rejectReason: null, locationId: location.id },
+      data: { status: 'APPROVED', reviewedById, reviewedAt: at, rejectReason: null, locationId: location.id },
     });
     if (claim.count === 0) return null;
     return stockShipmentLines(tx, s.lots, location.id, rates, s.receivedAt, s.yeldninUid);
   });
   if (!stocked) return { ok: false as const, error: 'not_pending' };
 
-  await audit({ actorType: 'USER', actorId: user.id, action: 'incoming_shipment.approve', entityType: 'IncomingShipment', entityId: id, data: stocked });
-  await emitReview(s.yeldninUid, 'APPROVED', null, at);
+  await audit({ actorType, actorId: reviewedById, action: 'incoming_shipment.approve', entityType: 'IncomingShipment', entityId: id, data: stocked });
+  if (opts.emit) await emitReview(s.yeldninUid, 'APPROVED', null, at);
   return { ok: true as const, stocked };
+}
+
+export async function approveShipment(id: string) {
+  const user = await requirePermission('inventory.manage');
+  return decideShipment(id, 'APPROVED', null, { kind: 'USER', id: user.id }, { emit: true });
 }
 
 export async function rejectShipment(id: string, reason: string) {
@@ -310,17 +351,20 @@ export async function rejectShipment(id: string, reason: string) {
   const why = reason.trim();
   // A rejection with no reason is useless to the Ops team that has to fix it.
   if (!why) return { ok: false as const, error: 'reason_required' };
-  const found = await prisma.incomingShipment.findUnique({ where: { id }, select: { yeldninUid: true } });
-  if (!found) return { ok: false as const, error: 'not_found' };
-  const at = new Date();
-  const r = await prisma.incomingShipment.updateMany({
-    where: { id, status: 'PENDING_REVIEW' },
-    data: { status: 'REJECTED', reviewedById: user.id, reviewedAt: at, rejectReason: why.slice(0, 500) },
-  });
-  if (r.count === 0) return { ok: false as const, error: 'not_pending' };
-  await audit({ actorType: 'USER', actorId: user.id, action: 'incoming_shipment.reject', entityType: 'IncomingShipment', entityId: id, data: { reason: why } });
-  await emitReview(found.yeldninUid, 'REJECTED', why.slice(0, 500), at);
-  return { ok: true as const };
+  return decideShipment(id, 'REJECTED', why, { kind: 'USER', id: user.id }, { emit: true });
+}
+
+/**
+ * Inbound: Sales decided in YeldnIN instead. Applies the identical outcome here
+ * — an approval really does create the stock — and deliberately does not emit,
+ * because YeldnIN already knows what it decided.
+ */
+export async function applyRemoteReview(payload: unknown) {
+  const w = parseShipmentReview(payload);
+  if (!w) return { ok: false as const, error: 'validation_failed' };
+  const found = await prisma.incomingShipment.findUnique({ where: { yeldninUid: w.shipmentUid }, select: { id: true } });
+  if (!found) return { ok: false as const, error: 'shipment_not_found' };
+  return decideShipment(found.id, w.decision, w.reason, { kind: 'SYSTEM' }, { emit: false, at: new Date(w.reviewedAt) });
 }
 
 export type { WireShipmentReceived };

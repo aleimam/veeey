@@ -4,7 +4,7 @@ import { parseWireRequest } from '@/lib/integration/request-sync';
 import { parseDeliveryTracking, orderStatusForDelivery, trackingNote } from '@/lib/integration/delivery-wire';
 import { storeKey } from '@/lib/integration/delivery-sync';
 import { transitionOrder } from '@/lib/order-service';
-import { receiveShipment } from '@/lib/incoming-shipment-service';
+import { receiveShipment, applyRemoteReview } from '@/lib/incoming-shipment-service';
 
 /**
  * Inbound YeldnIN webhook handlers (INTEGRATION_CONTRACT §5). The status/
@@ -144,6 +144,11 @@ export async function dispatchInboundEvent(type: string, payload: unknown): Prom
     // before anything becomes sellable stock.
     case 'shipment.received':
       return { handled: true, detail: await receiveShipment(payload) };
+    // The verdict travels BOTH ways — Sales review the same shipment in either
+    // app. Applying it here really creates the stock, exactly as approving in
+    // the admin UI does; it never echoes back, or the two would ping-pong.
+    case 'shipment.review':
+      return { handled: true, detail: await applyRemoteReview(payload) };
     case 'request.upsert':
     case 'request.created':
     case 'request.updated':

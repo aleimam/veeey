@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseShipmentReceived, totalUnits } from './shipment-wire';
+import { parseShipmentReceived, parseShipmentReview, totalUnits } from './shipment-wire';
 
 // Byte-shape of what YeldnIN's buildShipmentWire actually emits.
 const EV = {
@@ -73,5 +73,38 @@ describe('parseShipmentReceived (re-baselined against YeldnIN, not the contract 
   it('normalises currency case', () => {
     const w = parseShipmentReceived({ ...EV, lines: [{ ...EV.lines[0], lots: [{ ...EV.lines[0].lots[1], currency: 'gbp' }] }] })!;
     expect(w.lines[0].lots[0].currency).toBe('GBP');
+  });
+});
+
+describe('parseShipmentReview — the verdict, travelling either way', () => {
+  const ok = { shipmentUid: ' SHP-9 ', decision: 'approved', reason: '  ', reviewedAt: '2026-07-22T10:00:00.000Z' };
+
+  it('normalises the uid and upper-cases the decision', () => {
+    expect(parseShipmentReview(ok)).toEqual({ shipmentUid: 'SHP-9', decision: 'APPROVED', reason: null, reviewedAt: '2026-07-22T10:00:00.000Z' });
+  });
+
+  it('keeps a real reason, trimmed and capped', () => {
+    const r = parseShipmentReview({ ...ok, decision: 'REJECTED', reason: ` ${'x'.repeat(600)} ` })!;
+    expect(r.decision).toBe('REJECTED');
+    expect(r.reason).toHaveLength(500);
+  });
+
+  it('REJECTS an unknown decision rather than defaulting to one', () => {
+    // Defaulting to APPROVED would put unreviewed goods on sale; defaulting to
+    // REJECTED would bounce a shipment nobody rejected. Neither is acceptable.
+    expect(parseShipmentReview({ ...ok, decision: 'MAYBE' })).toBeNull();
+    expect(parseShipmentReview({ ...ok, decision: '' })).toBeNull();
+    expect(parseShipmentReview({ ...ok, decision: 42 })).toBeNull();
+  });
+
+  it('requires a shipment uid — it is the only thing that identifies the goods', () => {
+    expect(parseShipmentReview({ ...ok, shipmentUid: '   ' })).toBeNull();
+    expect(parseShipmentReview({ ...ok, shipmentUid: undefined })).toBeNull();
+    expect(parseShipmentReview(null)).toBeNull();
+  });
+
+  it('falls back to now for a missing or unparseable timestamp', () => {
+    expect(parseShipmentReview({ ...ok, reviewedAt: 'whenever' })!.reviewedAt).not.toBe('whenever');
+    expect(Date.parse(parseShipmentReview({ ...ok, reviewedAt: undefined })!.reviewedAt)).not.toBeNaN();
   });
 });

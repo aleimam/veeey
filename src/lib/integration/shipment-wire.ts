@@ -95,3 +95,37 @@ export function parseShipmentReceived(input: unknown): WireShipmentReceived | nu
 export function totalUnits(w: WireShipmentReceived): number {
   return w.lines.reduce((n, l) => n + l.lots.reduce((m, lot) => m + lot.quantity, 0), 0);
 }
+
+// ── Review verdict ──────────────────────────────────────────────────────────
+// The SAME event travels both ways: Veeey emits it when Sales decide here, and
+// YeldnIN emits it when Sales decide there (owner decision — the section is
+// mirrored in both apps). Each side applies it to its own state and does NOT
+// re-emit, or the two would ping-pong the same verdict forever.
+
+export const REVIEW_DECISIONS = ['APPROVED', 'REJECTED'] as const;
+export type ReviewDecision = (typeof REVIEW_DECISIONS)[number];
+
+export interface WireShipmentReview {
+  shipmentUid: string;
+  decision: ReviewDecision;
+  reason: string | null;
+  reviewedAt: string;
+}
+
+/**
+ * Mirror of YeldnIN's `parseShipmentReview` — keep the two byte-compatible.
+ *
+ * An unrecognised decision is REJECTED as a payload, never coerced to a default:
+ * guessing "APPROVED" would put unreviewed goods on sale, and guessing
+ * "REJECTED" would bounce a shipment nobody rejected.
+ */
+export function parseShipmentReview(input: unknown): WireShipmentReview | null {
+  if (!input || typeof input !== 'object') return null;
+  const p = input as Record<string, unknown>;
+  const uid = typeof p.shipmentUid === 'string' && p.shipmentUid.trim() ? p.shipmentUid.trim() : null;
+  const decision = typeof p.decision === 'string' ? p.decision.trim().toUpperCase() : '';
+  if (!uid || !(REVIEW_DECISIONS as readonly string[]).includes(decision)) return null;
+  const at = typeof p.reviewedAt === 'string' && !Number.isNaN(Date.parse(p.reviewedAt)) ? p.reviewedAt : new Date().toISOString();
+  const reason = typeof p.reason === 'string' && p.reason.trim() ? p.reason.trim().slice(0, 500) : null;
+  return { shipmentUid: uid, decision: decision as ReviewDecision, reason, reviewedAt: at };
+}
