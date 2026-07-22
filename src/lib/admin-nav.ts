@@ -115,3 +115,29 @@ export const NAV_SECTIONS: AdminNavSection[] = [
 ];
 
 export const NAV_ITEMS: AdminNavItem[] = NAV_SECTIONS.flatMap((s) => s.items);
+
+/**
+ * Topbar quick-add "+" menu (owner 2026-07-22): one-click jump to every unit's
+ * create screen the acting user may open. Permission keys mirror the nav entry
+ * that owns the page; labels are inline bilingual ([en, ar], picked in the
+ * layout) because these don't exist in the nav message catalog.
+ * NB: there is no admin "create customer" page — customers register themselves
+ * (or arrive via sync) — so it's deliberately absent here.
+ */
+export type QuickAddItem = { key: string; href: string; permission: string; label: [string, string] };
+export const QUICK_ADD: QuickAddItem[] = [
+  { key: 'order', href: '/admin/orders/new', permission: 'orders.write', label: ['Order', 'طلب'] },
+  { key: 'product', href: '/admin/products/edit', permission: 'catalog.write', label: ['Product', 'منتج'] },
+  { key: 'request', href: '/admin/requests/new', permission: 'requests.manage', label: ['Purchasing request', 'طلب شراء'] },
+  { key: 'specialOrder', href: '/admin/special-orders/new', permission: 'orders.write', label: ['Special order', 'طلب خاص'] },
+  { key: 'gift', href: '/admin/gifts/edit', permission: 'orders.write', label: ['Gift', 'هدية'] },
+  { key: 'coupon', href: '/admin/coupons/edit', permission: 'coupons.manage', label: ['Coupon', 'كوبون'] },
+  { key: 'blogPost', href: '/admin/content/blog/edit', permission: 'content.manage', label: ['Article', 'مقال'] },
+  { key: 'cmsPage', href: '/admin/content/pages/edit', permission: 'content.manage', label: ['Page', 'صفحة'] },
+  { key: 'brand', href: '/admin/brands/edit', permission: 'catalog.write', label: ['Brand', 'علامة تجارية'] },
+  { key: 'category', href: '/admin/categories/edit', permission: 'catalog.write', label: ['Category', 'فئة'] },
+  { key: 'collection', href: '/admin/collections/edit', permission: 'content.manage', label: ['Collection', 'مجموعة'] },
+  { key: 'tag', href: '/admin/tags/edit', permission: 'catalog.write', label: ['Tag', 'وسم'] },
+  { key: 'lot', href: '/admin/inventory/lots/edit', permission: 'inventory.manage', label: ['Stock lot', 'تشغيلة مخزون'] },
+  { key: 'staffUser', href: '/admin/users/edit', permission: 'rbac.manage', label: ['Staff user', 'مستخدم إداري'] },
+];

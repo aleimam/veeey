@@ -4,7 +4,7 @@ import { redirect } from '@/i18n/navigation';
 import { getCurrentUser } from '@/lib/auth-guards';
 import { canAccessAdmin } from '@/lib/rbac';
 import { pick } from '@/lib/admin-i18n';
-import { NAV_SECTIONS } from '@/lib/admin-nav';
+import { NAV_SECTIONS, QUICK_ADD } from '@/lib/admin-nav';
 import { AdminShell, type NavSection } from '@/components/admin/admin-shell';
 
 // Admin is always dynamic (reads the session + theme cookies).
@@ -39,6 +39,11 @@ export default async function AdminLayout({
       .map((item) => ({ href: item.href, label: t(`nav.${item.key}`), icon: item.key })),
   })).filter((s) => s.items.length > 0);
 
+  // Quick-add "+" menu (owner 2026-07-22) — only the create screens this user
+  // may actually open.
+  const quickAdd = QUICK_ADD.filter((q) => user.permissions.includes(q.permission))
+    .map((q) => ({ href: q.href, label: tb(q.label[0], q.label[1]) }));
+
   return (
     <AdminShell
       locale={locale}
@@ -46,6 +51,7 @@ export default async function AdminLayout({
       user={{ email: user.email ?? '—', role: user.roleKey ?? t('shell.noRole'), initial: (user.email ?? '?').slice(0, 1).toUpperCase() }}
       dark={dark}
       collapsed={collapsed}
+      quickAdd={quickAdd}
     >
       {children}
     </AdminShell>

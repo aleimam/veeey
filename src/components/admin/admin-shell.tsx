@@ -12,7 +12,7 @@ import {
   FolderTree, Tags, SlidersHorizontal, LayoutGrid, Boxes, ClipboardCheck, Truck, Users,
   Crown, Ticket, Star, Home, FileText, Newspaper, Share2, HelpCircle, Bell, UserCog,
   ShieldCheck, Settings, Plug, Palette, Webhook, Menu, X, Search, PanelLeftClose,
-  PanelLeftOpen, Sun, Moon, LogOut, ExternalLink, ChevronRight, KeyRound, Cable, DatabaseZap, RefreshCw, Trash2, CreditCard, ListChecks, Rocket, LayoutTemplate, History, Bot, Inbox, LineChart, MessageCircleQuestion, Gauge, ClipboardList, CalendarClock, SearchCheck, ShoppingBag, Stamp, Droplets, TrendingUp, TriangleAlert, Shuffle, PackageSearch, ToggleRight, Wand2, Layers, Repeat, HardDriveDownload,
+  PanelLeftOpen, Sun, Moon, LogOut, ExternalLink, ChevronRight, KeyRound, Cable, DatabaseZap, RefreshCw, Trash2, CreditCard, ListChecks, Rocket, LayoutTemplate, History, Bot, Inbox, LineChart, MessageCircleQuestion, Gauge, ClipboardList, CalendarClock, SearchCheck, ShoppingBag, Stamp, Droplets, TrendingUp, TriangleAlert, Shuffle, PackageSearch, ToggleRight, Wand2, Layers, Repeat, HardDriveDownload, Plus,
 } from 'lucide-react';
 
 export type NavItem = { href: string; label: string; icon: string };
@@ -89,6 +89,7 @@ export function AdminShell({
   user,
   dark: initialDark,
   collapsed: initialCollapsed,
+  quickAdd = [],
   children,
 }: {
   locale: string;
@@ -96,6 +97,7 @@ export function AdminShell({
   user: { email: string; role: string; initial: string };
   dark: boolean;
   collapsed: boolean;
+  quickAdd?: { href: string; label: string }[];
   children: React.ReactNode;
 }) {
   const t = pick(locale);
@@ -224,6 +226,28 @@ export function AdminShell({
 
           <div className="ms-auto flex items-center gap-1.5">
             <button onClick={() => window.dispatchEvent(new Event('veeey:cmdk'))} className="text-muted-foreground hover:text-foreground sm:hidden" aria-label={t('Search', 'بحث')}><Search size={19} /></button>
+            {/* Quick-add "+" (owner 2026-07-22): jump straight to a create screen.
+                RBAC-filtered server-side; details/summary keeps it dependency-free
+                and keyboard/Escape-friendly. */}
+            {quickAdd.length > 0 && (
+              <details className="relative" onKeyDown={(e) => { if (e.key === 'Escape') (e.currentTarget as HTMLDetailsElement).open = false; }}>
+                <summary
+                  className="inline-flex cursor-pointer list-none items-center rounded-md border border-border p-2 text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden"
+                  aria-label={t('Quick add', 'إضافة سريعة')}
+                  title={t('Quick add', 'إضافة سريعة')}
+                >
+                  <Plus size={16} />
+                </summary>
+                <div className="absolute end-0 z-50 mt-1.5 max-h-80 w-52 overflow-y-auto rounded-lg border border-border bg-background py-1.5 shadow-lg">
+                  <p className="px-3 pb-1 pt-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{t('Create new', 'إنشاء جديد')}</p>
+                  {quickAdd.map((q) => (
+                    <Link key={q.href} href={q.href} className="block px-3 py-1.5 text-sm text-foreground hover:bg-accent">
+                      {q.label}
+                    </Link>
+                  ))}
+                </div>
+              </details>
+            )}
             {/* Icon-only (owner 2026-07-22); the label lives in the tooltip + aria. */}
             <Link
               href="/"
