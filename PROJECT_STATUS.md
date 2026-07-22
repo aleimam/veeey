@@ -36,13 +36,25 @@
   `siteurl=https://egyptvitamins.net`, front page and a product page both 200, **14 GB** of uploads,
   no `.maintenance` file, `veeey-net-worker` back online. Safety dump kept at
   `/root/evnet-db-safety-20260722-1320.sql.gz`.
-  - ⚠️ **The restore carried the LIVE store's email addresses across.** 37 option rows still contain
-    `egyptvitamins.com` — the URLs were rewritten correctly, but `admin_email`, `new_admin_email`,
+  - ✅ **Emails repointed to `.net` (owner asked, 2026-07-22).** The restore carried the LIVE store's
+    mailbox across: the URLs were rewritten but `admin_email`, `new_admin_email`,
     `woocommerce_email_from_address`, `woocommerce_stock_email_recipient`, the new/cancelled/failed
-    order recipients and `woocommerce_pos_store_email` all still point at **`admin@egyptvitamins.com`**,
-    the real store's mailbox. Anything on the TEST site that triggers a WooCommerce email would land
-    in the live store's inbox. Also stale: `litespeed.conf.cdn-ori` still lists the `.com` origin, and
-    Site Kit is bound to the `.com` Search Console property. **Owner decision — not changed unasked.**
+    order recipients, `woocommerce_pos_store_email` and `mailserver_login` all still pointed at
+    `admin@egyptvitamins.com`, so a TEST-site email would have landed in the real store's inbox.
+    Fixed with `wp search-replace '@egyptvitamins.com' '@egyptvitamins.net' SFPgx_options --precise`
+    (+ `mail.egyptvitamins.com` → `.net` for `mailserver_url`) — **17 replacements, options table
+    only**. `--precise` matters: three of those rows are serialized PHP arrays; verified afterwards by
+    reading them back as JSON. Zero `@egyptvitamins.com` left in options; home/product/wp-login all
+    200. Rollback: `/root/evnet-options-backup-20260722-emails.sql.gz` (full options table).
+  - ⚠️ **Still on the live domain, deliberately left alone:** **14 staff USER ACCOUNTS** log in with
+    `@egyptvitamins.com` addresses (abdallah, m.ahmed, hanaa, …). Changing a login email can lock
+    someone out, so that is a separate owner decision. Also stale but harmless:
+    `litespeed.conf.cdn-ori` lists the `.com` origin, and Site Kit is bound to the `.com` Search
+    Console property.
+  - 🔒 **Security note:** `mailserver_pass` holds the live store's POP3 password **in plain text**
+    (standard WordPress post-by-email storage) and it came across in the backup, so the live mailbox
+    credential now also sits in the test store's database. Worth rotating it, or clearing the
+    `mailserver_*` options if post-by-email is unused.
 
 - **✅ Login overhaul + country-code phone input — `840dabd` (not yet deployed).** The OTP tab now
   accepts **an email address or a phone number** (it was phone-only) by reusing the existing
