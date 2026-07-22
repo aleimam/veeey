@@ -2,10 +2,39 @@
 
 > Living status/handoff doc. **Repo-committed so it travels with the code** (unlike per-user
 > assistant memory). Update it when features ship or the backlog changes.
-> **Last updated: 2026-07-22.** Authoritative product docs: `VEEEY_PRD.md`, `VEEEY_SPEC.md`,
+> **Last updated: 2026-07-23.** Authoritative product docs: `VEEEY_PRD.md`, `VEEEY_SPEC.md`,
 > `BUILD_PLAN.md`, `AGENTS.md` (build rules — read first), `DEPLOYMENT.md`, `SECURITY.md`, `README.md`.
 
 ## Current state
+
+- **✅ Order numbers are now purely numeric on veeey.net (owner 2026-07-22).** New orders already drew
+  from `order_number_seq`; the 4 surviving legacy `VY-…` orders were rewritten onto it (→ 1000002–5,
+  oldest first), so nothing anywhere shows a prefixed number. Checked first that no other system holds
+  the old strings: **YeldnIN has no order events at all** (the outbox carries only customers +
+  products), and the two `orderNumber` columns in `NetStockOutbox` / `WpStockIngest` are display-only
+  — both keyed by `orderId` / `wpOrderId`, so idempotency was never at risk. Old→new is reversible at
+  `/root/veeey-net-order-number-rollback-20260723.sql` on the .net box.
+
+- **✅ Collection pages restored on veeey.net + the gap that caused them closed (`b3f82cd`,
+  2026-07-23).** The test-data wipe had emptied `Collection`, so every mega-menu collection link 404'd
+  (`/en/collection/immunity` was the one the owner hit). The 13 rows were ported from veeey.com — 11
+  PUBLISHED, and `bundles-stacks` + `testosterone` DRAFT because they reference a manual product list
+  and a `tagv3_testosterone` tag that .net does not have.
+  - ⚠️ **The two drafts still 404** — drafts are not publicly reachable. That is the intended state
+    until their references exist on .net; they are visible and fixable in the admin.
+  - ⚠️ **The published pages currently render empty**, and that is NOT the port: .net has 3,605 lots
+    but only **1 with any quantity (2 units)** after the wipe, so the PLP correctly shows "Nothing
+    here". `immunity` alone has 485 published products, none in stock. Resolves itself when stock is
+    reloaded from ev.net.
+  - **Root cause fixed, not just the symptom:** collections were missing from `CONFIG_TABLES`
+    entirely, so `scripts/config/{export,import}.ts` never carried them — and copying the rows
+    verbatim would not have worked either, since 8 of the 13 point at category/tag/brand/attribute
+    **cuids that mean nothing in another store**; they would have imported as rules matching zero
+    products, with no error. References now travel as natural keys (`slug`, `sku` for products) via
+    `remapRefs()` + `src/lib/config-refs.ts`, and anything the target cannot resolve **demotes the row
+    to DRAFT and says so** rather than publishing a page that matches nothing. Also filters m2m `set`
+    targets — Prisma throws on the first missing one, which would abort a whole import over one
+    product. Gate: typecheck + lint clean, **849 tests / 107 files**, build clean.
 
 - **✅ Customer order details + order date — LIVE on BOTH stores (`663b295`, owner 2026-07-22).**
   The account Orders table gained a **Date** column (DD/MM/YYYY, full timestamp on hover) and the
