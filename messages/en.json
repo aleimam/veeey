@@ -477,7 +477,7 @@
     },
     "payments": {
       "COD": "Cash on Delivery",
-      "POS_ON_DELIVERY": "Card machine on delivery",
+      "POS_ON_DELIVERY": "POS upon Delivery",
       "BANK_TRANSFER": "Bank transfer",
       "MOBILE_WALLET": "Mobile wallet",
       "INSTAPAY": "InstaPay (IPN)",

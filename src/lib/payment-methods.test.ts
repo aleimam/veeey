@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import en from '../../messages/en.json';
 import ar from '../../messages/ar.json';
-import { PAYMENT_DESCRIPTION_DEFAULTS, PAYMENT_DESCRIPTION_LABELS, paymentDescriptionKey, paymentDescriptionSettings } from './payment-copy';
+import { CHECKOUT_METHOD_ORDER, PAYMENT_DESCRIPTION_DEFAULTS, PAYMENT_DESCRIPTION_LABELS, paymentDescriptionKey, paymentDescriptionSettings } from './payment-copy';
 
 /**
  * The checkout payment list. Both `payment-method-service` and
@@ -22,6 +22,18 @@ describe('the payment methods offered at checkout', () => {
     // orphan the orders already placed under it: customerLabel() falls back to
     // the raw code, so dropping it would print "BANK_TRANSFER" on real invoices.
     expect(CODES).toContain('BANK_TRANSFER');
+  });
+
+  it('displays in the owner-specified order: cards, rails, POS, COD last', () => {
+    // The service sorts CUSTOMER_METHODS by this constant, so asserting it here
+    // pins the actual checkout order (the service can't load under vitest).
+    expect(CHECKOUT_METHOD_ORDER).toEqual([
+      'CARD_KASHIER', 'CARD_OPAY', 'INSTAPAY', 'BANK_TRANSFER', 'MOBILE_WALLET', 'POS_ON_DELIVERY', 'COD',
+    ]);
+  });
+
+  it('covers every method exactly once — a code missing here sorts to the end silently', () => {
+    expect([...CHECKOUT_METHOD_ORDER].sort()).toEqual([...CODES].sort());
   });
 });
 
@@ -82,6 +94,11 @@ describe('checkout labels', () => {
       expect(label(en, code), `en ${code}`).toBeTruthy();
       expect(label(ar, code), `ar ${code}`).toBeTruthy();
     }
+  });
+
+  it('renames POS to "POS upon Delivery" (owner 2026-07-23)', () => {
+    expect(label(en, 'POS_ON_DELIVERY')).toBe('POS upon Delivery');
+    expect(PAYMENT_DESCRIPTION_LABELS.POS_ON_DELIVERY).toBe('POS upon Delivery');
   });
 
   it('no longer sells Bank Transfer as a catch-all for InstaPay and wallets', () => {

@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
 import { InUseError } from '@/lib/soft-delete-service';
-import { PAYMENT_DESCRIPTION_DEFAULTS, paymentDescriptionKey } from '@/lib/payment-copy';
+import { PAYMENT_DESCRIPTION_DEFAULTS, paymentDescriptionKey, CHECKOUT_METHOD_ORDER } from '@/lib/payment-copy';
 
 /**
  * Two-level payment methods.
@@ -24,15 +24,27 @@ export type CustomerMethod = { code: string; labelEn: string; labelAr: string; o
  * instructions from the customer. Split 2026-07-23 (owner). The code STAYS in
  * this list: past orders carry it, and dropping it would leave them labelless.
  */
-export const CUSTOMER_METHODS: CustomerMethod[] = [
-  { code: 'COD', labelEn: 'Cash on Delivery', labelAr: 'الدفع عند الاستلام', online: false },
-  { code: 'MOBILE_WALLET', labelEn: 'Mobile Wallet', labelAr: 'محفظة إلكترونية', online: false },
+// Display order is CHECKOUT_METHOD_ORDER (owner 2026-07-23): cards first, then
+// the transfer rails, POS, and COD last. Sorted by that constant rather than by
+// hand so the tested order (payment-copy) and this list cannot drift apart. The
+// PRE-SELECTED default is chosen separately in the checkout form (still COD), so
+// leading with cards does not silently switch a shopper onto a card payment.
+const CUSTOMER_METHODS_RAW: CustomerMethod[] = [
+  { code: 'CARD_KASHIER', labelEn: 'Credit/Debit Card (Kashier)', labelAr: 'بطاقة ائتمان/خصم (Kashier)', online: true, gateway: 'KASHIER' },
+  { code: 'CARD_OPAY', labelEn: 'Credit/Debit Card (OPay)', labelAr: 'بطاقة ائتمان/خصم (OPay)', online: true, gateway: 'OPAY' },
   { code: 'INSTAPAY', labelEn: 'InstaPay (IPN)', labelAr: 'إنستاباي (IPN)', online: false },
   { code: 'BANK_TRANSFER', labelEn: 'Bank Transfer', labelAr: 'تحويل بنكي', online: false },
-  { code: 'CARD_OPAY', labelEn: 'Credit/Debit Card (OPay)', labelAr: 'بطاقة ائتمان/خصم (OPay)', online: true, gateway: 'OPAY' },
-  { code: 'CARD_KASHIER', labelEn: 'Credit/Debit Card (Kashier)', labelAr: 'بطاقة ائتمان/خصم (Kashier)', online: true, gateway: 'KASHIER' },
-  { code: 'POS_ON_DELIVERY', labelEn: 'POS on Delivery', labelAr: 'دفع بالبطاقة عند الاستلام', online: false, requiresPosArea: true },
+  { code: 'MOBILE_WALLET', labelEn: 'Mobile Wallet', labelAr: 'محفظة إلكترونية', online: false },
+  { code: 'POS_ON_DELIVERY', labelEn: 'POS upon Delivery', labelAr: 'دفع بالبطاقة عند الاستلام', online: false, requiresPosArea: true },
+  { code: 'COD', labelEn: 'Cash on Delivery', labelAr: 'الدفع عند الاستلام', online: false },
 ];
+const orderIndex = (code: string) => {
+  const i = (CHECKOUT_METHOD_ORDER as readonly string[]).indexOf(code);
+  return i === -1 ? CHECKOUT_METHOD_ORDER.length : i; // any unlisted method sorts last, deterministically
+};
+export const CUSTOMER_METHODS: CustomerMethod[] = [...CUSTOMER_METHODS_RAW].sort(
+  (a, b) => orderIndex(a.code) - orderIndex(b.code),
+);
 const CUSTOMER_BY_CODE = new Map(CUSTOMER_METHODS.map((m) => [m.code, m]));
 export const customerMethod = (code: string | null | undefined) => (code ? CUSTOMER_BY_CODE.get(code) ?? null : null);
 export const customerLabel = (code: string | null | undefined, locale = 'en') => { const m = customerMethod(code); return m ? (locale === 'ar' ? m.labelAr : m.labelEn) : (code ?? '—'); };

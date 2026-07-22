@@ -12,6 +12,18 @@
 export const paymentDescriptionKey = (code: string, locale: string) =>
   `payments.desc.${code}.${locale === 'ar' ? 'ar' : 'en'}`;
 
+/**
+ * The checkout display order (owner 2026-07-23): cards first, then the transfer
+ * rails, POS, and COD last. Pure + here so the service can be sorted by it and
+ * vitest can assert it (the service itself drags in next-auth and won't load in
+ * tests). Note: this is DISPLAY order only — the pre-selected default is COD,
+ * decided in the checkout form, so leading with cards never auto-switches a
+ * shopper onto an online payment.
+ */
+export const CHECKOUT_METHOD_ORDER = [
+  'CARD_KASHIER', 'CARD_OPAY', 'INSTAPAY', 'BANK_TRANSFER', 'MOBILE_WALLET', 'POS_ON_DELIVERY', 'COD',
+] as const;
+
 /** Says what the customer must DO, not what the method is. */
 export const PAYMENT_DESCRIPTION_DEFAULTS: Record<string, { en: string; ar: string }> = {
   COD: {
@@ -57,7 +69,7 @@ export const PAYMENT_DESCRIPTION_LABELS: Record<string, string> = {
   BANK_TRANSFER: 'Bank Transfer',
   CARD_OPAY: 'Card (OPay)',
   CARD_KASHIER: 'Card (Kashier)',
-  POS_ON_DELIVERY: 'POS on Delivery',
+  POS_ON_DELIVERY: 'POS upon Delivery',
 };
 
 /**
