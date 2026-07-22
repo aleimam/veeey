@@ -12,7 +12,7 @@ import { listCustomerPlans, refillSettings } from '@/lib/refill-service';
 import { refillPlanOpAction } from '@/server/refill-actions';
 import { ReturnRequestForm } from '@/components/storefront/return-request-form';
 import { ChewyProductCard } from '@/components/storefront/chewy/chewy-product-card';
-import { formatEGP } from '@/lib/format';
+import { formatEGP, shortDate } from '@/lib/format';
 import { StatusBadge } from '@/components/admin/ui';
 import { Icon } from '@/components/storefront/ui/icon';
 import { pick } from '@/lib/admin-i18n';
@@ -251,6 +251,7 @@ export default async function AccountPage({ params, searchParams }: { params: Pr
                   <thead className="bg-surface text-xs uppercase text-[color:var(--text-muted)]">
                     <tr>
                       <th className="p-3 text-start">{t('colOrder')}</th>
+                      <th className="p-3 text-start">{tb('Date', 'التاريخ')}</th>
                       <th className="p-3 text-start">{t('colItems')}</th>
                       <th className="p-3 text-start">{t('colTotal')}</th>
                       <th className="p-3 text-start">{t('colStatus')}</th>
@@ -261,9 +262,16 @@ export default async function AccountPage({ params, searchParams }: { params: Pr
                     {orders.map((o) => (
                       <tr key={o.id} className="border-t border-[color:var(--slate-border)]">
                         <td className="p-3 font-semibold text-ink">
-                          {o.number}
+                          <Link href={`/account/orders/${o.number}`} className="text-green-dark underline-offset-2 hover:text-lime-press hover:underline">
+                            {o.number}
+                          </Link>
                           {o.isPreorder && <span className="ms-1.5 rounded-full bg-[color:var(--gold-wash)] px-1.5 py-0.5 text-[10px] font-medium text-slate">{tb('Pre-order', 'طلب مسبق')}</span>}
                           {o.isSpecialOrder && <span className="ms-1.5 rounded-full bg-green-wash px-1.5 py-0.5 text-[10px] font-medium text-green-dark">{tb('Special order', 'طلب خاص')}</span>}
+                        </td>
+                        {/* Short date, same shape as the admin orders list (DD/MM/YYYY);
+                            full timestamp on hover for anyone who needs the detail. */}
+                        <td className="whitespace-nowrap p-3 text-[color:var(--text-muted)]" title={new Date(o.placedAt).toISOString()}>
+                          {shortDate(o.placedAt)}
                         </td>
                         <td className="p-3 text-ink">{o._count.items}</td>
                         <td className="p-3 text-ink">{formatEGP(Number(o.totalPiastres))}</td>

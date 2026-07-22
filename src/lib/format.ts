@@ -33,3 +33,13 @@ export function parseEgpInput(value: string): bigint | null {
   if (!Number.isFinite(n) || n < 0) return null;
   return egpToPiastres(n);
 }
+
+/**
+ * DD/MM/YYYY for an order date. Formatted from the UTC instant (not the
+ * viewer's locale) so a customer and a staffer reading the same order always
+ * see the same day — the admin orders list renders the same way.
+ */
+export function shortDate(value: Date | string): string {
+  const iso = new Date(value).toISOString();
+  return `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
+}
