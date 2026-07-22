@@ -137,6 +137,22 @@ model IncomingShipmentLot {
   unitCost    Float?
   currency    String? // null = EGP
 
+  /// The Veeey lot this line stocked at approval. Non-null = already applied, so
+  /// it is both the audit trail and the idempotency guard: a re-fired approval or
+  /// a double-click can never stock the same units twice.
+  lotId        String?
+  lot          Lot?      @relation(fields: [lotId], references: [id])
+  /// EGP cost per unit, PINNED at approval. A cost is a historical fact — it must
+  /// not silently re-value when the exchange rate moves.
+  costPiastres BigInt?
+  /// The rate and its publication date, kept so the conversion can be audited.
+  fxRate       Float?
+  fxRateDate   String? // YYYY-MM-DD as published by the provider
+  /// True when the live rate was unreachable and a cached one was used. An
+  /// approval must never hard-fail on a third-party outage, but the resulting
+  /// cost is worth a second look.
+  fxStale      Boolean   @default(false)
+
   @@index([shipmentId])
   @@index([productId])
 }
@@ -1106,6 +1122,7 @@ model Lot {
   movements       MovementLedger[]
   stocktakeCounts StocktakeCount[]
   spillageEntries SpillageEntry[] @relation("SpillageSource")
+  incomingLots    IncomingShipmentLot[]
 
   @@index([productId, expiryDate])
   @@index([status])
