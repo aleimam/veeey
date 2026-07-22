@@ -7,6 +7,23 @@
 
 ## Current state
 
+- **✅ Checkout payment method = radio cards, not a dropdown — LIVE on veeey.net (`c9e0916`, owner
+  2026-07-22).** The `<select>` hid every option behind a click while the delivery methods directly
+  above were already open radio cards; they now match. Reuses the shipping cards' classes and
+  selected state (`border-[1.5px] border-green-dark bg-green-wash`), minus `justify-between` since
+  payment has no price column. Also mirrors the shipping fallback: `effectivePayment` drops to the
+  first *visible* option, because POS-on-delivery only exists in some governorates and can disappear
+  when the address changes — without it the form could submit a method the customer can no longer see.
+  **Verified on the live site** by DOM inspection (the Browser pane's screenshot + a11y tree were
+  unresponsive, JS worked): dropdown gone, 4 radios (COD checked by default), and clicking Bank
+  transfer moved both the checked state and the highlight.
+
+- **✅ YeldnIN customer reload — 16,235 pushed, 0 failed (owner 2026-07-22).** YeldnIN's `Customer`
+  table had been emptied by the test-data wipe. A one-off script (customers only — deliberately NOT
+  `sweepV2()`, which would also re-push the whole catalog) enqueued every Veeey customer and drained
+  the outbox. **Verified in YeldnIN's own SQLite: 16,235 customers = Veeey's 16,235, all scope VEEEY,
+  all linked by `veeeyCustomerId`, ZERO duplicate ids and ZERO duplicate emails.**
+
 - **✅ Owner batch 2026-07-22B — 13 items from the owner's screenshots. ALL SHIPPED + DEPLOYED to
   veeey.net at `06a1232` (73 migrations, 838 tests).**
   Shipped to `master` in order: `06322e2` (**PDF invoice fixed** — pdfkit was being bundled with
