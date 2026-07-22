@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
+import { paymentDescriptionSettings } from '@/lib/payment-copy';
 
 /**
  * Admin-configurable business constants (AGENTS.md rule #2 — never hard-code
@@ -85,6 +86,11 @@ export const SETTINGS: SettingDef[] = [
   { key: 'seo.homeDescAr', label: 'Homepage description — Arabic', group: 'SEO', type: 'text', default: 'مكمّلات غذائية وأجهزة صحية أصلية مستوردة من أمريكا وبريطانيا وأوروبا. تاريخ كل تشغيلة ظاهر قبل الشراء، توصيل سريع في كل مصر، وخصم ١٥٪ مع ريفيل من فيي.', hint: 'الوصف الذي يظهر أسفل العنوان في جوجل. حوالي ١٦٠ حرفًا.' },
   // Analytics data retention — visitor clickstream is purged after this many days.
   { key: 'analytics.retentionDays', label: 'Analytics retention (days)', group: 'Analytics', type: 'days', default: '90', hint: 'Visitor sessions + events older than this are auto-deleted daily. 0 = keep forever (raises privacy/legal obligations).' },
+  // Checkout copy shown under a payment method once the customer selects it.
+  // Generated from the shared copy module so the wording and this registry
+  // cannot drift apart — see paymentDescriptionSettings() for why the defaults
+  // are the real sentences rather than ''.
+  ...paymentDescriptionSettings(),
 ];
 
 const DEFAULTS: Record<string, string> = Object.fromEntries(SETTINGS.map((s) => [s.key, s.default]));

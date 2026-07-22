@@ -479,6 +479,8 @@
       "COD": "Cash on Delivery",
       "POS_ON_DELIVERY": "Card machine on delivery",
       "BANK_TRANSFER": "Bank transfer",
+      "MOBILE_WALLET": "Mobile wallet",
+      "INSTAPAY": "InstaPay (IPN)",
       "WALLET": "Mobile wallet",
       "OPAY": "Visa / MasterCard",
       "KASHIER": "Visa / MasterCard"

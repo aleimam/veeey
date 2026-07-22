@@ -33,6 +33,7 @@ export function CheckoutForm({
   pointsPerEgp = 200,
   savedAddresses = [],
   cities = {},
+  paymentNotes = {},
   requireVerification = false,
   alreadyVerified = false,
   accountEmail,
@@ -52,6 +53,8 @@ export function CheckoutForm({
   savedAddresses?: SavedAddr[];
   /** Delivery districts grouped by governorate — the whole list, filtered client-side. */
   cities?: CitiesByGovernorate;
+  /** Per-method explanation, keyed by method code — shown under the selected one. */
+  paymentNotes?: Record<string, string>;
   requireVerification?: boolean;
   alreadyVerified?: boolean;
   accountEmail?: string;
@@ -303,24 +306,36 @@ export function CheckoutForm({
           {/* Radio cards, matching the delivery list above (owner 2026-07-22) —
               a dropdown hid the choices behind a click; these are all visible. */}
           <div className="space-y-2">
-            {visiblePayment.map((m) => (
-              <label
-                key={m.key}
-                className={`flex cursor-pointer items-center gap-2.5 rounded-[10px] border p-3.5 text-sm transition-colors ${
-                  effectivePayment === m.key ? 'border-[1.5px] border-green-dark bg-green-wash' : 'border-[color:var(--slate-border)]'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="paymentMethod"
-                  value={m.key}
-                  checked={effectivePayment === m.key}
-                  onChange={() => setPayment(m.key)}
-                  className="accent-[color:var(--green-dark)]"
-                />
-                <span className="text-ink">{tPay.has(m.key) ? tPay(m.key) : m.label}</span>
-              </label>
-            ))}
+            {visiblePayment.map((m) => {
+              const selected = effectivePayment === m.key;
+              const note = paymentNotes[m.key];
+              return (
+                <label
+                  key={m.key}
+                  className={`block cursor-pointer rounded-[10px] border p-3.5 text-sm transition-colors ${
+                    selected ? 'border-[1.5px] border-green-dark bg-green-wash' : 'border-[color:var(--slate-border)]'
+                  }`}
+                >
+                  <span className="flex items-center gap-2.5">
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value={m.key}
+                      checked={selected}
+                      onChange={() => setPayment(m.key)}
+                      className="accent-[color:var(--green-dark)]"
+                    />
+                    <span className="text-ink">{tPay.has(m.key) ? tPay(m.key) : m.label}</span>
+                  </span>
+                  {/* Only under the SELECTED method (owner 2026-07-23): showing all
+                      seven at once turns the list into a wall of text and buries
+                      the choice itself. */}
+                  {selected && note && (
+                    <span className="mt-2 block ps-[26px] text-xs leading-relaxed text-[color:var(--text-muted)]">{note}</span>
+                  )}
+                </label>
+              );
+            })}
           </div>
           <label className="mt-3 flex items-center gap-2 text-sm text-ink">
             <input type="checkbox" name="discreetPackaging" className="size-4 accent-[color:var(--green-dark)]" /> {t('discreet')}

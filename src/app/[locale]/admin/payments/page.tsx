@@ -3,7 +3,8 @@ import { redirect } from '@/i18n/navigation';
 import { getCurrentUser } from '@/lib/auth-guards';
 import { hasPermission } from '@/lib/rbac';
 import { pick } from '@/lib/admin-i18n';
-import { CUSTOMER_METHODS, listSystemMethods } from '@/lib/payment-method-service';
+import { CUSTOMER_METHODS, listSystemMethods, paymentDescriptions } from '@/lib/payment-method-service';
+import { Link } from '@/i18n/navigation';
 import { saveSystemMethodAction, toggleSystemMethodAction, deleteSystemMethodAction, remapOrderPaymentsAction } from '@/server/payment-actions';
 import { SubmitButton, inputCls } from '@/components/admin/ui';
 
@@ -25,6 +26,9 @@ export default async function PaymentsPage({ params, searchParams }: { params: P
   if (!hasPermission(user.permissions, 'settings.manage')) redirect({ href: '/admin', locale });
 
   const system = await listSystemMethods();
+  // Show staff exactly what the shopper reads under each method — otherwise the
+  // copy lives only in Settings and nobody checks it against the real list.
+  const notes = await paymentDescriptions(locale);
   const customerOpts = CUSTOMER_METHODS.map((m) => ({ value: m.code, label: locale === 'ar' ? m.labelAr : m.labelEn }));
 
   const card = 'rounded-xl border border-border bg-card p-5';
@@ -51,8 +55,13 @@ export default async function PaymentsPage({ params, searchParams }: { params: P
         {/* 1) Customer-facing (fixed) */}
         <section className={card}>
           <h2 className="mb-1 text-base font-semibold text-foreground">{tb('Customer-facing methods (fixed)', 'الطرق المعروضة للعميل (ثابتة)')}</h2>
-          <p className="mb-3 text-xs text-muted-foreground">{tb('What the shopper selects at checkout. This list is fixed; POS on Delivery shows only in areas you enable for it.', 'ما يختاره العميل عند الدفع. هذه القائمة ثابتة؛ «الدفع بالبطاقة عند الاستلام» يظهر فقط في المناطق التي تفعّلها له.')}</p>
-          <div className="flex flex-wrap gap-2">
+          <p className="mb-3 text-xs text-muted-foreground">
+            {tb('What the shopper selects at checkout. This list is fixed; POS on Delivery shows only in areas you enable for it (Shipping → zones → Allows POS).', 'ما يختاره العميل عند الدفع. هذه القائمة ثابتة؛ «الدفع بالبطاقة عند الاستلام» يظهر فقط في المناطق التي تفعّلها له (الشحن ← المناطق ← يسمح بالدفع بالبطاقة).')}{' '}
+            <Link href="/admin/settings#Payments" className="font-medium text-primary hover:underline">
+              {tb('Edit the descriptions →', 'تعديل الأوصاف ←')}
+            </Link>
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2">
             {CUSTOMER_METHODS.map((m) => (
               <div key={m.code} className="rounded-lg border border-border px-3 py-2 text-sm">
                 <div className="font-medium text-foreground">{locale === 'ar' ? m.labelAr : m.labelEn}</div>
@@ -61,6 +70,11 @@ export default async function PaymentsPage({ params, searchParams }: { params: P
                   {m.online && <span className="rounded-full bg-primary/15 px-2 py-0.5 text-primary">{tb('Online', 'إلكتروني')} · {m.gateway}</span>}
                   {m.requiresPosArea && <span className="rounded-full bg-gold/20 px-2 py-0.5 text-slate">{tb('Area-gated', 'حسب المنطقة')}</span>}
                 </div>
+                {notes[m.code] ? (
+                  <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{notes[m.code]}</p>
+                ) : (
+                  <p className="mt-1.5 text-xs italic text-muted-foreground">{tb('No description — nothing shows under this method.', 'بدون وصف — لا يظهر شيء تحت هذه الطريقة.')}</p>
+                )}
               </div>
             ))}
           </div>

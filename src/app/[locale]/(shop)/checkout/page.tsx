@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { readCartId, getCart } from '@/lib/cart-service';
 import { listShippingTypes, ultraFastGovernorates } from '@/lib/shipping-service';
-import { enabledCustomerMethods } from '@/lib/payment-method-service';
+import { enabledCustomerMethods, paymentDescriptions } from '@/lib/payment-method-service';
 import { getNumberSetting } from '@/lib/settings-service';
 import { checkoutVerificationRequired, isCheckoutVerified } from '@/lib/checkout-service';
 import { smsConfigured, emailConfigured } from '@/lib/provider-config';
@@ -32,6 +32,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ local
     : [];
 
   const cities = await citiesByGovernorate();
+  const paymentNotes = await paymentDescriptions(locale);
   const tp = await getTranslations('storefront.checkout');
   const tb = pick(locale);
   const pointsPerEgp = await getNumberSetting('loyalty.redeemPointsPerEgp');
@@ -73,6 +74,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ local
         pointsPerEgp={pointsPerEgp}
         savedAddresses={savedAddresses}
         cities={cities}
+        paymentNotes={paymentNotes}
         requireVerification={requireVerification}
         alreadyVerified={alreadyVerified}
         accountEmail={user?.email ?? undefined}

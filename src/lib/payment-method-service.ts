@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
 import { InUseError } from '@/lib/soft-delete-service';
+import { PAYMENT_DESCRIPTION_DEFAULTS, paymentDescriptionKey } from '@/lib/payment-copy';
 
 /**
  * Two-level payment methods.
@@ -14,9 +15,20 @@ import { InUseError } from '@/lib/soft-delete-service';
 
 // ---- Customer-facing (fixed) ----------------------------------------------
 export type CustomerMethod = { code: string; labelEn: string; labelAr: string; online: boolean; gateway?: 'OPAY' | 'KASHIER'; requiresPosArea?: boolean };
+
+/**
+ * The radio list at checkout.
+ *
+ * `BANK_TRANSFER` used to be one catch-all reading "Bank Transfer / InstaPay /
+ * Wallet" — three different things behind one radio, each needing different
+ * instructions from the customer. Split 2026-07-23 (owner). The code STAYS in
+ * this list: past orders carry it, and dropping it would leave them labelless.
+ */
 export const CUSTOMER_METHODS: CustomerMethod[] = [
   { code: 'COD', labelEn: 'Cash on Delivery', labelAr: 'الدفع عند الاستلام', online: false },
-  { code: 'BANK_TRANSFER', labelEn: 'Bank Transfer / InstaPay / Wallet', labelAr: 'تحويل بنكي / إنستاباي / محفظة', online: false },
+  { code: 'MOBILE_WALLET', labelEn: 'Mobile Wallet', labelAr: 'محفظة إلكترونية', online: false },
+  { code: 'INSTAPAY', labelEn: 'InstaPay (IPN)', labelAr: 'إنستاباي (IPN)', online: false },
+  { code: 'BANK_TRANSFER', labelEn: 'Bank Transfer', labelAr: 'تحويل بنكي', online: false },
   { code: 'CARD_OPAY', labelEn: 'Credit/Debit Card (OPay)', labelAr: 'بطاقة ائتمان/خصم (OPay)', online: true, gateway: 'OPAY' },
   { code: 'CARD_KASHIER', labelEn: 'Credit/Debit Card (Kashier)', labelAr: 'بطاقة ائتمان/خصم (Kashier)', online: true, gateway: 'KASHIER' },
   { code: 'POS_ON_DELIVERY', labelEn: 'POS on Delivery', labelAr: 'دفع بالبطاقة عند الاستلام', online: false, requiresPosArea: true },
@@ -32,6 +44,33 @@ export function enabledCustomerMethods(locale = 'en', opts: { posAllowed?: boole
   return CUSTOMER_METHODS.filter((m) => !m.requiresPosArea || opts.posAllowed).map((m) => ({ code: m.code, label: locale === 'ar' ? m.labelAr : m.labelEn, online: m.online }));
 }
 
+/* ---- Per-method explanation, shown when a method is selected -------------- */
+
+export { paymentDescriptionKey, PAYMENT_DESCRIPTION_DEFAULTS } from '@/lib/payment-copy';
+
+export type PaymentDescriptions = Record<string, string>;
+
+/**
+ * The description for every customer-facing method, in one read.
+ *
+ * A blank setting means the owner deliberately cleared it, so it stays blank —
+ * falling back to the default would resurrect copy they removed on purpose.
+ */
+export async function paymentDescriptions(locale = 'en'): Promise<PaymentDescriptions> {
+  const keys = CUSTOMER_METHODS.map((m) => paymentDescriptionKey(m.code, locale));
+  const rows = await prisma.setting.findMany({ where: { key: { in: keys } }, select: { key: true, value: true } });
+  const stored = new Map(rows.map((r) => [r.key, r.value]));
+  const out: PaymentDescriptions = {};
+  for (const m of CUSTOMER_METHODS) {
+    const key = paymentDescriptionKey(m.code, locale);
+    const fallback = PAYMENT_DESCRIPTION_DEFAULTS[m.code];
+    out[m.code] = stored.has(key)
+      ? stored.get(key)!
+      : (locale === 'ar' ? fallback?.ar : fallback?.en) ?? '';
+  }
+  return out;
+}
+
 // ---- System (editable, DB) -------------------------------------------------
 export type SystemMethodRow = { id: string; code: string; labelEn: string; labelAr: string | null; customerCode: string; courier: string | null; sourceAliases: string[]; active: boolean; sortOrder: number };
 
@@ -44,9 +83,13 @@ const SYSTEM_SEED: Array<Omit<SystemMethodRow, 'id'>> = [
   { code: 'POS_GEDIEA', labelEn: 'Gediea POS', labelAr: 'جديعة POS', customerCode: 'POS_ON_DELIVERY', courier: null, sourceAliases: ['gediea', 'gediea_pos'], active: true, sortOrder: 6 },
   { code: 'POS_AMAN', labelEn: 'Aman POS', labelAr: 'أمان POS', customerCode: 'POS_ON_DELIVERY', courier: null, sourceAliases: ['aman', 'aman_pos'], active: true, sortOrder: 7 },
   { code: 'POS_KASHIER', labelEn: 'Kashier POS', labelAr: 'Kashier POS', customerCode: 'POS_ON_DELIVERY', courier: null, sourceAliases: ['kashier_pos'], active: true, sortOrder: 8 },
-  { code: 'BANK_ALEX', labelEn: 'Bank Transfer / InstaPay (Alex Bank)', labelAr: 'تحويل بنكي / إنستاباي (بنك الإسكندرية)', customerCode: 'BANK_TRANSFER', courier: null, sourceAliases: ['alexbank', 'bank_alex', 'instapay_alex'], active: true, sortOrder: 9 },
-  { code: 'BANK_OTHER', labelEn: 'Bank Transfer / InstaPay (Other Banks)', labelAr: 'تحويل بنكي / إنستاباي (بنوك أخرى)', customerCode: 'BANK_TRANSFER', courier: null, sourceAliases: ['bacs', 'bank', 'bank_transfer', 'instapay'], active: true, sortOrder: 10 },
-  { code: 'WALLET', labelEn: 'Mobile Wallet', labelAr: 'محفظة إلكترونية', customerCode: 'BANK_TRANSFER', courier: null, sourceAliases: ['wallet', 'vodafone_cash', 'fawry', 'mobile_wallet'], active: true, sortOrder: 11 },
+  { code: 'BANK_ALEX', labelEn: 'Bank Transfer (Alex Bank)', labelAr: 'تحويل بنكي (بنك الإسكندرية)', customerCode: 'BANK_TRANSFER', courier: null, sourceAliases: ['alexbank', 'bank_alex'], active: true, sortOrder: 9 },
+  { code: 'BANK_OTHER', labelEn: 'Bank Transfer (Other Banks)', labelAr: 'تحويل بنكي (بنوك أخرى)', customerCode: 'BANK_TRANSFER', courier: null, sourceAliases: ['bacs', 'bank', 'bank_transfer'], active: true, sortOrder: 10 },
+  // InstaPay and the wallets left BANK_TRANSFER when the checkout radio was
+  // split (2026-07-23) — the aliases move with them, so a freshly imported
+  // WooCommerce order classifies to what the customer actually used.
+  { code: 'INSTAPAY', labelEn: 'InstaPay (IPN)', labelAr: 'إنستاباي (IPN)', customerCode: 'INSTAPAY', courier: null, sourceAliases: ['instapay', 'instapay_alex', 'ipn'], active: true, sortOrder: 11 },
+  { code: 'WALLET', labelEn: 'Mobile Wallet', labelAr: 'محفظة إلكترونية', customerCode: 'MOBILE_WALLET', courier: null, sourceAliases: ['wallet', 'vodafone_cash', 'orange_cash', 'etisalat_flous', 'we_pay', 'fawry', 'mobile_wallet'], active: true, sortOrder: 12 },
 ];
 
 let cache: { at: number; rows: SystemMethodRow[] } | null = null;
