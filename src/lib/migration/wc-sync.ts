@@ -5,6 +5,7 @@ import { decodeEntities, decodePercentSlug } from '@/lib/decode-entities';
 import { slugify, brandCode, skuFromParts } from '@/lib/sku';
 import { ensureCustomerProfile } from '@/lib/customer';
 import { normalizeMobile } from '@/lib/provider-config';
+import { isTombstoned } from '@/lib/customer-spam';
 import type { Prisma } from '@/generated/prisma/client';
 import { resolveImportPayment } from '@/lib/payment-method-service';
 import { resolveImportStatus, customerStatusOf } from '@/lib/order-status-service';
@@ -232,6 +233,12 @@ export async function syncCustomers(opts: { maxPages?: number; perPage?: number;
   const s = newSummary('customers', state?.cursor ?? null);
   let lastCompleted: number | null = state?.cursor ? Number(state.cursor) : null;
 
+  // Accounts a human deleted as junk at /admin/customers/spam. This importer is
+  // idempotent on legacyWpId/email, so without this list every deleted spam
+  // signup would reappear on the next scheduled run.
+  const { readTombstones } = await import('@/lib/net-sync/customers');
+  const tombstones = await readTombstones();
+
   let page = startPage;
   let pagesThisRun = 0;
   while (pagesThisRun < maxPages) {
@@ -258,6 +265,7 @@ export async function syncCustomers(opts: { maxPages?: number; perPage?: number;
       const email = str(c.email).trim().toLowerCase();
       try {
         if (!email || !Number.isFinite(wpId)) { pushErr(s, str(c.id), 'missing email/id'); continue; }
+        if (isTombstoned(tombstones, wpId, email)) { s.skipped++; continue; }
         const existing = await prisma.customer.findUnique({ where: { legacyWpId: wpId }, select: { id: true, syncedAt: true, updatedAt: true } });
         if (existing?.syncedAt && existing.updatedAt.getTime() - existing.syncedAt.getTime() > DETACH_MS) { s.detached++; continue; }
         if (existing) {

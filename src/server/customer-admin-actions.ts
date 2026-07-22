@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import {
   searchCustomers, quickCreateCustomer, updateCustomerDetails, updateCustomerStanding,
-  scanAndFlagSuspicious, deleteSpamCustomers, saveCustomerAddress, deleteCustomerAddress, type CustomerHit,
+  scanAndFlagSuspicious, deleteSpamCustomers, allowDeletedSpam, saveCustomerAddress, deleteCustomerAddress, type CustomerHit,
 } from '@/lib/customer-admin-service';
 import { deleteCustomerAnalytics } from '@/lib/analytics/retention-service';
 import { requirePermission } from '@/lib/auth-guards';
@@ -94,6 +94,19 @@ export async function deleteSpamCustomersAction(fd: FormData): Promise<void> {
   revalidatePath(`/${locale}/admin/customers/spam`);
   revalidatePath(`/${locale}/admin/customers`);
   redirect(`/${locale}/admin/customers/spam?deleted=${result.deleted}&skipped=${result.skipped}`);
+}
+
+/** Undo: drop a tombstone so the next WordPress sync re-imports the account. */
+export async function allowDeletedSpamAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  try {
+    await allowDeletedSpam(str(fd, 'id') ?? '');
+  } catch {
+    revalidatePath(`/${locale}/admin/customers/spam`);
+    redirect(`/${locale}/admin/customers/spam?error=allow`);
+  }
+  revalidatePath(`/${locale}/admin/customers/spam`);
+  redirect(`/${locale}/admin/customers/spam?allowed=1`);
 }
 
 export async function saveCustomerStandingAction(fd: FormData): Promise<void> {

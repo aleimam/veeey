@@ -4,6 +4,7 @@ import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
 import { generateReferralCode } from '@/lib/customer';
 import type { SpamReason } from '@/lib/customer-spam';
+import { phoneSearchTerms } from '@/lib/phone';
 
 /** Staff-side customer management (backend orders revamp, Phase A): search /
  *  quick-create for the order form + profile editing with address CRUD.
@@ -25,6 +26,7 @@ export async function searchCustomers(q: string): Promise<CustomerHit[]> {
   await requirePermission('customers.read');
   const term = q.trim();
   if (term.length < 2) return [];
+  const phones = phoneSearchTerms(term);
   const rows = await prisma.customer.findMany({
     where: {
       OR: [
@@ -32,8 +34,10 @@ export async function searchCustomers(q: string): Promise<CustomerHit[]> {
         { lastName: { contains: term, mode: 'insensitive' } },
         { user: { name: { contains: term, mode: 'insensitive' } } },
         { user: { email: { contains: term, mode: 'insensitive' } } },
-        { user: { phone: { contains: term } } },
-        { addresses: { some: { phone: { contains: term } } } },
+        ...phones.flatMap((p) => [
+          { user: { phone: { contains: p } } },
+          { addresses: { some: { phone: { contains: p } } } },
+        ]),
       ],
     },
     include: { user: { select: { name: true, email: true, phone: true } }, addresses: { orderBy: [{ isDefaultShipping: 'desc' }, { createdAt: 'desc' }] } },
@@ -233,12 +237,31 @@ export async function deleteSpamCustomers(ids: string[]): Promise<{ deleted: num
   let deleted = 0;
   let skipped = 0;
 
+  const reasonsById = new Map(suspects.map((s) => [s.id, s.reasons.join(',')]));
   for (const id of ids) {
     if (!confirmed.has(id)) { skipped++; continue; }
-    const c = await prisma.customer.findUnique({ where: { id }, select: { userId: true, _count: { select: { orders: true } } } });
+    const c = await prisma.customer.findUnique({
+      where: { id },
+      select: { userId: true, legacyWpId: true, _count: { select: { orders: true } }, user: { select: { email: true } } },
+    });
     if (!c || c._count.orders > 0) { skipped++; continue; }
     try {
-      await prisma.user.delete({ where: { id: c.userId } });
+      // Tombstone FIRST, in the same transaction as the delete: the hourly
+      // WordPress customer pull is idempotent on legacyWpId/email, so without
+      // this the account is back within the hour.
+      const email = c.user.email?.toLowerCase() ?? null;
+      await prisma.$transaction([
+        // Clear any older tombstone for the same identity first — email and
+        // legacyWpId are unique, and re-deleting a re-imported account must
+        // not fail on the leftover row.
+        prisma.deletedSpamAccount.deleteMany({
+          where: { OR: [{ id }, ...(email ? [{ email }] : []), ...(c.legacyWpId ? [{ legacyWpId: c.legacyWpId }] : [])] },
+        }),
+        prisma.deletedSpamAccount.create({
+          data: { id, email, legacyWpId: c.legacyWpId, reasons: reasonsById.get(id) ?? '', deletedByUser: user.id },
+        }),
+        prisma.user.delete({ where: { id: c.userId } }),
+      ]);
       deleted++;
     } catch {
       skipped++;
@@ -246,6 +269,21 @@ export async function deleteSpamCustomers(ids: string[]): Promise<{ deleted: num
   }
   await audit({ actorType: 'USER', actorId: user.id, action: 'customer.spamDelete', entityType: 'Customer', entityId: `${deleted} deleted, ${skipped} skipped of ${ids.length} selected` });
   return { deleted, skipped };
+}
+
+/** Accounts blocked from re-importing, newest first. */
+export async function listDeletedSpam() {
+  await requirePermission('customers.read');
+  return prisma.deletedSpamAccount.findMany({ orderBy: { deletedAt: 'desc' }, take: 200 });
+}
+
+/** Undo a mistaken delete: drop the tombstone so the next WordPress sync
+ *  re-imports the account. The customer row itself is gone either way — this
+ *  lets it come back rather than restoring it here. */
+export async function allowDeletedSpam(id: string): Promise<void> {
+  const user = await requirePermission('customers.write');
+  await prisma.deletedSpamAccount.deleteMany({ where: { id } });
+  await audit({ actorType: 'USER', actorId: user.id, action: 'customer.spamAllowAgain', entityType: 'Customer', entityId: id });
 }
 
 export async function updateCustomerDetails(id: string, raw: z.input<typeof detailsSchema>) {

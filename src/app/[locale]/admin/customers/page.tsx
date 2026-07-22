@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { assignTierAction } from '@/server/loyalty-actions';
 import { bulkCustomersAction } from '@/server/bulk-actions';
 import { scanSuspiciousAction } from '@/server/customer-admin-actions';
+import { phoneSearchTerms } from '@/lib/phone';
 import { ConfirmButton } from '@/components/admin/confirm-button';
 import { formatEGP } from '@/lib/format';
 import { inputCls } from '@/components/admin/ui';
@@ -100,7 +101,8 @@ export default async function CustomersPage({ params, searchParams }: { params: 
           { firstName: { contains: q, mode: 'insensitive' } },
           { lastName: { contains: q, mode: 'insensitive' } },
           { user: { email: { contains: q, mode: 'insensitive' } } },
-          { user: { phone: { contains: q, mode: 'insensitive' } } },
+          // Phones are stored both as typed and normalized (201…), so search both.
+          ...phoneSearchTerms(q).map((p) => ({ user: { phone: { contains: p } } })),
         ] }
       : {}),
   };

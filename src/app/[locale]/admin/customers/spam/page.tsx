@@ -1,7 +1,8 @@
 import { setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { listSpamSuspects } from '@/lib/customer-admin-service';
+import { listSpamSuspects, listDeletedSpam } from '@/lib/customer-admin-service';
 import { STRONG_REASONS, type SpamReason } from '@/lib/customer-spam';
+import { allowDeletedSpamAction } from '@/server/customer-admin-actions';
 import { SpamPurgeForm, SelectAllSpam } from '@/components/admin/spam-purge-form';
 import { pick } from '@/lib/admin-i18n';
 import type { SP } from '@/lib/admin-list';
@@ -26,7 +27,7 @@ export default async function SpamReviewPage({ params, searchParams }: { params:
   setRequestLocale(locale);
   const tb = pick(locale);
 
-  const { scanned, suspects } = await listSpamSuspects();
+  const [{ scanned, suspects }, blocked] = await Promise.all([listSpamSuspects(), listDeletedSpam()]);
   const deletable = suspects.filter((s) => s.purgeable);
   const review = suspects.filter((s) => !s.purgeable);
   const fmtDate = (d: Date) => d.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -86,7 +87,7 @@ export default async function SpamReviewPage({ params, searchParams }: { params:
         )}
       </section>
 
-      <section>
+      <section className="mb-8">
         <h2 className="mb-1 font-heading text-base font-semibold">{tb('Flagged for review', 'مُعلَّمة للمراجعة')} ({review.length})</h2>
         <p className="mb-3 text-sm text-muted-foreground">
           {tb(
@@ -102,6 +103,50 @@ export default async function SpamReviewPage({ params, searchParams }: { params:
           <SuspectTable rows={review} locale={locale} fmtDate={fmtDate} />
         )}
       </section>
+
+      {blocked.length > 0 && (
+        <section>
+          <h2 className="mb-1 font-heading text-base font-semibold">{tb('Blocked from re-importing', 'ممنوعة من إعادة الاستيراد')} ({blocked.length})</h2>
+          <p className="mb-3 text-sm text-muted-foreground">
+            {tb(
+              'The WordPress customer sync runs every hour and would otherwise bring these back. "Allow again" drops the block — the account returns on the next sync.',
+              'مزامنة عملاء ووردبريس تعمل كل ساعة وكانت ستعيد هذه الحسابات. "السماح مجددًا" يزيل الحظر — ويعود الحساب في المزامنة التالية.',
+            )}
+          </p>
+          <div className="overflow-x-auto rounded-lg border border-border">
+            <table className="w-full text-sm">
+              <thead className="bg-surface text-xs uppercase text-muted-foreground">
+                <tr>
+                  <th className="p-3 text-start">{tb('Email', 'البريد الإلكتروني')}</th>
+                  <th className="p-3 text-start">{tb('WordPress id', 'معرّف ووردبريس')}</th>
+                  <th className="p-3 text-start">{tb('Deleted', 'حُذف')}</th>
+                  <th className="p-3 text-start">{tb('Why', 'السبب')}</th>
+                  <th className="p-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {blocked.map((b) => (
+                  <tr key={b.id} className="border-t border-border">
+                    <td className="p-3 break-all">{b.email ?? '—'}</td>
+                    <td className="p-3 text-muted-foreground">{b.legacyWpId ?? '—'}</td>
+                    <td className="p-3 whitespace-nowrap text-muted-foreground">{fmtDate(b.deletedAt)}</td>
+                    <td className="p-3 text-muted-foreground">{b.reasons || '—'}</td>
+                    <td className="p-3 text-end">
+                      <form action={allowDeletedSpamAction}>
+                        <input type="hidden" name="locale" value={locale} />
+                        <input type="hidden" name="id" value={b.id} />
+                        <button className="rounded-md border border-border px-3 py-1.5 text-xs hover:bg-surface">
+                          {tb('Allow again', 'السماح مجددًا')}
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

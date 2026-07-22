@@ -109,6 +109,19 @@ export function isPurgeable(candidate: SpamCandidate, reasons: SpamReason[]): bo
   return reasons.some((r) => STRONG_REASONS.includes(r));
 }
 
+/** The identities of accounts a human deleted as junk (`DeletedSpamAccount`). */
+export type Tombstones = { wpIds: Set<number>; emails: Set<string> };
+
+/**
+ * Must this WordPress account be left out of the import? Both customer
+ * importers are idempotent on legacyWpId/email, so every deleted spam signup
+ * would return on the next hourly run without this check. Matching on EITHER
+ * key is deliberate: a spammer who re-registers the same address gets a new WP
+ * id, and a recycled id must not resurrect the old address.
+ */
+export const isTombstoned = (t: Tombstones, wpUserId: number | null | undefined, email: string | null | undefined): boolean =>
+  (wpUserId != null && t.wpIds.has(wpUserId)) || (!!email && t.emails.has(email.trim().toLowerCase()));
+
 /** Classify every candidate; only customers with ≥1 reason appear in the map. */
 export function findSuspicious(candidates: SpamCandidate[], now = Date.now()): Map<string, SpamReason[]> {
   const out = new Map<string, SpamReason[]>();

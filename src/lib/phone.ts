@@ -168,3 +168,20 @@ export function isValidPhone(raw: string): boolean {
 
 /** HTML input pattern mirroring isValidPhone (client-side hint; server re-checks). */
 export const PHONE_PATTERN = '01[0-9]{9}|\\+?[1-9][0-9]{6,14}';
+
+/**
+ * Every shape a phone number the staffer typed might be stored in. Numbers
+ * reach the database both as typed ("01012345678") and normalized for SMS
+ * ("201012345678") — OTP signups and the PhoneInput write the latter — so a
+ * search for one form has to match the other, or roughly half the customers
+ * become unfindable by the number on the counter.
+ */
+export function phoneSearchTerms(raw: string): string[] {
+  const digits = (raw ?? '').replace(/\D/g, '');
+  if (digits.length < 4) return []; // too short to be a phone fragment worth LIKE-ing
+  const out = new Set([digits]);
+  if (digits.startsWith('20')) out.add(`0${digits.slice(2)}`);
+  else if (digits.startsWith('0')) out.add(`20${digits.slice(1)}`);
+  else out.add(`20${digits}`);
+  return [...out];
+}

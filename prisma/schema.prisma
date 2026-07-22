@@ -2432,3 +2432,22 @@ model BackupRun {
 
   @@index([startedAt])
 }
+
+/// Tombstone for a customer account deleted as junk (owner 2026-07-22).
+///
+/// Deleting the row is not enough: the hourly WordPress customer pull
+/// (`net-sync/customers.ts`, and the REST `wc-sync` on the .com pair) is
+/// idempotent on `legacyWpId` / email, so a deleted spam signup would be
+/// re-imported within the hour. Importers must skip anything listed here.
+/// Removing a row un-blocks the account and lets the next sync re-import it —
+/// that is the undo for a mistaken delete.
+model DeletedSpamAccount {
+  id            String   @id @default(cuid())
+  email         String?  @unique // lowercased; null when the account had none
+  legacyWpId    Int?     @unique // WP user id, when the account came from WordPress
+  reasons       String   @default("") // comma-separated SpamReason keys, for the audit trail
+  deletedAt     DateTime @default(now())
+  deletedByUser String? // staff User.id that ran the purge
+
+  @@index([deletedAt])
+}

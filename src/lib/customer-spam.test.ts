@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   findSuspicious, isDisposableEmail, isSpamEmailDomain, hasLinkInName, hasCyrillicName,
-  isPurgeable, type SpamCandidate,
+  isPurgeable, isTombstoned, type SpamCandidate,
 } from '@/lib/customer-spam';
 
 const NOW = new Date('2026-07-12T12:00:00Z').getTime();
@@ -130,5 +130,27 @@ describe('isPurgeable — what may be deleted without a human', () => {
   it('never deletes on weak signals alone — quiet real customers look like these', () => {
     expect(isPurgeable(junk, ['no-name-no-orders', 'stale-unverified', 'signup-burst'])).toBe(false);
     expect(isPurgeable(junk, [])).toBe(false);
+  });
+});
+
+describe('isTombstoned — a deleted account must not be re-imported', () => {
+  // Both customer importers are idempotent on legacyWpId/email and the WP pull
+  // runs hourly, so this check is the only thing standing between a delete and
+  // the account reappearing.
+  const t = { wpIds: new Set([42]), emails: new Set(['bot@mail.ru']) };
+
+  it('blocks on the WordPress id', () => {
+    expect(isTombstoned(t, 42, 'someone-else@gmail.com')).toBe(true);
+  });
+
+  it('blocks on the email even when the id changed — spammers re-register', () => {
+    expect(isTombstoned(t, 999, 'bot@mail.ru')).toBe(true);
+    expect(isTombstoned(t, null, '  BOT@Mail.RU  ')).toBe(true);
+  });
+
+  it('lets everyone else through', () => {
+    expect(isTombstoned(t, 7, 'real@gmail.com')).toBe(false);
+    expect(isTombstoned(t, null, null)).toBe(false);
+    expect(isTombstoned({ wpIds: new Set(), emails: new Set() }, 42, 'bot@mail.ru')).toBe(false);
   });
 });

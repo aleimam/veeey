@@ -13,6 +13,7 @@ import type { Pool, RowDataPacket } from 'mysql2/promise';
 import { prisma } from '@/lib/prisma';
 import { generateReferralCode } from '@/lib/customer';
 import { manualTierActive } from '@/lib/loyalty-standing';
+import { isTombstoned, type Tombstones } from '@/lib/customer-spam';
 import { planCustomer, spendToPiastres, pickTierId, type RawCustomer, type PlannedCustomer } from './customers-transform';
 
 const PREFIX = process.env.NET_SYNC_WP_PREFIX || 'SFPgx_';
@@ -30,6 +31,20 @@ const s = (v: unknown): string | null => (v == null ? null : String(v));
 const chunk = <T>(a: T[], n: number): T[][] => { const o: T[][] = []; for (let i = 0; i < a.length; i += n) o.push(a.slice(i, i + n)); return o; };
 
 export type SpendSnapshot = { lifetime: bigint; windowed: bigint };
+
+/**
+ * Accounts a human deleted as junk (`/admin/customers/spam`). This importer is
+ * idempotent on legacyWpId/email, so without this list every deleted spam
+ * signup would reappear on the next hourly run. Deleting the tombstone row is
+ * the undo — the account then imports again like any other.
+ */
+export async function readTombstones(): Promise<Tombstones> {
+  const rows = await prisma.deletedSpamAccount.findMany({ select: { legacyWpId: true, email: true } });
+  return {
+    wpIds: new Set(rows.map((r) => r.legacyWpId).filter((v): v is number => v != null)),
+    emails: new Set(rows.map((r) => r.email).filter((v): v is string => !!v)),
+  };
+}
 
 /** WP user id → {lifetime, windowed} spend (piastres). Sourced from HPOS
  *  `wc_orders`: `customer_id` IS the WP user id (0 = guest), `total_amount` is
@@ -114,7 +129,14 @@ export async function importCustomers(pool: Pool, opts: { dryRun: boolean; onPro
   ]);
   const tiers = tierRows.map((t) => ({ id: t.id, rank: t.rank, minSpendPiastres: BigInt(t.minSpendPiastres) }));
   sum.source = rawList.length;
-  const planned: PlannedCustomer[] = rawList.map(planCustomer);
+
+  // Accounts a human deleted as junk must NOT come back on the next hourly run.
+  const tombstones = await readTombstones();
+  const planned: PlannedCustomer[] = [];
+  for (const p of rawList.map(planCustomer)) {
+    if (isTombstoned(tombstones, p.wpUserId, p.email)) { sum.skipped++; continue; }
+    planned.push(p);
+  }
 
   // Pre-load already-imported customers (by legacyWpId) + any user sharing an email.
   const existingByWp = new Map<number, { custId: string; userId: string; firstName: string | null; lastName: string | null; spend: bigint; tierId: string | null; tierLocked: boolean; email: string | null; userPhone: string | null; userName: string | null }>();
