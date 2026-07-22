@@ -7,6 +7,23 @@
 
 ## Current state
 
+- **✅ Customer order details + order date — LIVE on BOTH stores (`663b295`, owner 2026-07-22).**
+  The account Orders table gained a **Date** column (DD/MM/YYYY, full timestamp on hover) and the
+  order number is now a link. The link needed a page that did not exist: customers had **no order
+  view at all** — only the checkout confirmation screen, which greets a months-old delivered order
+  with "Thank you!". New `/account/orders/[number]` shows items with the exact expiry bought
+  (FR-INV-02), gifts, totals, payment method, the delivery-address snapshot and the status timeline,
+  plus a Pay-now link while an order is `AWAITING_PAYMENT`.
+  - 🔒 **Access is by OWNERSHIP, not just "signed in."** Order numbers are semi-predictable, so the
+    page 404s unless `order.customerId === user.customerId` — 404 rather than 403, so it doesn't even
+    confirm the number exists. Verified live: an anonymous request for a **real** order number
+    returns 307 to login on both stores, not the order.
+  - New shared `shortDate()` in `src/lib/format.ts` (4 tests). Deliberately formats from the **UTC**
+    instant rather than `toLocaleDateString` — otherwise a late-evening order would print a different
+    day for a customer than for the staffer reading the same order.
+  - Gate: typecheck + lint clean, **842 tests / 107 files**, build clean. Deployed to veeey.net
+    (tarball) and veeey.com (git pull) — both now on `663b295`.
+
 - **✅ Checkout payment method = radio cards, not a dropdown — LIVE on veeey.net (`c9e0916`, owner
   2026-07-22).** The `<select>` hid every option behind a click while the delivery methods directly
   above were already open radio cards; they now match. Reuses the shipping cards' classes and
