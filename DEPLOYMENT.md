@@ -423,7 +423,22 @@ curl -s  -o /dev/null -w 'veeey.net    %{http_code}\n' https://veeey.net/en
 curl -sL -o /dev/null -w 'wordpress    %{http_code}\n' https://egyptvitamins.net/   # co-tenant
 ```
 
-First deploy was commit `dad59dc`; latest redeploy **2026-07-21 at `63075fe`** (66 migrations) — order
+**Latest redeploy 2026-07-22 at `efa2e39` (70 migrations)** — the Stage-2 **stock-master inversion**.
+veeey.net now owns lot quantities and ingests egyptvitamins.net's sales onto its own lots; the
+10-minute catalog sync no longer writes `qtyOnHand`. Two new lines in `/opt/veeey/.env`:
+
+```
+WP_INGEST_MODE=apply                  # the master switch — moves stock AND makes the sync catalog-only
+WP_INGEST_SINCE=2026-07-22T01:41:05Z  # cutover: the START of the last WP-master snapshot
+```
+
+and two new crons: `*/5 … sync-cron.sh --ingest` (ev.net sales → our lots) and
+`40 4 * * * … run-ingest.ts --reconcile --hours 24` (permanent drift report). **Roll back by deleting
+both env lines and restarting** — WP resumes owning quantities within 10 minutes. Full rationale and
+the SALE/RESTORE boundary rule: `C:\Claude\eCommerce\VEEEY_NET_MIGRATION.md` → "THE INVERSION".
+⚠️ **Never set either variable on veeey.com** — it has no WP peer and these paths must stay inert.
+
+Earlier: first deploy was commit `dad59dc`; redeploy **2026-07-21 at `63075fe`** (66 migrations) — order
 lifecycle Phase 1 (`20260720130000_order_lifecycle_v1`), spillage Phase 2 (`20260720150000_spillage`),
 the v2 customer-email match key, and the flag split that armed products+customers to YeldnIN. (The
 2026-07-20 `56bd6c7` redeploy added the 64th migration `20260720010000_backup_module` and
@@ -514,8 +529,14 @@ the repo (`src/lib/net-sync/*`, `scripts/net-sync/*`); runs ON THE BOX via `tsx`
   - `10 4 * * *` `--reviews` daily approved-review import (`run-reviews.ts`).
   - `20 4 * * *` `--orders` daily read-only order-history top-up (`run-orders.ts`; skip-existing on
     `Order.legacyWpId`, bypasses transitionOrder → no loyalty/stock/notification side-effects).
-  - `flock` guards against overlap; **WP is the stock master.** A source read that returns < 50% of the
-    live product set REFUSES to archive (safety floor) — a transient DB error can't wipe the catalog.
+  - `*/5 * * * *` `--ingest` — **ev.net's own sales → our lots, FEFO** (`run-ingest.ts`). Gated by
+    `WP_INGEST_MODE`; this is the polling mechanism, the WC webhook is not configured.
+  - `40 4 * * *` `run-ingest.ts --reconcile --hours 24` — permanent drift report.
+  - `flock` guards against overlap. **⚠️ Since 2026-07-22 VEEEY.NET is the stock master, not WP** —
+    the `*/10` sync brings across catalog data only and no longer writes `qtyOnHand` (it prints which
+    master is in effect on every run). See `../VEEEY_NET_MIGRATION.md` → "THE INVERSION". A source read
+    that returns < 50% of the live product set still REFUSES to archive (safety floor) — a transient
+    DB error can't wipe the catalog.
 - **Customers** — ongoing one-way pull of registered egyptvitamins.net customers (name / email /
   phone / addresses + a read-only **lifetime-spend snapshot** from `wc_orders.total_amount` over the
   store's delivered statuses → drives the tier). **No passwords** (OTP login). `15 * * * *` cron

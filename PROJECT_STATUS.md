@@ -2,10 +2,35 @@
 
 > Living status/handoff doc. **Repo-committed so it travels with the code** (unlike per-user
 > assistant memory). Update it when features ship or the backlog changes.
-> **Last updated: 2026-07-21.** Authoritative product docs: `VEEEY_PRD.md`, `VEEEY_SPEC.md`,
+> **Last updated: 2026-07-22.** Authoritative product docs: `VEEEY_PRD.md`, `VEEEY_SPEC.md`,
 > `BUILD_PLAN.md`, `AGENTS.md` (build rules — read first), `DEPLOYMENT.md`, `SECURITY.md`, `README.md`.
 
 ## Current state
+
+- **🔴 THE STOCK MASTER INVERTED — veeey.net now owns inventory, egyptvitamins.net does not.
+  LIVE 2026-07-22 (`efa2e39`, 70 migrations, 738 tests, veeey.net only).** Both storefronts keep
+  selling from one physical pool; the direction of authority is what changed. This overturns the
+  standing "WP is the stock master" rule that the net-sync docs were written under.
+  - **`WP_INGEST_MODE=apply`** is the single master switch: it makes ev.net's sales move our lots
+    **and** makes the 10-minute catalog sync stop writing `qtyOnHand` / stop zeroing lots WP dropped.
+    Both halves must flip together or the sync would overwrite the ledger the ingest maintains, and WP
+    would win simply by running last.
+  - **`WP_INGEST_SINCE=2026-07-22T01:41:05Z`** is the cutover — the START of the final WP-master
+    snapshot. **SALE is judged on `created`** (Woo reserves stock at placement) and **RESTORE on
+    `updated`**; they are not interchangeable, and ingesting pre-cutover orders would read as a
+    catalog-wide stockout in one tick, not gradual drift.
+  - **Roll back** by deleting both `.env` lines and restarting — WP resumes ownership in ≤10 min.
+    ⚠️ Never set either on veeey.com: no WP peer, and every one of these paths must stay inert.
+  - ev.net sales arrive by **polling only** (`*/5 --ingest`); the owner declined the WC webhook, which
+    would only have shortened latency (same idempotent transaction either way). The route exists and
+    503s until `NET_SYNC_WC_WEBHOOK_SECRET` is set.
+  - `WpStockIngest.shortfall` records units ev.net sold that we could not take off a lot. The movement
+    is never refused — the goods are gone regardless — so the remainder is a number the physical count
+    must explain. Daily reconcile at `40 4 * * *` → `/opt/veeey/net-sync.log`.
+  - **Accepted gap** (owner: "stock problems will be solved later in physical inventory"): an order
+    `pending` at the cutover and paid after it is judged on its created date and skipped.
+  - Verified at the flip against live data inside a rolled-back transaction: a 2-unit sale took FEFO
+    across two lots and the reversal restored **those same two lots**, not the earliest one.
 
 - **🆕 veeey.net is now the MAIN store; YeldnIN repointed to it + fully synced — 2026-07-21 (`63075fe`,
   66 migrations, 675 tests).** Owner's call, explicitly "for now" (we return to .com later), so every
