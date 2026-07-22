@@ -180,8 +180,9 @@ export default async function OrdersPage({ params, searchParams }: { params: Pro
             {orders.map((o) => (
               <tr key={o.id} className="border-t border-border">
                 <td className="p-3"><input type="checkbox" name="ids" value={o.id} form="bulk-orders" className="size-4" aria-label={o.number} /></td>
+                {/* Short DD/MM (owner 2026-07-22); full timestamp stays in the tooltip. */}
                 <td className="whitespace-nowrap p-3 text-muted-foreground" title={new Date(o.placedAt).toISOString()}>
-                  {new Date(o.placedAt).toISOString().slice(0, 10)} <span className="text-xs">{new Date(o.placedAt).toISOString().slice(11, 16)}</span>
+                  {new Date(o.placedAt).toISOString().slice(8, 10)}/{new Date(o.placedAt).toISOString().slice(5, 7)} <span className="text-xs">{new Date(o.placedAt).toISOString().slice(11, 16)}</span>
                 </td>
                 <td className="p-3">
                   <Link href={`/admin/orders/${o.id}`} className="font-medium text-primary hover:underline">{o.number}</Link>
@@ -192,9 +193,13 @@ export default async function OrdersPage({ params, searchParams }: { params: Pro
                   {(() => {
                     const name = [o.customer?.firstName, o.customer?.lastName].filter(Boolean).join(' ') || o.customer?.user.name || o.customer?.user.email || o.guestEmail;
                     const q = o.customer?.user.email || o.guestEmail || name;
-                    return name
-                      ? <Link href={`/admin/orders?q=${encodeURIComponent(q ?? '')}`} className="hover:text-primary hover:underline">{name}</Link>
-                      : <span className="text-muted-foreground">{tb('Guest', 'زائر')}</span>;
+                    // Registered customer → their page (owner 2026-07-22);
+                    // guests keep the search-by-email fallback.
+                    return o.customerId
+                      ? <Link href={`/admin/customers/${o.customerId}`} className="hover:text-primary hover:underline">{name ?? tb('Customer', 'عميل')}</Link>
+                      : name
+                        ? <Link href={`/admin/orders?q=${encodeURIComponent(q ?? '')}`} className="hover:text-primary hover:underline">{name}</Link>
+                        : <span className="text-muted-foreground">{tb('Guest', 'زائر')}</span>;
                   })()}
                 </td>
                 <td className="p-3"><StaffAvatar name={o.pharmacist?.name} image={o.pharmacist?.image} /></td>

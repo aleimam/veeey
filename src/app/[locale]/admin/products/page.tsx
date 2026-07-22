@@ -36,7 +36,9 @@ export default async function ProductsPage({ params, searchParams }: { params: P
   const origin = one(sp.origin);
   const tag = one(sp.tag);
   const category = one(sp.category);
-  const { sort, dir, page, perPage } = parseListParams(sp, { sortable: SORTABLE, defaultSort: 'updated' });
+  // Owner 2026-07-22: newest-ADDED first by default (was updatedAt, which the
+  // 10-min net-sync churns — every synced product looked "recent").
+  const { sort, dir, page, perPage } = parseListParams(sp, { sortable: SORTABLE, defaultSort: 'created' });
   const filters = { search: q, status, kind, brand, flag, origin, tag, category };
 
   const [products, total, allCount, brands, categories] = await Promise.all([

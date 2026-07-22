@@ -229,8 +229,9 @@ function productOrderBy(sort?: string, dir: 'asc' | 'desc' = 'desc'): Prisma.Pro
     case 'sku': return { sku: dir };
     case 'price': return { basePricePiastres: dir };
     case 'status': return { status: dir };
-    case 'created': return { createdAt: dir };
-    default: return { updatedAt: dir };
+    case 'updated': return { updatedAt: dir };
+    // Default = newest added first (owner 2026-07-22).
+    default: return { createdAt: dir };
   }
 }
 

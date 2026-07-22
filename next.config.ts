@@ -12,7 +12,12 @@ const nextConfig: NextConfig = {
   // install script has run — production `npm ci` builds it, while a dev box with
   // npm script-blocking never has the file. A green local build therefore does
   // not clear this; it took YeldnIN's production site down. See BACKUP.md §10.1.
-  serverExternalPackages: ['ssh2', 'ssh2-sftp-client'],
+  // `pdfkit` must ALSO stay external: Turbopack bundles it with a rewritten
+  // __dirname of '/ROOT', so its built-in AFM font data
+  // (js/data/Helvetica.afm) can't be found at runtime → every PDF invoice
+  // failed with ENOENT + ERR_INVALID_RESPONSE (owner report 2026-07-22).
+  // External = required from real node_modules, where the data files live.
+  serverExternalPackages: ['ssh2', 'ssh2-sftp-client', 'pdfkit'],
   // Imported product images are still served from Egypt Vitamins' BunnyCDN until
   // they're re-hosted on Veeey storage (follow-up). Allowlist those hosts so
   // next/image can load them.

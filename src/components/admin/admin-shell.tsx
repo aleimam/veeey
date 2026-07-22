@@ -224,8 +224,14 @@ export function AdminShell({
 
           <div className="ms-auto flex items-center gap-1.5">
             <button onClick={() => window.dispatchEvent(new Event('veeey:cmdk'))} className="text-muted-foreground hover:text-foreground sm:hidden" aria-label={t('Search', 'بحث')}><Search size={19} /></button>
-            <Link href="/" className="hidden items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-sm text-muted-foreground hover:text-foreground lg:inline-flex">
-              <ExternalLink size={15} /> {t('View store', 'عرض المتجر')}
+            {/* Icon-only (owner 2026-07-22); the label lives in the tooltip + aria. */}
+            <Link
+              href="/"
+              className="hidden items-center rounded-md border border-border p-2 text-muted-foreground hover:text-foreground lg:inline-flex"
+              aria-label={t('View store', 'عرض المتجر')}
+              title={t('View store', 'عرض المتجر')}
+            >
+              <ExternalLink size={16} />
             </Link>
             {/* Locale switch: one clear button showing the language it switches TO. */}
             <Link

@@ -14,11 +14,19 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!order) return new Response('not found', { status: 404 });
 
   const paymentLabel = await invoicePaymentLabel(order.systemPaymentMethod, order.paymentMethod, 'en'); // invoice is EN-only for now
-  const pdf = await generateInvoicePdf({ ...order, items: order.items.filter((i) => !i.lost), paymentLabel }); // LOST lines excluded
-  return new Response(new Uint8Array(pdf), {
-    headers: {
-      'content-type': 'application/pdf',
-      'content-disposition': `inline; filename="invoice-${order.number}.pdf"`,
-    },
-  });
+  try {
+    const pdf = await generateInvoicePdf({ ...order, items: order.items.filter((i) => !i.lost), paymentLabel }); // LOST lines excluded
+    return new Response(new Uint8Array(pdf), {
+      headers: {
+        'content-type': 'application/pdf',
+        'content-disposition': `inline; filename="invoice-${order.number}.pdf"`,
+      },
+    });
+  } catch (e) {
+    // A generation failure must be a clean 500, not a broken half-stream
+    // (ERR_INVALID_RESPONSE) — that's how the pdfkit AFM bundling bug hid.
+    const { logSystemError } = await import('@/lib/error-log');
+    await logSystemError({ level: 'ERROR', message: `invoice PDF failed for ${order.number}: ${e instanceof Error ? e.message : 'error'}`, source: 'invoice', stack: e instanceof Error ? e.stack : undefined }).catch(() => {});
+    return new Response('invoice generation failed — see Admin → Error log', { status: 500 });
+  }
 }
