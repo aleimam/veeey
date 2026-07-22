@@ -2305,7 +2305,11 @@ model WpStockIngest {
   productId   String? // resolved Veeey product; null = unmatched, reported not guessed
   qty         Int // positive units
   direction   String // SALE (ev.net sold it) | RESTORE (cancelled/refunded there)
-  status      String    @default("SHADOW") // SHADOW | APPLIED | SKIPPED
+  status      String    @default("SHADOW") // SHADOW | APPLIED | SKIPPED | PRE_CUTOVER | UNMATCHED
+  /// Units we could not move — ev.net sold stock this store no longer had (or
+  /// could not place a return into). Real goods, real discrepancy: the number the
+  /// physical count has to explain, so it is recorded, never silently absorbed.
+  shortfall   Int       @default(0)
   appliedAt   DateTime?
   createdAt   DateTime  @default(now())
 
