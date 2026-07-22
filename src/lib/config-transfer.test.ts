@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CONFIG_TABLES, isSecretSettingKey, keyOf, stripRow, summarize } from './config-transfer';
+import { CONFIG_TABLES, isSecretSettingKey, keyOf, remapRefs, stripRow, summarize, type RefKind } from './config-transfer';
 
 describe('isSecretSettingKey — nothing that is a credential may reach the file', () => {
   it('catches every configured provider prefix', () => {
@@ -83,6 +83,73 @@ describe('the manifest itself', () => {
     // Who is in a department is data the YeldnIN staff sync rebuilds; copying it
     // would grant people access on a store they were never added to.
     expect(models).not.toContain('departmentMember');
+  });
+});
+
+describe('remapRefs — the cuids that would otherwise import as dangling', () => {
+  const COLLECTION = CONFIG_TABLES.find((t) => t.model === 'collection')!.portable;
+  // Stands in for the target store's dictionary.
+  const dict: Record<RefKind, Record<string, string>> = {
+    category: { src_cat_immunity: 'immunity' },
+    tag: { src_tag_test: 'testosterone' },
+    brand: { src_brand_now: 'now-foods' },
+    product: { src_p1: 'VEY-1', src_p2: 'VEY-2' },
+    attributeValue: { src_av: 'form::Capsule' },
+  };
+  const lookup = (kind: RefKind, ref: string) => dict[kind][ref] ?? null;
+
+  it('rewrites the scalar rule category', () => {
+    const { row, unresolved } = remapRefs({ slug: 'immunity', ruleCategoryId: 'src_cat_immunity' }, COLLECTION, lookup);
+    expect(row.ruleCategoryId).toBe('immunity');
+    expect(unresolved).toEqual([]);
+  });
+
+  it('rewrites ids INSIDE ruleJson, per condition field', () => {
+    const { row } = remapRefs({
+      ruleJson: {
+        match: 'ALL',
+        conditions: [
+          { field: 'category', op: 'is', value: 'src_cat_immunity' },
+          { field: 'brand', op: 'is_not', value: 'src_brand_now' },
+          { field: 'attribute', op: 'is', value: 'src_av' },
+          // Not a reference at all — free text must survive untouched.
+          { field: 'name', op: 'contains', value: 'src_cat_immunity' },
+        ],
+      },
+    }, COLLECTION, lookup);
+    const conds = (row.ruleJson as { conditions: { value: unknown }[] }).conditions;
+    expect(conds.map((c) => c.value)).toEqual(['immunity', 'now-foods', 'form::Capsule', 'src_cat_immunity']);
+  });
+
+  it('reports what it could not resolve instead of guessing', () => {
+    // A guessed match would produce a collection listing the WRONG products —
+    // silently wrong beats loudly unresolved, so this must never be lenient.
+    const { row, unresolved } = remapRefs({ ruleCategoryId: 'gone' }, COLLECTION, lookup);
+    expect(unresolved).toEqual(['category:gone']);
+    expect(row.ruleCategoryId).toBe('gone');
+  });
+
+  it('drops unresolvable entries from an id ARRAY rather than keeping a ghost', () => {
+    const { row, unresolved } = remapRefs({ manualOrder: ['src_p1', 'gone', 'src_p2'] }, COLLECTION, lookup);
+    expect(row.manualOrder).toEqual(['VEY-1', 'VEY-2']);
+    expect(unresolved).toEqual(['product:gone']);
+  });
+
+  it('round-trips: keys back to ids reproduces the original row', () => {
+    const inverse = (kind: RefKind, key: string) =>
+      Object.entries(dict[kind]).find(([, v]) => v === key)?.[0] ?? null;
+    const source = { ruleCategoryId: 'src_cat_immunity', manualOrder: ['src_p1', 'src_p2'] };
+    const exported = remapRefs(source, COLLECTION, lookup).row;
+    expect(remapRefs(exported, COLLECTION, inverse).row).toEqual(source);
+  });
+
+  it('is a no-op for tables that reference nothing', () => {
+    const row = { key: 'gold', name: 'Gold' };
+    expect(remapRefs(row, undefined, lookup)).toEqual({ row, unresolved: [] });
+  });
+
+  it('demotes rather than drops, so a half-resolvable collection is visible and fixable', () => {
+    expect(COLLECTION?.demoteWhenUnresolved).toEqual({ field: 'status', value: 'DRAFT' });
   });
 });
 

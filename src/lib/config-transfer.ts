@@ -25,6 +25,47 @@
  *   rebuilt by the YeldnIN staff sync.
  */
 
+/**
+ * Entities a configuration row may POINT AT by id. Their ids are cuids minted
+ * per store, so they mean nothing in the target — each needs a natural key that
+ * does travel. Verified `@unique` in schema.prisma; `attributeValue` has only a
+ * composite one, hence the joined form.
+ */
+export const REF_NATURAL_KEY = {
+  category: 'slug',
+  tag: 'slug',
+  brand: 'slug',
+  product: 'sku', // canonical product key (AGENTS.md #5) — slugs get re-edited, SKUs do not
+  attributeValue: 'attributeKey::valueEn',
+} as const;
+export type RefKind = keyof typeof REF_NATURAL_KEY;
+
+/**
+ * How a table's cross-store references are carried.
+ *
+ * Without this a collection exports `ruleCategoryId: 'cmd3x…'` and imports
+ * pointing at nothing — the page still renders, it just silently matches zero
+ * products. Resolving through natural keys makes that failure visible instead.
+ */
+export type PortableRefs = {
+  /** Scalar id columns: column name → what it points at. */
+  fields?: Record<string, RefKind>;
+  /** Array-of-id columns (e.g. `manualOrder`). */
+  arrays?: Record<string, RefKind>;
+  /**
+   * `ruleJson`-style structured rules whose `conditions[].value` is an id whose
+   * kind depends on `conditions[].field`.
+   */
+  ruleJson?: { column: string; fieldToKind: Record<string, RefKind> };
+  /**
+   * What to do with a row whose references do NOT all resolve on the target.
+   * Demote rather than drop: the owner's standing call (2026-07-22) is that a
+   * half-resolvable collection is imported unpublished, so it is visible and
+   * fixable rather than quietly missing from the menu.
+   */
+  demoteWhenUnresolved?: { field: string; value: string };
+};
+
 export type ConfigTable = {
   /** Prisma model accessor, e.g. 'shippingZone'. */
   model: string;
@@ -41,8 +82,15 @@ export type ConfigTable = {
    * an exact restore and a repeated import stays idempotent.
    */
   drop?: string[];
-  /** Many-to-many relations to re-link on import, matched by the target's field. */
-  connect?: { field: string; on: string }[];
+  /**
+   * Many-to-many relations to re-link on import, matched by the target's field.
+   * `kind` (where the relation is one of the portable entities) lets the importer
+   * drop links this store cannot satisfy — Prisma's `set` throws on the first
+   * missing one, which would abort the whole import over a single absent product.
+   */
+  connect?: { field: string; on: string; kind?: RefKind }[];
+  /** Cross-store id columns. Omit for tables that reference nothing. */
+  portable?: PortableRefs;
   label: string;
 };
 
@@ -112,7 +160,84 @@ export const CONFIG_TABLES: ConfigTable[] = [
   { model: 'homeTrustBadge', key: ['id'], label: 'Home trust badges' },
   { model: 'redirect', key: ['fromPath'], drop: ['id'], label: 'Redirects' },
   { model: 'giftRule', key: ['id'], label: 'Gift rules' },
+  // Collections are merchandising configuration, not catalog data: they are the
+  // mega-menu's landing pages, so a missing one is a 404 on live navigation
+  // (which is exactly what a wipe produced on veeey.net, 2026-07-22). Every
+  // reference they hold is a per-store cuid, hence `portable`.
+  {
+    model: 'collection', key: ['slug'], drop: ['id'],
+    connect: [{ field: 'products', on: 'sku', kind: 'product' }],
+    portable: {
+      fields: { ruleCategoryId: 'category' },
+      arrays: { manualOrder: 'product' },
+      ruleJson: { column: 'ruleJson', fieldToKind: { category: 'category', tag: 'tag', brand: 'brand', attribute: 'attributeValue' } },
+      demoteWhenUnresolved: { field: 'status', value: 'DRAFT' },
+    },
+    label: 'Collections (mega-menu landing pages)',
+  },
 ];
+
+/** A rule condition as it appears inside `ruleJson`; only `field`/`value` matter here. */
+type RuleLike = { conditions?: { field?: string; value?: unknown }[] };
+
+/**
+ * Rewrite a row's cross-store references, in either direction.
+ *
+ * `lookup` maps one reference to the other side (id → natural key on export,
+ * natural key → id on import) and returns null when it cannot. Unresolvable
+ * references are REPORTED, never guessed: a wrong guess produces a collection
+ * that quietly lists the wrong products, which is worse than one flagged as
+ * needing attention. The row is still returned so the caller can demote it.
+ */
+export function remapRefs(
+  row: Record<string, unknown>,
+  portable: PortableRefs | undefined,
+  lookup: (kind: RefKind, ref: string) => string | null,
+): { row: Record<string, unknown>; unresolved: string[] } {
+  if (!portable) return { row, unresolved: [] };
+  const out = { ...row };
+  const unresolved: string[] = [];
+  const one = (kind: RefKind, v: unknown): unknown => {
+    if (typeof v !== 'string' || !v) return v;
+    const hit = lookup(kind, v);
+    if (hit) return hit;
+    unresolved.push(`${kind}:${v}`);
+    return v; // keep it, so the row still round-trips and the loss is visible
+  };
+
+  for (const [col, kind] of Object.entries(portable.fields ?? {})) out[col] = one(kind, out[col]);
+
+  for (const [col, kind] of Object.entries(portable.arrays ?? {})) {
+    const arr = out[col];
+    if (!Array.isArray(arr)) continue;
+    // Drop what cannot be resolved rather than keeping it: a manual ORDER
+    // holding a foreign id would pin a product that is not in the collection at
+    // all, reordering the page around a ghost.
+    const kept: unknown[] = [];
+    for (const v of arr) {
+      const hit = typeof v === 'string' ? lookup(kind, v) : null;
+      if (hit) kept.push(hit);
+      else unresolved.push(`${kind}:${String(v)}`);
+    }
+    out[col] = kept;
+  }
+
+  const rj = portable.ruleJson;
+  if (rj) {
+    const rule = out[rj.column] as RuleLike | null | undefined;
+    if (rule && Array.isArray(rule.conditions)) {
+      out[rj.column] = {
+        ...rule,
+        conditions: rule.conditions.map((c) => {
+          const kind = c.field ? rj.fieldToKind[c.field] : undefined;
+          return kind ? { ...c, value: one(kind, c.value) } : c;
+        }),
+      };
+    }
+  }
+
+  return { row: out, unresolved };
+}
 
 export type ExportFile = {
   version: 1;

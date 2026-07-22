@@ -1,7 +1,8 @@
 import 'dotenv/config';
 import { writeFileSync } from 'node:fs';
 import { prisma } from '@/lib/prisma';
-import { CONFIG_TABLES, isSecretSettingKey, stripRow, summarize, type ExportFile } from '@/lib/config-transfer';
+import { CONFIG_TABLES, isSecretSettingKey, remapRefs, stripRow, summarize, type ExportFile } from '@/lib/config-transfer';
+import { refDictionary } from '@/lib/config-refs';
 
 /**
  * Export this store's configuration to a JSON file.
@@ -27,6 +28,8 @@ async function main() {
   };
 
   console.log(`\n=== exporting configuration from ${store} ===\n`);
+  const refs = await refDictionary();
+  let unresolvedRefs = 0;
   for (const t of CONFIG_TABLES) {
     const client = (prisma as unknown as Record<string, { findMany?: (a?: unknown) => Promise<Record<string, unknown>[]> }>)[t.model];
     if (!client?.findMany) { console.log(`  ${t.label.padEnd(52)} — model '${t.model}' not found, skipped`); continue; }
@@ -50,12 +53,26 @@ async function main() {
     } else {
       console.log(`  ${t.label.padEnd(52)} ${String(rows.length).padStart(5)}`);
     }
-    file.tables[t.model] = rows.map((r) => stripRow(r, t.drop));
+    // Ids the target store has never seen become natural keys here, so the file
+    // says "the Immunity category", not "cmd3x…" — which would import as a rule
+    // matching nothing, with no error.
+    file.tables[t.model] = rows.map((r) => {
+      const { row, unresolved } = remapRefs(stripRow(r, t.drop), t.portable, refs.toKey);
+      if (unresolved.length) {
+        unresolvedRefs += unresolved.length;
+        console.log(`    ⚠️ ${t.model} ${String(r[t.key[0]])}: ${unresolved.length} dangling ref(s) — ${unresolved.slice(0, 4).join(', ')}`);
+      }
+      return row;
+    });
     file.counts[t.model] = rows.length;
   }
 
   writeFileSync(out, JSON.stringify(file, null, 2));
   console.log(`\n  ${summarize(file.counts)}`);
+  if (unresolvedRefs) {
+    // Dangling on the SOURCE, so the import cannot be blamed for it later.
+    console.log(`\n  ⚠️ ${unresolvedRefs} reference(s) already point at nothing on this store — fix here, or the target inherits the same holes.`);
+  }
   if (file.redactedSettings.length) {
     // Not all of these are secrets — smtp.host/from/fromName and sms.sender are
     // per-STORE identity, which must not travel: veeey.net sends as

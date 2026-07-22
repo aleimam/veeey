@@ -1,7 +1,8 @@
 import 'dotenv/config';
 import { readFileSync } from 'node:fs';
 import { prisma } from '@/lib/prisma';
-import { CONFIG_TABLES, isSecretSettingKey, keyOf, summarize, type ExportFile } from '@/lib/config-transfer';
+import { CONFIG_TABLES, isSecretSettingKey, keyOf, remapRefs, summarize, type ExportFile } from '@/lib/config-transfer';
+import { refDictionary } from '@/lib/config-refs';
 
 /**
  * Replay a configuration export onto this store.
@@ -34,8 +35,10 @@ async function main() {
   if (file.sourceStore === store) console.log('  (same store — this is a restore, not a transfer)');
 
   const applied: Record<string, number> = {};
+  const refs = await refDictionary();
   let skippedSecrets = 0;
   let unkeyable = 0;
+  let demoted = 0;
 
   for (const t of CONFIG_TABLES) {
     const rows = file.tables[t.model];
@@ -48,11 +51,22 @@ async function main() {
     if (!client?.findFirst) { console.log(`  ${t.label.padEnd(52)} — model missing on this store, skipped`); continue; }
 
     let created = 0, updated = 0;
-    for (const row of rows) {
+    for (const source of rows) {
       // Belt and braces: the exporter redacts, and the importer refuses anyway.
-      if (t.model === 'setting' && isSecretSettingKey(String(row.key))) { skippedSecrets++; continue; }
-      const where = keyOf(row, t.key);
+      if (t.model === 'setting' && isSecretSettingKey(String(source.key))) { skippedSecrets++; continue; }
+      const where = keyOf(source, t.key);
       if (Object.values(where).some((v) => v == null)) { unkeyable++; continue; }
+
+      // Natural keys back into THIS store's ids. Anything this store does not
+      // have (a category that was never created here) demotes the row instead of
+      // publishing a page that would match nothing.
+      const { row, unresolved } = remapRefs(source, t.portable, refs.toId);
+      const demote = t.portable?.demoteWhenUnresolved;
+      if (unresolved.length && demote) {
+        row[demote.field] = demote.value;
+        demoted++;
+        console.log(`    ⚠️ ${t.model} ${String(where[t.key[0]])} → ${demote.field}=${demote.value}; unresolved here: ${unresolved.slice(0, 4).join(', ')}`);
+      }
 
       // Split relation arrays out of the scalar payload and turn them into
       // `set` — `set` rather than `connect` so a permission REMOVED at the
@@ -63,9 +77,16 @@ async function main() {
       for (const c of t.connect ?? []) {
         const linked = data[c.field];
         delete data[c.field];
-        if (Array.isArray(linked)) {
-          rel[c.field] = { set: linked.map((l) => ({ [c.on]: (l as Record<string, unknown>)[c.on] })) };
+        if (!Array.isArray(linked)) continue;
+        let values = linked.map((l) => (l as Record<string, unknown>)[c.on]);
+        if (c.kind) {
+          // Prisma's `set` throws on the FIRST missing target, taking the whole
+          // import down over one product this store happens not to carry.
+          const before = values.length;
+          values = values.filter((v) => typeof v === 'string' && refs.toId(c.kind!, v) !== null);
+          if (values.length !== before) console.log(`    ⚠️ ${t.model} ${String(where[t.key[0]])}: ${before - values.length} ${c.kind}(s) not on this store, link skipped`);
         }
+        rel[c.field] = { set: values.map((v) => ({ [c.on]: v })) };
       }
 
       const existing = await client.findFirst({ where });
@@ -83,6 +104,7 @@ async function main() {
 
   console.log(`\n  ${summarize(applied)}`);
   if (unkeyable) console.log(`  ⚠️ ${unkeyable} row(s) had no usable key and were skipped — the manifest key is wrong for that table.`);
+  if (demoted) console.log(`  ⚠️ ${demoted} row(s) referenced something this store does not have and were imported UNPUBLISHED — review them before publishing.`);
   if (skippedSecrets) console.log(`  🔒 ${skippedSecrets} secret setting(s) in the file were refused — set them on this store by hand.`);
   if (file.redactedSettings?.length) {
     console.log(`\n  ⚠️ the source withheld ${file.redactedSettings.length} setting(s) — secrets and per-store provider identity. Configure on this store:`);
