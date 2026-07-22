@@ -1,6 +1,6 @@
 import 'server-only';
 import { getOpayConfig, getKashierConfig, getAramexConfig, getSmsaConfig, getWhatsappConfig, getAiConfig } from '@/lib/provider-config';
-import { opaySignature } from '@/lib/payment-crypto';
+import { opaySignature, opayBaseUrl } from '@/lib/payment-crypto';
 
 /**
  * Live connection checks for external providers (admin → Providers). Each check
@@ -21,7 +21,7 @@ const TIMEOUT = 12_000;
 export async function checkOpay(): Promise<ProviderCheck> {
   const cfg = await getOpayConfig();
   if (!cfg) return { status: 'skip' };
-  const base = cfg.environment === 'live' ? 'https://liveapi.opaycheckout.com' : 'https://testapi.opaycheckout.com';
+  const base = opayBaseUrl(cfg.environment);
   const reference = `CONNCHECK-${Date.now()}`;
   try {
     const createRes = await fetch(`${base}/api/v1/international/cashier/create`, {

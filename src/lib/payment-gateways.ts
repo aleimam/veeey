@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { audit } from '@/lib/audit';
 import { getSetting } from '@/lib/settings-service';
 import { getKashierConfig, getOpayConfig } from '@/lib/provider-config';
-import { kashierAmount, opaySignature } from '@/lib/payment-crypto';
+import { kashierAmount, opaySignature, opayBaseUrl } from '@/lib/payment-crypto';
 
 /**
  * Online card payment orchestration (FR-PAY-02/03). The storefront card method
@@ -143,8 +143,7 @@ async function buildKashierRedirect(order: CardOrder): Promise<string | null> {
 async function buildOpayRedirect(order: CardOrder): Promise<string | null> {
   const cfg = await getOpayConfig();
   if (!cfg) return null;
-  const live = cfg.environment === 'live';
-  const base = live ? 'https://liveapi.opaycheckout.com' : 'https://testapi.opaycheckout.com';
+  const base = opayBaseUrl(cfg.environment);
   const body = {
     country: 'EG',
     reference: order.number,
@@ -178,8 +177,7 @@ async function buildOpayRedirect(order: CardOrder): Promise<string | null> {
 export async function opayQueryStatus(reference: string): Promise<string | null> {
   const cfg = await getOpayConfig();
   if (!cfg) return null;
-  const live = cfg.environment === 'live';
-  const base = live ? 'https://liveapi.opaycheckout.com' : 'https://testapi.opaycheckout.com';
+  const base = opayBaseUrl(cfg.environment);
   const payload = JSON.stringify({ country: 'EG', reference });
   try {
     const res = await fetch(`${base}/api/v1/international/cashier/status`, {

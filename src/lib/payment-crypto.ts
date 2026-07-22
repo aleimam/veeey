@@ -72,3 +72,16 @@ export function opaySignature(payload: string, secretKey: string): string {
 export function opayVerify(payloadJson: string, sha512: string, secretKey: string): boolean {
   return safeEqualHex(opaySignature(payloadJson, secretKey), sha512);
 }
+
+/**
+ * OPay's API host for **Egypt**.
+ *
+ * Egypt is served by its own domain, not the `testapi`/`liveapi` pair used for
+ * other markets — those answer, authenticate, and then refuse with
+ * `403 request forbidden(request domain error.), you can find the correct
+ * request domain for country[Egypt] in OPay doc`. The error names the problem
+ * clearly but only after the credentials look wrong, so it is worth stating in
+ * one place rather than repeating the ternary at three call sites.
+ */
+export const opayBaseUrl = (environment: string): string =>
+  environment === 'live' ? 'https://api.opaycheckout.com' : 'https://sandboxapi.opaycheckout.com';
