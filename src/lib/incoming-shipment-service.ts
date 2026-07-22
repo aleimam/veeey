@@ -188,9 +188,11 @@ export type StockResult = {
  * guard — a line that already has one is skipped, so a re-fired approval or a
  * second click cannot stock the same goods twice.
  *
- * Runs inside the caller's transaction, alongside the status flip.
+ * Runs inside the caller's transaction, alongside the status flip. Exported
+ * because Sales may also approve from YeldnIN (owner decision), and that inbound
+ * handler must stock through this exact path rather than a parallel one.
  */
-async function stockShipmentLines(
+export async function stockShipmentLines(
   tx: Tx,
   lines: { id: string; productId: string | null; quantity: number; expiryDate: Date | null; lotCode: string | null; unitCost: number | null; currency: string | null; lotId: string | null }[],
   locationId: string,
