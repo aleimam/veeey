@@ -1,6 +1,7 @@
 import 'server-only';
 import { getAramexConfig } from '@/lib/provider-config';
 import { getSetting } from '@/lib/settings-service';
+import { resolveAwb, type AwbEdit, type AwbAddr } from '@/lib/carriers/awb';
 
 /**
  * Aramex Shipping Services API (FR-SHIP). Create a shipment → AWB + label URL,
@@ -12,7 +13,6 @@ const host = () => 'https://ws.aramex.net';
 const CREATE_URL = `${host()}/ShippingAPI.V2/Shipping/Service_1_0.svc/json/CreateShipments`;
 const TRACK_URL = `${host()}/ShippingAPI.V2/Tracking/Service_1_0.svc/json/TrackShipments`;
 
-type Addr = { name?: string; phone?: string; governorate?: string; city?: string; street?: string };
 export type ShipOrder = { number: string; totalPiastres: bigint; paymentMethod: string | null; shippingAddressJson: unknown };
 export type ShipResult = { ok: true; awb: string; labelUrl: string | null } | { ok: false; error: string };
 export type TrackUpdate = { date: string; status: string; location: string };
@@ -36,16 +36,19 @@ const clientInfo = (cfg: Cfg) => ({
   Source: 24,
 });
 
-export async function createAramexShipment(order: ShipOrder): Promise<ShipResult> {
+export async function createAramexShipment(order: ShipOrder, edit?: AwbEdit): Promise<ShipResult> {
   const cfg = await getAramexConfig();
   if (!cfg) return { ok: false, error: 'aramex_not_configured' };
-  const a = (order.shippingAddressJson ?? {}) as Addr;
   const [storeEmail, storePhone, storeAddr] = await Promise.all([
     getSetting('store.contactEmail'),
     getSetting('store.phone'),
     getSetting('store.addressEn'),
   ]);
-  const cod = order.paymentMethod === 'COD' ? Number(order.totalPiastres) / 100 : 0;
+  // Staff-reviewed values win over the order's stored snapshot (shared resolver).
+  const autoCod = order.paymentMethod === 'COD' ? Number(order.totalPiastres) / 100 : 0;
+  const r = resolveAwb((order.shippingAddressJson ?? {}) as AwbAddr, edit, autoCod);
+  const phone = r.phone || '0000000000'; // Aramex requires a phone number
+  const city = r.city || '-';
 
   const body = {
     ClientInfo: clientInfo(cfg),
@@ -59,19 +62,19 @@ export async function createAramexShipment(order: ShipOrder): Promise<ShipResult
         Contact: { PersonName: 'Veeey', CompanyName: 'Veeey', PhoneNumber1: storePhone || '0000000000', CellPhone: storePhone || '0000000000', EmailAddress: storeEmail || 'info@veeey.com' },
       },
       Consignee: {
-        PartyAddress: { Line1: a.street || '-', City: a.city || a.governorate || '-', CountryCode: cfg.accountCountryCode },
-        Contact: { PersonName: a.name || 'Customer', CompanyName: a.name || 'Customer', PhoneNumber1: a.phone || '0000000000', CellPhone: a.phone || '0000000000', EmailAddress: '' },
+        PartyAddress: { Line1: r.street, City: city, CountryCode: cfg.accountCountryCode },
+        Contact: { PersonName: r.name, CompanyName: r.name, PhoneNumber1: phone, CellPhone: phone, EmailAddress: '' },
       },
       ShippingDateTime: `/Date(${Date.now()})/`,
       Details: {
-        ActualWeight: { Value: 1, Unit: 'KG' },
+        ActualWeight: { Value: r.weightKg, Unit: 'KG' },
         ProductGroup: 'DOM',
         ProductType: 'OND',
         PaymentType: 'P',
-        NumberOfPieces: 1,
-        DescriptionOfGoods: 'Health products',
+        NumberOfPieces: r.pieces,
+        DescriptionOfGoods: r.contents,
         GoodsOriginCountry: cfg.accountCountryCode,
-        ...(cod > 0 ? { CashOnDeliveryAmount: { Value: cod, CurrencyCode: 'EGP' } } : {}),
+        ...(r.cod > 0 ? { CashOnDeliveryAmount: { Value: r.cod, CurrencyCode: 'EGP' } } : {}),
       },
     }],
     LabelInfo: { ReportID: 9201, ReportType: 'URL' },

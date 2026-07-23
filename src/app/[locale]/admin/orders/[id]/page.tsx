@@ -59,6 +59,12 @@ export default async function OrderDetailPage({ params, searchParams }: { params
   const editErr = one(sp.editerr);
   const egp = (p: bigint | number) => (Number(p) / 100).toFixed(2); // for prefilling edit inputs
   const paidDelta = order.paymentState === 'PAID' ? paidBalance(order.totalPiastres, order.paidAmountPiastres) : 0n;
+  // Unified ship flow: `ship` = the courier chosen in the chooser → shows its
+  // review/edit step. `shipped` = an AWB already exists (show its details).
+  const shipChoice = one(sp.ship);
+  const shipped = !!(order.courier && order.trackingNumber);
+  const shipAddr = (order.shippingAddressJson ?? {}) as { name?: string; phone?: string; governorate?: string; city?: string; area?: string; street?: string };
+  const codDefault = order.paymentMethod === 'COD' ? egp(order.totalPiastres) : '0';
   const shipErr = one(sp.shiperr);
   const shipOk = one(sp.shipok) === '1';
   const labelUrl = one(sp.label);
@@ -352,65 +358,69 @@ export default async function OrderDetailPage({ params, searchParams }: { params
             <button className="mt-2 w-full rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground">{tb('Add tracking', 'إضافة تتبع')}</button>
           </form>
 
-          {aramexOn && (
-            <div className="rounded-lg border border-border p-4">
-              <p className="mb-2 font-medium">{tb('Aramex', 'Aramex')}</p>
-              {shipOk && <p className="mb-2 rounded-md bg-primary/10 px-2 py-1 text-xs text-primary">{tb('Shipment created.', 'تم إنشاء الشحنة.')}</p>}
-              {shipErr && <p className="mb-2 rounded-md bg-destructive/10 px-2 py-1 text-xs text-destructive">{tb('Aramex error: ', 'خطأ Aramex: ')}{shipErr}</p>}
-              {trackMsg && <p className="mb-2 rounded-md bg-gold/15 px-2 py-1 text-xs text-slate">{tb('Status: ', 'الحالة: ')}{trackMsg}</p>}
-              {order.courier === 'ARAMEX' && order.trackingNumber ? (
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground">{tb('AWB', 'بوليصة الشحن')}: <span className="font-medium text-foreground">{order.trackingNumber}</span></p>
-                  {labelUrl && <a href={labelUrl} target="_blank" rel="noreferrer" className="block rounded-md border border-border px-3 py-1.5 text-center text-sm hover:bg-surface">{tb('Print label', 'طباعة الملصق')}</a>}
-                  <form action={trackAramexAction}>
-                    {hidden({ awb: order.trackingNumber })}
-                    <button className="w-full rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface">{tb('Refresh tracking', 'تحديث التتبع')}</button>
-                  </form>
-                </div>
-              ) : (
-                <form action={createAramexShipmentAction}>
-                  {hidden({})}
-                  <button className="w-full rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">{tb('Create Aramex shipment', 'إنشاء شحنة Aramex')}</button>
-                </form>
-              )}
-            </div>
-          )}
-
-          {smsaOn && (
-            <div className="rounded-lg border border-border p-4">
-              <p className="mb-2 font-medium">{tb('SMSA', 'SMSA')}</p>
-              {order.courier === 'SMSA' && order.trackingNumber ? (
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground">{tb('AWB', 'بوليصة الشحن')}: <span className="font-medium text-foreground">{order.trackingNumber}</span></p>
-                  <a href={`/api/admin/carriers/smsa-label?awb=${encodeURIComponent(order.trackingNumber)}`} target="_blank" rel="noreferrer" className="block rounded-md border border-border px-3 py-1.5 text-center text-sm hover:bg-surface">{tb('Print label', 'طباعة الملصق')}</a>
-                  <form action={trackSmsaAction}>
-                    {hidden({ awb: order.trackingNumber })}
-                    <button className="w-full rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface">{tb('Refresh tracking', 'تحديث التتبع')}</button>
-                  </form>
-                </div>
-              ) : (
-                <form action={createSmsaShipmentAction}>
-                  {hidden({})}
-                  <button className="w-full rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">{tb('Create SMSA shipment', 'إنشاء شحنة SMSA')}</button>
-                </form>
-              )}
-            </div>
-          )}
-
-          {/* VEEEY Express — our own courier. Ops pick it by judgement (no zone
-              gating); the delivery job is created in YeldnIN, which assigns the
-              actual courier and sends their name/phone back as the tracking. */}
+          {/* Unified "Ship this order": choose courier → review/edit the address +
+              AWB details → Create. Aramex/SMSA create a real waybill; Veeey Express
+              hands the delivery to YeldnIN (Ops assign the courier, whose name/phone
+              come back as the tracking). Replaces the old per-courier panels. */}
           <div className="rounded-lg border border-border p-4">
-            <p className="mb-2 font-medium">{tb('Veeey Express', 'فيي إكسبريس')}</p>
-            {order.courier === 'OWN' ? (
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">{tb('Reference', 'المرجع')}: <span className="font-medium text-foreground">{order.number}</span></p>
-                <p className="text-xs text-muted-foreground">{tb('Handed to YeldnIN — the assigned courier’s name and phone appear here once Ops assign one.', 'تم التسليم إلى YeldnIN — يظهر اسم وهاتف المندوب هنا بعد تعيينه.')}</p>
+            <p className="mb-2 font-medium">{tb('Shipping', 'الشحن')}</p>
+            {shipOk && <p className="mb-2 rounded-md bg-primary/10 px-2 py-1 text-xs text-primary">{tb('Shipment created.', 'تم إنشاء الشحنة.')}</p>}
+            {shipErr && <p className="mb-2 rounded-md bg-destructive/10 px-2 py-1 text-xs text-destructive">{tb('Courier error: ', 'خطأ الشحن: ')}{shipErr}</p>}
+            {trackMsg && <p className="mb-2 rounded-md bg-gold/15 px-2 py-1 text-xs text-slate">{tb('Status: ', 'الحالة: ')}{trackMsg}</p>}
+
+            {shipped ? (
+              <div className="space-y-2 text-sm">
+                <p className="text-xs text-muted-foreground">{tb('Courier', 'شركة الشحن')}: <span className="font-medium text-foreground">{order.courier === 'OWN' ? tb('Veeey Express', 'فيي إكسبريس') : order.courier}</span></p>
+                <p className="text-xs text-muted-foreground">{order.courier === 'OWN' ? tb('Reference', 'المرجع') : tb('AWB', 'بوليصة الشحن')}: <span className="font-medium text-foreground">{order.trackingNumber}</span></p>
+                {order.courier === 'ARAMEX' && labelUrl && <a href={labelUrl} target="_blank" rel="noreferrer" className="block rounded-md border border-border px-3 py-1.5 text-center hover:bg-surface">{tb('Print label', 'طباعة الملصق')}</a>}
+                {order.courier === 'SMSA' && <a href={`/api/admin/carriers/smsa-label?awb=${encodeURIComponent(order.trackingNumber!)}`} target="_blank" rel="noreferrer" className="block rounded-md border border-border px-3 py-1.5 text-center hover:bg-surface">{tb('Print label', 'طباعة الملصق')}</a>}
+                {order.courier === 'ARAMEX' && <form action={trackAramexAction}>{hidden({ awb: order.trackingNumber! })}<button className="w-full rounded-md border border-border px-3 py-1.5 hover:bg-surface">{tb('Refresh tracking', 'تحديث التتبع')}</button></form>}
+                {order.courier === 'SMSA' && <form action={trackSmsaAction}>{hidden({ awb: order.trackingNumber! })}<button className="w-full rounded-md border border-border px-3 py-1.5 hover:bg-surface">{tb('Refresh tracking', 'تحديث التتبع')}</button></form>}
+                {order.courier === 'OWN' && <p className="text-xs text-muted-foreground">{tb('Handed to YeldnIN — the assigned courier’s name and phone appear here once Ops assign one.', 'تم التسليم إلى YeldnIN — يظهر اسم وهاتف المندوب هنا بعد تعيينه.')}</p>}
               </div>
-            ) : (
-              <form action={createVeeeyExpressShipmentAction}>
+            ) : shipChoice === 'aramex' || shipChoice === 'smsa' ? (
+              <form action={shipChoice === 'aramex' ? createAramexShipmentAction : createSmsaShipmentAction} className="space-y-2 text-sm">
                 {hidden({})}
-                <button className="w-full rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">{tb('Ship with Veeey Express', 'الشحن عبر فيي إكسبريس')}</button>
+                <p className="text-xs text-muted-foreground">{tb('Review & edit before creating the', 'راجع وعدّل قبل إنشاء بوليصة')} {shipChoice === 'aramex' ? 'Aramex' : 'SMSA'} {tb('waybill:', 'الشحن:')}</p>
+                <input name="awbName" defaultValue={shipAddr.name ?? ''} placeholder={tb('Recipient name', 'اسم المستلم')} aria-label={tb('Recipient name', 'اسم المستلم')} className={inputCls} />
+                <input name="awbPhone" defaultValue={shipAddr.phone ?? ''} placeholder={tb('Phone', 'الهاتف')} aria-label={tb('Phone', 'الهاتف')} className={inputCls} />
+                <div className="flex gap-2">
+                  <input name="awbGovernorate" defaultValue={shipAddr.governorate ?? ''} placeholder={tb('Governorate', 'المحافظة')} aria-label={tb('Governorate', 'المحافظة')} className={inputCls} />
+                  <input name="awbCity" defaultValue={shipAddr.city ?? ''} placeholder={tb('City', 'المدينة')} aria-label={tb('City', 'المدينة')} className={inputCls} />
+                </div>
+                <input name="awbArea" defaultValue={shipAddr.area ?? ''} placeholder={tb('Area', 'المنطقة')} aria-label={tb('Area', 'المنطقة')} className={inputCls} />
+                <input name="awbStreet" defaultValue={shipAddr.street ?? ''} placeholder={tb('Street / building', 'الشارع / المبنى')} aria-label={tb('Street', 'الشارع')} className={inputCls} />
+                <div className="flex gap-2">
+                  <input name="awbPieces" type="number" min="1" defaultValue="1" placeholder={tb('Pieces', 'الطرود')} aria-label={tb('Pieces', 'الطرود')} className={inputCls} />
+                  <input name="awbWeightKg" type="number" step="0.1" min="0" defaultValue="1" placeholder={tb('Weight (kg)', 'الوزن (كجم)')} aria-label={tb('Weight (kg)', 'الوزن (كجم)')} className={inputCls} />
+                </div>
+                <input name="awbContents" defaultValue={tb('Health products', 'منتجات صحية')} placeholder={tb('Contents', 'المحتويات')} aria-label={tb('Contents', 'المحتويات')} className={inputCls} />
+                <input name="awbCod" type="number" step="0.01" min="0" defaultValue={codDefault} placeholder={tb('COD amount (EGP)', 'قيمة الدفع عند الاستلام (ج.م)')} aria-label={tb('COD amount (EGP)', 'قيمة الدفع عند الاستلام')} className={inputCls} />
+                <div className="flex gap-2">
+                  <button className="flex-1 rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground">{tb('Create', 'إنشاء')} {shipChoice === 'aramex' ? 'Aramex' : 'SMSA'}</button>
+                  <Link href={`/admin/orders/${order.id}`} className="rounded-md border border-border px-3 py-1.5 hover:bg-surface">{tb('Cancel', 'إلغاء')}</Link>
+                </div>
+              </form>
+            ) : shipChoice === 'veeey' ? (
+              <form action={createVeeeyExpressShipmentAction} className="space-y-2 text-sm">
+                {hidden({})}
+                <p className="text-xs text-muted-foreground">{tb('Create a Veeey Express delivery and send it to YeldnIN. Ops assign the courier; their name and phone come back as the tracking.', 'أنشئ توصيل فيي إكسبريس وأرسله إلى YeldnIN. يعيّن الفريق المندوب ويعود اسمه وهاتفه كتتبع.')}</p>
+                <div className="flex gap-2">
+                  <button className="flex-1 rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground">{tb('Ship with Veeey Express', 'الشحن عبر فيي إكسبريس')}</button>
+                  <Link href={`/admin/orders/${order.id}`} className="rounded-md border border-border px-3 py-1.5 hover:bg-surface">{tb('Cancel', 'إلغاء')}</Link>
+                </div>
+              </form>
+            ) : (
+              <form method="get" className="space-y-2 text-sm">
+                <p className="text-xs text-muted-foreground">{tb('Choose a courier to ship this order.', 'اختر شركة شحن لشحن هذا الطلب.')}</p>
+                <select name="ship" defaultValue="" className={inputCls}>
+                  <option value="" disabled>{tb('— Courier —', '— شركة الشحن —')}</option>
+                  {aramexOn && <option value="aramex">Aramex</option>}
+                  {smsaOn && <option value="smsa">SMSA</option>}
+                  <option value="veeey">{tb('Veeey Express', 'فيي إكسبريس')}</option>
+                </select>
+                <button className="w-full rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground">{tb('Ship this order', 'شحن هذا الطلب')}</button>
+                {!aramexOn && !smsaOn && <p className="text-[10px] text-muted-foreground">{tb('Aramex/SMSA appear here once their credentials are set in Admin → Providers.', 'تظهر Aramex/SMSA هنا بعد ضبط بياناتهما في الإدارة ← المزوّدون.')}</p>}
               </form>
             )}
           </div>

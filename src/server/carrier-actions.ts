@@ -8,9 +8,27 @@ import { setTracking } from '@/lib/order-service';
 import { createAramexShipment, trackAramex } from '@/lib/carriers/aramex';
 import { createSmsaShipment, trackSmsa } from '@/lib/carriers/smsa';
 import { sendVeeeyExpressDelivery } from '@/lib/integration/delivery-sync';
+import type { AwbEdit } from '@/lib/carriers/awb';
 
 const localeOf = (fd: FormData) => (fd.get('locale') === 'ar' ? 'ar' : 'en');
 const str = (fd: FormData, k: string) => { const v = fd.get(k); return typeof v === 'string' ? v.trim() : ''; };
+const numOf = (fd: FormData, k: string) => { const n = Number(str(fd, k)); return Number.isFinite(n) && str(fd, k) !== '' ? n : undefined; };
+
+/** The staff-reviewed AWB fields from the "Ship this order" review form (Aramex/SMSA). */
+function parseAwbEdit(fd: FormData): AwbEdit {
+  return {
+    name: str(fd, 'awbName') || undefined,
+    phone: str(fd, 'awbPhone') || undefined,
+    governorate: str(fd, 'awbGovernorate') || undefined,
+    city: str(fd, 'awbCity') || undefined,
+    area: str(fd, 'awbArea') || undefined,
+    street: str(fd, 'awbStreet') || undefined,
+    pieces: numOf(fd, 'awbPieces'),
+    weightKg: numOf(fd, 'awbWeightKg'),
+    contents: str(fd, 'awbContents') || undefined,
+    codAmount: numOf(fd, 'awbCod'),
+  };
+}
 
 /** Create an Aramex shipment for an order → AWB + label; marks it shipped. */
 export async function createAramexShipmentAction(fd: FormData): Promise<void> {
@@ -20,10 +38,10 @@ export async function createAramexShipmentAction(fd: FormData): Promise<void> {
   const order = await prisma.order.findUnique({ where: { id } });
   if (!order) redirect(`/${locale}/admin/orders`);
 
-  const r = await createAramexShipment({ number: order.number, totalPiastres: order.totalPiastres, paymentMethod: order.paymentMethod, shippingAddressJson: order.shippingAddressJson });
+  const r = await createAramexShipment({ number: order.number, totalPiastres: order.totalPiastres, paymentMethod: order.paymentMethod, shippingAddressJson: order.shippingAddressJson }, parseAwbEdit(fd));
   if (!r.ok) {
     revalidatePath(`/${locale}/admin/orders/${id}`);
-    redirect(`/${locale}/admin/orders/${id}?shiperr=${encodeURIComponent(r.error)}`);
+    redirect(`/${locale}/admin/orders/${id}?ship=aramex&shiperr=${encodeURIComponent(r.error)}`);
   }
   await setTracking(id, r.awb, 'ARAMEX'); // sets SHIPPED + notifies
   revalidatePath(`/${locale}/admin/orders/${id}`);
@@ -48,10 +66,10 @@ export async function createSmsaShipmentAction(fd: FormData): Promise<void> {
   await requirePermission('orders.fulfill');
   const order = await prisma.order.findUnique({ where: { id } });
   if (!order) redirect(`/${locale}/admin/orders`);
-  const r = await createSmsaShipment({ number: order.number, totalPiastres: order.totalPiastres, paymentMethod: order.paymentMethod, shippingAddressJson: order.shippingAddressJson });
+  const r = await createSmsaShipment({ number: order.number, totalPiastres: order.totalPiastres, paymentMethod: order.paymentMethod, shippingAddressJson: order.shippingAddressJson }, parseAwbEdit(fd));
   if (!r.ok) {
     revalidatePath(`/${locale}/admin/orders/${id}`);
-    redirect(`/${locale}/admin/orders/${id}?shiperr=${encodeURIComponent(r.error)}`);
+    redirect(`/${locale}/admin/orders/${id}?ship=smsa&shiperr=${encodeURIComponent(r.error)}`);
   }
   await setTracking(id, r.awb, 'SMSA');
   revalidatePath(`/${locale}/admin/orders/${id}`);
@@ -75,7 +93,7 @@ export async function createVeeeyExpressShipmentAction(fd: FormData): Promise<vo
   const r = await sendVeeeyExpressDelivery(id);
   if (!r.ok) {
     revalidatePath(`/${locale}/admin/orders/${id}`);
-    redirect(`/${locale}/admin/orders/${id}?shiperr=${encodeURIComponent(r.error)}`);
+    redirect(`/${locale}/admin/orders/${id}?ship=veeey&shiperr=${encodeURIComponent(r.error)}`);
   }
   await setTracking(id, order.number, 'OWN'); // sets SHIPPED + notifies
   revalidatePath(`/${locale}/admin/orders/${id}`);

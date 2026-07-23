@@ -1,5 +1,6 @@
 import 'server-only';
 import { getSmsaConfig } from '@/lib/provider-config';
+import { resolveAwb, type AwbEdit, type AwbAddr } from '@/lib/carriers/awb';
 
 /**
  * SMSA Express SOAP web service (FR-SHIP). addShipment → AWB, getTracking → events,
@@ -32,24 +33,25 @@ async function soap(action: string, inner: string): Promise<string | null> {
   }
 }
 
-type Addr = { name?: string; phone?: string; governorate?: string; city?: string; street?: string };
 export type SmsaOrder = { number: string; totalPiastres: bigint; paymentMethod: string | null; shippingAddressJson: unknown };
 export type SmsaResult = { ok: true; awb: string } | { ok: false; error: string };
 export type TrackUpdate = { date: string; status: string; location: string };
 
-export async function createSmsaShipment(order: SmsaOrder): Promise<SmsaResult> {
+export async function createSmsaShipment(order: SmsaOrder, edit?: AwbEdit): Promise<SmsaResult> {
   const cfg = await getSmsaConfig();
   if (!cfg?.passKey) return { ok: false, error: 'smsa_passkey_missing' };
-  const a = (order.shippingAddressJson ?? {}) as Addr;
-  const cod = order.paymentMethod === 'COD' ? Number(order.totalPiastres) / 100 : 0;
+  // Staff-reviewed values win over the stored snapshot (shared resolver). Egypt
+  // domestic: cntry EG, currencies EGP (this endpoint is SMSA's shared SECOM service).
+  const autoCod = order.paymentMethod === 'COD' ? Number(order.totalPiastres) / 100 : 0;
+  const r = resolveAwb((order.shippingAddressJson ?? {}) as AwbAddr, edit, autoCod);
   const inner = [
     tag('passKey', cfg.passKey), tag('refNo', order.number), tag('sentDate', new Date().toISOString().slice(0, 10)),
-    tag('idNo', ''), tag('cName', a.name || 'Customer'), tag('cntry', 'SA'), tag('cCity', a.city || a.governorate || ''),
-    tag('cZip', ''), tag('cPOBox', ''), tag('cMobile', a.phone || ''), tag('cTel1', ''), tag('cTel2', ''),
-    tag('cAddr1', a.street || '-'), tag('cAddr2', a.governorate || ''), tag('shipType', 'DLV'), tag('PCs', '1'),
-    tag('cEmail', ''), tag('carrValue', '0'), tag('carrCurr', 'SAR'), tag('codAmt', cod), tag('weight', '1'),
-    tag('custVal', '0'), tag('custCurr', 'SAR'), tag('insrAmt', '0'), tag('insrCurr', 'SAR'),
-    tag('itemDesc', 'Health products'), tag('ShortCode', ''),
+    tag('idNo', ''), tag('cName', r.name), tag('cntry', 'EG'), tag('cCity', r.city),
+    tag('cZip', ''), tag('cPOBox', ''), tag('cMobile', r.phone), tag('cTel1', ''), tag('cTel2', ''),
+    tag('cAddr1', r.street), tag('cAddr2', r.gov), tag('shipType', 'DLV'), tag('PCs', String(r.pieces)),
+    tag('cEmail', ''), tag('carrValue', '0'), tag('carrCurr', 'EGP'), tag('codAmt', r.cod), tag('weight', String(r.weightKg)),
+    tag('custVal', '0'), tag('custCurr', 'EGP'), tag('insrAmt', '0'), tag('insrCurr', 'EGP'),
+    tag('itemDesc', r.contents), tag('ShortCode', ''),
   ].join('');
   const xml = await soap('addShipment', inner);
   if (!xml) return { ok: false, error: 'smsa_unreachable' };
