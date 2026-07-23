@@ -6,6 +6,7 @@ import { getCustomerAdmin } from '@/lib/customer-admin-service';
 import { listLoyaltyTransactions } from '@/lib/loyalty-service';
 import { formatEGP } from '@/lib/format';
 import { GOVERNORATES } from '@/lib/governorates';
+import { shoppingStyleLabel, productsTypeLabel } from '@/lib/order-traits';
 import { StatusBadge } from '@/components/admin/ui';
 import { pick } from '@/lib/admin-i18n';
 import { requirePermission } from '@/lib/auth-guards';
@@ -71,6 +72,8 @@ export default async function CustomerDetailsPage({ params }: { params: Promise<
           <Row label={tb('Tier lock', 'قفل الفئة')}>{c.tierManual ? tb('Locked', 'مقفلة') : tb('Auto (by spend)', 'تلقائي (حسب الإنفاق)')}{c.tierManual && c.tierManualUntil ? ` · ${tb('until', 'حتى')} ${dateFmt(c.tierManualUntil)}` : ''}</Row>
           <Row label={tb('Points balance', 'رصيد النقاط')}>{c.pointsBalance.toLocaleString('en-US')}</Row>
           <Row label={tb('Lifetime spend', 'إجمالي الإنفاق')}>{formatEGP(Number(c.lifetimeSpendPiastres))}</Row>
+          <Row label={tb('Shopping Style', 'أسلوب الشراء')}>{shoppingStyleLabel(c.shoppingStyle, locale) ?? '—'}</Row>
+          <Row label={tb('Products type', 'نوع المنتجات')}>{productsTypeLabel(c.productsType, locale) ?? '—'}</Row>
         </Card>
 
         <Card title={tb('Marketing', 'التسويق')}>

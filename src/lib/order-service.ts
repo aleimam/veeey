@@ -370,14 +370,22 @@ export async function setOrderChannel(id: string, channel: string) {
 
 export async function setOrderMeta(id: string, meta: { customerOrderType?: string | null; orderProductType?: string | null; source?: string | null }) {
   const user = await requirePermission('orders.write');
-  await prisma.order.update({
+  const shoppingStyle = (meta.customerOrderType || null) as 'DISCOUNT_CHASER' | 'DOCTOR_RECOMMENDED' | 'SALES_ADVICE' | 'SELF_ORDERING' | null;
+  const productsType = (meta.orderProductType || null) as 'MISCELLANEOUS' | 'MALE_SUPPORT' | 'PREMIUM' | 'NEW' | 'TREND' | null;
+  const order = await prisma.order.update({
     where: { id },
-    data: {
-      customerOrderType: (meta.customerOrderType || null) as 'DISCOUNT_CHASER' | 'DOCTOR_RECOMMENDED' | 'SALES_ADVICE' | 'SELF_ORDERING' | null,
-      orderProductType: (meta.orderProductType || null) as 'MISCELLANEOUS' | 'MALE_SUPPORT' | 'PREMIUM' | 'NEW' | 'TREND' | null,
-      source: meta.source || null,
-    },
+    data: { customerOrderType: shoppingStyle, orderProductType: productsType, source: meta.source || null },
+    select: { customerId: true },
   });
+  // Mirror the two customer-trait fields onto the linked customer (owner batch
+  // 2026-07-23) — latest order that SETS a value wins; clearing on the order does
+  // NOT wipe the customer's standing value.
+  if (order.customerId) {
+    const data: { shoppingStyle?: typeof shoppingStyle; productsType?: typeof productsType } = {};
+    if (shoppingStyle) data.shoppingStyle = shoppingStyle;
+    if (productsType) data.productsType = productsType;
+    if (Object.keys(data).length) await prisma.customer.update({ where: { id: order.customerId }, data });
+  }
   await audit({ actorType: 'USER', actorId: user.id, action: 'order.meta', entityType: 'Order', entityId: id });
 }
 

@@ -61,6 +61,8 @@ export async function saveCustomerDetailsAction(fd: FormData): Promise<void> {
       tierId: str(fd, 'tierId') ?? null,
       tierManual: fd.get('tierManual') === 'on',
       tierManualUntil: str(fd, 'tierManualUntil') || null,
+      shoppingStyle: str(fd, 'shoppingStyle') ?? null,
+      productsType: str(fd, 'productsType') ?? null,
     });
   } catch (e) {
     const msg = e instanceof Error && e.message === 'EMAIL_TAKEN' ? 'error=email_taken' : 'error=1';

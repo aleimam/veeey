@@ -13,6 +13,7 @@ import { CHANNELS } from '@/lib/channels';
 import { pick } from '@/lib/admin-i18n';
 import { conditionLabel, isConditionVariant } from '@/lib/lot-condition';
 import { deriveSourceKey, sourceLabel, attributionDetail, type Attribution } from '@/lib/attribution';
+import { shoppingStyleLabel, productsTypeLabel } from '@/lib/order-traits';
 import { ChangeHistory } from '@/components/admin/change-history';
 import { requestTypeLabel } from '@/lib/request-i18n';
 import { requirePermission } from '@/lib/auth-guards';
@@ -183,10 +184,10 @@ export default async function OrderDetailsPage({ params }: { params: Promise<{ l
             </Card>
           )}
 
-          <Card title={tb('Metadata', 'البيانات الوصفية')}>
-            <Row label={tb('Customer type', 'نوع العميل')}>{order.customerOrderType ?? '—'}</Row>
-            <Row label={tb('Product type', 'نوع المنتج')}>{order.orderProductType ?? '—'}</Row>
-            <Row label={tb('Channel', 'القناة')}>{channel ? (locale === 'ar' ? channel.ar : channel.en) : '—'}</Row>
+          <Card title={tb('Shopping & source', 'الشراء والمصدر')}>
+            <Row label={tb('Shopping Style', 'أسلوب الشراء')}>{shoppingStyleLabel(order.customerOrderType, locale) ?? '—'}</Row>
+            <Row label={tb('Products type', 'نوع المنتجات')}>{productsTypeLabel(order.orderProductType, locale) ?? '—'}</Row>
+            <Row label={tb('Order Source', 'مصدر الطلب')}>{channel ? (locale === 'ar' ? channel.ar : channel.en) : '—'}</Row>
             <Row label={tb('Traffic source', 'مصدر الزيارة')}>{sourceLabel(deriveSourceKey(order.utmJson as Attribution | null), locale)}</Row>
             {attributionDetail(order.utmJson as Attribution | null) && (
               <p className="truncate text-xs text-muted-foreground" title={attributionDetail(order.utmJson as Attribution | null)}>{attributionDetail(order.utmJson as Attribution | null)}</p>

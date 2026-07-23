@@ -15,15 +15,15 @@ import { StatusBadge, inputCls } from '@/components/admin/ui';
 import { aramexConfigured, smsaConfigured } from '@/lib/provider-config';
 import { listSystemMethods, customerLabel } from '@/lib/payment-method-service';
 import { CHANNELS } from '@/lib/channels';
+import { SHOPPING_STYLES, PRODUCTS_TYPES } from '@/lib/order-traits';
 import { pick } from '@/lib/admin-i18n';
 import { conditionLabel, isConditionVariant } from '@/lib/lot-condition';
 import { deriveSourceKey, sourceLabel, attributionDetail, type Attribution } from '@/lib/attribution';
 import { ChangeHistory } from '@/components/admin/change-history';
 import { ProductLinePicker } from '@/components/admin/order-item-picker';
 import {
-  transitionOrderAction, refundPaymentAction, assignPharmacistAction, setPayCheckAction, setSystemPaymentMethodAction, setOrderMetaAction,
-  setTrackingAction, addOrderItemAction, removeOrderItemAction, addGiftToOrderAction, removeGiftFromOrderAction, markOrderItemLostAction,
-  setOrderItemPriceAction, setOrderShippingFeeAction, setOrderShippingTypeAction, setOrderManualDiscountAction,
+  transitionOrderAction, refundPaymentAction, setTrackingAction, addOrderItemAction, removeOrderItemAction,
+  addGiftToOrderAction, removeGiftFromOrderAction, markOrderItemLostAction, saveOrderEditAction,
 } from '@/server/order-actions';
 import { createAramexShipmentAction, trackAramexAction, createSmsaShipmentAction, trackSmsaAction, createVeeeyExpressShipmentAction } from '@/server/carrier-actions';
 import { createOrderRequestAction } from '@/server/request-actions';
@@ -36,8 +36,8 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 const monthYear = (d: Date | null) => (d ? `${String(d.getUTCMonth() + 1).padStart(2, '0')}/${d.getUTCFullYear()}` : '—');
 
 export default async function OrderEditPage({ params, searchParams }: { params: Promise<{ locale: string; id: string }>; searchParams: Promise<SP> }) {
-  // Page-level RBAC (matches the sidebar's permission key) — the sidebar only
-  // HIDES the link; without this any staffer with one permission could read it.
+  // Page-level RBAC (matches the sidebar's permission key). The individual form
+  // actions enforce the finer write/fulfill grants + open-order editability.
   await requirePermission('orders.read');
   const { locale, id } = await params;
   const sp = await searchParams;
@@ -57,6 +57,7 @@ export default async function OrderEditPage({ params, searchParams }: { params: 
     listShippingTypes(),
   ]);
   const editErr = one(sp.editerr);
+  const saved = one(sp.saved) === '1';
   const egp = (p: bigint | number) => (Number(p) / 100).toFixed(2); // for prefilling edit inputs
   const paidDelta = order.paymentState === 'PAID' ? paidBalance(order.totalPiastres, order.paidAmountPiastres) : 0n;
   // Unified ship flow: `ship` = the courier chosen in the chooser → shows its
@@ -92,11 +93,8 @@ export default async function OrderEditPage({ params, searchParams }: { params: 
         <div>
           <h1 className="font-heading text-xl font-semibold">{tb('Edit', 'تعديل')} · {order.number}</h1>
           <p className="text-sm text-muted-foreground">
-            {/* Registered buyer → their admin profile; guests have no account to link. */}
             {order.customerId ? (
-              <Link href={`/admin/customers/${order.customerId}`} className="font-medium text-primary hover:underline">
-                {order.customer?.user.email || tb('Customer', 'العميل')}
-              </Link>
+              <Link href={`/admin/customers/${order.customerId}`} className="font-medium text-primary hover:underline">{order.customer?.user.email || tb('Customer', 'العميل')}</Link>
             ) : (
               order.guestEmail ?? tb('Guest', 'زائر')
             )} · {order.placedAt.toISOString().slice(0, 10)} · {tb('Risk', 'المخاطرة')} {order.riskScore ?? 0} · <StatusBadge status={order.status} />
@@ -105,6 +103,7 @@ export default async function OrderEditPage({ params, searchParams }: { params: 
         <a href={`/api/admin/orders/${order.id}/invoice?lang=${locale}`} target="_blank" rel="noreferrer" className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">{tb('Print invoice (PDF)', 'طباعة الفاتورة (PDF)')}</a>
       </header>
 
+      {saved && <div className="mb-4 rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary">{tb('Changes saved.', 'تم حفظ التغييرات.')}</div>}
       {editErr === 'locked' && (
         <div className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">{tb('This order is closed. Move it back to an open status (e.g. Confirmed) before editing its items or pricing.', 'هذا الطلب مغلق. أعِده إلى حالة مفتوحة (مثل «مؤكد») قبل تعديل عناصره أو أسعاره.')}</div>
       )}
@@ -122,7 +121,7 @@ export default async function OrderEditPage({ params, searchParams }: { params: 
       )}
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Items + edit-in-Hold */}
+        {/* Items — per-line price inputs belong to the combined #orderEditForm below */}
         <section className="lg:col-span-2">
           <h2 className="mb-3 text-sm font-semibold">{tb('Items', 'العناصر')}</h2>
           <div className="overflow-x-auto rounded-lg border border-border">
@@ -141,14 +140,16 @@ export default async function OrderEditPage({ params, searchParams }: { params: 
                     <td className="p-2 text-center">{it.product.weightG != null ? `${it.product.weightG}g` : '—'}</td>
                     <td className="p-2 text-center">{it.qty}</td>
                     <td className={`p-2 text-center ${it.lost ? 'line-through' : ''}`}>
-                      {formatEGP(Number(it.unitPricePiastres) * it.qty)}
-                      {editable && !it.lost && (
-                        <form action={setOrderItemPriceAction} className="mt-1 flex items-center justify-center gap-1 no-underline">
-                          {hidden({ orderItemId: it.id })}
-                          <span className="text-[10px] text-muted-foreground">{tb('unit', 'وحدة')}</span>
-                          <input name="priceEgp" type="number" step="0.01" min="0" defaultValue={egp(it.unitPricePiastres)} aria-label={tb('Unit price EGP', 'سعر الوحدة ج.م')} className="w-20 rounded border border-border px-1 py-0.5 text-end text-xs" />
-                          <button className="rounded bg-surface px-1.5 py-0.5 text-[10px] hover:bg-border">{tb('Set', 'حفظ')}</button>
-                        </form>
+                      {editable && !it.lost ? (
+                        <div className="flex flex-col items-center gap-1">
+                          <span>{formatEGP(Number(it.unitPricePiastres) * it.qty)}</span>
+                          <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                            {tb('unit', 'وحدة')}
+                            <input form="orderEditForm" name={`price_${it.id}`} type="number" step="0.01" min="0" defaultValue={egp(it.unitPricePiastres)} aria-label={tb('Unit price EGP', 'سعر الوحدة ج.م')} className="w-20 rounded border border-border px-1 py-0.5 text-end text-xs" />
+                          </span>
+                        </div>
+                      ) : (
+                        formatEGP(Number(it.unitPricePiastres) * it.qty)
                       )}
                     </td>
                     <td className="p-2 text-end">
@@ -215,6 +216,7 @@ export default async function OrderEditPage({ params, searchParams }: { params: 
 
         {/* Controls */}
         <aside className="space-y-5 text-sm">
+          {/* Status — an action, not a saved field */}
           <div className="rounded-lg border border-border p-4">
             <p className="mb-2 font-medium">{tb('Status', 'الحالة')}</p>
             <div className="flex flex-wrap gap-2">
@@ -223,9 +225,6 @@ export default async function OrderEditPage({ params, searchParams }: { params: 
                 <form key={t} action={transitionOrderAction}>{hidden({ status: t })}<button className="rounded-md border border-border px-2.5 py-1 text-xs hover:bg-surface">{statusLabelOf(t)}</button></form>
               ))}
             </div>
-            {/* Refund is a payment fact, decoupled from status: a Cancelled or
-                Returned order restores stock, and the money refund is recorded
-                here independently. Only meaningful once paid. */}
             {order.paymentState === 'PAID' && (
               <form action={refundPaymentAction} className="mt-3 border-t border-border pt-3">
                 {hidden({})}
@@ -238,7 +237,6 @@ export default async function OrderEditPage({ params, searchParams }: { params: 
           </div>
 
           <StatusTimeline entries={timelineEntries} locale={locale} showActor />
-
 
           {(order.isPreorder || order.isSpecialOrder || order.requests.length > 0) && (
             <div className="rounded-lg border border-border p-4">
@@ -268,69 +266,79 @@ export default async function OrderEditPage({ params, searchParams }: { params: 
             </div>
           )}
 
-          <form action={assignPharmacistAction} className="rounded-lg border border-border p-4">
-            {hidden({})}
-            <p className="mb-2 font-medium">{tb('Pharmacist', 'الصيدلي')}</p>
-            <select name="pharmacistId" defaultValue={order.pharmacist?.id ?? ''} className={inputCls}>
-              <option value="">{tb('— Unassigned —', '— غير معيَّن —')}</option>
-              {staff.map((s) => <option key={s.id} value={s.id}>{s.name ?? s.email}</option>)}
-            </select>
-            <button className="mt-2 w-full rounded-md border border-border px-3 py-1.5 hover:bg-surface">{tb('Assign', 'تعيين')}</button>
-          </form>
+          {/* ===== Combined "Save changes" form: every field edit commits together ===== */}
+          <form id="orderEditForm" action={saveOrderEditAction} className="space-y-5">
+            <input type="hidden" name="locale" value={locale} />
+            <input type="hidden" name="id" value={id} />
 
-          <form action={setPayCheckAction} className="rounded-lg border border-border p-4">
-            {hidden({})}
-            <p className="mb-2 font-medium">{tb('Payment check', 'مراجعة الدفع')}</p>
-            <select name="payCheck" defaultValue={order.payCheck} className={inputCls}>
-              {['NO', 'YES', 'PROBLEM'].map((p) => <option key={p} value={p}>{p}</option>)}
-            </select>
-            <button className="mt-2 w-full rounded-md border border-border px-3 py-1.5 hover:bg-surface">{tb('Save', 'حفظ')}</button>
-          </form>
-
-          <form action={setSystemPaymentMethodAction} className="rounded-lg border border-border p-4">
-            {hidden({})}
-            <p className="mb-1 font-medium">{tb('Payment method', 'طريقة الدفع')}</p>
-            <p className="mb-2 text-xs text-muted-foreground">{tb('Customer chose', 'اختار العميل')}: <span className="text-foreground">{customerLabel(order.paymentMethod, locale)}</span></p>
-            <label className="text-xs text-muted-foreground">{tb('System method (invoice)', 'طريقة النظام (الفاتورة)')}
-              <select name="systemPaymentMethod" defaultValue={order.systemPaymentMethod ?? ''} className={`${inputCls} mt-1`}>
-                <option value="">{tb('— auto / unset —', '— تلقائي / غير محدد —')}</option>
-                {systemMethods.map((m) => <option key={m.id} value={m.code}>{locale === 'ar' ? m.labelAr || m.labelEn : m.labelEn}</option>)}
+            <div className="rounded-lg border border-border p-4">
+              <p className="mb-2 font-medium">{tb('Pharmacist', 'الصيدلي')}</p>
+              <select name="pharmacistId" defaultValue={order.pharmacist?.id ?? ''} className={inputCls}>
+                <option value="">{tb('— Unassigned —', '— غير معيَّن —')}</option>
+                {staff.map((s) => <option key={s.id} value={s.id}>{s.name ?? s.email}</option>)}
               </select>
-            </label>
-            <button className="mt-2 w-full rounded-md border border-border px-3 py-1.5 hover:bg-surface">{tb('Save', 'حفظ')}</button>
-          </form>
+            </div>
 
-          {/* Manual pricing (owner batch): line prices edit inline in the table; the
-              shipping method/fee and a titled special discount edit here. Open orders
-              only — a closed order must be reopened first. */}
-          <div className="space-y-4 rounded-lg border border-border p-4">
-            <p className="font-medium">{tb('Pricing & discount', 'الأسعار والخصم')}</p>
-            {!editable ? (
-              <p className="text-xs text-muted-foreground">{tb('Locked. Set the order to an open status (e.g. Confirmed) to edit prices, shipping, or add a discount.', 'مغلق. اضبط الطلب على حالة مفتوحة (مثل «مؤكد») لتعديل الأسعار أو الشحن أو إضافة خصم.')}</p>
-            ) : (
-              <>
-                <form action={setOrderShippingTypeAction}>
-                  {hidden({})}
-                  <label className="text-xs text-muted-foreground">{tb('Shipping method', 'طريقة الشحن')}</label>
+            <div className="space-y-3 rounded-lg border border-border p-4">
+              <p className="font-medium">{tb('Payment', 'الدفع')}</p>
+              <p className="text-xs text-muted-foreground">{tb('Customer chose', 'اختار العميل')}: <span className="text-foreground">{customerLabel(order.paymentMethod, locale)}</span></p>
+              <label className="block text-xs text-muted-foreground">{tb('Payment check', 'مراجعة الدفع')}
+                <select name="payCheck" defaultValue={order.payCheck} className={`${inputCls} mt-1`}>
+                  {['NO', 'YES', 'PROBLEM'].map((p) => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </label>
+              <label className="block text-xs text-muted-foreground">{tb('System method (invoice)', 'طريقة النظام (الفاتورة)')}
+                <select name="systemPaymentMethod" defaultValue={order.systemPaymentMethod ?? ''} className={`${inputCls} mt-1`}>
+                  <option value="">{tb('— auto / unset —', '— تلقائي / غير محدد —')}</option>
+                  {systemMethods.map((m) => <option key={m.id} value={m.code}>{locale === 'ar' ? m.labelAr || m.labelEn : m.labelEn}</option>)}
+                </select>
+              </label>
+            </div>
+
+            <div className="space-y-3 rounded-lg border border-border p-4">
+              <p className="font-medium">{tb('Shopping & source', 'الشراء والمصدر')}</p>
+              <label className="block text-xs text-muted-foreground">{tb('Shopping Style', 'أسلوب الشراء')}
+                <select name="customerOrderType" defaultValue={order.customerOrderType ?? ''} className={`${inputCls} mt-1`}>
+                  <option value="">{tb('— none —', '— بدون —')}</option>
+                  {SHOPPING_STYLES.map((s) => <option key={s.value} value={s.value}>{locale === 'ar' ? s.ar : s.en}</option>)}
+                </select>
+              </label>
+              <label className="block text-xs text-muted-foreground">{tb('Products type', 'نوع المنتجات')}
+                <select name="orderProductType" defaultValue={order.orderProductType ?? ''} className={`${inputCls} mt-1`}>
+                  <option value="">{tb('— none —', '— بدون —')}</option>
+                  {PRODUCTS_TYPES.map((p) => <option key={p.value} value={p.value}>{locale === 'ar' ? p.ar : p.en}</option>)}
+                </select>
+              </label>
+              <label className="block text-xs text-muted-foreground">{tb('Order Source', 'مصدر الطلب')}
+                <select name="source" defaultValue={order.source ?? ''} className={`${inputCls} mt-1`}>
+                  <option value="">{tb('— channel —', '— القناة —')}</option>
+                  {CHANNELS.map((c) => <option key={c.code} value={c.code}>{locale === 'ar' ? c.ar : c.en}</option>)}
+                </select>
+              </label>
+              {order.customerId && <p className="text-[11px] text-muted-foreground">{tb('Shopping Style & Products type also update this customer.', 'يُحدِّث «أسلوب الشراء» و«نوع المنتجات» هذا العميل أيضًا.')}</p>}
+              <div className="border-t border-border pt-2 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">{tb('Traffic source', 'مصدر الزيارة')}: </span>
+                {sourceLabel(deriveSourceKey(order.utmJson as Attribution | null), locale)}
+                {attributionDetail(order.utmJson as Attribution | null) && (
+                  <span className="block truncate" title={attributionDetail(order.utmJson as Attribution | null)}>{attributionDetail(order.utmJson as Attribution | null)}</span>
+                )}
+              </div>
+            </div>
+
+            {editable ? (
+              <div className="space-y-3 rounded-lg border border-border p-4">
+                <p className="font-medium">{tb('Pricing & discount', 'الأسعار والخصم')}</p>
+                <label className="block text-xs text-muted-foreground">{tb('Shipping method', 'طريقة الشحن')}
                   <select name="shippingType" defaultValue={order.shippingType ?? ''} className={`${inputCls} mt-1`}>
                     <option value="">{tb('— method —', '— الطريقة —')}</option>
                     {shippingTypes.map((s) => <option key={s.type} value={s.type}>{(locale === 'ar' ? s.labelAr : s.labelEn)} · {formatEGP(Number(s.feePiastres))}</option>)}
                   </select>
-                  <button className="mt-2 w-full rounded-md border border-border px-3 py-1.5 hover:bg-surface">{tb('Set method (recompute fee)', 'تعيين الطريقة (إعادة حساب الرسوم)')}</button>
-                </form>
-
-                <form action={setOrderShippingFeeAction} className="border-t border-border pt-3">
-                  {hidden({})}
-                  <label className="text-xs text-muted-foreground">{tb('Shipping fee (EGP)', 'رسوم الشحن (ج.م)')}</label>
-                  <div className="mt-1 flex gap-2">
-                    <input name="shippingFeeEgp" type="number" step="0.01" min="0" defaultValue={egp(order.shippingPiastres)} className={inputCls} />
-                    <button className="rounded-md border border-border px-3 hover:bg-surface">{tb('Save', 'حفظ')}</button>
-                  </div>
-                </form>
-
-                <form action={setOrderManualDiscountAction} className="space-y-2 border-t border-border pt-3">
-                  {hidden({})}
-                  <label className="text-xs text-muted-foreground">{tb('Special discount', 'خصم خاص')}</label>
+                </label>
+                <label className="block text-xs text-muted-foreground">{tb('Shipping fee (EGP)', 'رسوم الشحن (ج.م)')}
+                  <input name="shippingFeeEgp" type="number" step="0.01" min="0" defaultValue={egp(order.shippingPiastres)} className={`${inputCls} mt-1`} />
+                </label>
+                <div className="space-y-2 border-t border-border pt-3">
+                  <label className="block text-xs text-muted-foreground">{tb('Special discount', 'خصم خاص')}</label>
                   <input name="discountTitle" defaultValue={order.manualDiscountTitle ?? ''} placeholder={tb('Reason / title', 'السبب / العنوان')} className={inputCls} />
                   <select name="discountMode" defaultValue={order.manualDiscountPct != null ? 'pct' : (Number(order.manualDiscountPiastres) > 0 ? 'value' : 'pct')} className={inputCls}>
                     <option value="pct">{tb('Percentage %', 'نسبة مئوية %')}</option>
@@ -341,28 +349,20 @@ export default async function OrderEditPage({ params, searchParams }: { params: 
                     <input name="discountPct" type="number" min="0" max="100" defaultValue={order.manualDiscountPct ?? ''} placeholder="%" aria-label={tb('Percent', 'نسبة')} className={inputCls} />
                     <input name="discountValueEgp" type="number" step="0.01" min="0" defaultValue={Number(order.manualDiscountPiastres) > 0 && order.manualDiscountPct == null ? egp(order.manualDiscountPiastres) : ''} placeholder={tb('EGP', 'ج.م')} aria-label={tb('Value EGP', 'قيمة ج.م')} className={inputCls} />
                   </div>
-                  <button className="w-full rounded-md border border-border px-3 py-1.5 hover:bg-surface">{tb('Apply discount', 'تطبيق الخصم')}</button>
                   <p className="text-[10px] text-muted-foreground">{tb('Pick Percentage or Fixed value; the other box is ignored. Stacks on top of any coupon.', 'اختر النسبة أو القيمة الثابتة؛ يُتجاهل الحقل الآخر. يُضاف فوق أي كوبون.')}</p>
-                </form>
-              </>
+                </div>
+              </div>
+            ) : (
+              <p className="rounded-lg border border-border p-4 text-xs text-muted-foreground">{tb('Prices, shipping and discount are locked. Reopen the order (e.g. Confirmed) to edit them.', 'الأسعار والشحن والخصم مقفلة. أعِد فتح الطلب (مثل «مؤكد») لتعديلها.')}</p>
             )}
-          </div>
 
-          <form action={setTrackingAction} className="rounded-lg border border-border p-4">
-            {hidden({})}
-            <p className="mb-2 font-medium">{tb('Tracking → Shipped', 'التتبع → تم الشحن')}</p>
-            <input name="trackingNumber" placeholder={tb('Waybill number', 'رقم بوليصة الشحن')} defaultValue={order.trackingNumber ?? ''} className={inputCls} />
-            <select name="courier" defaultValue={order.courier ?? ''} className={`${inputCls} mt-2`}>
-              <option value="">{tb('— Courier —', '— شركة الشحن —')}</option>
-              {['ARAMEX', 'SMSA', 'OWN'].map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <button className="mt-2 w-full rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground">{tb('Add tracking', 'إضافة تتبع')}</button>
+            <button className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90">{tb('Save changes', 'حفظ التغييرات')}</button>
           </form>
+          {/* ===== end combined form ===== */}
 
-          {/* Unified "Ship this order": choose courier → review/edit the address +
-              AWB details → Create. Aramex/SMSA create a real waybill; Veeey Express
-              hands the delivery to YeldnIN (Ops assign the courier, whose name/phone
-              come back as the tracking). Replaces the old per-courier panels. */}
+          {/* Shipping — unified flow + manual waybill entry (merged from the old
+              Tracking card). Choose a courier → review/edit the AWB → Create; or
+              record a waybill manually if the parcel shipped outside the system. */}
           <div className="rounded-lg border border-border p-4">
             <p className="mb-2 font-medium">{tb('Shipping', 'الشحن')}</p>
             {shipOk && <p className="mb-2 rounded-md bg-primary/10 px-2 py-1 text-xs text-primary">{tb('Shipment created.', 'تم إنشاء الشحنة.')}</p>}
@@ -412,47 +412,32 @@ export default async function OrderEditPage({ params, searchParams }: { params: 
                 </div>
               </form>
             ) : (
-              <form method="get" className="space-y-2 text-sm">
-                <p className="text-xs text-muted-foreground">{tb('Choose a courier to ship this order.', 'اختر شركة شحن لشحن هذا الطلب.')}</p>
-                <select name="ship" defaultValue="" className={inputCls}>
-                  <option value="" disabled>{tb('— Courier —', '— شركة الشحن —')}</option>
-                  {aramexOn && <option value="aramex">Aramex</option>}
-                  {smsaOn && <option value="smsa">SMSA</option>}
-                  <option value="veeey">{tb('Veeey Express', 'فيي إكسبريس')}</option>
-                </select>
-                <button className="w-full rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground">{tb('Ship this order', 'شحن هذا الطلب')}</button>
-                {!aramexOn && !smsaOn && <p className="text-[10px] text-muted-foreground">{tb('Aramex/SMSA appear here once their credentials are set in Admin → Providers.', 'تظهر Aramex/SMSA هنا بعد ضبط بياناتهما في الإدارة ← المزوّدون.')}</p>}
-              </form>
+              <div className="space-y-3">
+                <form method="get" className="space-y-2 text-sm">
+                  <p className="text-xs text-muted-foreground">{tb('Choose a courier to ship this order.', 'اختر شركة شحن لشحن هذا الطلب.')}</p>
+                  <select name="ship" defaultValue="" className={inputCls}>
+                    <option value="" disabled>{tb('— Courier —', '— شركة الشحن —')}</option>
+                    {aramexOn && <option value="aramex">Aramex</option>}
+                    {smsaOn && <option value="smsa">SMSA</option>}
+                    <option value="veeey">{tb('Veeey Express', 'فيي إكسبريس')}</option>
+                  </select>
+                  <button className="w-full rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground">{tb('Ship this order', 'شحن هذا الطلب')}</button>
+                  {!aramexOn && !smsaOn && <p className="text-[10px] text-muted-foreground">{tb('Aramex/SMSA appear here once their credentials are set in Admin → Providers.', 'تظهر Aramex/SMSA بعد ضبط بياناتهما في الإدارة ← المزوّدون.')}</p>}
+                </form>
+                {/* Manual waybill entry (merged from the old "Tracking → Shipped" card) */}
+                <form action={setTrackingAction} className="space-y-2 border-t border-border pt-3 text-sm">
+                  {hidden({})}
+                  <p className="text-xs text-muted-foreground">{tb('Already shipped elsewhere? Record the waybill manually.', 'شُحن بالفعل من مكان آخر؟ سجّل رقم البوليصة يدويًا.')}</p>
+                  <input name="trackingNumber" placeholder={tb('Waybill number', 'رقم بوليصة الشحن')} defaultValue={order.trackingNumber ?? ''} className={inputCls} />
+                  <select name="courier" defaultValue={order.courier ?? ''} className={inputCls}>
+                    <option value="">{tb('— Courier —', '— شركة الشحن —')}</option>
+                    {['ARAMEX', 'SMSA', 'OWN'].map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <button className="w-full rounded-md border border-border px-3 py-1.5 hover:bg-surface">{tb('Save tracking', 'حفظ التتبع')}</button>
+                </form>
+              </div>
             )}
           </div>
-
-          <form action={setOrderMetaAction} className="rounded-lg border border-border p-4">
-            {hidden({})}
-            <p className="mb-2 font-medium">{tb('Metadata', 'البيانات الوصفية')}</p>
-            <select name="customerOrderType" defaultValue={order.customerOrderType ?? ''} className={inputCls}>
-              <option value="">{tb('Customer type…', 'نوع العميل…')}</option>
-              {['DISCOUNT_CHASER', 'DOCTOR_RECOMMENDED', 'SALES_ADVICE', 'SELF_ORDERING'].map((v) => <option key={v} value={v}>{v}</option>)}
-            </select>
-            <select name="orderProductType" defaultValue={order.orderProductType ?? ''} className={`${inputCls} mt-2`}>
-              <option value="">{tb('Product type…', 'نوع المنتج…')}</option>
-              {['MISCELLANEOUS', 'MALE_SUPPORT', 'PREMIUM', 'NEW', 'TREND'].map((v) => <option key={v} value={v}>{v}</option>)}
-            </select>
-            <select name="source" defaultValue={order.source ?? ''} className={`${inputCls} mt-2`}>
-              <option value="">{tb('Channel…', 'القناة…')}</option>
-              {CHANNELS.map((c) => <option key={c.code} value={c.code}>{locale === 'ar' ? c.ar : c.en}</option>)}
-            </select>
-            <button className="mt-2 w-full rounded-md border border-border px-3 py-1.5 hover:bg-surface">{tb('Save', 'حفظ')}</button>
-            {/* Automatic traffic attribution (read-only) — lives alongside the manual Channel. */}
-            <div className="mt-3 border-t border-border pt-2 text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">{tb('Traffic source', 'مصدر الزيارة')}: </span>
-              {sourceLabel(deriveSourceKey(order.utmJson as Attribution | null), locale)}
-              {attributionDetail(order.utmJson as Attribution | null) && (
-                <span className="block truncate" title={attributionDetail(order.utmJson as Attribution | null)}>
-                  {attributionDetail(order.utmJson as Attribution | null)}
-                </span>
-              )}
-            </div>
-          </form>
 
           {gifts.length > 0 && (
             <form action={addGiftToOrderAction} className="rounded-lg border border-border p-4">

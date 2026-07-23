@@ -23,9 +23,11 @@ import {
   setOrderShippingFee,
   setOrderShippingType,
   setOrderManualDiscount,
+  getOrder,
 } from '@/lib/order-service';
 import { saveGift } from '@/lib/gift-service';
 import { processReturn } from '@/lib/return-service';
+import { requirePermission } from '@/lib/auth-guards';
 import { checkPhoneValue } from '@/lib/phone';
 import type { OrderStatus } from '@/lib/order-status';
 import type { ShippingTypeKey } from '@/lib/shipping-service';
@@ -248,6 +250,79 @@ export async function setOrderManualDiscountAction(fd: FormData): Promise<void> 
     backToOrder(locale, id);
   }
   redirect(`/${locale}/admin/orders`);
+}
+
+/**
+ * Combined "Save changes" for the order edit page (owner batch 2026-07-23): one
+ * button commits every field edit — pharmacist, payment check/method, Shopping
+ * Style / Products type / Order Source, and (open orders only) shipping method,
+ * shipping fee, the titled discount and per-line prices. Diff-based: only CHANGED
+ * fields are written, so a lone shipping-method change still recomputes the fee
+ * (we never re-send the stale fee over it). Status / Ship / Refund stay their own
+ * actions. Editable-only inputs are simply absent from the form when locked.
+ */
+export async function saveOrderEditAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const id = str(fd, 'id');
+  if (!id) redirect(`/${locale}/admin/orders`);
+  await requirePermission('orders.read'); // the service fns enforce write + editable
+  const order = await getOrder(id);
+  if (!order) redirect(`/${locale}/admin/orders`);
+  try {
+    // --- always-editable (any status) ---
+    const pharmacistId = str(fd, 'pharmacistId') ?? null;
+    if ((order.pharmacist?.id ?? null) !== pharmacistId) await assignPharmacist(id, pharmacistId);
+
+    const pc = str(fd, 'payCheck') as 'NO' | 'YES' | 'PROBLEM' | undefined;
+    if (pc && pc !== order.payCheck) await setPayCheck(id, pc);
+
+    const sysM = str(fd, 'systemPaymentMethod') ?? null;
+    if ((order.systemPaymentMethod ?? null) !== sysM) await setSystemPaymentMethod(id, sysM);
+
+    const cot = str(fd, 'customerOrderType') ?? null;
+    const opt = str(fd, 'orderProductType') ?? null;
+    const src = str(fd, 'source') ?? null;
+    if ((order.customerOrderType ?? null) !== cot || (order.orderProductType ?? null) !== opt || (order.source ?? null) !== src) {
+      await setOrderMeta(id, { customerOrderType: cot, orderProductType: opt, source: src });
+    }
+
+    // --- open-order-only (inputs absent when locked) ---
+    const shipType = str(fd, 'shippingType');
+    if (shipType != null && shipType !== (order.shippingType ?? null)) await setOrderShippingType(id, shipType as ShippingTypeKey);
+
+    if (fd.get('shippingFeeEgp') != null) {
+      const fee = piastres(fd, 'shippingFeeEgp');
+      if (fee != null && fee !== order.shippingPiastres) await setOrderShippingFee(id, fee);
+    }
+
+    const dMode = str(fd, 'discountMode');
+    if (dMode) {
+      const title = str(fd, 'discountTitle') ?? '';
+      const curTitle = order.manualDiscountTitle ?? '';
+      if (dMode === 'clear') {
+        if (order.manualDiscountPct != null || Number(order.manualDiscountPiastres) > 0) await setOrderManualDiscount(id, { title: '', pct: null, fixedPiastres: null });
+      } else if (dMode === 'pct') {
+        const pct = num(fd, 'discountPct') ?? null;
+        if (pct !== (order.manualDiscountPct ?? null) || title !== curTitle) await setOrderManualDiscount(id, { title, pct, fixedPiastres: null });
+      } else if (dMode === 'value') {
+        const fixed = piastres(fd, 'discountValueEgp') ?? null;
+        const curFixed = order.manualDiscountPct == null && Number(order.manualDiscountPiastres) > 0 ? order.manualDiscountPiastres : null;
+        if (fixed !== curFixed || title !== curTitle) await setOrderManualDiscount(id, { title, pct: null, fixedPiastres: fixed });
+      }
+    }
+
+    for (const it of order.items) {
+      const raw = fd.get(`price_${it.id}`);
+      if (typeof raw !== 'string' || raw.trim() === '') continue;
+      const p = piastres(fd, `price_${it.id}`);
+      if (p != null && p !== it.unitPricePiastres) await setOrderItemPrice(it.id, p);
+    }
+  } catch (e) {
+    backToOrderErr(locale, id, editErrCode(e));
+  }
+  revalidatePath(`/${locale}/admin/orders/${id}`);
+  revalidatePath(`/${locale}/admin/orders/${id}/edit`);
+  redirect(`/${locale}/admin/orders/${id}/edit?saved=1`);
 }
 
 export async function setChannelAction(fd: FormData): Promise<void> {

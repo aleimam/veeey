@@ -9,6 +9,7 @@ import { adjustPointsAction, backfillCustomerPointsAction } from '@/server/loyal
 import { ConfirmButton } from '@/components/admin/confirm-button';
 import { formatEGP } from '@/lib/format';
 import { GOVERNORATES } from '@/lib/governorates';
+import { SHOPPING_STYLES, PRODUCTS_TYPES } from '@/lib/order-traits';
 import { StatusBadge, Field, inputCls } from '@/components/admin/ui';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { pick } from '@/lib/admin-i18n';
@@ -100,6 +101,18 @@ export default async function CustomerEditPage({ params, searchParams }: { param
                 className={inputCls}
               />
             </div>
+          </Field>
+          <Field label={tb('Shopping Style', 'أسلوب الشراء')} hint={tb('How this customer decides. Also settable from any of their orders.', 'كيف يقرر هذا العميل. يمكن ضبطه أيضًا من أي من طلباته.')}>
+            <select name="shoppingStyle" defaultValue={c.shoppingStyle ?? ''} className={inputCls}>
+              <option value="">{tb('— None —', '— بدون —')}</option>
+              {SHOPPING_STYLES.map((s) => <option key={s.value} value={s.value}>{locale === 'ar' ? s.ar : s.en}</option>)}
+            </select>
+          </Field>
+          <Field label={tb('Products type', 'نوع المنتجات')} hint={tb('What kind of products they buy.', 'نوع المنتجات التي يشتريها.')}>
+            <select name="productsType" defaultValue={c.productsType ?? ''} className={inputCls}>
+              <option value="">{tb('— None —', '— بدون —')}</option>
+              {PRODUCTS_TYPES.map((p) => <option key={p.value} value={p.value}>{locale === 'ar' ? p.ar : p.en}</option>)}
+            </select>
           </Field>
           <div className="flex items-end">
             <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">{tb('Save details', 'حفظ البيانات')}</button>

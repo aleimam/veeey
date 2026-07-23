@@ -4,6 +4,7 @@ import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
 import { generateReferralCode } from '@/lib/customer';
 import type { SpamReason } from '@/lib/customer-spam';
+import type { ShoppingStyle, ProductsType } from '@/lib/order-traits';
 import { phoneSearchTerms } from '@/lib/phone';
 
 /** Staff-side customer management (backend orders revamp, Phase A): search /
@@ -103,6 +104,9 @@ const detailsSchema = z.object({
   // lock + until ≈ one year out.
   tierManual: z.boolean().default(false),
   tierManualUntil: z.coerce.date().optional().nullable(),
+  // Customer traits (owner batch 2026-07-23) — also settable from the order page.
+  shoppingStyle: z.string().optional().nullable(),
+  productsType: z.string().optional().nullable(),
 });
 
 // Standing + marketing + internal notes (V5 F31/F35).
@@ -307,6 +311,8 @@ export async function updateCustomerDetails(id: string, raw: z.input<typeof deta
         tierId: d.tierId || null,
         tierManual: d.tierManual,
         tierManualUntil: d.tierManual ? (d.tierManualUntil ?? null) : null,
+        shoppingStyle: (d.shoppingStyle || null) as ShoppingStyle | null,
+        productsType: (d.productsType || null) as ProductsType | null,
       },
     }),
     prisma.user.update({ where: { id: customer.userId }, data: { email, phone: d.phone || null, ...(name ? { name } : {}) } }),

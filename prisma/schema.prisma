@@ -566,6 +566,11 @@ model Customer {
   status                CustomerStatus @default(ACTIVE)
   adminNotes            String?
   locale                String         @default("en")
+  // Customer traits, mirrored from the latest order that set them (owner batch
+  // 2026-07-23): "Shopping Style" (how they decide) + "Products type". Editable on
+  // the order edit page (writes here too) and on the customer edit page.
+  shoppingStyle         CustomerOrderType?
+  productsType          OrderProductType?
   // Link to YeldnIN for special-order dedupe (INTEGRATION_CONTRACT).
   veeeyCustomerId       String?    @unique
   legacyWpId            Int?       @unique
