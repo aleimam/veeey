@@ -1276,6 +1276,21 @@ model Order {
   depositPaidPiastres  BigInt?
   balanceDuePiastres   BigInt?
   compensationPiastres BigInt?
+  // Snapshot of the total AT THE MOMENT the order was first marked paid. Frozen
+  // (set-once) so that when staff later edit a paid order's prices, we can show
+  // the real balance owed / overpaid (new total − what was actually collected).
+  paidAmountPiastres   BigInt?
+
+  // Staff-added, order-level manual discount (separate from + stacks on top of the
+  // coupon/loyalty `discountPiastres`). Shown as its own titled line on the invoice.
+  // `manualDiscountPct` set → the amount is recomputed as pct% of the subtotal on
+  // every total recompute (so it tracks line-price edits); null → a fixed value.
+  manualDiscountTitle    String?
+  manualDiscountPct      Int?
+  manualDiscountPiastres BigInt  @default(0)
+  // Staff overrode the shipping fee by hand — don't silently recompute it from the
+  // zone when the shipping method changes.
+  shippingFeeManual      Boolean @default(false)
 
   pharmacistId      String?
   pharmacist        User?              @relation("OrderPharmacist", fields: [pharmacistId], references: [id])
