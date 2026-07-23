@@ -22,7 +22,7 @@ import { deriveSourceKey, sourceLabel, attributionDetail, type Attribution } fro
 import { ChangeHistory } from '@/components/admin/change-history';
 import { ProductLinePicker } from '@/components/admin/order-item-picker';
 import {
-  transitionOrderAction, refundPaymentAction, setTrackingAction, addOrderItemAction, removeOrderItemAction,
+  transitionOrderAction, refundPaymentAction, addOrderItemAction, removeOrderItemAction,
   addGiftToOrderAction, removeGiftFromOrderAction, markOrderItemLostAction, saveOrderEditAction,
 } from '@/server/order-actions';
 import { createAramexShipmentAction, trackAramexAction, createSmsaShipmentAction, trackSmsaAction, createVeeeyExpressShipmentAction } from '@/server/carrier-actions';
@@ -360,9 +360,9 @@ export default async function OrderEditPage({ params, searchParams }: { params: 
           </form>
           {/* ===== end combined form ===== */}
 
-          {/* Shipping — unified flow + manual waybill entry (merged from the old
-              Tracking card). Choose a courier → review/edit the AWB → Create; or
-              record a waybill manually if the parcel shipped outside the system. */}
+          {/* Shipping — Veeey Express (our own courier) is one click: the AWB is
+              created by YeldnIN Ops, so nothing is typed here. Aramex/SMSA route to
+              a review step where the AWB is edited before it's created. */}
           <div className="rounded-lg border border-border p-4">
             <p className="mb-2 font-medium">{tb('Shipping', 'الشحن')}</p>
             {shipOk && <p className="mb-2 rounded-md bg-primary/10 px-2 py-1 text-xs text-primary">{tb('Shipment created.', 'تم إنشاء الشحنة.')}</p>}
@@ -402,39 +402,25 @@ export default async function OrderEditPage({ params, searchParams }: { params: 
                   <Link href={`/admin/orders/${order.id}/edit`} className="rounded-md border border-border px-3 py-1.5 hover:bg-surface">{tb('Cancel', 'إلغاء')}</Link>
                 </div>
               </form>
-            ) : shipChoice === 'veeey' ? (
-              <form action={createVeeeyExpressShipmentAction} className="space-y-2 text-sm">
-                {hidden({})}
-                <p className="text-xs text-muted-foreground">{tb('Create a Veeey Express delivery and send it to YeldnIN. Ops assign the courier; their name and phone come back as the tracking.', 'أنشئ توصيل فيي إكسبريس وأرسله إلى YeldnIN. يعيّن الفريق المندوب ويعود اسمه وهاتفه كتتبع.')}</p>
-                <div className="flex gap-2">
-                  <button className="flex-1 rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground">{tb('Ship with Veeey Express', 'الشحن عبر فيي إكسبريس')}</button>
-                  <Link href={`/admin/orders/${order.id}/edit`} className="rounded-md border border-border px-3 py-1.5 hover:bg-surface">{tb('Cancel', 'إلغاء')}</Link>
-                </div>
-              </form>
             ) : (
-              <div className="space-y-3">
-                <form method="get" className="space-y-2 text-sm">
-                  <p className="text-xs text-muted-foreground">{tb('Choose a courier to ship this order.', 'اختر شركة شحن لشحن هذا الطلب.')}</p>
-                  <select name="ship" defaultValue="" className={inputCls}>
-                    <option value="" disabled>{tb('— Courier —', '— شركة الشحن —')}</option>
-                    {aramexOn && <option value="aramex">Aramex</option>}
-                    {smsaOn && <option value="smsa">SMSA</option>}
-                    <option value="veeey">{tb('Veeey Express', 'فيي إكسبريس')}</option>
-                  </select>
-                  <button className="w-full rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground">{tb('Ship this order', 'شحن هذا الطلب')}</button>
-                  {!aramexOn && !smsaOn && <p className="text-[10px] text-muted-foreground">{tb('Aramex/SMSA appear here once their credentials are set in Admin → Providers.', 'تظهر Aramex/SMSA بعد ضبط بياناتهما في الإدارة ← المزوّدون.')}</p>}
-                </form>
-                {/* Manual waybill entry (merged from the old "Tracking → Shipped" card) */}
-                <form action={setTrackingAction} className="space-y-2 border-t border-border pt-3 text-sm">
+              <div className="space-y-3 text-sm">
+                {/* Veeey Express — our own courier, ONE click. The delivery is handed
+                    to YeldnIN; Ops assign the courier + create the reference, so
+                    there is no AWB to enter here. */}
+                <form action={createVeeeyExpressShipmentAction} className="space-y-2">
                   {hidden({})}
-                  <p className="text-xs text-muted-foreground">{tb('Already shipped elsewhere? Record the waybill manually.', 'شُحن بالفعل من مكان آخر؟ سجّل رقم البوليصة يدويًا.')}</p>
-                  <input name="trackingNumber" placeholder={tb('Waybill number', 'رقم بوليصة الشحن')} defaultValue={order.trackingNumber ?? ''} className={inputCls} />
-                  <select name="courier" defaultValue={order.courier ?? ''} className={inputCls}>
-                    <option value="">{tb('— Courier —', '— شركة الشحن —')}</option>
-                    {['ARAMEX', 'SMSA', 'OWN'].map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                  <button className="w-full rounded-md border border-border px-3 py-1.5 hover:bg-surface">{tb('Save tracking', 'حفظ التتبع')}</button>
+                  <p className="text-xs text-muted-foreground">{tb('Ship with our own courier. The delivery is handed to YeldnIN — Ops assign the courier, and their name + phone come back as the tracking (nothing to type).', 'يُشحن عبر مندوبنا. يُسلَّم الطلب إلى YeldnIN — يعيّن الفريق المندوب ويعود اسمه وهاتفه كتتبّع (لا شيء لإدخاله).')}</p>
+                  <button className="w-full rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground">{tb('Ship with Veeey Express', 'الشحن عبر فيي إكسبريس')}</button>
                 </form>
+                {(aramexOn || smsaOn) && (
+                  <div className="space-y-2 border-t border-border pt-3">
+                    <p className="text-xs text-muted-foreground">{tb('Or create a waybill with an integrated courier (review its details first):', 'أو أنشئ بوليصة عبر شركة شحن متكاملة (راجع بياناتها أولًا):')}</p>
+                    <div className="flex gap-2">
+                      {aramexOn && <Link href={`/admin/orders/${order.id}/edit?ship=aramex`} className="flex-1 rounded-md border border-border px-3 py-1.5 text-center hover:bg-surface">Aramex</Link>}
+                      {smsaOn && <Link href={`/admin/orders/${order.id}/edit?ship=smsa`} className="flex-1 rounded-md border border-border px-3 py-1.5 text-center hover:bg-surface">SMSA</Link>}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

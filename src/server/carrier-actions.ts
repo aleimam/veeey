@@ -33,7 +33,7 @@ function parseAwbEdit(fd: FormData): AwbEdit {
 /** Create an Aramex shipment for an order → AWB + label; marks it shipped. */
 export async function createAramexShipmentAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
-  const id = str(fd, 'orderId');
+  const id = str(fd, 'id');
   await requirePermission('orders.fulfill');
   const order = await prisma.order.findUnique({ where: { id } });
   if (!order) redirect(`/${locale}/admin/orders`);
@@ -51,7 +51,7 @@ export async function createAramexShipmentAction(fd: FormData): Promise<void> {
 /** Fetch the latest Aramex tracking status for the order's waybill. */
 export async function trackAramexAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
-  const id = str(fd, 'orderId');
+  const id = str(fd, 'id');
   const awb = str(fd, 'awb');
   await requirePermission('orders.read');
   const r = await trackAramex(awb);
@@ -62,7 +62,7 @@ export async function trackAramexAction(fd: FormData): Promise<void> {
 /** Create an SMSA shipment for an order → AWB; marks it shipped. */
 export async function createSmsaShipmentAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
-  const id = str(fd, 'orderId');
+  const id = str(fd, 'id');
   await requirePermission('orders.fulfill');
   const order = await prisma.order.findUnique({ where: { id } });
   if (!order) redirect(`/${locale}/admin/orders`);
@@ -85,7 +85,7 @@ export async function createSmsaShipmentAction(fd: FormData): Promise<void> {
  */
 export async function createVeeeyExpressShipmentAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
-  const id = str(fd, 'orderId');
+  const id = str(fd, 'id');
   await requirePermission('orders.fulfill');
   const order = await prisma.order.findUnique({ where: { id }, select: { number: true } });
   if (!order) redirect(`/${locale}/admin/orders`);
@@ -103,7 +103,7 @@ export async function createVeeeyExpressShipmentAction(fd: FormData): Promise<vo
 /** Fetch the latest SMSA tracking status for the order's waybill. */
 export async function trackSmsaAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
-  const id = str(fd, 'orderId');
+  const id = str(fd, 'id');
   const awb = str(fd, 'awb');
   await requirePermission('orders.read');
   const r = await trackSmsa(awb);
