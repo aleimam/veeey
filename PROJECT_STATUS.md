@@ -7,6 +7,19 @@
 
 ## Current state
 
+- **✅ Per-method checkout logos — LIVE on BOTH stores (`ff6aba7`, owner 2026-07-23).** Each of the 7
+  customer methods has an owner-uploadable logo (**Admin → Payments → "Checkout logos"**, one
+  `SingleImageUploader` per method → `POST /api/admin/upload` → WebP; the URL is stored in Setting
+  `payments.logo.<CODE>`, registered via `paymentLogoSettings()` so it travels with the config export).
+  Checkout renders the uploaded logo beside the method, or a **brand-neutral Lucide type-icon** fallback
+  when none is set (`PAYMENT_FALLBACK_ICON`: card/wallet/landmark/send/banknote — added `wallet`/
+  `landmark`/`banknote` to the storefront Icon map). We do NOT fabricate the trademarked
+  Visa/MasterCard/Kashier/OPay/InstaPay/wallet marks — the owner supplies official artwork. Pure logic
+  in `payment-copy.ts` (shared by settings-service + payment-method-service to avoid a next-auth import
+  in tests); reader `paymentLogos()`; action `savePaymentLogosAction` (RBAC-gated `saveSettings` + cache
+  invalidate). **Verified live on veeey.com**: all 6 visible methods render the SVG fallback icon
+  (`hasImg:false`, `hasSvgIcon:true`) since no logos uploaded yet; 887 tests, build clean.
+
 - **✅ Checkout payment order + POS rename — LIVE on BOTH stores (`c79fdf4`, owner 2026-07-23).**
   Order: Card (Kashier) · Card (OPay) · InstaPay · Bank Transfer · Mobile Wallet · **POS upon
   Delivery** · Cash on Delivery. The order is one tested constant (`CHECKOUT_METHOD_ORDER` in
