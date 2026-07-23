@@ -7,6 +7,11 @@
 
 ## Current state
 
+- **✅ Order-management batch (07-23) — LIVE on BOTH stores.** Two waves:
+  - **Order editing + customer order page (`8fe1bae`, 2 migrations).** Admin [/admin/orders/[id]](src/app/[locale]/admin/orders/[id]/page.tsx): staff edit line unit-prices inline, override the shipping fee, change the delivery method (recomputes the fee from its rate), and add a **titled special discount** (% or fixed value, stacks on coupons) — **open orders only** (`isOrderEditable`, PENDING/EDIT/HOLD/CONFIRMED); a Delivered order must be reopened first (migration appended CONFIRMED to `DELIVERED.allowedNext`). Totals recompute via pure `order-money.ts` (tested); a paid order whose total changes shows the **balance owed/overpaid** (set-once `Order.paidAmountPiastres` snapshot). Buyer email → their admin customer page. All edits `orders.write`-gated + audited. Customer account order page: product names link to the PDP, expiry/variation on a smaller second line, **Download invoice (PDF)** button → ownership-checked `/api/account/orders/[number]/invoice`.
+  - **Unified "Ship this order" flow (`73b7ab3`, code-only).** Replaced the 3 always-open courier panels with one action: choose Aramex / SMSA / Veeey Express → (Aramex/SMSA) a **review+edit** screen prefilled from the order (recipient + pieces/weight/contents/COD) → Create. Veeey Express → YeldnIN (unchanged). Shared tested `resolveAwb()`; SMSA fixed for Egypt (EG/EGP). ⚠️ **Live AWB creation needs the carriers' Egypt credentials in Admin → Providers** (owner to supply SMSA + Aramex Egypt test creds).
+  - **Still open:** bilingual EN+AR invoice + letterhead (full-page background) — owner chose the direct-PDF-with-Arabic-shaping approach; being built next.
+
 - **✅ Per-method checkout logos — LIVE on BOTH stores (`ff6aba7`, owner 2026-07-23).** Each of the 7
   customer methods has an owner-uploadable logo (**Admin → Payments → "Checkout logos"**, one
   `SingleImageUploader` per method → `POST /api/admin/upload` → WebP; the URL is stored in Setting
