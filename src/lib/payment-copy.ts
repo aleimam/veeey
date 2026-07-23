@@ -24,6 +24,33 @@ export const CHECKOUT_METHOD_ORDER = [
   'CARD_KASHIER', 'CARD_OPAY', 'INSTAPAY', 'BANK_TRANSFER', 'MOBILE_WALLET', 'POS_ON_DELIVERY', 'COD',
 ] as const;
 
+/**
+ * A method's logo is an uploaded image URL kept in Settings, per method.
+ *
+ * The images themselves are owner-supplied: the real Visa/MasterCard, Kashier,
+ * OPay, InstaPay and wallet-brand marks are trademarks, so the store must upload
+ * the official artwork (Admin → Payments) rather than have anything fabricate an
+ * imitation. Until a logo is uploaded, checkout falls back to the generic
+ * type-icon below.
+ */
+export const paymentLogoKey = (code: string) => `payments.logo.${code}`;
+
+/**
+ * Generic, brand-NEUTRAL fallback icon per method (a Lucide glyph in the
+ * storefront Icon set) — shown only when no official logo has been uploaded.
+ * A card icon for a card, a wallet for a wallet: communicates the payment TYPE
+ * without standing in for a brand mark.
+ */
+export const PAYMENT_FALLBACK_ICON: Record<string, string> = {
+  CARD_KASHIER: 'credit-card',
+  CARD_OPAY: 'credit-card',
+  INSTAPAY: 'send',
+  BANK_TRANSFER: 'landmark',
+  MOBILE_WALLET: 'wallet',
+  POS_ON_DELIVERY: 'credit-card',
+  COD: 'banknote',
+};
+
 /** Says what the customer must DO, not what the method is. */
 export const PAYMENT_DESCRIPTION_DEFAULTS: Record<string, { en: string; ar: string }> = {
   COD: {
@@ -83,6 +110,24 @@ export const PAYMENT_DESCRIPTION_LABELS: Record<string, string> = {
  * `SettingDef` is imported as a TYPE only: the value side of settings-service
  * pulls in auth-guards → next-auth, and this module must stay loadable in tests.
  */
+/**
+ * The uploaded-logo URLs as editable settings rows — one per customer method.
+ * Registered so the config transfer carries them and the admin's upload writes a
+ * known key. Default '' = fall back to the generic type-icon.
+ */
+export function paymentLogoSettings(): Array<{
+  key: string; label: string; group: string; type: 'text'; default: string; hint: string;
+}> {
+  return Object.entries(PAYMENT_DESCRIPTION_LABELS).map(([code, label]) => ({
+    key: paymentLogoKey(code),
+    label: `${label} — logo`,
+    group: 'Payments',
+    type: 'text' as const,
+    default: '',
+    hint: 'URL of the official payment logo shown at checkout (upload it on the Payments admin page). Empty = a generic type-icon is shown instead.',
+  }));
+}
+
 export function paymentDescriptionSettings(): Array<{
   key: string; label: string; group: string; type: 'text'; default: string; hint: string;
 }> {

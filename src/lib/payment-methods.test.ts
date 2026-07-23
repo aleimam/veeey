@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import en from '../../messages/en.json';
 import ar from '../../messages/ar.json';
-import { CHECKOUT_METHOD_ORDER, PAYMENT_DESCRIPTION_DEFAULTS, PAYMENT_DESCRIPTION_LABELS, paymentDescriptionKey, paymentDescriptionSettings } from './payment-copy';
+import { CHECKOUT_METHOD_ORDER, PAYMENT_DESCRIPTION_DEFAULTS, PAYMENT_DESCRIPTION_LABELS, PAYMENT_FALLBACK_ICON, paymentDescriptionKey, paymentDescriptionSettings, paymentLogoKey, paymentLogoSettings } from './payment-copy';
 
 /**
  * The checkout payment list. Both `payment-method-service` and
@@ -82,6 +82,33 @@ describe('per-method descriptions', () => {
     expect(en.toLowerCase()).toContain('available'); // subject to a machine being available
     expect(ar).toContain('القاهرة');
     expect(ar).toContain('الجيزة');
+  });
+});
+
+describe('per-method checkout logos', () => {
+  it('registers one uploadable logo setting per method', () => {
+    // The config-transfer tool ships whatever is in the settings registry, so an
+    // unregistered key would never travel to the other store.
+    const keys = new Set(paymentLogoSettings().map((s) => s.key));
+    for (const code of CODES) {
+      expect(keys.has(paymentLogoKey(code)), code).toBe(true);
+    }
+  });
+
+  it('defaults every logo to empty — a non-empty default would overwrite an upload on Save', () => {
+    // saveSettings upserts every known key; a stray default here would clobber a
+    // real uploaded URL the first time anyone saved the settings page.
+    for (const def of paymentLogoSettings()) {
+      expect(def.default, def.key).toBe('');
+    }
+  });
+
+  it('has a brand-neutral fallback icon for every method', () => {
+    // Until the owner uploads the official (trademarked) artwork, checkout shows
+    // a generic type-icon — so every method needs one or it renders blank.
+    for (const code of CODES) {
+      expect(PAYMENT_FALLBACK_ICON[code], code).toBeTruthy();
+    }
   });
 });
 

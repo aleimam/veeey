@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
-import { paymentDescriptionSettings } from '@/lib/payment-copy';
+import { paymentDescriptionSettings, paymentLogoSettings } from '@/lib/payment-copy';
 
 /**
  * Admin-configurable business constants (AGENTS.md rule #2 — never hard-code
@@ -91,6 +91,8 @@ export const SETTINGS: SettingDef[] = [
   // cannot drift apart — see paymentDescriptionSettings() for why the defaults
   // are the real sentences rather than ''.
   ...paymentDescriptionSettings(),
+  // Per-method logo URLs (owner uploads the official artwork; empty = generic icon).
+  ...paymentLogoSettings(),
 ];
 
 const DEFAULTS: Record<string, string> = Object.fromEntries(SETTINGS.map((s) => [s.key, s.default]));

@@ -3,9 +3,10 @@ import { redirect } from '@/i18n/navigation';
 import { getCurrentUser } from '@/lib/auth-guards';
 import { hasPermission } from '@/lib/rbac';
 import { pick } from '@/lib/admin-i18n';
-import { CUSTOMER_METHODS, listSystemMethods, paymentDescriptions } from '@/lib/payment-method-service';
+import { CUSTOMER_METHODS, listSystemMethods, paymentDescriptions, paymentLogos } from '@/lib/payment-method-service';
 import { Link } from '@/i18n/navigation';
-import { saveSystemMethodAction, toggleSystemMethodAction, deleteSystemMethodAction, remapOrderPaymentsAction } from '@/server/payment-actions';
+import { saveSystemMethodAction, toggleSystemMethodAction, deleteSystemMethodAction, remapOrderPaymentsAction, savePaymentLogosAction } from '@/server/payment-actions';
+import { SingleImageUploader } from '@/components/admin/image-uploader';
 import { SubmitButton, inputCls } from '@/components/admin/ui';
 
 export const dynamic = 'force-dynamic';
@@ -29,14 +30,17 @@ export default async function PaymentsPage({ params, searchParams }: { params: P
   // Show staff exactly what the shopper reads under each method — otherwise the
   // copy lives only in Settings and nobody checks it against the real list.
   const notes = await paymentDescriptions(locale);
+  const logos = await paymentLogos();
   const customerOpts = CUSTOMER_METHODS.map((m) => ({ value: m.code, label: locale === 'ar' ? m.labelAr : m.labelEn }));
 
   const card = 'rounded-xl border border-border bg-card p-5';
   const banner = one(sp.saved)
     ? tb('Saved.', 'تم الحفظ.')
-    : one(sp.remapped) != null
-      ? tb(`Re-mapped ${one(sp.remapped)} orders.`, `تم إعادة ربط ${one(sp.remapped)} طلب.`)
-      : null;
+    : one(sp.logos) != null
+      ? tb('Payment logos saved.', 'تم حفظ شعارات الدفع.')
+      : one(sp.remapped) != null
+        ? tb(`Re-mapped ${one(sp.remapped)} orders.`, `تم إعادة ربط ${one(sp.remapped)} طلب.`)
+        : null;
   const courierLabel = (c: string | null) =>
     c === 'OWN' ? tb('Our Staff', 'مندوبنا') : c === 'SMSA' ? tb('SMSA', 'سمسا') : c === 'ARAMEX' ? tb('Aramex', 'أرامكس') : tb('— any —', '— أي —');
 
@@ -78,6 +82,32 @@ export default async function PaymentsPage({ params, searchParams }: { params: P
               </div>
             ))}
           </div>
+        </section>
+
+        {/* 1b) Checkout logos — one uploadable image per customer method. */}
+        <section className={card}>
+          <h2 className="mb-1 text-base font-semibold text-foreground">{tb('Checkout logos', 'شعارات الدفع')}</h2>
+          <p className="mb-4 text-xs text-muted-foreground">
+            {tb(
+              'The logo shown beside each method at checkout. Upload the official artwork (PNG/SVG, transparent background works best). For Mobile Wallet, upload a strip of the wallet logos you accept (Vodafone Cash, Orange Cash, Etisalat Flous, WE Pay). Leave one empty to show a plain type-icon instead.',
+              'الشعار الذي يظهر بجانب كل طريقة عند الدفع. ارفع الشعار الرسمي (PNG/SVG، ويفضّل خلفية شفافة). لطريقة المحفظة، ارفع شريطًا يجمع شعارات المحافظ المقبولة (فودافون كاش، أورنچ كاش، اتصالات فلوس، WE Pay). اترك أي خانة فارغة لعرض أيقونة عامة بدلًا من الشعار.',
+            )}
+          </p>
+          <form action={savePaymentLogosAction}>
+            <input type="hidden" name="locale" value={locale} />
+            <div className="grid gap-4 sm:grid-cols-2">
+              {CUSTOMER_METHODS.map((m) => (
+                <div key={m.code} className="rounded-lg border border-border p-3">
+                  <div className="mb-2 text-sm font-medium text-foreground">{locale === 'ar' ? m.labelAr : m.labelEn}</div>
+                  {/* name = method code so the action maps each uploaded URL to its setting key. */}
+                  <SingleImageUploader name={m.code} initial={logos[m.code] ?? ''} />
+                </div>
+              ))}
+            </div>
+            <div className="mt-4">
+              <SubmitButton>{tb('Save logos', 'حفظ الشعارات')}</SubmitButton>
+            </div>
+          </form>
         </section>
 
         {/* 2) System methods (editable) */}

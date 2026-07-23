@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
 import { InUseError } from '@/lib/soft-delete-service';
-import { PAYMENT_DESCRIPTION_DEFAULTS, paymentDescriptionKey, CHECKOUT_METHOD_ORDER } from '@/lib/payment-copy';
+import { PAYMENT_DESCRIPTION_DEFAULTS, paymentDescriptionKey, CHECKOUT_METHOD_ORDER, paymentLogoKey } from '@/lib/payment-copy';
 
 /**
  * Two-level payment methods.
@@ -80,6 +80,19 @@ export async function paymentDescriptions(locale = 'en'): Promise<PaymentDescrip
       ? stored.get(key)!
       : (locale === 'ar' ? fallback?.ar : fallback?.en) ?? '';
   }
+  return out;
+}
+
+/**
+ * The uploaded logo URL for each customer-facing method (empty = none, so the
+ * caller shows the generic fallback icon). One read for the whole checkout list.
+ */
+export async function paymentLogos(): Promise<Record<string, string>> {
+  const keys = CUSTOMER_METHODS.map((m) => paymentLogoKey(m.code));
+  const rows = await prisma.setting.findMany({ where: { key: { in: keys } }, select: { key: true, value: true } });
+  const stored = new Map(rows.map((r) => [r.key, r.value]));
+  const out: Record<string, string> = {};
+  for (const m of CUSTOMER_METHODS) out[m.code] = stored.get(paymentLogoKey(m.code)) ?? '';
   return out;
 }
 

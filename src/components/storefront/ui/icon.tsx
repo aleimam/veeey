@@ -59,6 +59,9 @@ import {
   TrendingUp,
   FolderTree,
   PackageOpen,
+  Wallet,
+  Landmark,
+  Banknote,
 } from 'lucide-react';
 
 /**
@@ -126,6 +129,9 @@ const MAP: Record<string, LucideIcon> = {
   'trending-up': TrendingUp,
   'folder-tree': FolderTree,
   'package-open': PackageOpen,
+  wallet: Wallet,
+  landmark: Landmark,
+  banknote: Banknote,
 };
 
 /** Valid icon names (for admin pickers). */

@@ -10,6 +10,8 @@ import { formatEGP } from '@/lib/format';
 import { checkPhoneValue } from '@/lib/phone';
 import { GOVERNORATES } from '@/lib/governorates';
 import { CitySelect } from '@/components/storefront/city-select';
+import { Icon } from '@/components/storefront/ui/icon';
+import { PAYMENT_FALLBACK_ICON } from '@/lib/payment-copy';
 import type { CitiesByGovernorate } from '@/lib/city-service';
 
 type ShipOpt = { type: string; label: string; feePiastres: number };
@@ -34,6 +36,7 @@ export function CheckoutForm({
   savedAddresses = [],
   cities = {},
   paymentNotes = {},
+  paymentLogos = {},
   requireVerification = false,
   alreadyVerified = false,
   accountEmail,
@@ -55,6 +58,8 @@ export function CheckoutForm({
   cities?: CitiesByGovernorate;
   /** Per-method explanation, keyed by method code — shown under the selected one. */
   paymentNotes?: Record<string, string>;
+  /** Uploaded logo URL per method code — falls back to a generic type-icon. */
+  paymentLogos?: Record<string, string>;
   requireVerification?: boolean;
   alreadyVerified?: boolean;
   accountEmail?: string;
@@ -328,6 +333,14 @@ export function CheckoutForm({
                       onChange={() => setPayment(m.key)}
                       className="accent-[color:var(--green-dark)]"
                     />
+                    {/* Official logo once uploaded; a generic brand-neutral
+                        type-icon until then (the store supplies the real marks). */}
+                    {paymentLogos[m.key] ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={paymentLogos[m.key]} alt="" className="h-6 w-auto max-w-[52px] shrink-0 object-contain" />
+                    ) : (
+                      <Icon name={PAYMENT_FALLBACK_ICON[m.key] ?? 'credit-card'} size={20} color="var(--green-dark)" className="shrink-0" />
+                    )}
                     <span className="text-ink">{tPay.has(m.key) ? tPay(m.key) : m.label}</span>
                   </span>
                   {/* Only under the SELECTED method (owner 2026-07-23): showing all
