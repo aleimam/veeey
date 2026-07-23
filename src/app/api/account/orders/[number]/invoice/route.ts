@@ -11,8 +11,9 @@ import { invoicePaymentLabel } from '@/lib/payment-method-service';
  * predictable, so we 404 (not 403) when the order isn't theirs, exactly like the
  * account order page. Reuses the same invoice PDF the admin prints.
  */
-export async function GET(_req: Request, { params }: { params: Promise<{ number: string }> }) {
+export async function GET(req: Request, { params }: { params: Promise<{ number: string }> }) {
   const { number } = await params;
+  const lang = new URL(req.url).searchParams.get('lang') === 'ar' ? 'ar' : 'en';
   const user = await getCurrentUser();
   if (!user) return new Response('unauthorized', { status: 401 });
 
@@ -25,11 +26,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ number:
   if (!order) return new Response('not found', { status: 404 });
 
   const [paymentLabel, letterheadPng] = await Promise.all([
-    invoicePaymentLabel(order.systemPaymentMethod, order.paymentMethod, 'en'),
+    invoicePaymentLabel(order.systemPaymentMethod, order.paymentMethod, lang),
     loadLetterheadPng(),
   ]);
   try {
-    const pdf = await generateInvoicePdf({ ...order, items: order.items.filter((i) => !i.lost), paymentLabel }, { letterheadPng });
+    const pdf = await generateInvoicePdf({ ...order, items: order.items.filter((i) => !i.lost), paymentLabel }, { letterheadPng, locale: lang });
     return new Response(new Uint8Array(pdf), {
       headers: {
         'content-type': 'application/pdf',

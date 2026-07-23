@@ -42,15 +42,20 @@ const num = (fd: FormData, k: string) => {
   return v == null ? undefined : Number(v);
 };
 
+// The editing controls (and the list quick-actions, which already navigated to
+// the order page) live on /edit; land there so the result and any banner show
+// next to the forms. The read-only details page is revalidated too.
 function backToOrder(locale: string, id: string): never {
   revalidatePath(`/${locale}/admin/orders/${id}`);
-  redirect(`/${locale}/admin/orders/${id}`);
+  revalidatePath(`/${locale}/admin/orders/${id}/edit`);
+  redirect(`/${locale}/admin/orders/${id}/edit`);
 }
 
-/** Return to the order with an error banner code (used by the money-edit forms). */
+/** Return to the order edit page with an error banner code (money-edit forms). */
 function backToOrderErr(locale: string, id: string, code: string): never {
   revalidatePath(`/${locale}/admin/orders/${id}`);
-  redirect(`/${locale}/admin/orders/${id}?editerr=${encodeURIComponent(code)}`);
+  revalidatePath(`/${locale}/admin/orders/${id}/edit`);
+  redirect(`/${locale}/admin/orders/${id}/edit?editerr=${encodeURIComponent(code)}`);
 }
 /** 'locked' when the order isn't in an editable status, else a generic 'invalid'. */
 const editErrCode = (e: unknown) => (e instanceof Error && e.message === 'NOT_EDITABLE' ? 'locked' : 'invalid');

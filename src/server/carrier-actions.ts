@@ -41,11 +41,11 @@ export async function createAramexShipmentAction(fd: FormData): Promise<void> {
   const r = await createAramexShipment({ number: order.number, totalPiastres: order.totalPiastres, paymentMethod: order.paymentMethod, shippingAddressJson: order.shippingAddressJson }, parseAwbEdit(fd));
   if (!r.ok) {
     revalidatePath(`/${locale}/admin/orders/${id}`);
-    redirect(`/${locale}/admin/orders/${id}?ship=aramex&shiperr=${encodeURIComponent(r.error)}`);
+    redirect(`/${locale}/admin/orders/${id}/edit?ship=aramex&shiperr=${encodeURIComponent(r.error)}`);
   }
   await setTracking(id, r.awb, 'ARAMEX'); // sets SHIPPED + notifies
   revalidatePath(`/${locale}/admin/orders/${id}`);
-  redirect(`/${locale}/admin/orders/${id}?shipok=1${r.labelUrl ? `&label=${encodeURIComponent(r.labelUrl)}` : ''}`);
+  redirect(`/${locale}/admin/orders/${id}/edit?shipok=1${r.labelUrl ? `&label=${encodeURIComponent(r.labelUrl)}` : ''}`);
 }
 
 /** Fetch the latest Aramex tracking status for the order's waybill. */
@@ -56,7 +56,7 @@ export async function trackAramexAction(fd: FormData): Promise<void> {
   await requirePermission('orders.read');
   const r = await trackAramex(awb);
   const last = r.ok && r.updates && r.updates.length ? r.updates[0].status : (r.error ?? 'no_updates');
-  redirect(`/${locale}/admin/orders/${id}?track=${encodeURIComponent(String(last).slice(0, 90))}`);
+  redirect(`/${locale}/admin/orders/${id}/edit?track=${encodeURIComponent(String(last).slice(0, 90))}`);
 }
 
 /** Create an SMSA shipment for an order → AWB; marks it shipped. */
@@ -69,11 +69,11 @@ export async function createSmsaShipmentAction(fd: FormData): Promise<void> {
   const r = await createSmsaShipment({ number: order.number, totalPiastres: order.totalPiastres, paymentMethod: order.paymentMethod, shippingAddressJson: order.shippingAddressJson }, parseAwbEdit(fd));
   if (!r.ok) {
     revalidatePath(`/${locale}/admin/orders/${id}`);
-    redirect(`/${locale}/admin/orders/${id}?ship=smsa&shiperr=${encodeURIComponent(r.error)}`);
+    redirect(`/${locale}/admin/orders/${id}/edit?ship=smsa&shiperr=${encodeURIComponent(r.error)}`);
   }
   await setTracking(id, r.awb, 'SMSA');
   revalidatePath(`/${locale}/admin/orders/${id}`);
-  redirect(`/${locale}/admin/orders/${id}?shipok=1`);
+  redirect(`/${locale}/admin/orders/${id}/edit?shipok=1`);
 }
 
 /**
@@ -93,11 +93,11 @@ export async function createVeeeyExpressShipmentAction(fd: FormData): Promise<vo
   const r = await sendVeeeyExpressDelivery(id);
   if (!r.ok) {
     revalidatePath(`/${locale}/admin/orders/${id}`);
-    redirect(`/${locale}/admin/orders/${id}?ship=veeey&shiperr=${encodeURIComponent(r.error)}`);
+    redirect(`/${locale}/admin/orders/${id}/edit?ship=veeey&shiperr=${encodeURIComponent(r.error)}`);
   }
   await setTracking(id, order.number, 'OWN'); // sets SHIPPED + notifies
   revalidatePath(`/${locale}/admin/orders/${id}`);
-  redirect(`/${locale}/admin/orders/${id}?shipok=1${r.queued ? '' : '&offline=1'}`);
+  redirect(`/${locale}/admin/orders/${id}/edit?shipok=1${r.queued ? '' : '&offline=1'}`);
 }
 
 /** Fetch the latest SMSA tracking status for the order's waybill. */
@@ -108,5 +108,5 @@ export async function trackSmsaAction(fd: FormData): Promise<void> {
   await requirePermission('orders.read');
   const r = await trackSmsa(awb);
   const last = r.ok && r.updates && r.updates.length ? r.updates[0].status : (r.error ?? 'no_updates');
-  redirect(`/${locale}/admin/orders/${id}?track=${encodeURIComponent(String(last).slice(0, 90))}`);
+  redirect(`/${locale}/admin/orders/${id}/edit?track=${encodeURIComponent(String(last).slice(0, 90))}`);
 }

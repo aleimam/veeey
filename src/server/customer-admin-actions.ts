@@ -38,8 +38,12 @@ export async function quickCreateCustomerAction(input: { name: string; phone: st
 
 // ---- Profile page forms -----------------------------------------------------
 function back(locale: string, id: string, flag: string): never {
+  // The edit forms live on /edit; land back there (with the flag) so success
+  // banners AND validation errors show next to the form. The read-only details
+  // page is revalidated too so it reflects the change once the user navigates back.
   revalidatePath(`/${locale}/admin/customers/${id}`);
-  redirect(`/${locale}/admin/customers/${id}?${flag}`);
+  revalidatePath(`/${locale}/admin/customers/${id}/edit`);
+  redirect(`/${locale}/admin/customers/${id}/edit?${flag}`);
 }
 
 export async function saveCustomerDetailsAction(fd: FormData): Promise<void> {

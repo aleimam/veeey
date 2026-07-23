@@ -223,7 +223,7 @@ export default async function OrdersPage({ params, searchParams }: { params: Pro
                       fastNext={fastActionsFrom(statusMapObj, o.status, me.permissions).map((c) => ({ code: c.code, label: locale === 'ar' ? c.labelAr : c.labelEn, icon: c.icon }))}
                       pharmacists={qaPharmacists}
                       channels={qaChannels}
-                      invoiceHref={`/api/admin/orders/${o.id}/invoice`}
+                      invoiceHref={`/api/admin/orders/${o.id}/invoice?lang=${locale}`}
                       labels={qaLabels}
                     />
                   </div>

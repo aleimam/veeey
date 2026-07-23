@@ -67,7 +67,7 @@ export default async function CustomerOrderPage({
               past AWAITING_PAYMENT). Ownership-checked server-side. */}
           {order.status !== 'AWAITING_PAYMENT' && (
             <a
-              href={`/api/account/orders/${encodeURIComponent(order.number)}/invoice`}
+              href={`/api/account/orders/${encodeURIComponent(order.number)}/invoice?lang=${locale}`}
               target="_blank"
               rel="noreferrer"
               className="rounded-full border border-[color:var(--green-dark-05)] px-3 py-1 text-xs font-medium text-green-dark hover:bg-[color:var(--green-wash)]"

@@ -57,8 +57,10 @@ export async function assignTierAction(fd: FormData): Promise<void> {
 }
 
 const backToCustomer = (locale: string, id: string, flag: string): never => {
+  // Points forms live on the customer edit page — return there with the flag.
   revalidatePath(`/${locale}/admin/customers/${id}`);
-  redirect(`/${locale}/admin/customers/${id}?${flag}`);
+  revalidatePath(`/${locale}/admin/customers/${id}/edit`);
+  redirect(`/${locale}/admin/customers/${id}/edit?${flag}`);
 };
 
 /** Staff manual points add/deduct on a customer profile. */

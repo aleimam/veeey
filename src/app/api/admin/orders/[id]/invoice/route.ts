@@ -4,8 +4,9 @@ import { generateInvoicePdf } from '@/lib/invoice';
 import { loadLetterheadPng } from '@/lib/invoice-letterhead';
 import { invoicePaymentLabel } from '@/lib/payment-method-service';
 
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const lang = new URL(req.url).searchParams.get('lang') === 'ar' ? 'ar' : 'en';
   try {
     await requirePermission('orders.read');
   } catch {
@@ -15,11 +16,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!order) return new Response('not found', { status: 404 });
 
   const [paymentLabel, letterheadPng] = await Promise.all([
-    invoicePaymentLabel(order.systemPaymentMethod, order.paymentMethod, 'en'),
+    invoicePaymentLabel(order.systemPaymentMethod, order.paymentMethod, lang),
     loadLetterheadPng(),
   ]);
   try {
-    const pdf = await generateInvoicePdf({ ...order, items: order.items.filter((i) => !i.lost), paymentLabel }, { letterheadPng }); // LOST lines excluded
+    const pdf = await generateInvoicePdf({ ...order, items: order.items.filter((i) => !i.lost), paymentLabel }, { letterheadPng, locale: lang }); // LOST lines excluded
     return new Response(new Uint8Array(pdf), {
       headers: {
         'content-type': 'application/pdf',

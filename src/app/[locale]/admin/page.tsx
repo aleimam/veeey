@@ -10,7 +10,8 @@ import type { PermissionKey } from '@/lib/permissions';
 import { NAV_ITEMS, type AdminNavItem } from '@/lib/admin-nav';
 import { QuickCards, type QuickCard } from '@/components/admin/quick-cards';
 import { RecentOrdersTable } from '@/components/admin/recent-orders-table';
-import { BarChart } from '@/components/admin/analytics/bar-chart';
+import { TrendCard } from '@/components/admin/analytics/trend-card';
+import { trendBuckets, trendSince, bucketize, type TrendGranularity } from '@/lib/dashboard-trends';
 import { trendToneClass, trendCornerClass, deltaAriaLabel } from '@/lib/kpi-trend';
 import { TrendingUp, TrendingDown, ShoppingCart, UserPlus, PackageX, ArrowUpRight, ArrowDownRight, Minus, ArrowRight } from 'lucide-react';
 
@@ -62,24 +63,31 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
   const canCustomers = can('customers.read');
   const canInventory = can('inventory.manage');
   const canCatalog = can('catalog.read');
+  const canMarketing = can('marketing.manage');
 
   const now = new Date();
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const startOfYesterday = new Date(startOfDay);
   startOfYesterday.setDate(startOfDay.getDate() - 1);
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const weekAgo = new Date(startOfDay);
-  weekAgo.setDate(startOfDay.getDate() - 6);
+  // Trend cards (Revenue / Visitors) look back up to 7 calendar months; fetch that
+  // window once, grouped by day, and fold it into days/weeks/months client-side.
+  const trendFrom = trendSince(now);
 
   const zeroAgg = { _sum: { totalPiastres: 0n }, _count: 0 };
-  const [todayAgg, yestAgg, newCustomers, lowStockLots, pendingOrders, weekOrders, recentOrders, expiryLots, products, published, brands, categories, posts] =
+  const [todayAgg, yestAgg, newCustomers, lowStockLots, pendingOrders, orderDayRows, visitDayRows, recentOrders, expiryLots, products, published, brands, categories, posts] =
     await Promise.all([
       canFinance || canOrders ? prisma.order.aggregate({ where: { placedAt: { gte: startOfDay } }, _sum: { totalPiastres: true }, _count: true }) : zeroAgg,
       canFinance || canOrders ? prisma.order.aggregate({ where: { placedAt: { gte: startOfYesterday, lt: startOfDay } }, _sum: { totalPiastres: true }, _count: true }) : zeroAgg,
       canCustomers ? prisma.customer.count({ where: { createdAt: { gte: startOfMonth } } }) : 0,
       canInventory ? prisma.lot.count({ where: { status: 'LIVE', qtyOnHand: { lte: 5 } } }) : 0,
       canOrders ? prisma.order.count({ where: { status: { in: ['PENDING', 'CONFIRMED', 'HOLD'] } } }) : 0,
-      canFinance ? prisma.order.findMany({ where: { placedAt: { gte: weekAgo } }, select: { placedAt: true, totalPiastres: true } }) : [],
+      canFinance
+        ? prisma.$queryRaw<{ day: Date; total: bigint }[]>`SELECT date_trunc('day', "placedAt") AS day, COALESCE(SUM("totalPiastres"),0)::bigint AS total FROM "Order" WHERE "placedAt" >= ${trendFrom} GROUP BY 1`
+        : Promise.resolve([] as { day: Date; total: bigint }[]),
+      canMarketing
+        ? prisma.$queryRaw<{ day: Date; cnt: bigint }[]>`SELECT date_trunc('day', "startedAt") AS day, COUNT(*)::bigint AS cnt FROM "AnalyticsSession" WHERE "startedAt" >= ${trendFrom} AND "isBot" = false GROUP BY 1`
+        : Promise.resolve([] as { day: Date; cnt: bigint }[]),
       canOrders ? prisma.order.findMany({ orderBy: { placedAt: 'desc' }, take: 6, include: { customer: { select: { firstName: true, lastName: true } }, _count: { select: { items: true } } } }) : [],
       canInventory ? prisma.lot.findMany({ where: { status: 'LIVE', qtyOnHand: { gt: 0 }, expiryDate: { not: null } }, orderBy: { expiryDate: 'asc' }, take: 6, include: { product: { select: { nameEn: true, nameAr: true } } } }) : [],
       canCatalog ? prisma.product.count() : 0,
@@ -95,22 +103,31 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
   const ordYest = yestAgg._count;
   const delta = (a: number, b: number) => (b === 0 ? (a > 0 ? 100 : 0) : Math.round(((a - b) / b) * 100));
 
-  const buckets = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(weekAgo);
-    d.setDate(weekAgo.getDate() + i);
-    return { label: monthDay(d), total: 0 };
-  });
-  for (const o of weekOrders) {
-    const idx = Math.floor((o.placedAt.getTime() - weekAgo.getTime()) / 86400000);
-    if (idx >= 0 && idx < 7) buckets[idx].total += Number(o.totalPiastres);
-  }
-  const weekTotal = buckets.reduce((s, b) => s + b.total, 0);
-
   // Local YYYY-MM-DD for the orders/customers date-range drill-downs.
   const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const todayStr = ymd(startOfDay);
   const monthStr = ymd(startOfMonth);
-  const weekAgoStr = ymd(weekAgo);
+
+  // Fold the grouped day rows into each granularity once, server-side. The
+  // TrendCards then flip between them instantly. date_trunc may hand back the
+  // day as a string under the pg adapter, so coerce with new Date().
+  const GRANS: TrendGranularity[] = ['days', 'weeks', 'months'];
+  const revSeries = {} as Record<TrendGranularity, { label: string; value: number }[]>;
+  const revTotals = {} as Record<TrendGranularity, string>;
+  const revHrefs = {} as Record<TrendGranularity, string>;
+  const visitSeries = {} as Record<TrendGranularity, { label: string; value: number }[]>;
+  const visitTotals = {} as Record<TrendGranularity, string>;
+  for (const g of GRANS) {
+    const b = trendBuckets(g, now, locale);
+    const rev = bucketize(orderDayRows, (r) => new Date(r.day), (r) => Number(r.total), b);
+    revSeries[g] = b.map((bk, i) => ({ label: bk.label, value: rev[i] }));
+    revTotals[g] = formatEGP(rev.reduce((s, n) => s + n, 0));
+    revHrefs[g] = `/admin/orders?from=${ymd(b[0].start)}&to=${todayStr}`;
+    const vis = bucketize(visitDayRows, (r) => new Date(r.day), (r) => Number(r.cnt), b);
+    visitSeries[g] = b.map((bk, i) => ({ label: bk.label, value: vis[i] }));
+    visitTotals[g] = vis.reduce((s, n) => s + n, 0).toLocaleString('en-US');
+  }
+  const trendTabs = { days: tb('7 days', '٧ أيام'), weeks: tb('7 weeks', '٧ أسابيع'), months: tb('7 months', '٧ أشهر') };
 
   // V5 audit D-01: the revenue card's corner icon is a TREND icon — it must
   // follow the delta sign (up/down/flat), never a hardcoded trending-up.
@@ -183,17 +200,57 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
         })}
       </div>
 
+      {/* Interactive trend cards — each toggles 7 days / 7 weeks / 7 months (client-side) */}
+      {(canFinance || canMarketing) && (
+        <div className="mb-6 grid gap-4 lg:grid-cols-2">
+          {canFinance && (
+            <TrendCard
+              title={tb('Revenue', 'الإيرادات')}
+              unit="egp"
+              series={revSeries}
+              totals={revTotals}
+              hrefs={revHrefs}
+              tabLabels={trendTabs}
+              emptyLabel={tb('No revenue in this period', 'لا توجد إيرادات في هذه الفترة')}
+            />
+          )}
+          {canMarketing && (
+            <TrendCard
+              title={tb('Website visitors', 'زوار الموقع')}
+              unit="count"
+              color="var(--gold)"
+              series={visitSeries}
+              totals={visitTotals}
+              hrefs={{ days: '/admin/analytics', weeks: '/admin/analytics', months: '/admin/analytics' }}
+              tabLabels={trendTabs}
+              emptyLabel={tb('No visitors in this period', 'لا يوجد زوار في هذه الفترة')}
+            />
+          )}
+        </div>
+      )}
+
       <div className="mb-6 grid gap-4 lg:grid-cols-[1.6fr_1fr]">
-        {/* min-w-0 on grid children + fluid bars: the chart may never expand the page (V5 D-02/D-03) */}
-        {canFinance && (
+        {canOrders && (
         <div className="min-w-0 rounded-xl border border-border bg-card p-4">
-          <div className="mb-3 flex items-baseline justify-between">
-            <h2 className="text-sm font-semibold text-foreground">{tb('Revenue · last 7 days', 'الإيرادات · آخر ٧ أيام')}</h2>
-            <Link href={`/admin/orders?from=${weekAgoStr}&to=${todayStr}`} className="text-sm text-muted-foreground hover:text-primary hover:underline">{formatEGP(weekTotal)}</Link>
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-foreground">{tb('Recent orders', 'أحدث الطلبات')}</h2>
+            <Link href="/admin/orders" className="text-xs font-medium text-primary hover:underline">{tb('View all', 'عرض الكل')}</Link>
           </div>
-          {/* V5 audit D-11: interactive bars (hover/focus tooltip, aria-labels,
-              sr-only data table) via the shared BarChart. */}
-          <BarChart data={buckets.map((b) => ({ label: b.label, value: b.total }))} unit="egp" />
+          {recentOrders.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">{tb('No orders yet.', 'لا توجد طلبات بعد.')}</p>
+          ) : (
+            <RecentOrdersTable
+              rows={recentOrders.map((o) => ({
+                id: o.id,
+                number: o.number,
+                customer: [o.customer?.firstName, o.customer?.lastName].filter(Boolean).join(' ') || tb('Guest', 'زائر'),
+                total: formatEGP(Number(o.totalPiastres)),
+                status: o.status,
+                date: monthDay(o.placedAt),
+              }))}
+              labels={{ order: tb('Order #', 'رقم الطلب'), customer: tb('Customer', 'العميل'), total: tb('Total', 'الإجمالي'), status: tb('Status', 'الحالة'), date: tb('Date', 'التاريخ') }}
+            />
+          )}
         </div>
         )}
 
@@ -253,35 +310,10 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
         )}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
-        {canOrders && (
-        <div className="min-w-0 rounded-xl border border-border bg-card p-4">
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-foreground">{tb('Recent orders', 'أحدث الطلبات')}</h2>
-            <Link href="/admin/orders" className="text-xs font-medium text-primary hover:underline">{tb('View all', 'عرض الكل')}</Link>
-          </div>
-          {recentOrders.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">{tb('No orders yet.', 'لا توجد طلبات بعد.')}</p>
-          ) : (
-            <RecentOrdersTable
-              rows={recentOrders.map((o) => ({
-                id: o.id,
-                number: o.number,
-                customer: [o.customer?.firstName, o.customer?.lastName].filter(Boolean).join(' ') || tb('Guest', 'زائر'),
-                total: formatEGP(Number(o.totalPiastres)),
-                status: o.status,
-                date: monthDay(o.placedAt),
-              }))}
-              labels={{ order: tb('Order #', 'رقم الطلب'), customer: tb('Customer', 'العميل'), total: tb('Total', 'الإجمالي'), status: tb('Status', 'الحالة'), date: tb('Date', 'التاريخ') }}
-            />
-          )}
-        </div>
-        )}
-
         {canCatalog && (
         <div className="min-w-0 rounded-xl border border-border bg-card p-4">
           <h2 className="mb-2 text-sm font-semibold text-foreground">{tb('Catalog', 'الكتالوج')}</h2>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {quickLinks.map((s) => (
               <Link key={s.label} href={s.href} className="rounded-lg border border-border p-3 transition hover:border-primary">
                 <div className="text-xs text-muted-foreground">{s.label}</div>
@@ -294,7 +326,6 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
           </div>
         </div>
         )}
-      </div>
 
       {/* A user whose grants cover none of the panels above (e.g. couriers only)
           would otherwise land on a blank page with no explanation. */}
