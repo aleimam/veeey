@@ -80,3 +80,12 @@ export async function savePaymentLogosAction(fd: FormData): Promise<void> {
   revalidatePath(PATH(locale));
   redirect(`${PATH(locale)}?logos=1`);
 }
+
+/** Save the uploaded PDF-invoice letterhead image URL (one Setting). */
+export async function saveInvoiceLetterheadAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  try { await saveSettings({ 'invoice.letterhead': str(fd, 'invoice.letterhead') }); }
+  catch (e) { console.error(e); revalidatePath(PATH(locale)); redirect(`${PATH(locale)}?error=1`); }
+  revalidatePath(PATH(locale));
+  redirect(`${PATH(locale)}?letterhead=1`);
+}

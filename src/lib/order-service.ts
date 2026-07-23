@@ -152,7 +152,7 @@ export function getOrder(id: string) {
   return prisma.order.findUnique({
     where: { id },
     include: {
-      items: { include: { product: { select: { nameEn: true, sku: true, weightG: true } }, lot: { select: { expiryDate: true, locationId: true } } } },
+      items: { include: { product: { select: { nameEn: true, nameAr: true, sku: true, weightG: true } }, lot: { select: { expiryDate: true, locationId: true } } } },
       gifts: { include: { gift: true } },
       customer: { include: { user: { select: { email: true } } } },
       pharmacist: { select: { id: true, name: true } },

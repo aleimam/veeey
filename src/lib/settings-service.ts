@@ -79,6 +79,9 @@ export const SETTINGS: SettingDef[] = [
   { key: 'store.whatsappNumber', label: 'WhatsApp number', group: 'Store', type: 'text', default: '201000000000', hint: 'Digits only, international format (no +).' },
   { key: 'store.addressEn', label: 'Address (English)', group: 'Store', type: 'text', default: '' },
   { key: 'store.addressAr', label: 'Address (Arabic)', group: 'Store', type: 'text', default: '' },
+  // PDF-invoice letterhead: an image drawn full-page behind every invoice page
+  // (upload it on the Payments admin page). Empty = a plain branded header instead.
+  { key: 'invoice.letterhead', label: 'Invoice letterhead', group: 'Invoice', type: 'text', default: '', hint: 'URL of the letterhead image drawn behind the PDF invoice (upload it on the Payments admin page). Design it A4 with header/footer graphics in the top/bottom ~2cm so invoice text sits clear in the middle. Empty = a plain branded header.' },
   // Homepage search-engine appearance (the <title> + description Google shows for veeey.com).
   { key: 'seo.homeTitleEn', label: 'Homepage title — English', group: 'SEO', type: 'text', default: 'Veeey — Premium Imported Supplements & Health Devices in Egypt', hint: 'The blue headline Google shows for your homepage. ~55–60 characters. Keep the brand + what you sell + Egypt.' },
   { key: 'seo.homeTitleAr', label: 'Homepage title — Arabic', group: 'SEO', type: 'text', default: 'فيي — مكمّلات غذائية وأجهزة صحية فاخرة مستوردة في مصر', hint: 'العنوان الذي يظهر في جوجل للصفحة الرئيسية. حوالي ٦٠ حرفًا.' },

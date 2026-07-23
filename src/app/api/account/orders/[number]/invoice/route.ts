@@ -2,6 +2,7 @@ import { getCurrentUser } from '@/lib/auth-guards';
 import { getOrderByNumber } from '@/lib/checkout-service';
 import { getOrder } from '@/lib/order-service';
 import { generateInvoicePdf } from '@/lib/invoice';
+import { loadLetterheadPng } from '@/lib/invoice-letterhead';
 import { invoicePaymentLabel } from '@/lib/payment-method-service';
 
 /**
@@ -23,9 +24,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ number:
   const order = await getOrder(head.id);
   if (!order) return new Response('not found', { status: 404 });
 
-  const paymentLabel = await invoicePaymentLabel(order.systemPaymentMethod, order.paymentMethod, 'en');
+  const [paymentLabel, letterheadPng] = await Promise.all([
+    invoicePaymentLabel(order.systemPaymentMethod, order.paymentMethod, 'en'),
+    loadLetterheadPng(),
+  ]);
   try {
-    const pdf = await generateInvoicePdf({ ...order, items: order.items.filter((i) => !i.lost), paymentLabel });
+    const pdf = await generateInvoicePdf({ ...order, items: order.items.filter((i) => !i.lost), paymentLabel }, { letterheadPng });
     return new Response(new Uint8Array(pdf), {
       headers: {
         'content-type': 'application/pdf',

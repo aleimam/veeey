@@ -1,6 +1,7 @@
 import { requirePermission } from '@/lib/auth-guards';
 import { getOrder } from '@/lib/order-service';
 import { generateInvoicePdf } from '@/lib/invoice';
+import { loadLetterheadPng } from '@/lib/invoice-letterhead';
 import { invoicePaymentLabel } from '@/lib/payment-method-service';
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -13,9 +14,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const order = await getOrder(id);
   if (!order) return new Response('not found', { status: 404 });
 
-  const paymentLabel = await invoicePaymentLabel(order.systemPaymentMethod, order.paymentMethod, 'en'); // invoice is EN-only for now
+  const [paymentLabel, letterheadPng] = await Promise.all([
+    invoicePaymentLabel(order.systemPaymentMethod, order.paymentMethod, 'en'),
+    loadLetterheadPng(),
+  ]);
   try {
-    const pdf = await generateInvoicePdf({ ...order, items: order.items.filter((i) => !i.lost), paymentLabel }); // LOST lines excluded
+    const pdf = await generateInvoicePdf({ ...order, items: order.items.filter((i) => !i.lost), paymentLabel }, { letterheadPng }); // LOST lines excluded
     return new Response(new Uint8Array(pdf), {
       headers: {
         'content-type': 'application/pdf',

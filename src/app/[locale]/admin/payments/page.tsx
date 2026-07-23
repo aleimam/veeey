@@ -5,7 +5,8 @@ import { hasPermission } from '@/lib/rbac';
 import { pick } from '@/lib/admin-i18n';
 import { CUSTOMER_METHODS, listSystemMethods, paymentDescriptions, paymentLogos } from '@/lib/payment-method-service';
 import { Link } from '@/i18n/navigation';
-import { saveSystemMethodAction, toggleSystemMethodAction, deleteSystemMethodAction, remapOrderPaymentsAction, savePaymentLogosAction } from '@/server/payment-actions';
+import { saveSystemMethodAction, toggleSystemMethodAction, deleteSystemMethodAction, remapOrderPaymentsAction, savePaymentLogosAction, saveInvoiceLetterheadAction } from '@/server/payment-actions';
+import { getSetting } from '@/lib/settings-service';
 import { SingleImageUploader } from '@/components/admin/image-uploader';
 import { SubmitButton, inputCls } from '@/components/admin/ui';
 
@@ -31,6 +32,7 @@ export default async function PaymentsPage({ params, searchParams }: { params: P
   // copy lives only in Settings and nobody checks it against the real list.
   const notes = await paymentDescriptions(locale);
   const logos = await paymentLogos();
+  const letterhead = (await getSetting('invoice.letterhead')) ?? '';
   const customerOpts = CUSTOMER_METHODS.map((m) => ({ value: m.code, label: locale === 'ar' ? m.labelAr : m.labelEn }));
 
   const card = 'rounded-xl border border-border bg-card p-5';
@@ -38,9 +40,11 @@ export default async function PaymentsPage({ params, searchParams }: { params: P
     ? tb('Saved.', 'تم الحفظ.')
     : one(sp.logos) != null
       ? tb('Payment logos saved.', 'تم حفظ شعارات الدفع.')
-      : one(sp.remapped) != null
-        ? tb(`Re-mapped ${one(sp.remapped)} orders.`, `تم إعادة ربط ${one(sp.remapped)} طلب.`)
-        : null;
+      : one(sp.letterhead) != null
+        ? tb('Invoice letterhead saved.', 'تم حفظ ترويسة الفاتورة.')
+        : one(sp.remapped) != null
+          ? tb(`Re-mapped ${one(sp.remapped)} orders.`, `تم إعادة ربط ${one(sp.remapped)} طلب.`)
+          : null;
   const courierLabel = (c: string | null) =>
     c === 'OWN' ? tb('Our Staff', 'مندوبنا') : c === 'SMSA' ? tb('SMSA', 'سمسا') : c === 'ARAMEX' ? tb('Aramex', 'أرامكس') : tb('— any —', '— أي —');
 
@@ -106,6 +110,27 @@ export default async function PaymentsPage({ params, searchParams }: { params: P
             </div>
             <div className="mt-4">
               <SubmitButton>{tb('Save logos', 'حفظ الشعارات')}</SubmitButton>
+            </div>
+          </form>
+        </section>
+
+        {/* 1c) Invoice letterhead — one image drawn full-page behind the PDF invoice. */}
+        <section className={card}>
+          <h2 className="mb-1 text-base font-semibold text-foreground">{tb('Invoice letterhead', 'ترويسة الفاتورة')}</h2>
+          <p className="mb-4 text-xs text-muted-foreground">
+            {tb(
+              'Upload the letterhead drawn behind every page of the PDF invoice. Design it A4 (portrait) with your header/footer graphics kept in the top and bottom ~2 cm, so the invoice text (bilingual EN + AR) stays clear in the middle. Leave empty for a plain branded header.',
+              'ارفع الترويسة التي تُطبع خلف كل صفحة من فاتورة PDF. صمّمها بمقاس A4 (طولي) مع إبقاء رسومات الرأس والتذييل في أعلى وأسفل ٢ سم تقريبًا، حتى يبقى نص الفاتورة (إنجليزي + عربي) واضحًا في المنتصف. اتركها فارغة لرأس بسيط بالعلامة التجارية.',
+            )}
+          </p>
+          <form action={saveInvoiceLetterheadAction}>
+            <input type="hidden" name="locale" value={locale} />
+            <div className="max-w-sm">
+              {/* name = the setting key so the action writes it straight through. */}
+              <SingleImageUploader name="invoice.letterhead" initial={letterhead} />
+            </div>
+            <div className="mt-4">
+              <SubmitButton>{tb('Save letterhead', 'حفظ الترويسة')}</SubmitButton>
             </div>
           </form>
         </section>
