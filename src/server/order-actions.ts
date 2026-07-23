@@ -19,11 +19,16 @@ import {
   removeGiftFromOrder,
   createManualOrder,
   searchOrderProducts,
+  setOrderItemPrice,
+  setOrderShippingFee,
+  setOrderShippingType,
+  setOrderManualDiscount,
 } from '@/lib/order-service';
 import { saveGift } from '@/lib/gift-service';
 import { processReturn } from '@/lib/return-service';
 import { checkPhoneValue } from '@/lib/phone';
 import type { OrderStatus } from '@/lib/order-status';
+import type { ShippingTypeKey } from '@/lib/shipping-service';
 
 export type AdminFormState = { error?: string };
 
@@ -41,6 +46,21 @@ function backToOrder(locale: string, id: string): never {
   revalidatePath(`/${locale}/admin/orders/${id}`);
   redirect(`/${locale}/admin/orders/${id}`);
 }
+
+/** Return to the order with an error banner code (used by the money-edit forms). */
+function backToOrderErr(locale: string, id: string, code: string): never {
+  revalidatePath(`/${locale}/admin/orders/${id}`);
+  redirect(`/${locale}/admin/orders/${id}?editerr=${encodeURIComponent(code)}`);
+}
+/** 'locked' when the order isn't in an editable status, else a generic 'invalid'. */
+const editErrCode = (e: unknown) => (e instanceof Error && e.message === 'NOT_EDITABLE' ? 'locked' : 'invalid');
+/** EGP decimal string → piastres BigInt, or undefined when absent/unparseable. */
+const piastres = (fd: FormData, k: string): bigint | undefined => {
+  const v = str(fd, k);
+  if (v == null) return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? BigInt(Math.round(n * 100)) : undefined;
+};
 
 /** Live product search for the staff order pickers (client-callable). */
 export async function searchOrderProductsAction(q: string) {
@@ -160,6 +180,68 @@ export async function clearTrackingAction(fd: FormData): Promise<void> {
   const locale = localeOf(fd);
   const id = str(fd, 'id');
   if (id) { try { await clearTracking(id); } catch (e) { console.error(e); } backToOrder(locale, id); }
+  redirect(`/${locale}/admin/orders`);
+}
+
+/** Manual line-price override (EGP). Open orders only. */
+export async function setOrderItemPriceAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const id = str(fd, 'id');
+  const orderItemId = str(fd, 'orderItemId');
+  const price = piastres(fd, 'priceEgp');
+  if (id && orderItemId && price != null) {
+    try { await setOrderItemPrice(orderItemId, price); } catch (e) { backToOrderErr(locale, id, editErrCode(e)); }
+    backToOrder(locale, id);
+  }
+  redirect(`/${locale}/admin/orders`);
+}
+
+/** Manual shipping-fee override (EGP). Open orders only. */
+export async function setOrderShippingFeeAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const id = str(fd, 'id');
+  const fee = piastres(fd, 'shippingFeeEgp');
+  if (id && fee != null) {
+    try { await setOrderShippingFee(id, fee); } catch (e) { backToOrderErr(locale, id, editErrCode(e)); }
+    backToOrder(locale, id);
+  }
+  redirect(`/${locale}/admin/orders`);
+}
+
+/** Change the delivery method — recomputes the shipping fee from its rate. Open orders only. */
+export async function setOrderShippingTypeAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const id = str(fd, 'id');
+  const type = str(fd, 'shippingType') as ShippingTypeKey | undefined;
+  if (id && type) {
+    try { await setOrderShippingType(id, type); } catch (e) { backToOrderErr(locale, id, editErrCode(e)); }
+    backToOrder(locale, id);
+  }
+  redirect(`/${locale}/admin/orders`);
+}
+
+/**
+ * Set or clear the order-level titled discount. `discountMode` = pct | value | clear;
+ * a percentage OR a fixed EGP value, with a title. Open orders only.
+ */
+export async function setOrderManualDiscountAction(fd: FormData): Promise<void> {
+  const locale = localeOf(fd);
+  const id = str(fd, 'id');
+  if (id) {
+    const mode = str(fd, 'discountMode');
+    try {
+      if (mode === 'clear') {
+        await setOrderManualDiscount(id, { title: '', pct: null, fixedPiastres: null });
+      } else {
+        await setOrderManualDiscount(id, {
+          title: str(fd, 'discountTitle') ?? '',
+          pct: mode === 'pct' ? (num(fd, 'discountPct') ?? null) : null,
+          fixedPiastres: mode === 'value' ? (piastres(fd, 'discountValueEgp') ?? null) : null,
+        });
+      }
+    } catch (e) { backToOrderErr(locale, id, editErrCode(e)); }
+    backToOrder(locale, id);
+  }
   redirect(`/${locale}/admin/orders`);
 }
 

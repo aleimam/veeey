@@ -204,13 +204,16 @@ export async function opayQueryStatus(reference: string): Promise<string | null>
  *  session) is not silently swallowed: the order is flagged payCheck=PROBLEM
  *  for staff to refund or reinstate by hand. */
 export async function markOrderPaid(number: string, provider: string, paid: boolean): Promise<void> {
-  const order = await prisma.order.findUnique({ where: { number }, select: { id: true, paymentState: true, status: true } });
+  const order = await prisma.order.findUnique({ where: { number }, select: { id: true, paymentState: true, status: true, totalPiastres: true } });
   if (!order) return;
   if (order.paymentState === 'PAID' && paid) return; // already settled — idempotent
   if (['REFUNDED', 'PARTIALLY_REFUNDED'].includes(order.paymentState)) return;
   const state = paid ? 'PAID' : 'FAILED';
   if (order.paymentState === state) return;
   await prisma.order.update({ where: { id: order.id }, data: { paymentState: state } });
+  // Freeze the collected amount the first time it settles (set-once) — used later
+  // to show the balance if staff edit a paid order's prices.
+  if (paid) await prisma.order.updateMany({ where: { id: order.id, paidAmountPiastres: null }, data: { paidAmountPiastres: order.totalPiastres } });
   await audit({ actorType: 'SYSTEM', action: 'payment.settle', entityType: 'Order', entityId: order.id, data: { provider, number, state } });
   if (!paid) return;
   if (order.status === 'AWAITING_PAYMENT') {

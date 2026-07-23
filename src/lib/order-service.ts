@@ -3,7 +3,8 @@ import type { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requirePermission } from '@/lib/auth-guards';
 import { audit } from '@/lib/audit';
-import { type OrderStatus, type StatusConfig, type StockEffect, stockEffectApplies, DEFAULT_ADVANCE_PERMISSION } from '@/lib/order-status';
+import { type OrderStatus, type StatusConfig, type StockEffect, stockEffectApplies, isOrderEditable, DEFAULT_ADVANCE_PERMISSION } from '@/lib/order-status';
+import { manualDiscountAmount, orderTotal } from '@/lib/order-money';
 import { canTransition, statusConfig } from '@/lib/order-status-service';
 import { nextOrderNumber } from '@/lib/order-number';
 import type { PermissionKey } from '@/lib/permissions';
@@ -174,10 +175,12 @@ async function recomputeTotals(tx: Tx, orderId: string) {
   const items = await tx.orderItem.findMany({ where: { orderId, lost: false } }); // LOST lines excluded from totals/revenue
   const subtotal = items.reduce((s, i) => s + i.unitPricePiastres * BigInt(i.qty), 0n);
   const order = await tx.order.findUniqueOrThrow({ where: { id: orderId } });
-  // Clamp like checkout's orderTotal does — removing/losing enough items on a
-  // discounted order must not drive the total negative.
-  const total = subtotal + order.shippingPiastres - order.discountPiastres;
-  await tx.order.update({ where: { id: orderId }, data: { subtotalPiastres: subtotal, totalPiastres: total > 0n ? total : 0n } });
+  // Manual staff discount stacks on top of the coupon discount. A %-based one is
+  // recomputed here so it tracks line-price/item edits; the clamp mirrors
+  // checkout's orderTotal so a discounted order can never go negative.
+  const manualDiscount = manualDiscountAmount(subtotal, order.manualDiscountPct, order.manualDiscountPiastres);
+  const total = orderTotal({ subtotal, shipping: order.shippingPiastres, discount: order.discountPiastres, manualDiscount });
+  await tx.order.update({ where: { id: orderId }, data: { subtotalPiastres: subtotal, manualDiscountPiastres: manualDiscount, totalPiastres: total } });
 }
 
 /** Restock every non-lost, lot-bound line of an order (Cancelled/Refunded effect;
@@ -239,7 +242,13 @@ async function applyStatusEffects(order: { id: string; number: string; totalPias
   // 'restock' always restores (RETURNED); 'restock_if_unshipped' only when the
   // order hadn't shipped at the moment it was cancelled (goods still on shelf).
   if (stockEffectApplies(cfg.stockEffect as StockEffect, from)) await restockOrder(order.id);
-  if (cfg.paymentEffect === 'paid') await prisma.order.update({ where: { id: order.id }, data: { paymentState: 'PAID' } });
+  if (cfg.paymentEffect === 'paid') {
+    await prisma.order.update({ where: { id: order.id }, data: { paymentState: 'PAID' } });
+    // Freeze the collected amount the FIRST time it's paid (set-once), so a later
+    // edit to a paid order can show the true balance. `updateMany … WHERE null`
+    // makes it idempotent across re-deliveries (COD reopen → re-deliver).
+    await prisma.order.updateMany({ where: { id: order.id, paidAmountPiastres: null }, data: { paidAmountPiastres: order.totalPiastres } });
+  }
   else if (cfg.paymentEffect === 'refunded') await prisma.order.update({ where: { id: order.id }, data: { paymentState: 'REFUNDED' } });
   if (cfg.revenueEffect === 'realize') {
     await recordOutbox('revenue.event', order.number, { veeeyOrderId: order.number, amountEgp: Number(order.totalPiastres) / 100, occurredAt: new Date().toISOString() });
@@ -420,7 +429,7 @@ export async function addOrderItem(orderId: string, productId: string, qty: numb
   const user = await requirePermission('orders.write');
   await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUniqueOrThrow({ where: { id: orderId } });
-    if (!(['HOLD', 'EDIT', 'CONFIRMED', 'PENDING'] as string[]).includes(order.status)) throw new Error('NOT_EDITABLE');
+    if (!isOrderEditable(order.status)) throw new Error('NOT_EDITABLE');
 
     const res = await allocateOrderLine(tx, orderId, { productId, qty, lotId: lotId || null }, 'order_edit');
 
@@ -459,7 +468,7 @@ export async function removeOrderItem(orderItemId: string) {
     // Same guard as addOrderItem: a cancelled/refunded order was already
     // restocked by its status effect — removing a line here would restock the
     // same units a second time (and mutate realized totals on delivered orders).
-    if (!(['HOLD', 'EDIT', 'CONFIRMED', 'PENDING'] as string[]).includes(item.order.status)) throw new Error('NOT_EDITABLE');
+    if (!isOrderEditable(item.order.status)) throw new Error('NOT_EDITABLE');
     if (item.lot) {
       await tx.lot.update({ where: { id: item.lotId! }, data: { qtyOnHand: { increment: item.qty } } });
       await tx.movementLedger.create({ data: { lotId: item.lotId!, locationId: item.lot.locationId, type: 'RETURN', qtyDelta: item.qty, refType: 'order_edit', refId: item.orderId } });
@@ -496,6 +505,84 @@ export async function markOrderItemLost(orderItemId: string, lost: boolean, reas
     return item.orderId;
   });
   await audit({ actorType: 'USER', actorId: user.id, action: lost ? 'order.item.lost' : 'order.item.restore', entityType: 'Order', entityId: orderId, data: { orderItemId, reason } });
+}
+
+/**
+ * Override a single line's unit price (staff manual pricing). Recomputes the order
+ * total — which re-applies a %-based manual discount so it tracks the new subtotal.
+ * Open orders only (owner rule: reopen a closed order before editing).
+ */
+export async function setOrderItemPrice(orderItemId: string, unitPricePiastres: bigint) {
+  const user = await requirePermission('orders.write');
+  if (unitPricePiastres < 0n) throw new Error('INVALID_PRICE');
+  const orderId = await prisma.$transaction(async (tx) => {
+    const item = await tx.orderItem.findUniqueOrThrow({ where: { id: orderItemId }, include: { order: { select: { status: true } } } });
+    if (!isOrderEditable(item.order.status)) throw new Error('NOT_EDITABLE');
+    await tx.orderItem.update({ where: { id: orderItemId }, data: { unitPricePiastres } });
+    await recomputeTotals(tx, item.orderId);
+    return item.orderId;
+  });
+  await audit({ actorType: 'USER', actorId: user.id, action: 'order.item.price', entityType: 'Order', entityId: orderId, data: { orderItemId, unitPricePiastres: unitPricePiastres.toString() } });
+}
+
+/** Override the shipping fee by hand. Flags it manual so a later shipping-method
+ *  change won't silently recompute over it. Open orders only. */
+export async function setOrderShippingFee(orderId: string, piastres: bigint) {
+  const user = await requirePermission('orders.write');
+  if (piastres < 0n) throw new Error('INVALID_FEE');
+  await prisma.$transaction(async (tx) => {
+    const order = await tx.order.findUniqueOrThrow({ where: { id: orderId }, select: { status: true } });
+    if (!isOrderEditable(order.status)) throw new Error('NOT_EDITABLE');
+    await tx.order.update({ where: { id: orderId }, data: { shippingPiastres: piastres, shippingFeeManual: true } });
+    await recomputeTotals(tx, orderId);
+  });
+  await audit({ actorType: 'USER', actorId: user.id, action: 'order.shipping.fee', entityType: 'Order', entityId: orderId, data: { piastres: piastres.toString() } });
+}
+
+/**
+ * Change the delivery method on an order. Per the owner rule the shipping fee is
+ * recomputed from the method's configured rate (and any prior manual fee override
+ * is cleared — the method drives the fee). Open orders only.
+ */
+export async function setOrderShippingType(orderId: string, type: ShippingTypeKey) {
+  const user = await requirePermission('orders.write');
+  const fee = await getShippingFee(type);
+  await prisma.$transaction(async (tx) => {
+    const order = await tx.order.findUniqueOrThrow({ where: { id: orderId }, select: { status: true } });
+    if (!isOrderEditable(order.status)) throw new Error('NOT_EDITABLE');
+    await tx.order.update({ where: { id: orderId }, data: { shippingType: type, shippingPiastres: fee, shippingFeeManual: false } });
+    await recomputeTotals(tx, orderId);
+  });
+  await audit({ actorType: 'USER', actorId: user.id, action: 'order.shipping.type', entityType: 'Order', entityId: orderId, data: { type, fee: fee.toString() } });
+}
+
+/**
+ * Set or clear the order-level titled manual discount (stacks on top of any coupon
+ * discount, shown as its own line on the invoice). Provide a percentage OR a fixed
+ * piastres value; an empty title with no value clears it. Recomputes the total.
+ * Open orders only.
+ */
+export async function setOrderManualDiscount(orderId: string, input: { title: string; pct?: number | null; fixedPiastres?: bigint | null }) {
+  const user = await requirePermission('orders.write');
+  await prisma.$transaction(async (tx) => {
+    const order = await tx.order.findUniqueOrThrow({ where: { id: orderId }, select: { status: true } });
+    if (!isOrderEditable(order.status)) throw new Error('NOT_EDITABLE');
+    const pct = input.pct != null && input.pct > 0 ? Math.min(100, Math.round(input.pct)) : null;
+    const fixed = pct == null && input.fixedPiastres && input.fixedPiastres > 0n ? input.fixedPiastres : 0n;
+    const cleared = pct == null && fixed === 0n;
+    await tx.order.update({
+      where: { id: orderId },
+      data: {
+        manualDiscountTitle: cleared ? null : (input.title.trim() || null),
+        manualDiscountPct: pct,
+        // recomputeTotals re-derives the APPLIED amount (esp. for a %); for a fixed
+        // discount it stores the entered value and re-caps it to the subtotal.
+        manualDiscountPiastres: fixed,
+      },
+    });
+    await recomputeTotals(tx, orderId);
+  });
+  await audit({ actorType: 'USER', actorId: user.id, action: 'order.discount.manual', entityType: 'Order', entityId: orderId, data: { title: input.title, pct: input.pct ?? null, fixed: input.fixedPiastres?.toString() ?? null } });
 }
 
 /** Manual / phone order creation (FR-ORD-05). Staff build an order on a

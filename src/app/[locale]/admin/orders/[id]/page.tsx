@@ -8,6 +8,8 @@ import { listGifts } from '@/lib/gift-service';
 import { listStatusConfigs } from '@/lib/order-status-service';
 import { getNumberSetting } from '@/lib/settings-service';
 import { salesStaff } from '@/lib/department-service';
+import { listShippingTypes } from '@/lib/shipping-service';
+import { paidBalance } from '@/lib/order-money';
 import { formatEGP } from '@/lib/format';
 import { StatusBadge, inputCls } from '@/components/admin/ui';
 import { aramexConfigured, smsaConfigured } from '@/lib/provider-config';
@@ -21,6 +23,7 @@ import { ProductLinePicker } from '@/components/admin/order-item-picker';
 import {
   transitionOrderAction, refundPaymentAction, assignPharmacistAction, setPayCheckAction, setSystemPaymentMethodAction, setOrderMetaAction,
   setTrackingAction, addOrderItemAction, removeOrderItemAction, addGiftToOrderAction, removeGiftFromOrderAction, markOrderItemLostAction,
+  setOrderItemPriceAction, setOrderShippingFeeAction, setOrderShippingTypeAction, setOrderManualDiscountAction,
 } from '@/server/order-actions';
 import { createAramexShipmentAction, trackAramexAction, createSmsaShipmentAction, trackSmsaAction, createVeeeyExpressShipmentAction } from '@/server/carrier-actions';
 import { createOrderRequestAction } from '@/server/request-actions';
@@ -43,7 +46,7 @@ export default async function OrderDetailPage({ params, searchParams }: { params
   const order = await getOrder(id);
   if (!order) notFound();
 
-  const [staff, gifts, aramexOn, smsaOn, systemMethods, statusCfgs, depositPercent] = await Promise.all([
+  const [staff, gifts, aramexOn, smsaOn, systemMethods, statusCfgs, depositPercent, shippingTypes] = await Promise.all([
     salesStaff(), // pharmacist/handler picker = Sales department members (TEAM epic)
     listGifts(),
     aramexConfigured(),
@@ -51,7 +54,11 @@ export default async function OrderDetailPage({ params, searchParams }: { params
     listSystemMethods(),
     listStatusConfigs(),
     getNumberSetting('preorder.depositPercent'),
+    listShippingTypes(),
   ]);
+  const editErr = one(sp.editerr);
+  const egp = (p: bigint | number) => (Number(p) / 100).toFixed(2); // for prefilling edit inputs
+  const paidDelta = order.paymentState === 'PAID' ? paidBalance(order.totalPiastres, order.paidAmountPiastres) : 0n;
   const shipErr = one(sp.shiperr);
   const shipOk = one(sp.shipok) === '1';
   const labelUrl = one(sp.label);
@@ -78,11 +85,34 @@ export default async function OrderDetailPage({ params, searchParams }: { params
         <div>
           <h1 className="font-heading text-xl font-semibold">{order.number}</h1>
           <p className="text-sm text-muted-foreground">
-            {order.customer?.user.email ?? order.guestEmail ?? tb('Guest', 'زائر')} · {order.placedAt.toISOString().slice(0, 10)} · {tb('Risk', 'المخاطرة')} {order.riskScore ?? 0} · <StatusBadge status={order.status} />
+            {/* Registered buyer → their admin profile; guests have no account to link. */}
+            {order.customerId ? (
+              <Link href={`/admin/customers/${order.customerId}`} className="font-medium text-primary hover:underline">
+                {order.customer?.user.email || tb('Customer', 'العميل')}
+              </Link>
+            ) : (
+              order.guestEmail ?? tb('Guest', 'زائر')
+            )} · {order.placedAt.toISOString().slice(0, 10)} · {tb('Risk', 'المخاطرة')} {order.riskScore ?? 0} · <StatusBadge status={order.status} />
           </p>
         </div>
         <a href={`/api/admin/orders/${order.id}/invoice`} target="_blank" rel="noreferrer" className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">{tb('Print invoice (PDF)', 'طباعة الفاتورة (PDF)')}</a>
       </header>
+
+      {editErr === 'locked' && (
+        <div className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">{tb('This order is closed. Move it back to an open status (e.g. Confirmed) before editing its items or pricing.', 'هذا الطلب مغلق. أعِده إلى حالة مفتوحة (مثل «مؤكد») قبل تعديل عناصره أو أسعاره.')}</div>
+      )}
+      {editErr === 'invalid' && (
+        <div className="mb-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{tb('Could not save that change — please check the value.', 'تعذّر حفظ التغيير — يرجى التحقق من القيمة.')}</div>
+      )}
+      {order.paymentState === 'PAID' && paidDelta !== 0n && (
+        <div className="mb-4 rounded-lg bg-gold/15 px-3 py-2 text-sm text-slate">
+          {paidDelta > 0n
+            ? tb(`This paid order's total is now ${formatEGP(Number(order.totalPiastres))}, but ${formatEGP(Number(order.paidAmountPiastres ?? 0n))} was collected — balance owed ${formatEGP(Number(paidDelta))}.`,
+                 `إجمالي هذا الطلب المدفوع أصبح ${formatEGP(Number(order.totalPiastres))}، لكن المُحصّل ${formatEGP(Number(order.paidAmountPiastres ?? 0n))} — المتبقّي ${formatEGP(Number(paidDelta))}.`)
+            : tb(`This paid order's total dropped to ${formatEGP(Number(order.totalPiastres))}; ${formatEGP(Number(order.paidAmountPiastres ?? 0n))} was collected — overpaid ${formatEGP(Number(-paidDelta))} (refund may be due).`,
+                 `انخفض إجمالي هذا الطلب المدفوع إلى ${formatEGP(Number(order.totalPiastres))}؛ المُحصّل ${formatEGP(Number(order.paidAmountPiastres ?? 0n))} — زيادة ${formatEGP(Number(-paidDelta))} (قد يلزم ردّها).`)}
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Items + edit-in-Hold */}
@@ -103,7 +133,17 @@ export default async function OrderDetailPage({ params, searchParams }: { params
                     </td>
                     <td className="p-2 text-center">{it.product.weightG != null ? `${it.product.weightG}g` : '—'}</td>
                     <td className="p-2 text-center">{it.qty}</td>
-                    <td className={`p-2 text-center ${it.lost ? 'line-through' : ''}`}>{formatEGP(Number(it.unitPricePiastres) * it.qty)}</td>
+                    <td className={`p-2 text-center ${it.lost ? 'line-through' : ''}`}>
+                      {formatEGP(Number(it.unitPricePiastres) * it.qty)}
+                      {editable && !it.lost && (
+                        <form action={setOrderItemPriceAction} className="mt-1 flex items-center justify-center gap-1 no-underline">
+                          {hidden({ orderItemId: it.id })}
+                          <span className="text-[10px] text-muted-foreground">{tb('unit', 'وحدة')}</span>
+                          <input name="priceEgp" type="number" step="0.01" min="0" defaultValue={egp(it.unitPricePiastres)} aria-label={tb('Unit price EGP', 'سعر الوحدة ج.م')} className="w-20 rounded border border-border px-1 py-0.5 text-end text-xs" />
+                          <button className="rounded bg-surface px-1.5 py-0.5 text-[10px] hover:bg-border">{tb('Set', 'حفظ')}</button>
+                        </form>
+                      )}
+                    </td>
                     <td className="p-2 text-end">
                       <div className="flex items-center justify-end gap-3">
                         <form action={markOrderItemLostAction}>{hidden({ orderItemId: it.id, lost: it.lost ? '0' : '1' })}<button className="text-xs text-muted-foreground hover:underline">{it.lost ? tb('Restore', 'استرجاع') : tb('Mark lost', 'تحديد كمفقود')}</button></form>
@@ -133,8 +173,22 @@ export default async function OrderDetailPage({ params, searchParams }: { params
               ))}
             </div>
           )}
-          <div className="mt-2 text-end text-sm">
-            <span className="text-muted-foreground">{tb('Total', 'الإجمالي')} </span><span className="font-semibold">{formatEGP(Number(order.totalPiastres))}</span>
+          <div className="mt-3 ms-auto max-w-xs space-y-1 text-sm">
+            <div className="flex justify-between text-muted-foreground"><span>{tb('Subtotal', 'المجموع الفرعي')}</span><span>{formatEGP(Number(order.subtotalPiastres))}</span></div>
+            {Number(order.discountPiastres) > 0 && (
+              <div className="flex justify-between text-muted-foreground"><span>{tb('Coupon discount', 'خصم الكوبون')}</span><span>− {formatEGP(Number(order.discountPiastres))}</span></div>
+            )}
+            {Number(order.manualDiscountPiastres) > 0 && (
+              <div className="flex justify-between text-muted-foreground">
+                <span>{order.manualDiscountTitle || tb('Discount', 'خصم')}{order.manualDiscountPct ? ` (${order.manualDiscountPct}%)` : ''}</span>
+                <span>− {formatEGP(Number(order.manualDiscountPiastres))}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-muted-foreground">
+              <span>{tb('Shipping', 'الشحن')}{order.shippingFeeManual ? ` · ${tb('manual', 'يدوي')}` : ''}</span>
+              <span>{Number(order.shippingPiastres) === 0 ? tb('Free', 'مجاني') : formatEGP(Number(order.shippingPiastres))}</span>
+            </div>
+            <div className="flex justify-between border-t border-border pt-1 font-semibold text-foreground"><span>{tb('Total', 'الإجمالي')}</span><span>{formatEGP(Number(order.totalPiastres))}</span></div>
           </div>
           {order.isPreorder && (
             <div className="mt-1 rounded-md bg-amber-50 px-3 py-2 text-end text-xs text-amber-900">
@@ -238,6 +292,54 @@ export default async function OrderDetailPage({ params, searchParams }: { params
             </label>
             <button className="mt-2 w-full rounded-md border border-border px-3 py-1.5 hover:bg-surface">{tb('Save', 'حفظ')}</button>
           </form>
+
+          {/* Manual pricing (owner batch): line prices edit inline in the table; the
+              shipping method/fee and a titled special discount edit here. Open orders
+              only — a closed order must be reopened first. */}
+          <div className="space-y-4 rounded-lg border border-border p-4">
+            <p className="font-medium">{tb('Pricing & discount', 'الأسعار والخصم')}</p>
+            {!editable ? (
+              <p className="text-xs text-muted-foreground">{tb('Locked. Set the order to an open status (e.g. Confirmed) to edit prices, shipping, or add a discount.', 'مغلق. اضبط الطلب على حالة مفتوحة (مثل «مؤكد») لتعديل الأسعار أو الشحن أو إضافة خصم.')}</p>
+            ) : (
+              <>
+                <form action={setOrderShippingTypeAction}>
+                  {hidden({})}
+                  <label className="text-xs text-muted-foreground">{tb('Shipping method', 'طريقة الشحن')}</label>
+                  <select name="shippingType" defaultValue={order.shippingType ?? ''} className={`${inputCls} mt-1`}>
+                    <option value="">{tb('— method —', '— الطريقة —')}</option>
+                    {shippingTypes.map((s) => <option key={s.type} value={s.type}>{(locale === 'ar' ? s.labelAr : s.labelEn)} · {formatEGP(Number(s.feePiastres))}</option>)}
+                  </select>
+                  <button className="mt-2 w-full rounded-md border border-border px-3 py-1.5 hover:bg-surface">{tb('Set method (recompute fee)', 'تعيين الطريقة (إعادة حساب الرسوم)')}</button>
+                </form>
+
+                <form action={setOrderShippingFeeAction} className="border-t border-border pt-3">
+                  {hidden({})}
+                  <label className="text-xs text-muted-foreground">{tb('Shipping fee (EGP)', 'رسوم الشحن (ج.م)')}</label>
+                  <div className="mt-1 flex gap-2">
+                    <input name="shippingFeeEgp" type="number" step="0.01" min="0" defaultValue={egp(order.shippingPiastres)} className={inputCls} />
+                    <button className="rounded-md border border-border px-3 hover:bg-surface">{tb('Save', 'حفظ')}</button>
+                  </div>
+                </form>
+
+                <form action={setOrderManualDiscountAction} className="space-y-2 border-t border-border pt-3">
+                  {hidden({})}
+                  <label className="text-xs text-muted-foreground">{tb('Special discount', 'خصم خاص')}</label>
+                  <input name="discountTitle" defaultValue={order.manualDiscountTitle ?? ''} placeholder={tb('Reason / title', 'السبب / العنوان')} className={inputCls} />
+                  <select name="discountMode" defaultValue={order.manualDiscountPct != null ? 'pct' : (Number(order.manualDiscountPiastres) > 0 ? 'value' : 'pct')} className={inputCls}>
+                    <option value="pct">{tb('Percentage %', 'نسبة مئوية %')}</option>
+                    <option value="value">{tb('Fixed value (EGP)', 'قيمة ثابتة (ج.م)')}</option>
+                    <option value="clear">{tb('Remove discount', 'إزالة الخصم')}</option>
+                  </select>
+                  <div className="flex gap-2">
+                    <input name="discountPct" type="number" min="0" max="100" defaultValue={order.manualDiscountPct ?? ''} placeholder="%" aria-label={tb('Percent', 'نسبة')} className={inputCls} />
+                    <input name="discountValueEgp" type="number" step="0.01" min="0" defaultValue={Number(order.manualDiscountPiastres) > 0 && order.manualDiscountPct == null ? egp(order.manualDiscountPiastres) : ''} placeholder={tb('EGP', 'ج.م')} aria-label={tb('Value EGP', 'قيمة ج.م')} className={inputCls} />
+                  </div>
+                  <button className="w-full rounded-md border border-border px-3 py-1.5 hover:bg-surface">{tb('Apply discount', 'تطبيق الخصم')}</button>
+                  <p className="text-[10px] text-muted-foreground">{tb('Pick Percentage or Fixed value; the other box is ignored. Stacks on top of any coupon.', 'اختر النسبة أو القيمة الثابتة؛ يُتجاهل الحقل الآخر. يُضاف فوق أي كوبون.')}</p>
+                </form>
+              </>
+            )}
+          </div>
 
           <form action={setTrackingAction} className="rounded-lg border border-border p-4">
             {hidden({})}

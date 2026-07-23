@@ -33,6 +33,20 @@ export function restockOnCancel(fromStatus: string): boolean {
   return !SHIPPED_STATUSES.includes(fromStatus);
 }
 
+/**
+ * Open statuses at which staff may still edit an order's contents and money
+ * (add/remove items, change line prices, override the shipping fee, add a manual
+ * discount). Once an order is Shipped/Delivered/Cancelled/Refunded it's locked —
+ * the owner reopens it (moves it back to an open status) to edit, then re-advances
+ * it. AWAITING_PAYMENT is excluded: nothing is owed/held until the customer pays.
+ */
+export const EDITABLE_STATUSES: readonly string[] = ['PENDING', 'EDIT', 'HOLD', 'CONFIRMED'];
+
+/** May an order in `status` be edited (items/prices/discount/shipping)? PURE. */
+export function isOrderEditable(status: string): boolean {
+  return EDITABLE_STATUSES.includes(status);
+}
+
 //  none               → never touch stock
 //  restock            → always restore to sellable (RETURNED: goods came back, inspected)
 //  restock_if_unshipped → restore ONLY when leaving an unshipped status (CANCELLED)
@@ -138,7 +152,9 @@ export const DEFAULT_STATUS_CONFIG: StatusConfig[] = [
     code: 'DELIVERED', labelEn: 'Delivered', labelAr: 'تم التسليم', customerCode: 'DELIVERED', icon: 'package-check',
     stockEffect: 'none', paymentEffect: 'paid', revenueEffect: 'realize', loyaltyEffect: 'credit', notifyAudience: 'customer', notifyTemplateKey: 'order.delivered',
     advancePermission: 'orders.fulfill', fastAction: true,
-    allowedNext: ['REFUNDED', 'CANCELLED', 'RETURNED'],
+    // CONFIRMED = the reopen path: a Delivered order can be moved back to an open
+    // status, edited (prices/discount/items), then re-delivered (owner rule).
+    allowedNext: ['REFUNDED', 'CANCELLED', 'RETURNED', 'CONFIRMED'],
     sourceAliases: ['delivered', 'completed', 'cash delivered', 'card delivered', 'cash-delivered', 'card-delivered', 'cash_delivered', 'card_delivered', 'wc-completed'],
     sortOrder: 6, active: true, isDefault: false,
   },
