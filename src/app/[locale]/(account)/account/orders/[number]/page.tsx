@@ -61,7 +61,21 @@ export default async function CustomerOrderPage({
             {tb('Placed', 'تاريخ الطلب')} {shortDate(order.placedAt)}
           </p>
         </div>
-        <StatusBadge status={order.customerStatus ?? order.status} />
+        <div className="flex flex-col items-end gap-2">
+          <StatusBadge status={order.customerStatus ?? order.status} />
+          {/* Invoice download — hidden until the order is actually placed (paid/moved
+              past AWAITING_PAYMENT). Ownership-checked server-side. */}
+          {order.status !== 'AWAITING_PAYMENT' && (
+            <a
+              href={`/api/account/orders/${encodeURIComponent(order.number)}/invoice`}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-full border border-[color:var(--green-dark-05)] px-3 py-1 text-xs font-medium text-green-dark hover:bg-[color:var(--green-wash)]"
+            >
+              {tb('Download invoice (PDF)', 'تحميل الفاتورة (PDF)')}
+            </a>
+          )}
+        </div>
       </header>
 
       {order.status === 'AWAITING_PAYMENT' && (
@@ -76,19 +90,27 @@ export default async function CustomerOrderPage({
       <section className={`mt-6 ${card}`}>
         <h2 className="mb-3 text-sm font-bold text-ink">{tb('Items', 'المنتجات')}</h2>
         <ul className="divide-y divide-[color:var(--slate-border)]">
-          {order.items.map((it) => (
-            <li key={it.id} className="flex justify-between gap-4 py-2 text-sm text-ink">
-              <span>
-                {(locale === 'ar' ? it.product.nameAr : it.product.nameEn) ?? it.product.nameEn} × {it.qty}
-                {/* FR-INV-02: the exact expiry the customer bought travels all
-                    the way to their order history, not just the invoice. */}
-                {it.lineExpiry ? ` · ${tb('Expires', 'الصلاحية')} ${it.lineExpiry.toISOString().slice(0, 7)}` : ''}
-                {isConditionVariant(it.condition) ? ` · ${conditionLabel(it.condition, locale)}` : ''}
-                {it.preorder ? ` · ${tb('Pre-order', 'طلب مسبق')}` : ''}
-              </span>
-              <span className="whitespace-nowrap font-semibold">{formatEGP(Number(it.unitPricePiastres) * it.qty)}</span>
-            </li>
-          ))}
+          {order.items.map((it) => {
+            const name = (locale === 'ar' ? it.product.nameAr : it.product.nameEn) ?? it.product.nameEn;
+            // FR-INV-02: the exact expiry the customer bought travels all the way to
+            // their order history — shown on a smaller second line with the variation.
+            const details = [
+              it.lineExpiry ? `${tb('Expires', 'الصلاحية')} ${it.lineExpiry.toISOString().slice(0, 7)}` : null,
+              isConditionVariant(it.condition) ? conditionLabel(it.condition, locale) : null,
+              it.preorder ? tb('Pre-order', 'طلب مسبق') : null,
+            ].filter(Boolean).join(' · ');
+            const slug = (locale === 'ar' ? it.product.slugAr : it.product.slugEn) ?? it.product.slugEn;
+            return (
+              <li key={it.id} className="flex justify-between gap-4 py-2 text-sm text-ink">
+                <span>
+                  <Link href={`/products/${slug}`} className="font-medium text-green-dark hover:text-lime-press hover:underline">{name}</Link>
+                  <span className="text-[color:var(--text-muted)]"> × {it.qty}</span>
+                  {details && <span className="mt-0.5 block text-xs text-[color:var(--text-muted)]">{details}</span>}
+                </span>
+                <span className="whitespace-nowrap font-semibold">{formatEGP(Number(it.unitPricePiastres) * it.qty)}</span>
+              </li>
+            );
+          })}
           {order.gifts.map((g) => (
             <li key={g.id} className="flex justify-between gap-4 py-2 text-sm text-green-dark">
               <span>🎁 {tb('Free gift', 'هدية مجانية')}: {(locale === 'ar' ? g.gift.nameAr : g.gift.nameEn) || g.gift.internalName}{g.qty > 1 ? ` × ${g.qty}` : ''}</span>

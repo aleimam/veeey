@@ -426,7 +426,7 @@ export function getOrderByNumber(number: string) {
   return prisma.order.findUnique({
     where: { number },
     include: {
-      items: { include: { product: { select: { nameEn: true, nameAr: true, sku: true } } } },
+      items: { include: { product: { select: { nameEn: true, nameAr: true, sku: true, slugEn: true, slugAr: true } } } },
       gifts: { include: { gift: { select: { internalName: true, nameEn: true, nameAr: true } } } },
       statusHistory: { orderBy: { createdAt: 'asc' } },
     },
