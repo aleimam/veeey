@@ -304,8 +304,10 @@ export async function saveGiftAction(_p: AdminFormState, fd: FormData): Promise<
     await saveGift(str(fd, 'id') ?? null, {
       code: str(fd, 'code') ?? '',
       internalName: str(fd, 'internalName') ?? '',
+      nameEn: str(fd, 'nameEn') ?? null, // customer-facing gift name (was silently dropped)
+      nameAr: str(fd, 'nameAr') ?? null,
       stock: str(fd, 'stock') ?? '0',
-      expiry: str(fd, 'expiry') ?? null,
+      expiry: str(fd, 'expiry') ?? null, // absent (non-perishable) → null
       costEgp: str(fd, 'costEgp') ?? null,
     });
   } catch (e) {
